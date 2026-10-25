@@ -82,7 +82,7 @@ Prerequisites:
 - The [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS. On Windows that's the *Visual Studio Build Tools* with **Desktop development with C++**, plus WebView2, which is already included in Windows 10 and 11.
 
 ```bash
-git clone https://github.com/<you>/momentum.git
+git clone https://github.com/prpiece/momentum.git
 cd momentum
 npm install
 npm run tauri dev      # run the app with hot reload
