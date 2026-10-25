@@ -4,6 +4,8 @@
  * Never bundled into a code path that runs in release builds (gated on import.meta.env.DEV).
  */
 import { addDaysLocal, atLocalTime, fromLocalDate, timed, todayLocal } from "../domain/dates";
+import type { Countdown } from "../domain/countdown";
+import type { FocusSession } from "../domain/focus";
 import type { Habit, HabitCheckin, HabitGroup } from "../domain/habits";
 import type { HabitData } from "../stores/habits";
 import type { CalendarEvent, Folder, Priority, Schedule, Section, Tag, Task, TaskList } from "../domain/types";
@@ -186,4 +188,31 @@ export function sampleHabits(today = todayLocal()): HabitData {
   }
   checkins.push({ habitId: habits[0].id, date: today, value: 3, note: "", mood: null });
   return { habits, groups, checkins };
+}
+
+export function sampleCountdowns(today = todayLocal()): Countdown[] {
+  const now = new Date().toISOString();
+  const c = (title: string, date: string, p: Partial<Countdown> = {}): Countdown => ({ id: id(), title, date, direction: "until", repeat: "none", emoji: "⏳", color: "#5b5bd6", pinned: false, createdAt: now, ...p });
+  return [
+    c("Chem final exam", addDaysLocal(today, 23), { emoji: "🎓", color: "#8a4fd8", pinned: true }),
+    c("Trip to Japan", addDaysLocal(today, 74), { emoji: "✈️", color: "#2f6fed" }),
+    c("Mum's birthday", "1968" + addDaysLocal(today, 65).slice(4), { emoji: "🎂", color: "#d6457a", repeat: "yearly" }),
+    c("Days since starting to run", addDaysLocal(today, -45), { emoji: "🏃", color: "#e1583f", direction: "since" }),
+  ];
+}
+
+/** A week of focus sessions, some linked to sample tasks. */
+export function sampleFocus(tasks: Task[], today = todayLocal()): FocusSession[] {
+  const linked = tasks.filter((t) => t.status === "open").slice(0, 4);
+  const out: FocusSession[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const day = addDaysLocal(today, -i);
+    for (let k = 0; k < 1 + ((i * 3) % 4); k++) {
+      const start = atLocalTime(day, `${String(9 + k * 2).padStart(2, "0")}:00`);
+      const minutes = 25 + ((i + k) % 3) * 10;
+      if (start.getTime() > Date.now()) continue;
+      out.push({ id: id(), taskId: linked[(i + k) % Math.max(1, linked.length)]?.id ?? null, mode: "pomodoro", startAt: start.toISOString(), endAt: new Date(start.getTime() + minutes * 60_000).toISOString(), seconds: minutes * 60 });
+    }
+  }
+  return out;
 }

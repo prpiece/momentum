@@ -4,9 +4,9 @@ import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { parseQuickAdd, type ChipKind } from "../../domain/quickAdd";
 import { describeRule } from "../../domain/recurrence";
 import { PRIORITY_LABEL, type Task } from "../../domain/types";
-import { addTask, ensureTags, useData, type NewTask } from "../../stores/data";
+import type { NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { openTask, toast } from "../../stores/ui";
+import { createFromText, listByName } from "./quickAddSubmit";
 
 const CHIP_ICON: Record<ChipKind, typeof Flag> = {
   date: CalendarDays,
@@ -36,7 +36,6 @@ export function QuickAdd(props: {
   const [rawMode, setRawMode] = useState(false);
   const smartParse = useSettings((s) => s.settings.smartParse);
   const timeFormat = useSettings((s) => s.settings.timeFormat);
-  const lists = useData((s) => s.lists);
   const input = useRef<HTMLInputElement>(null);
   const parsing = smartParse && !rawMode;
 
@@ -48,8 +47,6 @@ export function QuickAdd(props: {
 
   const parsed = useMemo(() => parseQuickAdd(text, new Date(), parsing), [text, parsing]);
   const today = todayLocal();
-  const listByName = (name: string) =>
-    Object.values(lists).find((l) => l.name.replace(/\s+/g, "").toLowerCase() === name.toLowerCase());
 
   const chipLabel = (kind: ChipKind, raw: string): string => {
     const s = parsed.schedule;
@@ -67,24 +64,8 @@ export function QuickAdd(props: {
   };
 
   const submit = () => {
-    if (!text.trim()) return;
-    const p = parsed;
-    const listId = (p.listName && listByName(p.listName)?.id) || props.defaults.listId;
-    const t = addTask({
-      ...props.defaults,
-      title: p.title,
-      ...(listId ? { listId } : {}),
-      ...(p.schedule.kind !== "none" ? { schedule: p.schedule } : {}),
-      ...(p.priority !== null ? { priority: p.priority } : {}),
-      tags: [...new Set([...(props.defaults.tags ?? []), ...ensureTags(p.tags)])],
-      recurrence: p.rule ? { rule: p.rule, exdates: [] } : null,
-    });
-    if (p.listName && !listByName(p.listName)) toast(`No list named “${p.listName}”; added to ${lists[t.listId]?.name ?? "Inbox"}`);
-    if (props.isVisible && !props.isVisible(t)) {
-      const s = t.schedule;
-      const when = s.kind === "none" ? "" : ` for ${relativeDayLabel(s.kind === "day" ? s.date : todayLocal(new Date(s.start)), today)}`;
-      toast(`Added to ${lists[t.listId]?.name ?? "Inbox"}${when}`, { label: "Open", run: () => openTask(t.id) });
-    }
+    const t = createFromText(text, props.defaults, parsing, (task) => !!props.isVisible && !props.isVisible(task));
+    if (!t) return;
     props.onAdded?.(t);
     setText("");
     setRawMode(false);

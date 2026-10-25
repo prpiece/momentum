@@ -45,7 +45,7 @@ export type CalItem = {
   /** Unique per occurrence. */
   uid: string;
   /** `habit` items are read-only all-day markers (shown when the calendar option is on). */
-  source: "task" | "event" | "habit";
+  source: "task" | "event" | "habit" | "focus";
   id: string;
   /** Occurrence key for recurring series, null otherwise. */
   key: string | null;

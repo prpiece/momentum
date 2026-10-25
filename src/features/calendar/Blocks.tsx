@@ -14,7 +14,7 @@ export function openItem(item: CalItem) {
   if (justDragged()) return;
   if (item.source === "task") openTask(item.id, item.key);
   else if (item.source === "event") openEvent(item.id, item.key);
-  else go("habits");
+  else go(item.source === "habit" ? "habits" : "focus");
 }
 
 const tint = (color: string, done: boolean) => ({
@@ -25,8 +25,8 @@ const tint = (color: string, done: boolean) => ({
 function useBlockDrag(item: CalItem, scope: string) {
   return useDraggable({
     id: `block:${item.uid}:${scope}`,
-    data: { type: "block", id: item.id, key: item.key, edge: null, source: item.source === "habit" ? "event" : item.source },
-    disabled: item.readOnly || item.source === "habit",
+    data: { type: "block", id: item.id, key: item.key, edge: null, source: item.source === "task" ? "task" : "event" },
+    disabled: item.readOnly,
   });
 }
 

@@ -5,6 +5,8 @@ import { onWriteError } from "./db/client";
 import type { ViewId } from "./domain/types";
 import { CalendarView } from "./features/calendar/CalendarView";
 import { EventDialog } from "./features/calendar/EventDialog";
+import { CountdownView } from "./features/countdown/CountdownView";
+import { FocusView } from "./features/focus/FocusView";
 import { HabitsView } from "./features/habits/HabitsView";
 import { MatrixView } from "./features/matrix/MatrixView";
 import { StatsView } from "./features/stats/StatsView";
@@ -23,8 +25,6 @@ import { useData } from "./stores/data";
 import { useSettings } from "./stores/settings";
 import { toast, useUi } from "./stores/ui";
 
-// ponytail: placeholder screens; each phase replaces its entry with the real view.
-const ARRIVES_IN: Partial<Record<ViewId, number>> = { focus: 6, countdown: 6 };
 
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
@@ -32,11 +32,13 @@ function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "matrix") return <MatrixView />;
   if (view === "habits") return <HabitsView />;
   if (view === "stats") return <StatsView />;
+  if (view === "focus") return <FocusView />;
+  if (view === "countdown") return <CountdownView />;
   if (spec) return <TaskView spec={spec} />;
   const nav = navFor(view);
   return (
     <EmptyState icon={nav.icon} title={nav.label}>
-      {ARRIVES_IN[view] ? `This view arrives in Phase ${ARRIVES_IN[view]}.` : "This list no longer exists."}
+      This list or tag no longer exists.
     </EmptyState>
   );
 }

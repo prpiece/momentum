@@ -1,9 +1,15 @@
 use std::{
     fs,
     path::Path,
+    sync::atomic::{AtomicBool, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::Manager;
+use tauri::{
+    menu::{Menu, MenuItem, PredefinedMenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager, WindowEvent,
+};
+use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 const DB_URL: &str = "sqlite:momentum.db";
@@ -34,6 +40,12 @@ fn migrations() -> Vec<Migration> {
             version: 4,
             description: "habits",
             sql: include_str!("../migrations/0004_habits.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "focus, countdowns, reminder log",
+            sql: include_str!("../migrations/0005_focus_countdowns_reminders.sql"),
             kind: MigrationKind::Up,
         },
     ]
@@ -85,18 +97,101 @@ fn prune_backups(dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Mirrors the "close to tray" setting (the frontend sets it after loading settings).
+struct CloseToTray(AtomicBool);
+
+#[tauri::command]
+fn set_close_to_tray(state: tauri::State<CloseToTray>, enabled: bool) {
+    state.0.store(enabled, Ordering::Relaxed);
+}
+
+/// Bring the main window back from the tray / background.
+fn show_main(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
+fn show_quick_add(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("quickadd") {
+        let _ = w.center();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    let open = MenuItem::with_id(app, "open", "Open Momentum", true, None::<&str>)?;
+    let quick = MenuItem::with_id(app, "quick", "Quick add…", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit Momentum", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &quick, &PredefinedMenuItem::separator(app)?, &quit])?;
+    let mut tray = TrayIconBuilder::with_id("momentum")
+        .tooltip("Momentum")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "open" => show_main(app),
+            "quick" => show_quick_add(app),
+            // Real quit: bypasses the window's close-to-tray handler.
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                show_main(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let migrations = migrations();
     let latest = migrations.iter().map(|m| m.version).max().unwrap_or(0);
     tauri::Builder::default()
+        // Must be first: a second launch (e.g. from the Start menu while in the tray) focuses the
+        // running instance instead of opening the database twice and double-firing reminders.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(DB_URL, migrations)
                 .build(),
         )
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
+        .manage(CloseToTray(AtomicBool::new(true)))
+        .invoke_handler(tauri::generate_handler![set_close_to_tray])
+        // Closing the main window either hides it to the tray or quits the whole app. The hidden
+        // popup windows would otherwise keep the process alive with no way back in.
+        .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
+            }
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.state::<CloseToTray>().0.load(Ordering::Relaxed) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                } else {
+                    window.app_handle().exit(0);
+                }
+            }
+        })
         .setup(move |app| {
             backup_before_migrate(&app.path().app_config_dir()?, latest)?;
+            build_tray(app)?;
+            // Launched at login: start in the tray so reminders run without a window popping up.
+            if std::env::args().any(|a| a == "--minimized") {
+                if let Some(w) = app.get_webview_window("main") {
+                    w.hide()?;
+                }
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

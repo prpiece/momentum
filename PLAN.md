@@ -3,7 +3,7 @@
 Offline, local-first desktop planner (tasks + calendar + habits + Eisenhower Matrix).
 Tauri 2 + React/TS/Vite + Tailwind + Zustand + SQLite. Windows is the primary target.
 
-Status: **Phase 5 done.** Next: Phase 6, OS integration, focus and countdowns.
+Status: **Phase 6 done.** Next: Phase 7, ship it.
 
 ---
 
@@ -245,7 +245,17 @@ momentum/
   - Single-series bars with rounded data-ends, a nice-number axis and a recessive grid.
   - A hover tooltip per bar, plus a screen-reader table.
   - The habit heatmap is a sequential single-hue scale in the habit's own colour.
-- **R1: Notification action buttons on Windows.** `tauri-plugin-notification` action support on desktop is limited. If Snooze and Done buttons aren't available natively, the fallback is a click that opens a small in-app reminder popup with those actions. This gets verified in Phase 6.
+- **R1 → resolved by D35.** `tauri-plugin-notification` doesn't expose action buttons on desktop, so Momentum sends a plain OS toast and also shows its own reminder popup.
+- **D33: The main window is the only writer.** The quick-add and reminder popups are separate windows with their own capability (`capabilities/popups.json`) and no SQL access. They send `quickadd:create` and `reminder:action` events, and the main window applies them through the same code paths as in-app actions. Appearance reaches the popups through a localStorage snapshot that's validated with `parseSettings`.
+- **D34: Reminders fire exactly once.** `remindersBetween(last, now]` runs every 30s over the current occurrence of each task plus habits that are still due.
+  - Fired keys, including the fire time, go in `reminder_log`. Rescheduling therefore re-arms a reminder.
+  - Reminders missed within the last 12h fire on launch.
+  - Snoozes survive a restart.
+  - "N minutes before" uses wall-clock arithmetic, so "1 day before" a 09:00 task is 09:00 the day before, even across a DST change.
+- **D35: Reminder popup.** An always-on-top window in the bottom-right corner carries Done, Snooze (10 min, 1 h, tomorrow 9:00) and Open. It appears alongside the OS toast.
+- **D36: Tray and close-to-tray are decided in Rust.** The frontend tells Rust the setting with `set_close_to_tray`. Closing the main window either hides it or quits, so hidden popups can never keep a windowless process alive. Tray menu: Open, Quick add, Quit. Single-instance focuses the running copy. Autostart passes `--minimized`, which starts hidden.
+- **D37: The global shortcut is registered from JS** with the plugin, using the key combination set in Settings. A failure shows a toast instead of crashing (this resolves R2).
+- **D38: The focus timer is a pure state machine driven by wall-clock timestamps.** A 1s tick in the main window ends Pomodoro phases even while the window is in the tray. Sessions under one minute aren't recorded, and Pomodoro sessions are capped at the focus length.
 - **R2: Global shortcut conflict.** If Ctrl+Shift+A is already taken by another app, registration fails. The app shows a toast and lets the user rebind it in Settings.
 - **R3: Unsigned builds.** SmartScreen will show a warning, and the README says so.
 - **R4: Project folder is inside OneDrive.** `node_modules` and `src-tauri/target` (several GB) would sync constantly and can hit file-lock errors during Rust builds. Recommended fix: move the project to `C:\dev\momentum`.

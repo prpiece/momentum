@@ -1,10 +1,12 @@
 import { Check, Pipette } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Segmented } from "../../components/ui/Segmented";
 import { ACCENT_PRESETS } from "../../domain/color";
 import type { Settings, ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
 import { hydrate } from "../../stores/data";
+import { hydrateCountdowns, saveCountdowns } from "../../stores/countdowns";
+import { hydrateFocus, saveSessions } from "../../stores/focus";
 import { hydrateHabits, saveHabitData } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/ui";
@@ -56,6 +58,41 @@ function AccentPicker({ value, onChange }: { value: string; onChange: (hex: stri
         {isPreset ? <Pipette size={14} className="text-muted" /> : <Check size={15} strokeWidth={3} className="text-accent-fg" />}
       </label>
     </div>
+  );
+}
+
+function Toggle({ checked, onChange, text }: { checked: boolean; onChange: (v: boolean) => void; text: string }) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-fg-2">
+      <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {text}
+    </label>
+  );
+}
+
+/** Click, then press a combination (Ctrl/Alt plus a key) to record it. */
+function ShortcutInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [recording, setRecording] = useState(false);
+  const label = value.replace("CommandOrControl", "Ctrl").split("+").join(" + ");
+  return (
+    <button
+      type="button"
+      onClick={() => setRecording(true)}
+      onBlur={() => setRecording(false)}
+      onKeyDown={(e) => {
+        if (!recording) return;
+        e.preventDefault();
+        if (e.key === "Escape") return setRecording(false);
+        if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
+        if (!e.ctrlKey && !e.altKey && !e.metaKey) return;
+        const key = e.code.startsWith("Key") ? e.code.slice(3) : e.code.startsWith("Digit") ? e.code.slice(5) : e.code;
+        onChange([e.ctrlKey || e.metaKey ? "CommandOrControl" : "", e.altKey ? "Alt" : "", e.shiftKey ? "Shift" : "", key].filter(Boolean).join("+"));
+        setRecording(false);
+      }}
+      className={`h-9 min-w-40 rounded-sm border px-3 font-mono text-sm ${recording ? "border-accent bg-accent-soft" : "border-border bg-surface"}`}
+    >
+      {recording ? "Press keys…" : label}
+    </button>
   );
 }
 
@@ -180,6 +217,21 @@ export function SettingsView() {
         </Row>
       </Section>
 
+      <Section title="Reminders & system">
+        <Row label="Notifications">
+          <Toggle checked={s.notifications} onChange={(v) => update({ notifications: v })} text="OS notifications for reminders and focus" />
+        </Row>
+        <Row label="Closing the window">
+          <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text="Keep running in the tray" />
+        </Row>
+        <Row label="Launch at login">
+          <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text="Start minimized to the tray" />
+        </Row>
+        <Row label="Global quick add">
+          <ShortcutInput value={s.quickAddShortcut} onChange={(v) => update({ quickAddShortcut: v })} />
+        </Row>
+      </Section>
+
       <Section title="Smart Lists">
         <div className="grid grid-cols-2 gap-2">
           {SMART_LIST_NAV.map(({ id, label, icon: Icon }) => (
@@ -209,10 +261,13 @@ export function SettingsView() {
             <button
               type="button"
               onClick={async () => {
-                const { sampleWorkspace, sampleHabits } = await import("../../dev/seed");
-                await saveWorkspace(sampleWorkspace());
-                await saveHabitData(sampleHabits());
-                await Promise.all([hydrate(), hydrateHabits()]);
+                const seed = await import("../../dev/seed");
+                const ws = seed.sampleWorkspace();
+                await saveWorkspace(ws);
+                await saveHabitData(seed.sampleHabits());
+                await saveCountdowns(seed.sampleCountdowns());
+                await saveSessions(seed.sampleFocus(ws.tasks));
+                await Promise.all([hydrate(), hydrateHabits(), hydrateCountdowns(), hydrateFocus()]);
                 toast("Sample data loaded");
               }}
               className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover"

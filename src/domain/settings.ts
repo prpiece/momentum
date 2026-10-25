@@ -41,6 +41,11 @@ export const DEFAULT_SETTINGS: Settings = {
     arrangeOpen: true,
   },
   matrix: { importantPriorities: [2, 3], urgentDays: 2 },
+  closeToTray: true,
+  launchAtStartup: false,
+  notifications: true,
+  quickAddShortcut: "CommandOrControl+Shift+A",
+  pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4 },
 };
 
 export const DEFAULT_VIEW_OPTIONS: ViewOptions = { groupBy: "none", sortBy: "manual" };
@@ -96,6 +101,13 @@ function parseMatrix(raw: unknown): Settings["matrix"] {
   return { importantPriorities: valid ? prios : d.importantPriorities, urgentDays: days };
 }
 
+function parsePomodoro(raw: unknown): Settings["pomodoro"] {
+  const r = isRecord(raw) ? raw : {};
+  const d = DEFAULT_SETTINGS.pomodoro;
+  const int = (v: unknown, lo: number, hi: number, fallback: number) => (typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi ? v : fallback);
+  return { focusMin: int(r.focusMin, 1, 180, d.focusMin), shortMin: int(r.shortMin, 1, 60, d.shortMin), longMin: int(r.longMin, 1, 90, d.longMin), longEvery: int(r.longEvery, 2, 12, d.longEvery) };
+}
+
 /** Boundary parser: anything from disk or an import file becomes a valid Settings, field by field. */
 export function parseSettings(raw: unknown): Settings {
   const r = isRecord(raw) ? raw : {};
@@ -117,5 +129,10 @@ export function parseSettings(raw: unknown): Settings {
     viewOptions: parseViewOptions(r.viewOptions),
     calendar: parseCalendar(r.calendar),
     matrix: parseMatrix(r.matrix),
+    closeToTray: typeof r.closeToTray === "boolean" ? r.closeToTray : d.closeToTray,
+    launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
+    notifications: typeof r.notifications === "boolean" ? r.notifications : d.notifications,
+    quickAddShortcut: typeof r.quickAddShortcut === "string" && /^[w+]+$/.test(r.quickAddShortcut) ? r.quickAddShortcut : d.quickAddShortcut,
+    pomodoro: parsePomodoro(r.pomodoro),
   };
 }

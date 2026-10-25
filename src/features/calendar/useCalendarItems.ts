@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { calendarItems, hashColor, type CalItem } from "../../domain/calendar";
 import { ACCENT_PRESETS } from "../../domain/color";
-import { addDaysLocal } from "../../domain/dates";
+import { addDaysLocal, toLocalDate } from "../../domain/dates";
 import { isDone, isScheduled } from "../../domain/habits";
 import type { LocalDate, Task } from "../../domain/types";
 import { useData } from "../../stores/data";
+import { useFocus } from "../../stores/focus";
 import { useHabits } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { useDerived } from "../tasks/selectors";
@@ -21,6 +22,7 @@ export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
   const habits = useHabits((s) => s.habits);
   const checkins = useHabits((s) => s.checkins);
   const cal = useSettings((s) => s.settings.calendar);
+  const sessions = useFocus((s) => s.sessions);
 
   return useMemo(() => {
     const colorOf = (t: Task): string => {
@@ -43,6 +45,18 @@ export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
         }
       }
     }
+    if (cal.showFocus) {
+      // Focus records: read-only timed blocks.
+      for (const s of Object.values(sessions)) {
+        const start = new Date(s.startAt);
+        const end = new Date(s.endAt);
+        const startDate = toLocalDate(start);
+        const endDate = toLocalDate(new Date(end.getTime() - 1));
+        if (endDate < from || startDate > to) continue;
+        const task = s.taskId ? derived.byId.get(s.taskId)?.task : undefined;
+        items.push({ uid: `focus:${s.id}`, source: "focus", id: s.id, key: null, title: `🎯 ${task?.title ?? "Focus"}`, allDay: false, startDate, endDate, start, end, color: "var(--p3)", done: false, recurring: false, readOnly: true, priority: 0 });
+      }
+    }
     return items;
-  }, [derived, events, lists, tags, habits, checkins, cal, from, to]);
+  }, [derived, events, lists, tags, habits, checkins, sessions, cal, from, to]);
 }

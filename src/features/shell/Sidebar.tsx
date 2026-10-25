@@ -23,6 +23,7 @@ import { withUndo } from "../../lib/undo";
 import { addFolder, moveTasks, removeFolder, removeTag, updateFolder, updateTag, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { confirm, go, setPalette, useUi } from "../../stores/ui";
+import { FocusBadge } from "../focus/FocusView";
 import { editTask } from "../tasks/actions";
 import { ListDialog, ListDialogButton } from "../tasks/ListDialog";
 import { useCounts } from "../tasks/selectors";
@@ -66,6 +67,8 @@ function NavItem(props: {
   collapsed: boolean;
   side: Side;
   count?: number;
+  /** Live content in the count slot (e.g. the running focus timer). */
+  badge?: ReactNode;
   drop?: DropData;
   indent?: boolean;
   menu?: (anchor: React.RefObject<HTMLButtonElement | null>, close: () => void) => ReactNode;
@@ -97,6 +100,7 @@ function NavItem(props: {
       >
         <span className={`grid w-[18px] shrink-0 place-items-center ${active && !isOver ? "text-accent" : ""}`}>{props.icon}</span>
         <span className={`min-w-0 flex-1 truncate text-left transition-opacity duration-[var(--dur)] ${props.collapsed ? "opacity-0" : ""}`}>{props.label}</span>
+        {!props.collapsed && props.badge}
         {!props.collapsed && props.count ? <span className={`font-mono text-xs text-muted ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>{props.count}</span> : null}
       </button>
       {props.menu && !props.collapsed && (
@@ -255,7 +259,7 @@ export function Sidebar() {
         <div className="mx-3 my-3 h-px bg-border" />
         <ul className="space-y-0.5">
           {MODULE_NAV.map((n) => (
-            <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} />
+            <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} badge={n.id === "focus" ? <FocusBadge /> : undefined} />
           ))}
         </ul>
 

@@ -176,4 +176,11 @@ export type Settings = {
   viewOptions: Record<string, ViewOptions>;
   calendar: CalendarSettings;
   matrix: { importantPriorities: Priority[]; urgentDays: number };
+  /** Closing the window hides to the tray (reminders keep firing). */
+  closeToTray: boolean;
+  launchAtStartup: boolean;
+  notifications: boolean;
+  /** Tauri accelerator, e.g. `CommandOrControl+Shift+A`. */
+  quickAddShortcut: string;
+  pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number };
 };

@@ -19,6 +19,33 @@
         "minWidth": 900,
         "minHeight": 600,
         "dragDropEnabled": false
+      },
+      {
+        "label": "quickadd",
+        "title": "Momentum Quick Add",
+        "url": "index.html?window=quickadd",
+        "width": 620,
+        "height": 170,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "center": true,
+        "dragDropEnabled": false
+      },
+      {
+        "label": "reminder",
+        "title": "Momentum Reminders",
+        "url": "index.html?window=reminder",
+        "width": 380,
+        "height": 440,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "dragDropEnabled": false
       }
     ],
     "security": {
