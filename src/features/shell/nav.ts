@@ -2,6 +2,7 @@ import {
   AlarmClock,
   Ban,
   CalendarDays,
+  ChartColumn,
   CalendarRange,
   CircleCheckBig,
   Flag,
@@ -38,6 +39,7 @@ export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
   { id: "habits", label: "Habits", icon: Target },
   { id: "focus", label: "Focus", icon: AlarmClock },
   { id: "countdown", label: "Countdown", icon: Hourglass },
+  { id: "stats", label: "Statistics", icon: ChartColumn },
 ];
 
 export const SETTINGS_NAV: NavDef<"settings"> = { id: "settings", label: "Settings", icon: Settings };

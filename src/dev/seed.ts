@@ -3,7 +3,9 @@
  * (no persistence there) and on demand from Settings → Developer in `tauri dev`.
  * Never bundled into a code path that runs in release builds (gated on import.meta.env.DEV).
  */
-import { addDaysLocal, atLocalTime, timed, todayLocal } from "../domain/dates";
+import { addDaysLocal, atLocalTime, fromLocalDate, timed, todayLocal } from "../domain/dates";
+import type { Habit, HabitCheckin, HabitGroup } from "../domain/habits";
+import type { HabitData } from "../stores/habits";
 import type { CalendarEvent, Folder, Priority, Schedule, Section, Tag, Task, TaskList } from "../domain/types";
 import type { Workspace } from "../db/repo";
 
@@ -107,6 +109,10 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     task("Renew passport", { priority: 2, schedule: day(12), tags: [errand] }),
     task("Clean out downloads folder", { status: "done", completedAt: now }),
     task("Learn Spanish", { status: "wont_do" }),
+    // A couple of weeks of finished work so Statistics has history.
+    ...["Email landlord", "Submit timesheet", "Lab safety quiz", "Order textbook", "Fix bike light", "Plan meals", "Back up laptop", "Reply to Sam", "Laundry", "Pay phone bill", "Update CV", "Return library books", "Vacuum", "Read paper on catalysis", "Clean desk", "Call bank", "Buy birthday gift", "Weekly review", "Sort receipts", "Book haircut"].map((title, i) =>
+      task(title, { listId: [work.id, home.id, chem.id, "inbox"][i % 4], status: "done", completedAt: atLocalTime(d(-1 - ((i * 7) % 13)), `${String(9 + (i % 9)).padStart(2, "0")}:30`).toISOString() }),
+    ),
   ];
   const event = (title: string, schedule: Schedule, p: Partial<CalendarEvent> = {}): CalendarEvent => ({
     id: id(),
@@ -131,4 +137,53 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     event("Long weekend", day(5), { spanDays: 3, color: "#d18a14" }),
   ];
   return { tasks, events, lists, folders, sections, tags };
+}
+
+/** Habits with ~6 weeks of plausible history (deterministic pseudo-random misses). */
+export function sampleHabits(today = todayLocal()): HabitData {
+  const start = addDaysLocal(today, -45);
+  const habit = (name: string, icon: string, color: string, goal: Habit["goal"], frequency: Habit["frequency"], sortOrder: number, groupId: string | null = null): Habit => ({
+    id: id(),
+    name,
+    icon,
+    color,
+    goal,
+    frequency,
+    reminders: [],
+    groupId,
+    sortOrder,
+    archived: false,
+    startDate: start,
+    createdAt: new Date().toISOString(),
+  });
+  const groups: HabitGroup[] = [
+    { id: id(), name: "Morning", sortOrder: 0 },
+    { id: id(), name: "Health", sortOrder: 1 },
+  ];
+  const habits = [
+    habit("Drink water", "💧", "#2f6fed", { kind: "count", target: 8, unit: "glasses" }, { kind: "daily" }, 0, groups[1].id),
+    habit("Meditate", "🧘", "#8a4fd8", { kind: "once" }, { kind: "daily" }, 1, groups[0].id),
+    habit("Run", "🏃", "#e1583f", { kind: "amount", target: 5, unit: "km" }, { kind: "perWeek", count: 2 }, 2, groups[1].id),
+    habit("Read", "📚", "#d18a14", { kind: "count", target: 20, unit: "pages" }, { kind: "weekdays", days: [1, 2, 3, 4, 5] }, 3),
+    habit("No phone after 10pm", "📵", "#0e8a85", { kind: "once" }, { kind: "daily" }, 4, groups[0].id),
+  ];
+  // Deterministic "random" so screenshots are stable.
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const MOODS = [1, 2, 3, 4, 5] as const;
+  const checkins: HabitCheckin[] = [];
+  for (let i = 45; i >= 1; i--) {
+    const date = addDaysLocal(today, -i);
+    const dow = fromLocalDate(date).getDay();
+    for (const h of habits) {
+      const r = rand();
+      if (h.frequency.kind === "weekdays" && !h.frequency.days.includes(dow)) continue;
+      if (h.frequency.kind === "perWeek" && r > 0.4) continue;
+      if (r > 0.82) continue;
+      const value = h.goal.kind === "once" ? 1 : h.goal.kind === "count" ? (r > 0.3 ? h.goal.target : Math.ceil(h.goal.target * r)) : Math.round((4.5 + r * 3) * 10) / 10;
+      checkins.push({ habitId: h.id, date, value, note: "", mood: i % 6 === 0 ? MOODS[(i / 6) % 5] : null });
+    }
+  }
+  checkins.push({ habitId: habits[0].id, date: today, value: 3, note: "", mood: null });
+  return { habits, groups, checkins };
 }

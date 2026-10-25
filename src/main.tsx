@@ -6,15 +6,17 @@ import "./styles/tokens.css";
 import App from "./App";
 import { isTauri } from "./db/client";
 import { hydrate, replaceAll, useData } from "./stores/data";
+import { hydrateHabits, replaceHabits } from "./stores/habits";
 import { useSettings } from "./stores/settings";
 import { go } from "./stores/ui";
 
 // Hydrate before first paint so the saved theme applies without a flash.
-await Promise.all([useSettings.getState().hydrate(), hydrate()]);
+await Promise.all([useSettings.getState().hydrate(), hydrate(), hydrateHabits()]);
 if (!isTauri && import.meta.env.DEV && !Object.keys(useData.getState().tasks).length) {
   // Plain-browser dev mode has no database: show sample data so the UI is populated.
-  const { sampleWorkspace } = await import("./dev/seed");
+  const { sampleWorkspace, sampleHabits } = await import("./dev/seed");
   replaceAll(sampleWorkspace());
+  replaceHabits(sampleHabits());
 }
 go(useSettings.getState().settings.defaultView);
 

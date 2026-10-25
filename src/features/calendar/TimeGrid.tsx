@@ -37,8 +37,9 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         const drag = e?.active.data.current;
         if (!e || !over || over.type !== "slot" || over.mode !== "time" || !isDragData(drag)) return setGhost(null);
         const m = dropMinute(e, over.date);
-        if (m === null) return setGhost(null);
-        setGhost({ date: over.date, top: snap(m), minutes: previewMinutes(dragRef(drag)) });
+        const ref = dragRef(drag);
+        if (m === null || !ref) return setGhost(null);
+        setGhost({ date: over.date, top: snap(m), minutes: previewMinutes(ref) });
       }),
     [],
   );

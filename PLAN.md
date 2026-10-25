@@ -3,7 +3,7 @@
 Offline, local-first desktop planner (tasks + calendar + habits + Eisenhower Matrix).
 Tauri 2 + React/TS/Vite + Tailwind + Zustand + SQLite. Windows is the primary target.
 
-Status: **Phase 4 done.** Next: Phase 5, habits and statistics.
+Status: **Phase 5 done.** Next: Phase 6, OS integration, focus and countdowns.
 
 ---
 
@@ -233,6 +233,18 @@ momentum/
 - **D26: The calendar anchor (which date is shown) lives only for the session.** The view type, colour-by, show/hide flags and density persist in `settings.calendar`.
 - **D27: Matrix rules live in `settings.matrix`.** The editor, and the parser at the settings boundary, keep at least one priority level important and at least one not important. Otherwise a quadrant move could be impossible to satisfy.
 - **D28: "Due within N days" includes today through today+N, plus anything overdue.** Undated tasks are never urgent. Making a task not urgent moves it to today+N+1. Recurring tasks whose date has to change go through the scope prompt; priority-only changes don't prompt.
+- **D29: Habits get their own store and tables** (`stores/habits.ts`, migration 0004). Check-ins are keyed by `(habit_id, date)`. An empty check-in (value 0, no note, no mood) deletes its row, so the table only holds days that mean something.
+- **D30: Streak semantics.**
+  - Daily and weekday habits count consecutive *scheduled* days; unscheduled days are skipped.
+  - Per-week habits count consecutive weeks that met their target.
+  - An unfinished today, or an unfinished current week, never breaks a streak.
+  - Days before `startDate` never count.
+  - Completion rate excludes today until it's done.
+- **D31: Habits on the calendar are read-only all-day markers**, controlled by the "Show habits" option. Checking in happens in Habits or in Today's habit strip.
+- **D32: Charts are hand-made SVG with no chart library** (`components/ui/BarChart.tsx`, following the dataviz skill):
+  - Single-series bars with rounded data-ends, a nice-number axis and a recessive grid.
+  - A hover tooltip per bar, plus a screen-reader table.
+  - The habit heatmap is a sequential single-hue scale in the habit's own colour.
 - **R1: Notification action buttons on Windows.** `tauri-plugin-notification` action support on desktop is limited. If Snooze and Done buttons aren't available natively, the fallback is a click that opens a small in-app reminder popup with those actions. This gets verified in Phase 6.
 - **R2: Global shortcut conflict.** If Ctrl+Shift+A is already taken by another app, registration fails. The app shows a toast and lets the user rebind it in Settings.
 - **R3: Unsigned builds.** SmartScreen will show a warning, and the README says so.

@@ -6,14 +6,15 @@ import { formatTime } from "../../domain/dates";
 import type { Schedule } from "../../domain/types";
 import { justDragged, markDragged } from "../../lib/dnd";
 import { useSettings } from "../../stores/settings";
-import { openEvent, openTask } from "../../stores/ui";
+import { go, openEvent, openTask } from "../../stores/ui";
 import { toggleDone } from "../tasks/actions";
 import { applySchedule, minuteAt, pxPerMinute } from "./calendarActions";
 
 export function openItem(item: CalItem) {
   if (justDragged()) return;
   if (item.source === "task") openTask(item.id, item.key);
-  else openEvent(item.id, item.key);
+  else if (item.source === "event") openEvent(item.id, item.key);
+  else go("habits");
 }
 
 const tint = (color: string, done: boolean) => ({
@@ -24,8 +25,8 @@ const tint = (color: string, done: boolean) => ({
 function useBlockDrag(item: CalItem, scope: string) {
   return useDraggable({
     id: `block:${item.uid}:${scope}`,
-    data: { type: "block", id: item.id, key: item.key, edge: null, source: item.source },
-    disabled: item.readOnly,
+    data: { type: "block", id: item.id, key: item.key, edge: null, source: item.source === "habit" ? "event" : item.source },
+    disabled: item.readOnly || item.source === "habit",
   });
 }
 

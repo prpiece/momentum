@@ -8,6 +8,7 @@ import type { GroupBy, ListLayout, SortBy, ViewOptions } from "../../domain/type
 import { toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
+import { TodayHabits } from "../habits/TodayHabits";
 import { BulkBar } from "./BulkBar";
 import { KanbanView } from "./KanbanView";
 import { ListDialogButton } from "./ListDialog";
@@ -116,6 +117,8 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
           />
         </div>
       )}
+
+      {spec.id === "today" && <TodayHabits />}
 
       {vms.length === 0 ? (
         <EmptyState icon={spec.icon} title={EMPTY[spec.id]?.[0] ?? "Nothing here yet"}>

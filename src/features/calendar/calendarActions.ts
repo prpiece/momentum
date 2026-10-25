@@ -72,14 +72,18 @@ export function dropMinute(e: DragEndEvent | DragMoveEvent, date: string): numbe
   return minuteAt(date, grabY + (translated.top - initial.top));
 }
 
-export function dragRef(drag: DragData): Ref {
-  return drag.type === "block" ? { source: drag.source, id: drag.id, key: drag.key } : { source: "task", id: drag.id, key: drag.key };
+/** What a drag refers to on the calendar; null for drags that don't belong here (habits). */
+export function dragRef(drag: DragData): Ref | null {
+  if (drag.type === "block") return { source: drag.source, id: drag.id, key: drag.key };
+  if (drag.type === "task") return { source: "task", id: drag.id, key: drag.key };
+  return null;
 }
 
 // ---------- drop handlers ----------
 
 onDrop("slot", (drag, drop, e) => {
   const ref = dragRef(drag);
+  if (!ref) return;
   const current = currentSchedule(ref);
   const minute = drop.mode === "time" ? dropMinute(e, drop.date) : 0;
   if (minute === null) return;
@@ -90,6 +94,7 @@ onDrop("slot", (drag, drop, e) => {
 
 onDrop("arrange", (drag) => {
   const ref = dragRef(drag);
+  if (!ref) return;
   if (ref.source === "event") return toast("Events can't be unscheduled");
   void applySchedule(ref, { kind: "none" });
 });

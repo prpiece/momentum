@@ -44,7 +44,8 @@ export function rangeTitle(view: CalView, days: LocalDate[], anchor: LocalDate):
 export type CalItem = {
   /** Unique per occurrence. */
   uid: string;
-  source: "task" | "event";
+  /** `habit` items are read-only all-day markers (shown when the calendar option is on). */
+  source: "task" | "event" | "habit";
   id: string;
   /** Occurrence key for recurring series, null otherwise. */
   key: string | null;

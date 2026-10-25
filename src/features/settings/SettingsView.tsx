@@ -5,6 +5,7 @@ import { ACCENT_PRESETS } from "../../domain/color";
 import type { Settings, ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
 import { hydrate } from "../../stores/data";
+import { hydrateHabits, saveHabitData } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/ui";
 import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
@@ -208,10 +209,10 @@ export function SettingsView() {
             <button
               type="button"
               onClick={async () => {
-                const { sampleWorkspace } = await import("../../dev/seed");
-                const ws = sampleWorkspace();
-                await saveWorkspace(ws);
-                await hydrate();
+                const { sampleWorkspace, sampleHabits } = await import("../../dev/seed");
+                await saveWorkspace(sampleWorkspace());
+                await saveHabitData(sampleHabits());
+                await Promise.all([hydrate(), hydrateHabits()]);
                 toast("Sample data loaded");
               }}
               className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover"
