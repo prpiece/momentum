@@ -6,6 +6,7 @@ import {
   FONT_SIZES,
   GROUP_BYS,
   MODULE_VIEWS,
+  PRIORITIES,
   SIDES,
   SMART_LISTS,
   SORT_BYS,
@@ -39,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
     density: "comfortable",
     arrangeOpen: true,
   },
+  matrix: { importantPriorities: [2, 3], urgentDays: 2 },
 };
 
 export const DEFAULT_VIEW_OPTIONS: ViewOptions = { groupBy: "none", sortBy: "manual" };
@@ -84,6 +86,16 @@ function parseCalendar(raw: unknown): Settings["calendar"] {
   };
 }
 
+function parseMatrix(raw: unknown): Settings["matrix"] {
+  const r = isRecord(raw) ? raw : {};
+  const d = DEFAULT_SETTINGS.matrix;
+  const prios = Array.isArray(r.importantPriorities) ? [...new Set(r.importantPriorities.filter((x) => oneOf(PRIORITIES, x)))].sort() : [];
+  // Some, but not all, priorities must be important or quadrant moves can't be satisfied.
+  const valid = prios.length > 0 && prios.length < PRIORITIES.length;
+  const days = typeof r.urgentDays === "number" && Number.isInteger(r.urgentDays) && r.urgentDays >= 0 && r.urgentDays <= 30 ? r.urgentDays : d.urgentDays;
+  return { importantPriorities: valid ? prios : d.importantPriorities, urgentDays: days };
+}
+
 /** Boundary parser: anything from disk or an import file becomes a valid Settings, field by field. */
 export function parseSettings(raw: unknown): Settings {
   const r = isRecord(raw) ? raw : {};
@@ -104,5 +116,6 @@ export function parseSettings(raw: unknown): Settings {
     smartParse: typeof r.smartParse === "boolean" ? r.smartParse : d.smartParse,
     viewOptions: parseViewOptions(r.viewOptions),
     calendar: parseCalendar(r.calendar),
+    matrix: parseMatrix(r.matrix),
   };
 }

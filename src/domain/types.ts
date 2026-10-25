@@ -175,4 +175,5 @@ export type Settings = {
   smartParse: boolean;
   viewOptions: Record<string, ViewOptions>;
   calendar: CalendarSettings;
+  matrix: { importantPriorities: Priority[]; urgentDays: number };
 };

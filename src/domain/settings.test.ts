@@ -38,3 +38,11 @@ describe("parseSettings view options", () => {
     expect(parseSettings({ defaultView: "list:" }).defaultView).toBe("today");
   });
 });
+
+describe("parseSettings matrix rules", () => {
+  it("keeps valid rules and rejects unsatisfiable ones", () => {
+    expect(parseSettings({ matrix: { importantPriorities: [3, 3, 9], urgentDays: 5 } }).matrix).toEqual({ importantPriorities: [3], urgentDays: 5 });
+    expect(parseSettings({ matrix: { importantPriorities: [0, 1, 2, 3], urgentDays: -1 } }).matrix).toEqual(DEFAULT_SETTINGS.matrix);
+    expect(parseSettings({ matrix: { importantPriorities: [] } }).matrix.importantPriorities).toEqual([2, 3]);
+  });
+});

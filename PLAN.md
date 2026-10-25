@@ -3,7 +3,7 @@
 Offline, local-first desktop planner (tasks + calendar + habits + Eisenhower Matrix).
 Tauri 2 + React/TS/Vite + Tailwind + Zustand + SQLite. Windows is the primary target.
 
-Status: **Phase 3 done.** Next: Phase 4, the Eisenhower Matrix.
+Status: **Phase 4 done.** Next: Phase 5, habits and statistics.
 
 ---
 
@@ -231,6 +231,8 @@ momentum/
 - **D24: Move uses dnd-kit; resize and drag-to-create use plain pointer events.** Moving goes through dnd-kit so blocks can travel to other days, the all-day row, month cells and the Arrange panel. Resizing and drag-to-create stay local to one column. `markDragged()` and `justDragged()` suppress the click that follows any of these gestures.
 - **D25: Multi-day events appear as a chip in each day's cell** rather than as one bar spanning days. That's simpler, and it's readable at seven columns.
 - **D26: The calendar anchor (which date is shown) lives only for the session.** The view type, colour-by, show/hide flags and density persist in `settings.calendar`.
+- **D27: Matrix rules live in `settings.matrix`.** The editor, and the parser at the settings boundary, keep at least one priority level important and at least one not important. Otherwise a quadrant move could be impossible to satisfy.
+- **D28: "Due within N days" includes today through today+N, plus anything overdue.** Undated tasks are never urgent. Making a task not urgent moves it to today+N+1. Recurring tasks whose date has to change go through the scope prompt; priority-only changes don't prompt.
 - **R1: Notification action buttons on Windows.** `tauri-plugin-notification` action support on desktop is limited. If Snooze and Done buttons aren't available natively, the fallback is a click that opens a small in-app reminder popup with those actions. This gets verified in Phase 6.
 - **R2: Global shortcut conflict.** If Ctrl+Shift+A is already taken by another app, registration fails. The app shows a toast and lets the user rebind it in Settings.
 - **R3: Unsigned builds.** SmartScreen will show a warning, and the README says so.
