@@ -4,7 +4,7 @@
  * Never bundled into a code path that runs in release builds (gated on import.meta.env.DEV).
  */
 import { addDaysLocal, atLocalTime, timed, todayLocal } from "../domain/dates";
-import type { Folder, Priority, Schedule, Section, Tag, Task, TaskList } from "../domain/types";
+import type { CalendarEvent, Folder, Priority, Schedule, Section, Tag, Task, TaskList } from "../domain/types";
 import type { Workspace } from "../db/repo";
 
 const id = () => crypto.randomUUID();
@@ -108,5 +108,27 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     task("Clean out downloads folder", { status: "done", completedAt: now }),
     task("Learn Spanish", { status: "wont_do" }),
   ];
-  return { tasks, lists, folders, sections, tags };
+  const event = (title: string, schedule: Schedule, p: Partial<CalendarEvent> = {}): CalendarEvent => ({
+    id: id(),
+    title,
+    notes: "",
+    schedule,
+    spanDays: 1,
+    color: null,
+    recurrence: null,
+    recurrenceParentId: null,
+    source: "local",
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    ...p,
+  });
+  const events: CalendarEvent[] = [
+    event("Chem lecture", at(0, "10:00", 90), { color: "#8a4fd8", recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,WE", exdates: [] } }),
+    event("Lunch with Priya", at(1, "12:30", 60), { color: "#e1583f" }),
+    event("Dentist", at(3, "15:00", 45), { color: "#0e8a85" }),
+    event("Design review", at(2, "14:30", 60), { color: "#2f6fed" }),
+    event("Long weekend", day(5), { spanDays: 3, color: "#d18a14" }),
+  ];
+  return { tasks, events, lists, folders, sections, tags };
 }

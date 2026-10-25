@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseTask, taskToRow } from "./rows";
-import type { Task } from "../domain/types";
+import { eventToRow, parseEvent, parseTask, taskToRow } from "./rows";
+import type { CalendarEvent, Task } from "../domain/types";
 
 const base: Task = {
   id: "t1",
@@ -57,5 +57,27 @@ describe("task rows", () => {
 
   it("drops rows without identity", () => {
     expect(parseTask({ title: "x" })).toBeNull();
+  });
+});
+
+describe("event rows", () => {
+  const e: CalendarEvent = {
+    id: "e1",
+    title: "Conference",
+    notes: "",
+    schedule: { kind: "day", date: "2026-11-02" },
+    spanDays: 3,
+    color: "#2f6fed",
+    recurrence: null,
+    recurrenceParentId: null,
+    source: "ics",
+    createdAt: "2026-10-01T00:00:00.000Z",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+    deletedAt: null,
+  };
+  it("round-trips and rejects events without a time", () => {
+    expect(parseEvent(eventToRow(e))).toEqual(e);
+    expect(parseEvent({ ...eventToRow(e), start_date: null })).toBeNull();
+    expect(parseEvent({ ...eventToRow(e), span_days: -4 })?.spanDays).toBe(1);
   });
 });

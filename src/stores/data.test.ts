@@ -16,7 +16,7 @@ import {
 } from "./data";
 
 // Repos are no-ops outside Tauri, so this exercises the store logic alone.
-beforeEach(() => replaceAll({ tasks: [], lists: [], folders: [], sections: [], tags: [] }));
+beforeEach(() => replaceAll({ tasks: [], events: [], lists: [], folders: [], sections: [], tags: [] }));
 const live = () => Object.values(useData.getState().tasks).filter((t) => !t.deletedAt);
 
 describe("recurring completion", () => {

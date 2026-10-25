@@ -3,6 +3,8 @@ import { EmptyState } from "./components/ui/EmptyState";
 import { Toaster } from "./components/ui/Toaster";
 import { onWriteError } from "./db/client";
 import type { ViewId } from "./domain/types";
+import { CalendarView } from "./features/calendar/CalendarView";
+import { EventDialog } from "./features/calendar/EventDialog";
 import { SettingsView } from "./features/settings/SettingsView";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dialogs";
@@ -19,10 +21,11 @@ import { useSettings } from "./stores/settings";
 import { toast, useUi } from "./stores/ui";
 
 // ponytail: placeholder screens; each phase replaces its entry with the real view.
-const ARRIVES_IN: Partial<Record<ViewId, number>> = { calendar: 3, matrix: 4, habits: 5, stats: 5, focus: 6, countdown: 6 };
+const ARRIVES_IN: Partial<Record<ViewId, number>> = { matrix: 4, habits: 5, stats: 5, focus: 6, countdown: 6 };
 
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
+  if (view === "calendar") return <CalendarView />;
   if (spec) return <TaskView spec={spec} />;
   const nav = navFor(view);
   return (
@@ -73,6 +76,7 @@ export default function App() {
       <ShortcutSheet />
       <ScopeDialog />
       <ConfirmDialog />
+      <EventDialog />
       <Toaster />
     </DndRoot>
   );

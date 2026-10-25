@@ -12,6 +12,7 @@ import {
   TASK_STATUSES,
   type Activity,
   type ActivityKind,
+  type CalendarEvent,
   type ChecklistItem,
   type Folder,
   type Reminder,
@@ -190,6 +191,54 @@ export const parseActivity = (r: Row): Activity | null =>
   typeof r.id === "number" && typeof r.task_id === "string" && isInstant(r.at) && oneOf(ACTIVITY_KINDS, r.kind)
     ? { id: r.id, taskId: r.task_id, at: r.at, kind: r.kind, detail: str(r.detail) }
     : null;
+
+export function parseEvent(r: Row): CalendarEvent | null {
+  if (typeof r.id !== "string") return null;
+  const schedule: Schedule =
+    isInstant(r.start_at) && isInstant(r.end_at)
+      ? { kind: "timed", start: r.start_at, end: r.end_at }
+      : isLocalDate(r.start_date)
+        ? { kind: "day", date: r.start_date }
+        : { kind: "none" };
+  if (schedule.kind === "none") return null;
+  const rule = optStr(r.rrule);
+  const now = new Date().toISOString();
+  return {
+    id: r.id,
+    title: str(r.title),
+    notes: str(r.notes),
+    schedule,
+    spanDays: Math.max(1, Math.round(num(r.span_days, 1))),
+    color: optStr(r.color),
+    recurrence: rule && isValidRule(rule) ? { rule, exdates: arr(r.exdates).filter((x): x is string => typeof x === "string") } : null,
+    recurrenceParentId: optStr(r.recurrence_parent_id),
+    source: r.source === "ics" ? "ics" : "local",
+    createdAt: isInstant(r.created_at) ? r.created_at : now,
+    updatedAt: isInstant(r.updated_at) ? r.updated_at : now,
+    deletedAt: isInstant(r.deleted_at) ? r.deleted_at : null,
+  };
+}
+
+export function eventToRow(e: CalendarEvent): Row {
+  const s = e.schedule;
+  return {
+    id: e.id,
+    title: e.title,
+    notes: e.notes,
+    start_date: s.kind === "day" ? s.date : null,
+    span_days: e.spanDays,
+    start_at: s.kind === "timed" ? s.start : null,
+    end_at: s.kind === "timed" ? s.end : null,
+    color: e.color,
+    rrule: e.recurrence?.rule ?? null,
+    exdates: JSON.stringify(e.recurrence?.exdates ?? []),
+    recurrence_parent_id: e.recurrenceParentId,
+    source: e.source,
+    created_at: e.createdAt,
+    updated_at: e.updatedAt,
+    deleted_at: e.deletedAt,
+  };
+}
 
 export const parseAll = <T>(rows: Row[], parse: (r: Row) => T | null): T[] =>
   rows.map(parse).filter((x): x is T => x !== null);

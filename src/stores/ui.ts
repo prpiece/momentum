@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { todayLocal } from "../domain/dates";
 import type { ViewId } from "../domain/types";
 import type { Scope } from "./data";
 
@@ -17,6 +18,10 @@ type UiStore = {
   scopeAsk: ScopeAsk | null;
   confirmAsk: ConfirmAsk | null;
   collapsed: Record<string, true>;
+  /** Calendar position (session-only; the view type persists in settings). */
+  calAnchor: string;
+  /** Calendar event open in the event dialog. */
+  eventDialog: { id: string; key: string | null } | null;
 };
 
 export const useUi = create<UiStore>(() => ({
@@ -29,6 +34,8 @@ export const useUi = create<UiStore>(() => ({
   scopeAsk: null,
   confirmAsk: null,
   collapsed: {},
+  calAnchor: todayLocal(),
+  eventDialog: null,
 }));
 const set = useUi.setState;
 
@@ -38,6 +45,9 @@ export const closeDrawer = () => set({ drawer: null });
 export const setSelection = (selection: string[]) => set({ selection });
 export const setPalette = (paletteOpen: boolean) => set({ paletteOpen });
 export const setShortcuts = (shortcutsOpen: boolean) => set({ shortcutsOpen });
+export const setCalAnchor = (calAnchor: string) => set({ calAnchor });
+export const openEvent = (id: string, key: string | null = null) => set({ eventDialog: { id, key } });
+export const closeEvent = () => set({ eventDialog: null });
 export const toggleCollapsed = (id: string) =>
   set((s) => {
     const { [id]: was, ...rest } = s.collapsed;

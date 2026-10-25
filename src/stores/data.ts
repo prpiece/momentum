@@ -4,6 +4,8 @@ import { after, before, reorder as reorderItems } from "../domain/order";
 import { detachOccurrence, effective, scheduleForKey, shiftAnchor, splitSeries } from "../domain/recurrence";
 import {
   INBOX_ID,
+  type CalendarEvent,
+  type Schedule,
   MAX_SUBTASK_DEPTH,
   PRIORITY_LABEL,
   type ActivityKind,
@@ -21,6 +23,7 @@ type ById<T> = Record<string, T>;
 type State = {
   ready: boolean;
   tasks: ById<Task>;
+  events: ById<CalendarEvent>;
   lists: ById<TaskList>;
   folders: ById<Folder>;
   sections: ById<Section>;
@@ -46,7 +49,7 @@ const INBOX: TaskList = {
 
 export type NewTask = Partial<Omit<Task, "id" | "createdAt" | "updatedAt">> & { title: string };
 
-export const useData = create<State>(() => ({ ready: false, tasks: {}, lists: {}, folders: {}, sections: {}, tags: {} }));
+export const useData = create<State>(() => ({ ready: false, tasks: {}, events: {}, lists: {}, folders: {}, sections: {}, tags: {} }));
 const get = useData.getState;
 const set = useData.setState;
 
@@ -57,6 +60,12 @@ function commit(changed: Task[]) {
   if (!changed.length) return;
   set((s) => ({ tasks: { ...s.tasks, ...byId(changed) } }));
   void repo.saveTasks(changed);
+}
+
+function commitEvents(changed: CalendarEvent[]) {
+  if (!changed.length) return;
+  set((s) => ({ events: { ...s.events, ...byId(changed) } }));
+  void repo.saveEvents(changed);
 }
 
 function log(taskId: string, kind: ActivityKind, detail = "") {
@@ -95,6 +104,7 @@ export async function hydrate() {
   set({
     ready: true,
     tasks: byId(ws.tasks),
+    events: byId(ws.events),
     lists,
     folders: byId(ws.folders),
     sections: byId(ws.sections),
@@ -106,7 +116,7 @@ export async function hydrate() {
 export function replaceAll(ws: repo.Workspace) {
   const lists = byId(ws.lists);
   lists[INBOX_ID] ??= INBOX;
-  set({ ready: true, tasks: byId(ws.tasks), lists, folders: byId(ws.folders), sections: byId(ws.sections), tags: byId(ws.tags) });
+  set({ ready: true, tasks: byId(ws.tasks), events: byId(ws.events), lists, folders: byId(ws.folders), sections: byId(ws.sections), tags: byId(ws.tags) });
 }
 
 // ---------- tasks ----------
@@ -266,6 +276,8 @@ export function editOccurrence(id: string, key: string, scope: Scope, patch: Par
     commit(head ? [head, tailNext] : [{ ...tailNext, id: t.id }]);
     return;
   }
+  // Unscheduling the whole series ends it as a single undated task.
+  if (patch.schedule?.kind === "none") return updateTask(id, { ...patch, recurrence: null });
   const occ = scheduleForKey(t.schedule, key);
   const schedule = patch.schedule ? shiftAnchor(t.schedule, occ, patch.schedule) : t.schedule;
   updateTask(id, { ...patch, schedule });
@@ -282,6 +294,62 @@ export function deleteOccurrence(id: string, key: string, scope: Scope): string[
   if (!head) return deleteTasks([id]);
   commit([head]);
   return [];
+}
+
+// ---------- calendar events ----------
+
+export type NewEvent = Partial<Omit<CalendarEvent, "id" | "createdAt" | "updatedAt">> & { title: string; schedule: Schedule };
+
+export function addEvent(input: NewEvent): CalendarEvent {
+  const e: CalendarEvent = {
+    notes: "",
+    spanDays: 1,
+    color: null,
+    recurrence: null,
+    recurrenceParentId: null,
+    source: "local",
+    deletedAt: null,
+    ...input,
+    id: uid(),
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  commitEvents([e]);
+  return e;
+}
+
+export function updateEvent(id: string, patch: Partial<CalendarEvent>) {
+  const e = get().events[id];
+  if (e) commitEvents([{ ...e, ...patch, updatedAt: now() }]);
+}
+
+export function deleteEvents(ids: string[]) {
+  const at = now();
+  commitEvents(ids.map((id) => get().events[id]).filter((e): e is CalendarEvent => !!e).map((e) => ({ ...e, deletedAt: at })));
+}
+
+export function editEventOccurrence(id: string, key: string, scope: Scope, patch: Partial<CalendarEvent>) {
+  const e = get().events[id];
+  if (!e?.recurrence) return updateEvent(id, patch);
+  if (scope === "this") {
+    const { series, single } = detachOccurrence(e, key, uid(), now());
+    return commitEvents([series, { ...single, ...patch, recurrence: null }]);
+  }
+  if (scope === "following") {
+    const { head, tail } = splitSeries(e, key, uid(), now());
+    return commitEvents(head ? [head, { ...tail, ...patch }] : [{ ...tail, ...patch, id: e.id }]);
+  }
+  const schedule = patch.schedule ? shiftAnchor(e.schedule, scheduleForKey(e.schedule, key), patch.schedule) : e.schedule;
+  updateEvent(id, { ...patch, schedule });
+}
+
+export function deleteEventOccurrence(id: string, key: string, scope: Scope) {
+  const e = get().events[id];
+  if (!e?.recurrence || scope === "all") return deleteEvents([id]);
+  if (scope === "this") return commitEvents([{ ...e, recurrence: { ...e.recurrence, exdates: [...e.recurrence.exdates, key] }, updatedAt: now() }]);
+  const { head } = splitSeries(e, key, uid(), now());
+  if (head) commitEvents([head]);
+  else deleteEvents([id]);
 }
 
 // ---------- lists, folders, sections, tags ----------
@@ -409,12 +477,15 @@ export function removeTag(id: string) {
  * recurring completion: anything that goes through `commit`.
  */
 export function undoable(fn: () => void): () => void {
-  const before = get().tasks;
+  const before = { tasks: get().tasks, events: get().events };
   fn();
-  const afterFn = get().tasks;
-  const touched = Object.keys(afterFn).filter((id) => afterFn[id] !== before[id]);
+  const after = { tasks: get().tasks, events: get().events };
+  const touched = <T,>(a: ById<T>, b: ById<T>) => Object.keys(b).filter((id) => b[id] !== a[id]);
+  const tasks = touched(before.tasks, after.tasks);
+  const events = touched(before.events, after.events);
   return () => {
     const at = now();
-    commit(touched.map((id) => before[id] ?? { ...afterFn[id], deletedAt: at }));
+    commit(tasks.map((id) => before.tasks[id] ?? { ...after.tasks[id], deletedAt: at }));
+    commitEvents(events.map((id) => before.events[id] ?? { ...after.events[id], deletedAt: at }));
   };
 }

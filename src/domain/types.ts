@@ -107,6 +107,39 @@ export type Tag = { id: string; name: string; color: string | null };
 export type ActivityKind = "created" | "completed" | "reopened" | "wont_do" | "moved" | "scheduled" | "priority" | "renamed";
 export type Activity = { id: number; taskId: string; at: Instant; kind: ActivityKind; detail: string };
 
+// ---------- Calendar ----------
+
+/** A standalone calendar entry. Not a task: no status, list or priority. */
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  notes: string;
+  /** `day` (all-day, spanning `spanDays`) or `timed`. Never `none`. */
+  schedule: Schedule;
+  spanDays: number;
+  color: string | null;
+  recurrence: Recurrence | null;
+  recurrenceParentId: string | null;
+  /** `ics` events came from a one-time .ics import and are read-only. */
+  source: "local" | "ics";
+  createdAt: Instant;
+  updatedAt: Instant;
+  deletedAt: Instant | null;
+};
+
+export const CAL_VIEWS = ["day", "3day", "week", "month", "agenda"] as const;
+export type CalView = (typeof CAL_VIEWS)[number];
+export const COLOR_BYS = ["list", "priority", "tag"] as const;
+export type CalendarSettings = {
+  view: CalView;
+  colorBy: (typeof COLOR_BYS)[number];
+  showCompleted: boolean;
+  showHabits: boolean;
+  showFocus: boolean;
+  density: (typeof DENSITIES)[number];
+  arrangeOpen: boolean;
+};
+
 // ---------- View options ----------
 
 export const GROUP_BYS = ["none", "list", "date", "priority", "tag"] as const;
@@ -141,4 +174,5 @@ export type Settings = {
   /** Natural-language parsing in quick add. */
   smartParse: boolean;
   viewOptions: Record<string, ViewOptions>;
+  calendar: CalendarSettings;
 };

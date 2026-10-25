@@ -34,7 +34,8 @@ export type DropData =
   | { type: "smart"; id: "inbox" | "today" | "tomorrow" }
   | { type: "task"; id: string; container: string }
   | { type: "section"; listId: string; sectionId: string | null }
-  | { type: "slot"; date: string; minutes: number | null }
+  /** Calendar target: a time-grid column (`time`), the all-day row (`allDay`) or a month cell (`keepTime`). */
+  | { type: "slot"; date: string; mode: "time" | "allDay" | "keepTime" }
   | { type: "arrange" }
   | { type: "quadrant"; q: 1 | 2 | 3 | 4 }
   | { type: "kanban-column"; listId: string; sectionId: string | null };
@@ -68,6 +69,12 @@ const DROP_TYPES: readonly DropData["type"][] = ["list", "smart", "task", "secti
 const isDropData = (v: unknown): v is DropData =>
   typeof v === "object" && v !== null && "type" in v && (DROP_TYPES as readonly unknown[]).includes(v.type);
 
+let lastDragEnd = 0;
+/** True right after a drag ended: the trailing click must not open the dragged item. */
+export const justDragged = () => Date.now() - lastDragEnd < 250;
+/** Custom pointer gestures (calendar resize) call this so their trailing click is ignored too. */
+export const markDragged = () => void (lastDragEnd = Date.now());
+
 export function DndRoot({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<DragData | null>(null);
   const sensors = useSensors(
@@ -76,6 +83,7 @@ export function DndRoot({ children }: { children: ReactNode }) {
   );
 
   const end = (e: DragEndEvent) => {
+    lastDragEnd = Date.now();
     setActive(null);
     moveListeners.forEach((fn) => fn(null));
     const drag = e.active.data.current;

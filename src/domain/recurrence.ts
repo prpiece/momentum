@@ -13,6 +13,8 @@ const toFloating = (d: Date) =>
   new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()));
 
 type Recurring = Pick<Task, "schedule" | "recurrence">;
+/** Anything that recurs: tasks and calendar events share the exception machinery. */
+export type Series = Recurring & Pick<Task, "id" | "recurrenceParentId" | "createdAt" | "updatedAt">;
 export type Occurrence = { key: string; schedule: Schedule };
 
 const MAX_SCAN = 20000;
@@ -105,7 +107,7 @@ export function effective(t: Task): { schedule: Schedule; key: string | null } |
 }
 
 /** "This occurrence": exclude it from the series and return it as a standalone task. */
-export function detachOccurrence(series: Task, key: string, newId: string, now: string): { series: Task; single: Task } {
+export function detachOccurrence<T extends Series>(series: T, key: string, newId: string, now: string): { series: T; single: T } {
   const rec: Recurrence = series.recurrence ?? { rule: "", exdates: [] };
   return {
     series: { ...series, recurrence: { ...rec, exdates: [...new Set([...rec.exdates, key])] }, updatedAt: now },
@@ -125,7 +127,7 @@ export function detachOccurrence(series: Task, key: string, newId: string, now: 
  * "This and following": end the series just before `key` and start a new series there.
  * `head` is null when `key` is the first occurrence (the whole series is "following").
  */
-export function splitSeries(series: Task, key: string, newId: string, now: string): { head: Task | null; tail: Task } {
+export function splitSeries<T extends Series>(series: T, key: string, newId: string, now: string): { head: T | null; tail: T } {
   const rec = series.recurrence;
   const anchor = anchorOf(series.schedule);
   if (!rec || !anchor) return { head: null, tail: series };
@@ -138,7 +140,7 @@ export function splitSeries(series: Task, key: string, newId: string, now: strin
     return true;
   });
 
-  const tail: Task = {
+  const tail: T = {
     ...series,
     id: newId,
     schedule: scheduleForKey(series.schedule, key),
@@ -152,7 +154,7 @@ export function splitSeries(series: Task, key: string, newId: string, now: strin
   if (before === 0) return { head: null, tail };
 
   const headOpts = opts.count ? { ...opts, count: before } : { ...opts, until: new Date(cut.getTime() - 60_000) };
-  const head: Task = {
+  const head: T = {
     ...series,
     recurrence: { rule: serialize(headOpts), exdates: rec.exdates.filter((k) => k < key) },
     updatedAt: now,

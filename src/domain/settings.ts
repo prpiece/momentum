@@ -1,5 +1,7 @@
 import { isHex } from "./color";
 import {
+  CAL_VIEWS,
+  COLOR_BYS,
   DENSITIES,
   FONT_SIZES,
   GROUP_BYS,
@@ -28,6 +30,15 @@ export const DEFAULT_SETTINGS: Settings = {
   hiddenSmartLists: ["wontdo"],
   smartParse: true,
   viewOptions: {},
+  calendar: {
+    view: "week",
+    colorBy: "list",
+    showCompleted: true,
+    showHabits: false,
+    showFocus: false,
+    density: "comfortable",
+    arrangeOpen: true,
+  },
 };
 
 export const DEFAULT_VIEW_OPTIONS: ViewOptions = { groupBy: "none", sortBy: "manual" };
@@ -58,6 +69,21 @@ function parseViewOptions(raw: unknown): Settings["viewOptions"] {
   return out;
 }
 
+function parseCalendar(raw: unknown): Settings["calendar"] {
+  const r = isRecord(raw) ? raw : {};
+  const d = DEFAULT_SETTINGS.calendar;
+  const flag = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+  return {
+    view: oneOf(CAL_VIEWS, r.view) ? r.view : d.view,
+    colorBy: oneOf(COLOR_BYS, r.colorBy) ? r.colorBy : d.colorBy,
+    showCompleted: flag(r.showCompleted, d.showCompleted),
+    showHabits: flag(r.showHabits, d.showHabits),
+    showFocus: flag(r.showFocus, d.showFocus),
+    density: oneOf(DENSITIES, r.density) ? r.density : d.density,
+    arrangeOpen: flag(r.arrangeOpen, d.arrangeOpen),
+  };
+}
+
 /** Boundary parser: anything from disk or an import file becomes a valid Settings, field by field. */
 export function parseSettings(raw: unknown): Settings {
   const r = isRecord(raw) ? raw : {};
@@ -77,5 +103,6 @@ export function parseSettings(raw: unknown): Settings {
       : d.hiddenSmartLists,
     smartParse: typeof r.smartParse === "boolean" ? r.smartParse : d.smartParse,
     viewOptions: parseViewOptions(r.viewOptions),
+    calendar: parseCalendar(r.calendar),
   };
 }

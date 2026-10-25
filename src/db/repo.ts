@@ -1,10 +1,12 @@
-import type { Activity, ActivityKind, Folder, Section, Tag, Task, TaskList } from "../domain/types";
+import type { Activity, ActivityKind, CalendarEvent, Folder, Section, Tag, Task, TaskList } from "../domain/types";
 import { select, upsert, write } from "./client";
 import {
+  eventToRow,
   folderToRow,
   listToRow,
   parseActivity,
   parseAll,
+  parseEvent,
   parseFolder,
   parseList,
   parseSection,
@@ -18,6 +20,7 @@ import {
 
 export type Workspace = {
   tasks: Task[];
+  events: CalendarEvent[];
   lists: TaskList[];
   folders: Folder[];
   sections: Section[];
@@ -26,12 +29,13 @@ export type Workspace = {
 
 export async function loadWorkspace(): Promise<Workspace> {
   // Soft-deleted rows only exist to make undo cheap within a session.
-  await write(["DELETE FROM tasks WHERE deleted_at IS NOT NULL"]);
-  const [tasks, lists, folders, sections, tags] = await Promise.all(
-    ["tasks", "lists", "folders", "sections", "tags"].map((t) => select<Row>(`SELECT * FROM ${t}`)),
+  await write(["DELETE FROM tasks WHERE deleted_at IS NOT NULL"], ["DELETE FROM calendar_events WHERE deleted_at IS NOT NULL"]);
+  const [tasks, events, lists, folders, sections, tags] = await Promise.all(
+    ["tasks", "calendar_events", "lists", "folders", "sections", "tags"].map((t) => select<Row>(`SELECT * FROM ${t}`)),
   );
   return {
     tasks: parseAll(tasks, parseTask),
+    events: parseAll(events, parseEvent),
     lists: parseAll(lists, parseList),
     folders: parseAll(folders, parseFolder),
     sections: parseAll(sections, parseSection),
@@ -40,6 +44,7 @@ export async function loadWorkspace(): Promise<Workspace> {
 }
 
 export const saveTasks = (tasks: Task[]) => write(...tasks.map((t) => upsert("tasks", taskToRow(t))));
+export const saveEvents = (events: CalendarEvent[]) => write(...events.map((e) => upsert("calendar_events", eventToRow(e))));
 export const saveList = (l: TaskList) => write(upsert("lists", listToRow(l)));
 export const saveFolder = (f: Folder) => write(upsert("folders", folderToRow(f)));
 export const saveSection = (s: Section) => write(upsert("sections", sectionToRow(s)));
@@ -77,5 +82,6 @@ export function saveWorkspace(ws: Workspace) {
     ...ws.sections.map((s) => upsert("sections", sectionToRow(s))),
     ...ws.tags.map((t) => upsert("tags", tagToRow(t))),
     ...tasks.map((t) => upsert("tasks", taskToRow(t))),
+    ...[...ws.events].sort((a, b) => Number(!!a.recurrenceParentId) - Number(!!b.recurrenceParentId)).map((e) => upsert("calendar_events", eventToRow(e))),
   );
 }
