@@ -105,6 +105,34 @@ fn set_close_to_tray(state: tauri::State<CloseToTray>, enabled: bool) {
     state.0.store(enabled, Ordering::Relaxed);
 }
 
+/// Backup export / .ics import: read or write a file the user picked in a native dialog.
+/// Limited to the two extensions the app uses so the command can't touch arbitrary files.
+fn checked_path(path: &str) -> Result<&Path, String> {
+    let p = Path::new(path);
+    match p.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()) {
+        Some(ext) if ext == "json" || ext == "ics" => Ok(p),
+        _ => Err("only .json and .ics files are supported".into()),
+    }
+}
+
+#[tauri::command]
+fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    fs::write(checked_path(&path)?, contents).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    fs::read_to_string(checked_path(&path)?).map_err(|e| e.to_string())
+}
+
+/// Where manual and pre-migration backups go (created on demand).
+#[tauri::command]
+fn backups_dir(app: AppHandle) -> Result<String, String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?.join("backups");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
 /// Bring the main window back from the tray / background.
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
@@ -164,10 +192,11 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .manage(CloseToTray(AtomicBool::new(true)))
-        .invoke_handler(tauri::generate_handler![set_close_to_tray])
+        .invoke_handler(tauri::generate_handler![set_close_to_tray, write_text_file, read_text_file, backups_dir])
         // Closing the main window either hides it to the tray or quits the whole app. The hidden
         // popup windows would otherwise keep the process alive with no way back in.
         .on_window_event(|window, event| {

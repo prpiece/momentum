@@ -3,7 +3,7 @@
 Offline, local-first desktop planner (tasks + calendar + habits + Eisenhower Matrix).
 Tauri 2 + React/TS/Vite + Tailwind + Zustand + SQLite. Windows is the primary target.
 
-Status: **Phase 6 done.** Next: Phase 7, ship it.
+Status: **All 7 phases done.** v0.1.0 is ready to tag.
 
 ---
 
@@ -256,6 +256,10 @@ momentum/
 - **D36: Tray and close-to-tray are decided in Rust.** The frontend tells Rust the setting with `set_close_to_tray`. Closing the main window either hides it or quits, so hidden popups can never keep a windowless process alive. Tray menu: Open, Quick add, Quit. Single-instance focuses the running copy. Autostart passes `--minimized`, which starts hidden.
 - **D37: The global shortcut is registered from JS** with the plugin, using the key combination set in Settings. A failure shows a toast instead of crashing (this resolves R2).
 - **D38: The focus timer is a pure state machine driven by wall-clock timestamps.** A 1s tick in the main window ends Pomodoro phases even while the window is in the tray. Sessions under one minute aren't recorded, and Pomodoro sessions are capped at the focus length.
+- **D39: JSON backups are table dumps.** Each backup holds one row-format array per table. Restore reuses the same row parsers as loading from SQLite (one boundary), then `repairReferences` fixes dangling foreign keys and parent cycles before inserting. A consistent `VACUUM INTO` snapshot is taken first. ponytail: restore is sequential writes rather than one transaction (plugin-sql pools connections), and the snapshot is the way back if it fails partway.
+- **D40: File access goes through two Rust commands** (`read_text_file` / `write_text_file`), limited to `.json` and `.ics`, plus the dialog plugin. No fs plugin and no broad file scope.
+- **D41: .ics import uses ical.js.** It handles VTIMEZONE, RRULE, EXDATE and RECURRENCE-ID. Events get ids `ics:<UID>[:<recurrence-id>]`, so re-importing is idempotent. Imported events are read-only.
+- **D42: Icons** are generated from `assets/app-icon.svg` with `npx tauri icon`; mobile sets were removed. The in-app `Logo` uses the same geometry, tinted with the accent.
 - **R2: Global shortcut conflict.** If Ctrl+Shift+A is already taken by another app, registration fails. The app shows a toast and lets the user rebind it in Settings.
 - **R3: Unsigned builds.** SmartScreen will show a warning, and the README says so.
 - **R4: Project folder is inside OneDrive.** `node_modules` and `src-tauri/target` (several GB) would sync constantly and can hit file-lock errors during Rust builds. Recommended fix: move the project to `C:\dev\momentum`.

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { select, upsert, write } from "../db/client";
 import type { Row } from "../db/rows";
-import { isInstant } from "../domain/dates";
+import { parseSession, sessionRow } from "../db/miscRows";
 import * as timer from "../domain/focus";
 import type { FocusMode, FocusSession, TimerState } from "../domain/focus";
 import { uid } from "./data";
@@ -15,12 +15,6 @@ const set = useFocus.setState;
 /** Called when a focus phase ends on its own (the OS layer turns it into a notification). */
 let onPhaseEnd: (phase: timer.Phase, next: timer.Phase) => void = () => {};
 export const setPhaseEndHandler = (fn: typeof onPhaseEnd) => void (onPhaseEnd = fn);
-
-const parseSession = (r: Row): FocusSession | null =>
-  typeof r.id === "string" && (r.mode === "pomodoro" || r.mode === "stopwatch") && isInstant(r.start_at) && isInstant(r.end_at) && typeof r.seconds === "number"
-    ? { id: r.id, taskId: typeof r.task_id === "string" ? r.task_id : null, mode: r.mode, startAt: r.start_at, endAt: r.end_at, seconds: r.seconds }
-    : null;
-const sessionRow = (s: FocusSession): Row => ({ id: s.id, task_id: s.taskId, mode: s.mode, start_at: s.startAt, end_at: s.endAt, seconds: s.seconds });
 
 export async function hydrateFocus() {
   const rows = await select<Row>("SELECT * FROM focus_sessions");

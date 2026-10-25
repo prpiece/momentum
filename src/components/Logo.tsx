@@ -1,11 +1,11 @@
-/** Momentum mark: an arc that climbs and breaks forward. Also the source for the Phase 7 app icon. */
+/** Momentum mark (same geometry as assets/app-icon.svg), tinted with the current accent. */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="9" fill="var(--accent)" />
-      <path d="M7.5 22.5c4.5 0 8-3.2 10.5-9.5" fill="none" stroke="var(--accent-fg)" strokeWidth="3" strokeLinecap="round" />
-      <path d="M14.8 12.6l3.6-3.4 1.4 4.8" fill="none" stroke="var(--accent-fg)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="24" cy="21.5" r="2" fill="var(--accent-fg)" opacity="0.75" />
+      <rect x="1.25" y="1.25" width="29.5" height="29.5" rx="6.9" fill="var(--accent)" />
+      <path d="M7.25 22.6c5.4 0 9.25-3.55 11.9-10.75" fill="none" stroke="var(--accent-fg)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M14.9 12.5l4.6-3.25 1.8 5.45" fill="none" stroke="var(--accent-fg)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="24.25" cy="21.9" r="2" fill="var(--accent-fg)" opacity="0.78" />
     </svg>
   );
 }

@@ -11,6 +11,14 @@ Offline, local-first desktop planner: Tauri 2 (Rust) + React/TS/Vite + Tailwind 
 - DB location: `%APPDATA%\com.momentum.planner\momentum.db`, with pre-migration copies in `backups\` alongside it.
 - Schema changes: add `src-tauri/migrations/NNNN_name.sql` and register it in `migrations()` in `src-tauri/src/lib.rs`. Never edit a migration that has already been applied, because sqlx checksums them.
 
+## Releases
+Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, then push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds a draft release (Windows first, then macOS and Linux).
+
+## Gotchas
+- **Restart race in `tauri dev`:** editing `src-tauri/` (Rust, migrations, icons) makes `tauri dev` restart the app. The new process can fail with WebView2 `0x800700AA` ("resource in use") while the old one still holds the profile. Just run it again. Release builds are unaffected.
+- **Windows and data access:** only the main window may write. The popups (`quickadd`, `reminder`) have no SQL permission and talk to the main window through events (PLAN D33).
+- **Testing the real app:** set `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>` before `npm run tauri dev`, then drive it over the DevTools protocol. Port 9222 may already be taken by other WebView2 apps on the machine, so pick another.
+
 ## Architecture rules
 - **One source of truth:** Zustand stores hydrate from SQLite, and each action writes through to a `db/` repo. Smart Lists, Matrix quadrants, calendar blocks and search are *selectors* over task records. They are never stored.
 - **`src/domain/` is pure:** no React, no Tauri imports. All recurrence, date, matrix, streak, NL-parse and layout logic goes there, with a `*.test.ts` beside each file. Test that logic before wiring up any UI.

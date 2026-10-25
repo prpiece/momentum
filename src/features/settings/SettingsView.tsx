@@ -1,6 +1,7 @@
 import { Check, Pipette } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Segmented } from "../../components/ui/Segmented";
+import { AboutSection, DataSection } from "./DataSection";
 import { ACCENT_PRESETS } from "../../domain/color";
 import type { Settings, ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
@@ -253,6 +254,14 @@ export function SettingsView() {
             </label>
           ))}
         </div>
+      </Section>
+
+      <Section title="Data">
+        <DataSection />
+      </Section>
+
+      <Section title="About">
+        <AboutSection />
       </Section>
 
       {import.meta.env.DEV && (
