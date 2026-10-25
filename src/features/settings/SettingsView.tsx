@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 import { Segmented } from "../../components/ui/Segmented";
 import { ACCENT_PRESETS } from "../../domain/color";
 import type { Settings, ViewId } from "../../domain/types";
+import { saveWorkspace } from "../../db/repo";
+import { hydrate } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
+import { toast } from "../../stores/ui";
 import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -167,6 +170,15 @@ export function SettingsView() {
         </Row>
       </Section>
 
+      <Section title="Tasks">
+        <Row label="Smart parsing in quick add">
+          <label className="flex items-center gap-2 text-sm text-fg-2">
+            <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={s.smartParse} onChange={(e) => update({ smartParse: e.target.checked })} />
+            Detect dates, !priority, #tags, ~lists
+          </label>
+        </Row>
+      </Section>
+
       <Section title="Smart Lists">
         <div className="grid grid-cols-2 gap-2">
           {SMART_LIST_NAV.map(({ id, label, icon: Icon }) => (
@@ -189,6 +201,26 @@ export function SettingsView() {
           ))}
         </div>
       </Section>
+
+      {import.meta.env.DEV && (
+        <Section title="Developer">
+          <Row label="Sample data">
+            <button
+              type="button"
+              onClick={async () => {
+                const { sampleWorkspace } = await import("../../dev/seed");
+                const ws = sampleWorkspace();
+                await saveWorkspace(ws);
+                await hydrate();
+                toast("Sample data loaded");
+              }}
+              className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover"
+            >
+              Load sample data
+            </button>
+          </Row>
+        </Section>
+      )}
     </div>
   );
 }

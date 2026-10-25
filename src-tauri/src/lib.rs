@@ -11,12 +11,20 @@ const DB_FILE: &str = "momentum.db";
 const KEEP_BACKUPS: usize = 10;
 
 fn migrations() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        description: "settings",
-        sql: include_str!("../migrations/0001_settings.sql"),
-        kind: MigrationKind::Up,
-    }]
+    vec![
+        Migration {
+            version: 1,
+            description: "settings",
+            sql: include_str!("../migrations/0001_settings.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "tasks",
+            sql: include_str!("../migrations/0002_tasks.sql"),
+            kind: MigrationKind::Up,
+        },
+    ]
 }
 
 /// Copies the database aside when the app ships a migration the database hasn't seen.

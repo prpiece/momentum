@@ -3,7 +3,7 @@
 Offline, local-first desktop planner (tasks + calendar + habits + Eisenhower Matrix).
 Tauri 2 + React/TS/Vite + Tailwind + Zustand + SQLite. Windows is the primary target.
 
-Status: **Phase 1 done.** Next: Phase 2, the tasks core.
+Status: **Phase 2 done.** Next: Phase 3, the calendar.
 
 ---
 
@@ -211,6 +211,21 @@ momentum/
 - **D8: Migrations are never edited after they're applied.** sqlx checksums each applied migration, so every schema change goes in a new `NNNN_*.sql` file, starting from `0001_settings.sql`.
 - **D9: Plain-browser dev mode.** Running `npm run dev` without Tauri renders the full UI with default settings and no persistence (`isTauri` in `src/db/client.ts`), which makes quick UI checks easy.
 - **D10: Each phase adds only its own dependencies.** For example, dnd-kit, rrule and chrono-node arrive in Phase 2 or 3.
+- **D11: Small nested collections are JSON columns.** Tags, checklist, reminders and exdates are stored as JSON columns on `tasks` instead of separate tables. All queries run in memory over the store, so normalising them buys nothing. They're validated at the row boundary (`src/db/rows.ts`).
+- **D12: A task's schedule is a discriminated union.** It's `none | day(date) | timed(start, end)`. The brief's `isAllDay` and `durationMinutes` are derived from it, not stored.
+- **D13: Recurrence exceptions are exdates plus detached copies, with no exceptions table.**
+  - Completing or editing one occurrence adds its key to the series' `exdates` and creates a standalone task with `recurrenceParentId` set.
+  - Completed occurrences are therefore ordinary done tasks, so the Completed list, stats and calendar need no special case.
+  - A series with no occurrences left is soft-deleted.
+  - Occurrence keys are wall-clock strings, so they stay stable across DST and time-zone changes.
+- **D14: Scope prompts are only for timing changes.** Changing a recurring task's schedule asks "this / following / all", and so does deleting it. Title, notes, priority and tags edits apply to the whole series without a prompt.
+- **D15: Soft delete makes undo cheap.** `deletedAt` is set and the row is purged on the next launch. A generic `undoable(fn)` restores exactly the task objects `fn` touched, which covers delete, bulk edits and recurring completion. Ctrl+Z pops the last undo.
+- **D16: Today includes overdue tasks**, and so does its badge count. Overdue is also its own smart list.
+- **D17: Smart lists and tag views are flat. Custom lists and the Inbox show the subtask tree.** Completed tasks collapse into a "Completed" group in tree views.
+- **D18: Quick-add syntax** is `!high`/`!2` for priority, `#tag`, `~ListName` (spaces ignored), repeat phrases, then chrono for dates. Only the English chrono locale is imported.
+- **D19: One app-wide DndContext with a drop-handler registry** (`lib/dnd.tsx`). Each feature registers handlers for its own drop-target types: list, smart, task, kanban-column, and later slot, arrange and quadrant.
+- **D20: Zustand selectors must return stable references.** `npm test` runs `scripts/check-selectors.mjs` first and fails if a selector builds a new array (that pattern caused a React render loop).
+- **D21: Native date/time inputs.** The drawer uses `<input type="date|time">`, which WebView2 renders with locale formatting. The app's 12h/24h setting applies everywhere else.
 - **R1: Notification action buttons on Windows.** `tauri-plugin-notification` action support on desktop is limited. If Snooze and Done buttons aren't available natively, the fallback is a click that opens a small in-app reminder popup with those actions. This gets verified in Phase 6.
 - **R2: Global shortcut conflict.** If Ctrl+Shift+A is already taken by another app, registration fails. The app shows a toast and lets the user rebind it in Settings.
 - **R3: Unsigned builds.** SmartScreen will show a warning, and the README says so.

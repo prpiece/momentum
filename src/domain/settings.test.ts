@@ -26,3 +26,15 @@ describe("parseSettings", () => {
     expect(parseSettings(once)).toEqual(once);
   });
 });
+
+describe("parseSettings view options", () => {
+  it("keeps valid per-view options and repairs bad fields", () => {
+    const s = parseSettings({ viewOptions: { today: { groupBy: "priority", sortBy: "nope" }, x: 5 } });
+    expect(s.viewOptions).toEqual({ today: { groupBy: "priority", sortBy: "manual" } });
+  });
+
+  it("accepts list and tag views as default view", () => {
+    expect(parseSettings({ defaultView: "list:abc" }).defaultView).toBe("list:abc");
+    expect(parseSettings({ defaultView: "list:" }).defaultView).toBe("today");
+  });
+});

@@ -5,7 +5,7 @@ Offline, local-first desktop planner: Tauri 2 (Rust) + React/TS/Vite + Tailwind 
 ## Commands
 - `npm run tauri dev`: run the app. The first run compiles Rust and takes a few minutes.
 - `npm run dev`: UI only, in a browser. No persistence (see `isTauri` in `src/db/client.ts`).
-- `npm test`: Vitest (domain logic)
+- `npm test`: selector lint + Vitest (domain, row mapping, store logic). Tests run in TZ=America/New_York.
 - `npm run build`: typecheck and build the frontend
 - `npm run tauri build`: produce the installers (`src-tauri/target/release/bundle/`)
 - DB location: `%APPDATA%\com.momentum.planner\momentum.db`, with pre-migration copies in `backups\` alongside it.
@@ -18,7 +18,7 @@ Offline, local-first desktop planner: Tauri 2 (Rust) + React/TS/Vite + Tailwind 
   - Timed instants are UTC ISO strings.
   - All-day items and due dates are local `YYYY-MM-DD` strings and never become instants.
   - Recurrence uses floating local wall-clock time.
-  - Occurrences are virtual, with exceptions held in `recurrence_exceptions`.
+  - Occurrences are virtual (`src/domain/recurrence.ts`). Exceptions are `exdates` keys plus detached standalone copies (PLAN D13).
 - **Domain types are discriminated unions** (`status`, habit `frequency`, `goal`). Narrow them; never cast them.
 - **Validate at boundaries** (JSON import, .ics import, DB rows). Code inside the boundary trusts those types.
 - **Drag and drop:** dnd-kit pointer sensors only. `dragDropEnabled: false` is set in `tauri.conf.json` because Tauri's native file-drop handler would otherwise swallow drag events on Windows.
@@ -44,6 +44,7 @@ Tailwind v4 is configured in CSS: `@theme inline` maps the tokens to utilities, 
   - Density: `html[data-density=compact]` changes `--row-h` and `--pad`. Font size sets the root `font-size`, so every rem value scales with it.
 
 ## Conventions
+- **Zustand selectors return stable references.** Select the raw map (`useData((s) => s.lists)`) and derive arrays with `useMemo`. A selector that builds a new array/object on every call loops React ("getSnapshot should be cached"). `npm run lint:selectors` greps for it.
 - Small components, one per file, under `src/features/<area>/`. Shared primitives go in `src/components/ui/`.
 - Every interactive element gets a visible focus ring (`--accent`) and a keyboard path.
 - Commit once per phase. Stage files by explicit path.
