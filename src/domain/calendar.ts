@@ -6,26 +6,28 @@ import type { CalendarEvent, CalView, LocalDate, Schedule, Task, WeekStart } fro
 
 // ---------- ranges ----------
 
+export const dayRange = (start: LocalDate, n: number): LocalDate[] => Array.from({ length: n }, (_, i) => addDaysLocal(start, i));
+
 /** Days a view shows. Month is a full 6-week grid; agenda is the next 30 days. */
 export function viewDays(view: CalView, anchor: LocalDate, weekStart: WeekStart): LocalDate[] {
-  const range = (start: LocalDate, n: number) => Array.from({ length: n }, (_, i) => addDaysLocal(start, i));
+
   switch (view) {
     case "day":
       return [anchor];
-    case "3day":
-      return range(anchor, 3);
+    case "5day":
+      return dayRange(anchor, 5);
     case "week":
-      return range(toLocalDate(startOfWeek(fromLocalDate(anchor), { weekStartsOn: weekStart })), 7);
+      return dayRange(toLocalDate(startOfWeek(fromLocalDate(anchor), { weekStartsOn: weekStart })), 7);
     case "month":
-      return range(toLocalDate(startOfWeek(startOfMonth(fromLocalDate(anchor)), { weekStartsOn: weekStart })), 42);
+      return dayRange(toLocalDate(startOfWeek(startOfMonth(fromLocalDate(anchor)), { weekStartsOn: weekStart })), 42);
     case "agenda":
-      return range(anchor, 30);
+      return dayRange(anchor, 30);
   }
 }
 
 export function stepAnchor(view: CalView, anchor: LocalDate, dir: 1 | -1): LocalDate {
   if (view === "month") return toLocalDate(addMonths(startOfMonth(fromLocalDate(anchor)), dir));
-  const n = { day: 1, "3day": 3, week: 7, agenda: 7 }[view];
+  const n = { day: 1, "5day": 5, week: 7, agenda: 7 }[view];
   return addDaysLocal(anchor, n * dir);
 }
 

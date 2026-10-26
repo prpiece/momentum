@@ -8,8 +8,9 @@ import { sortVMs, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
 import { addSection, addTask, removeSection, updateSection, updateTask, useData } from "../../stores/data";
-import { confirm, openTask, useUi } from "../../stores/ui";
+import { confirm, openContextMenu, openTask, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
+import { taskMenu } from "./taskMenu";
 
 onDrop("kanban-column", (drag, drop) => {
   if (drag.type !== "task") return;
@@ -147,6 +148,7 @@ function Card({ vm }: { vm: TaskVM }) {
       {...attributes}
       {...listeners}
       onClick={() => openTask(t.id, vm.key)}
+      onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => e.key === "Enter" && openTask(t.id, vm.key)}
       className={`flex cursor-grab items-start gap-2.5 rounded-md border border-border bg-surface-2 p-3 shadow-sm transition-shadow hover:shadow-lg ${isDragging ? "opacity-40" : ""}`}
     >

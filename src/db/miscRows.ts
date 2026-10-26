@@ -13,14 +13,14 @@ export const parseCountdown = (r: Row): Countdown | null =>
         date: r.date,
         direction: r.direction === "since" ? "since" : "until",
         repeat: oneOf(COUNTDOWN_REPEATS, r.repeat) ? r.repeat : "none",
-        emoji: typeof r.emoji === "string" && r.emoji ? r.emoji : "⏳",
+        icon: typeof r.emoji === "string" && r.emoji ? r.emoji : "hourglass",
         color: typeof r.color === "string" && /^#[0-9a-f]{6}$/i.test(r.color) ? r.color : "#5b5bd6",
         pinned: r.pinned === 1,
         createdAt: isInstant(r.created_at) ? r.created_at : new Date().toISOString(),
       }
     : null;
 
-export const countdownRow = (c: Countdown): Row => ({ id: c.id, title: c.title, date: c.date, direction: c.direction, repeat: c.repeat, emoji: c.emoji, color: c.color, pinned: c.pinned ? 1 : 0, created_at: c.createdAt });
+export const countdownRow = (c: Countdown): Row => ({ id: c.id, title: c.title, date: c.date, direction: c.direction, repeat: c.repeat, emoji: c.icon, color: c.color, pinned: c.pinned ? 1 : 0, created_at: c.createdAt });
 
 export const parseSession = (r: Row): FocusSession | null =>
   typeof r.id === "string" && (r.mode === "pomodoro" || r.mode === "stopwatch") && isInstant(r.start_at) && isInstant(r.end_at) && typeof r.seconds === "number"

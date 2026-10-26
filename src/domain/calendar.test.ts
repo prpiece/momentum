@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarItems, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, rangeTitle, resizedSchedule, snap, stepAnchor, viewDays, type CalItem } from "./calendar";
+import { calendarItems, dayRange, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, rangeTitle, resizedSchedule, snap, stepAnchor, viewDays, type CalItem } from "./calendar";
 import { atLocalTime, timed, wallKey } from "./dates";
 import { toVM, type TaskVM } from "./taskViews";
 import type { CalendarEvent, Schedule, Task } from "./types";
@@ -73,7 +73,9 @@ describe("ranges", () => {
   it("steps by view size and titles ranges", () => {
     expect(stepAnchor("week", "2026-10-28", 1)).toBe("2026-11-04");
     expect(stepAnchor("month", "2026-01-31", 1)).toBe("2026-02-01");
-    expect(stepAnchor("3day", "2026-10-28", -1)).toBe("2026-10-25");
+    expect(stepAnchor("5day", "2026-10-28", -1)).toBe("2026-10-23");
+    expect(viewDays("5day", "2026-10-28", 1)).toEqual(dayRange("2026-10-28", 5));
+    expect(dayRange("2026-10-30", 3)).toEqual(["2026-10-30", "2026-10-31", "2026-11-01"]);
     expect(rangeTitle("week", viewDays("week", "2026-10-28", 1), "2026-10-28")).toBe("Oct 26 – Nov 1, 2026");
     expect(rangeTitle("month", [], "2026-10-28")).toBe("October 2026");
   });

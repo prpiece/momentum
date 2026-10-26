@@ -1,12 +1,12 @@
-import { ChevronLeft, ChevronRight, PanelRight, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, PanelRight, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
-import { rangeTitle, stepAnchor, viewDays } from "../../domain/calendar";
-import { todayLocal } from "../../domain/dates";
+import { dayRange, rangeTitle, stepAnchor, viewDays } from "../../domain/calendar";
+import { addDaysLocal, todayLocal } from "../../domain/dates";
 import { CAL_VIEWS, type CalView, type CalendarSettings } from "../../domain/types";
 import { useViewKeys } from "../../lib/shortcuts";
 import { useSettings } from "../../stores/settings";
-import { setCalAnchor, useUi } from "../../stores/ui";
+import { setCalAnchor, setCalSpan, useUi } from "../../stores/ui";
 import { AgendaView } from "./AgendaView";
 import { MonthView } from "./MonthView";
 import { SidePanel } from "./SidePanel";
@@ -16,21 +16,30 @@ import "./calendarActions";
 
 const LABEL: Record<CalView, [string, string]> = {
   day: ["Day", "D"],
-  "3day": ["3 days", "X"],
+  "5day": ["5 days", "X"],
   week: ["Week", "W"],
   month: ["Month", "M"],
   agenda: ["Agenda", "A"],
 };
-const KEY_VIEW: Record<string, CalView> = { d: "day", x: "3day", w: "week", m: "month", a: "agenda" };
+const KEY_VIEW: Record<string, CalView> = { d: "day", x: "5day", w: "week", m: "month", a: "agenda" };
 
 export function CalendarView() {
   const settings = useSettings((s) => s.settings);
   const update = useSettings((s) => s.update);
   const cal = settings.calendar;
   const anchor = useUi((s) => s.calAnchor);
-  const setCal = useCallback((patch: Partial<CalendarSettings>) => update({ calendar: { ...useSettings.getState().settings.calendar, ...patch } }), [update]);
+  const span = useUi((s) => s.calSpan);
+  const setCal = useCallback(
+    (patch: Partial<CalendarSettings>) => {
+      if (patch.view) setCalSpan(null);
+      update({ calendar: { ...useSettings.getState().settings.calendar, ...patch } });
+    },
+    [update],
+  );
   const view = cal.view;
-  const days = useMemo(() => viewDays(view, anchor, settings.weekStart), [view, anchor, settings.weekStart]);
+  // A day range dragged out on the mini month overrides the view's own range (Google Calendar style).
+  const days = useMemo(() => (span ? dayRange(anchor, span) : viewDays(view, anchor, settings.weekStart)), [span, view, anchor, settings.weekStart]);
+  const step = useCallback((from: string, dir: 1 | -1) => (span ? addDaysLocal(from, span * dir) : stepAnchor(view, from, dir)), [span, view]);
   const items = useCalendarItems(days[0], days[days.length - 1]);
   const options = useMenu();
 
@@ -40,11 +49,11 @@ export function CalendarView() {
         const k = e.key.toLowerCase();
         if (KEY_VIEW[k]) return setCal({ view: KEY_VIEW[k] }), true;
         if (k === "t") return setCalAnchor(todayLocal()), true;
-        if (e.key === "ArrowLeft") return setCalAnchor(stepAnchor(view, useUi.getState().calAnchor, -1)), true;
-        if (e.key === "ArrowRight") return setCalAnchor(stepAnchor(view, useUi.getState().calAnchor, 1)), true;
+        if (e.key === "ArrowLeft") return setCalAnchor(step(useUi.getState().calAnchor, -1)), true;
+        if (e.key === "ArrowRight") return setCalAnchor(step(useUi.getState().calAnchor, 1)), true;
         return false;
       },
-      [view, setCal],
+      [step, setCal],
     ),
   );
 
@@ -61,24 +70,29 @@ export function CalendarView() {
             Today
           </button>
           <div className="flex">
-            <button type="button" aria-label="Previous" title="Previous (←)" onClick={() => setCalAnchor(stepAnchor(view, anchor, -1))} className="grid size-8 place-items-center rounded-sm text-fg-2 hover:bg-hover">
+            <button type="button" aria-label="Previous" title="Previous (←)" onClick={() => setCalAnchor(step(anchor, -1))} className="grid size-8 place-items-center rounded-sm text-fg-2 hover:bg-hover">
               <ChevronLeft size={18} />
             </button>
-            <button type="button" aria-label="Next" title="Next (→)" onClick={() => setCalAnchor(stepAnchor(view, anchor, 1))} className="grid size-8 place-items-center rounded-sm text-fg-2 hover:bg-hover">
+            <button type="button" aria-label="Next" title="Next (→)" onClick={() => setCalAnchor(step(anchor, 1))} className="grid size-8 place-items-center rounded-sm text-fg-2 hover:bg-hover">
               <ChevronRight size={18} />
             </button>
           </div>
-          <h2 className="mr-auto text-base font-semibold tracking-tight">{rangeTitle(view, days, anchor)}</h2>
+          <h2 className="mr-auto text-base font-semibold tracking-tight">{rangeTitle(span ? "5day" : view, days, anchor)}</h2>
+          {span && (
+            <button type="button" onClick={() => setCalSpan(null)} title="Back to the selected view" className="anim-pop flex h-7 items-center gap-1 rounded-full bg-accent-soft px-2.5 text-xs font-medium text-accent hover:bg-accent hover:text-accent-fg">
+              {span} days <X size={12} />
+            </button>
+          )}
           <div role="radiogroup" aria-label="Calendar view" className="flex rounded-sm border border-border bg-bg p-0.5">
             {CAL_VIEWS.map((v) => (
               <button
                 key={v}
                 type="button"
                 role="radio"
-                aria-checked={view === v}
+                aria-checked={!span && view === v}
                 title={`${LABEL[v][0]} (${LABEL[v][1]})`}
                 onClick={() => setCal({ view: v })}
-                className={`h-7 rounded-[6px] px-2.5 text-xs ${view === v ? "bg-surface-2 font-semibold text-fg shadow-sm" : "text-muted hover:text-fg"}`}
+                className={`h-7 rounded-[6px] px-2.5 text-xs ${!span && view === v ? "bg-surface-2 font-semibold text-fg shadow-sm" : "text-muted hover:text-fg"}`}
               >
                 {LABEL[v][0]}
               </button>
@@ -127,7 +141,9 @@ export function CalendarView() {
             </Popover>
           )}
         </div>
-        {view === "month" ? (
+        {span ? (
+          <TimeGrid days={days} items={items} onViewDay={openDay} />
+        ) : view === "month" ? (
           <MonthView days={days} anchor={anchor} items={items} weekStart={settings.weekStart} onViewDay={openDay} />
         ) : view === "agenda" ? (
           <AgendaView days={days} items={items} />

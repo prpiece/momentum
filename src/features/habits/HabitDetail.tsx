@@ -8,7 +8,8 @@ import { bestStreak, completionRate, currentStreak, frequencyLabel, isScheduled,
 import type { WeekStart } from "../../domain/types";
 import { useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
-import { MOOD_EMOJI } from "./NoteButton";
+import { MoodFace } from "./NoteButton";
+import { IconTile } from "../../components/ui/AppIcon";
 
 /** Sequential single-hue fill: none → partial → done (habit color mixed into the surface). */
 export function cellFill(h: Habit, value: number | undefined, scheduled: boolean): string {
@@ -45,9 +46,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
   return (
     <div className="scroll-thin h-full space-y-6 overflow-y-auto p-6">
       <header className="flex items-center gap-3">
-        <span className="grid size-12 place-items-center rounded-md text-2xl" style={{ background: `color-mix(in oklch, ${habit.color} 18%, transparent)` }}>
-          {habit.icon}
-        </span>
+        <IconTile name={habit.icon} color={habit.color} size={48} />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold">{habit.name}</h2>
           <p className="text-xs text-muted">
@@ -77,7 +76,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
             {notes.map((n) => (
               <li key={n.date} className="flex gap-3 text-sm">
                 <span className="w-16 shrink-0 font-mono text-xs text-muted">{format(fromLocalDate(n.date), "MMM d")}</span>
-                {n.mood && <span aria-label={`Mood ${n.mood} of 5`}>{MOOD_EMOJI[n.mood - 1]}</span>}
+                {n.mood && <MoodFace mood={n.mood} size={15} />}
                 <span className="text-fg-2">{n.note}</span>
               </li>
             ))}

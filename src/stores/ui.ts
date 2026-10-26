@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { create } from "zustand";
 import { todayLocal } from "../domain/dates";
 import type { ViewId } from "../domain/types";
@@ -5,6 +6,11 @@ import type { Scope } from "./data";
 
 export type Toast = { id: number; message: string; action?: { label: string; run: () => void } };
 type ScopeAsk = { verb: "edit" | "delete"; resolve: (s: Scope | null) => void };
+/** A right-click menu entry: an item, a labelled row of icon choices (dates, priority), or "sep" for a divider. */
+export type MenuEntry =
+  | { label: string; icon?: ReactNode; run: () => void; danger?: boolean; hint?: string }
+  | { label: string; choices: { title: string; icon: ReactNode; run: () => void; active?: boolean }[] }
+  | "sep";
 type ConfirmAsk = { title: string; body: string; confirm: string; resolve: (ok: boolean) => void };
 
 type UiStore = {
@@ -22,6 +28,11 @@ type UiStore = {
   calAnchor: string;
   /** Calendar event open in the event dialog. */
   eventDialog: { id: string; key: string | null } | null;
+  /** Calendar showing a day range dragged out on the mini month (days from calAnchor); null = the view's own range. */
+  calSpan: number | null;
+  contextMenu: { x: number; y: number; items: MenuEntry[] } | null;
+  /** Welcome tour reopened from Settings (first run is driven by settings.onboarded). */
+  welcomeOpen: boolean;
 };
 
 export const useUi = create<UiStore>(() => ({
@@ -36,16 +47,32 @@ export const useUi = create<UiStore>(() => ({
   collapsed: {},
   calAnchor: todayLocal(),
   eventDialog: null,
+  calSpan: null,
+  contextMenu: null,
+  welcomeOpen: false,
 }));
 const set = useUi.setState;
 
-export const go = (view: ViewId) => set({ view, selection: [] });
+// Leaving a view closes what was opened from it (the task drawer would otherwise float over Settings).
+export const go = (view: ViewId) => set({ view, selection: [], drawer: null, contextMenu: null });
 export const openTask = (id: string, key: string | null = null) => set({ drawer: { id, key } });
 export const closeDrawer = () => set({ drawer: null });
 export const setSelection = (selection: string[]) => set({ selection });
 export const setPalette = (paletteOpen: boolean) => set({ paletteOpen });
 export const setShortcuts = (shortcutsOpen: boolean) => set({ shortcutsOpen });
 export const setCalAnchor = (calAnchor: string) => set({ calAnchor });
+export const setCalSpan = (calSpan: number | null) => set({ calSpan });
+export function openContextMenu(e: { clientX: number; clientY: number; preventDefault: () => void; stopPropagation: () => void }, items: MenuEntry[]) {
+  e.preventDefault();
+  e.stopPropagation();
+  set({ contextMenu: { x: e.clientX, y: e.clientY, items } });
+}
+/** The same menu, opened under a "…" button. */
+export function openMenuAt(el: HTMLElement, items: MenuEntry[]) {
+  const r = el.getBoundingClientRect();
+  set({ contextMenu: { x: r.left, y: r.bottom, items } });
+}
+export const closeContextMenu = () => set({ contextMenu: null });
 export const openEvent = (id: string, key: string | null = null) => set({ eventDialog: { id, key } });
 export const closeEvent = () => set({ eventDialog: null });
 export const toggleCollapsed = (id: string) =>

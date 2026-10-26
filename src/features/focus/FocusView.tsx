@@ -105,8 +105,9 @@ export function FocusView() {
   const boundTask = t.status === "idle" ? taskId : t.taskId;
 
   return (
-    <div className="flex h-full min-h-0">
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
+    // Narrow windows stack the timer above today's sessions and scroll; nothing may shrink under the ring.
+    <div className="scroll-thin flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      <div className="scroll-thin flex shrink-0 flex-col items-center justify-center-safe gap-5 p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {t.status === "idle" && (
           <div role="radiogroup" aria-label="Timer mode" className="flex rounded-sm border border-border bg-bg p-0.5">
             {(["pomodoro", "stopwatch"] as const).map((m) => (
@@ -117,8 +118,8 @@ export function FocusView() {
           </div>
         )}
 
-        <div className="relative grid place-items-center" style={{ width: 2 * R + 24, height: 2 * R + 24 }}>
-          <svg width={2 * R + 24} height={2 * R + 24} className="absolute -rotate-90" aria-hidden="true">
+        <div className="relative grid size-[clamp(12rem,42vh,16.5rem)] shrink-0 place-items-center">
+          <svg viewBox={`0 0 ${2 * R + 24} ${2 * R + 24}`} className="absolute inset-0 size-full -rotate-90" aria-hidden="true">
             <circle cx={R + 12} cy={R + 12} r={R} fill="none" stroke="var(--border)" strokeWidth={8} />
             {activeMode === "pomodoro" && t.status !== "idle" && (
               <circle cx={R + 12} cy={R + 12} r={R} fill="none" stroke={t.phase === "focus" ? "var(--accent)" : "var(--success)"} strokeWidth={8} strokeLinecap="round" strokeDasharray={`${C * progress} ${C}`} className="transition-[stroke-dasharray] duration-1000 ease-linear" />
@@ -129,7 +130,7 @@ export function FocusView() {
               {t.status === "idle" ? "Ready" : t.mode === "stopwatch" ? "Stopwatch" : `${PHASE_NAME[t.phase]}${t.phase === "focus" ? ` · round ${t.round}` : ""}`}
               {t.status === "paused" && " · paused"}
             </div>
-            <div className="font-mono text-6xl font-semibold tabular-nums tracking-tight">{clock}</div>
+            <div className="font-mono text-[clamp(2.5rem,7vh,3.75rem)] font-semibold tabular-nums tracking-tight">{clock}</div>
           </div>
         </div>
 
@@ -206,7 +207,7 @@ export function FocusView() {
         )}
       </div>
 
-      <aside className="flex w-72 shrink-0 flex-col border-l border-border p-4" aria-label="Today's focus">
+      <aside className="flex shrink-0 flex-col border-t border-border p-4 lg:w-72 lg:border-l lg:border-t-0" aria-label="Today's focus">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Today</h2>
         <div className="mt-1 font-mono text-3xl font-semibold tabular-nums">
           {Math.floor(todayMin / 60)}

@@ -20,10 +20,10 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
   const at = (n: number, time: string, minutes = 60): Schedule => timed(atLocalTime(d(n), time), minutes);
 
   const folders: Folder[] = [{ id: id(), name: "Uni", sortOrder: 0, collapsed: false }];
-  const mk = (name: string, emoji: string, color: string, sortOrder: number, folderId: string | null = null): TaskList => ({
+  const mk = (name: string, icon: string, color: string, sortOrder: number, folderId: string | null = null): TaskList => ({
     id: id(),
     name,
-    emoji,
+    icon,
     color,
     folderId,
     pinned: false,
@@ -32,10 +32,10 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     layout: "list",
     sortOrder,
   });
-  const work = mk("Work", "💼", "#2f6fed", 1);
-  const home = mk("Home", "🏠", "#2f9358", 2);
-  const chem = mk("Chemistry", "🧪", "#8a4fd8", 3, folders[0].id);
-  const essay = { ...mk("History essay", "📝", "#d18a14", 4, folders[0].id), layout: "kanban" as const };
+  const work = mk("Work", "work", "#2f6fed", 1);
+  const home = mk("Home", "home", "#2f9358", 2);
+  const chem = mk("Chemistry", "lab", "#8a4fd8", 3, folders[0].id);
+  const essay = { ...mk("History essay", "notebook", "#d18a14", 4, folders[0].id), layout: "kanban" as const };
   const lists = [work, home, chem, essay];
 
   const sections: Section[] = ["Research", "Drafting", "Editing"].map((name, i) => ({ id: id(), listId: essay.id, name, sortOrder: i }));
@@ -163,11 +163,11 @@ export function sampleHabits(today = todayLocal()): HabitData {
     { id: id(), name: "Health", sortOrder: 1 },
   ];
   const habits = [
-    habit("Drink water", "💧", "#2f6fed", { kind: "count", target: 8, unit: "glasses" }, { kind: "daily" }, 0, groups[1].id),
-    habit("Meditate", "🧘", "#8a4fd8", { kind: "once" }, { kind: "daily" }, 1, groups[0].id),
-    habit("Run", "🏃", "#e1583f", { kind: "amount", target: 5, unit: "km" }, { kind: "perWeek", count: 2 }, 2, groups[1].id),
-    habit("Read", "📚", "#d18a14", { kind: "count", target: 20, unit: "pages" }, { kind: "weekdays", days: [1, 2, 3, 4, 5] }, 3),
-    habit("No phone after 10pm", "📵", "#0e8a85", { kind: "once" }, { kind: "daily" }, 4, groups[0].id),
+    habit("Drink water", "droplet", "#2f6fed", { kind: "count", target: 8, unit: "glasses" }, { kind: "daily" }, 0, groups[1].id),
+    habit("Meditate", "meditate", "#8a4fd8", { kind: "once" }, { kind: "daily" }, 1, groups[0].id),
+    habit("Run", "run", "#e1583f", { kind: "amount", target: 5, unit: "km" }, { kind: "perWeek", count: 2 }, 2, groups[1].id),
+    habit("Read", "book", "#d18a14", { kind: "count", target: 20, unit: "pages" }, { kind: "weekdays", days: [1, 2, 3, 4, 5] }, 3),
+    habit("No phone after 10pm", "phone-off", "#0e8a85", { kind: "once" }, { kind: "daily" }, 4, groups[0].id),
   ];
   // Deterministic "random" so screenshots are stable.
   let seed = 7;
@@ -192,12 +192,12 @@ export function sampleHabits(today = todayLocal()): HabitData {
 
 export function sampleCountdowns(today = todayLocal()): Countdown[] {
   const now = new Date().toISOString();
-  const c = (title: string, date: string, p: Partial<Countdown> = {}): Countdown => ({ id: id(), title, date, direction: "until", repeat: "none", emoji: "⏳", color: "#5b5bd6", pinned: false, createdAt: now, ...p });
+  const c = (title: string, date: string, p: Partial<Countdown> = {}): Countdown => ({ id: id(), title, date, direction: "until", repeat: "none", icon: "hourglass", color: "#5b5bd6", pinned: false, createdAt: now, ...p });
   return [
-    c("Chem final exam", addDaysLocal(today, 23), { emoji: "🎓", color: "#8a4fd8", pinned: true }),
-    c("Trip to Japan", addDaysLocal(today, 74), { emoji: "✈️", color: "#2f6fed" }),
-    c("Mum's birthday", "1968" + addDaysLocal(today, 65).slice(4), { emoji: "🎂", color: "#d6457a", repeat: "yearly" }),
-    c("Days since starting to run", addDaysLocal(today, -45), { emoji: "🏃", color: "#e1583f", direction: "since" }),
+    c("Chem final exam", addDaysLocal(today, 23), { icon: "school", color: "#8a4fd8", pinned: true }),
+    c("Trip to Japan", addDaysLocal(today, 74), { icon: "plane", color: "#2f6fed" }),
+    c("Mum's birthday", "1968" + addDaysLocal(today, 65).slice(4), { icon: "cake", color: "#d6457a", repeat: "yearly" }),
+    c("Days since starting to run", addDaysLocal(today, -45), { icon: "run", color: "#e1583f", direction: "since" }),
   ];
 }
 

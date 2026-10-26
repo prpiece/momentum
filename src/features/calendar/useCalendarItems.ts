@@ -41,7 +41,7 @@ export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
         for (let d = from; d <= to; d = addDaysLocal(d, 1)) {
           const done = isDone(h, checkins[h.id]?.[d]?.value);
           if (h.frequency.kind === "perWeek" ? !done : !isScheduled(h, d)) continue;
-          items.push({ uid: `habit:${h.id}:${d}`, source: "habit", id: h.id, key: d, title: `${h.icon} ${h.name}`, allDay: true, startDate: d, endDate: d, start: null, end: null, color: h.color, done, recurring: false, readOnly: true, priority: 0 });
+          items.push({ uid: `habit:${h.id}:${d}`, source: "habit", id: h.id, key: d, title: h.name, allDay: true, startDate: d, endDate: d, start: null, end: null, color: h.color, done, recurring: false, readOnly: true, priority: 0 });
         }
       }
     }
@@ -54,7 +54,7 @@ export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
         const endDate = toLocalDate(new Date(end.getTime() - 1));
         if (endDate < from || startDate > to) continue;
         const task = s.taskId ? derived.byId.get(s.taskId)?.task : undefined;
-        items.push({ uid: `focus:${s.id}`, source: "focus", id: s.id, key: null, title: `🎯 ${task?.title ?? "Focus"}`, allDay: false, startDate, endDate, start, end, color: "var(--p3)", done: false, recurring: false, readOnly: true, priority: 0 });
+        items.push({ uid: `focus:${s.id}`, source: "focus", id: s.id, key: null, title: task ? `Focus: ${task.title}` : "Focus", allDay: false, startDate, endDate, start, end, color: "var(--p3)", done: false, recurring: false, readOnly: true, priority: 0 });
       }
     }
     return items;

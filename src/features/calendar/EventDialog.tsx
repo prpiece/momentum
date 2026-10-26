@@ -5,8 +5,8 @@ import { ACCENT_PRESETS } from "../../domain/color";
 import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, hhmm, scheduleDate, timed, todayLocal } from "../../domain/dates";
 import { REPEAT_PRESETS, describeRule, scheduleForKey } from "../../domain/recurrence";
 import type { CalendarEvent, Recurrence, Schedule } from "../../domain/types";
-import { withUndo } from "../../lib/undo";
-import { deleteEventOccurrence, deleteEvents, editEventOccurrence, updateEvent, useData } from "../../stores/data";
+import { editEventOccurrence, updateEvent, useData } from "../../stores/data";
+import { deleteEvent } from "./calendarActions";
 import { askScope, closeEvent, useUi } from "../../stores/ui";
 
 export function EventDialog() {
@@ -53,12 +53,7 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
   };
 
   const remove = async () => {
-    if (event.recurrence && occurrenceKey) {
-      const scope = await askScope("delete");
-      if (!scope) return;
-      withUndo("Event deleted", () => deleteEventOccurrence(event.id, occurrenceKey, scope));
-    } else withUndo("Event deleted", () => deleteEvents([event.id]));
-    closeEvent();
+    if (await deleteEvent(event.id, occurrenceKey)) closeEvent();
   };
 
   return (

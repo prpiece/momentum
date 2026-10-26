@@ -46,3 +46,15 @@ describe("parseSettings matrix rules", () => {
     expect(parseSettings({ matrix: { importantPriorities: [] } }).matrix.importantPriorities).toEqual([2, 3]);
   });
 });
+
+describe("parseSettings migrations", () => {
+  it("carries the old single notifications switch into notify.enabled and repairs bad fields", () => {
+    expect(parseSettings({ notifications: false }).notify.enabled).toBe(false);
+    const n = parseSettings({ notify: { style: "fax", digestTime: "25:00", starts: false } }).notify;
+    expect([n.enabled, n.style, n.digestTime, n.starts]).toEqual([true, "both", "08:00", false]);
+  });
+
+  it("maps the retired 3-day calendar view to 5 days", () => {
+    expect(parseSettings({ calendar: { view: "3day" } }).calendar.view).toBe("5day");
+  });
+});

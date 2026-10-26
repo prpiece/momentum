@@ -9,7 +9,8 @@ export type Countdown = {
   /** `until`: days left to the date; `since`: days elapsed since it. */
   direction: "until" | "since";
   repeat: (typeof COUNTDOWN_REPEATS)[number];
-  emoji: string;
+  /** Icon key; older data may hold an emoji. Column: `emoji`. */
+  icon: string;
   color: string;
   pinned: boolean;
   createdAt: Instant;

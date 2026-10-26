@@ -1,4 +1,5 @@
 import { CalendarDays, CheckCheck, Flag, FolderInput, Hash, Trash2, X } from "lucide-react";
+import { ListGlyph } from "../../components/ui/AppIcon";
 import { MenuItem, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
 import { addDaysLocal, todayLocal } from "../../domain/dates";
 import { PRIORITIES, PRIORITY_LABEL, type Schedule } from "../../domain/types";
@@ -75,7 +76,7 @@ export function BulkBar() {
             .filter((l) => !l.archived)
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((l) => (
-              <MenuItem key={l.id} icon={l.emoji ?? undefined} onSelect={() => (listMenu.close(), withUndo(`Moved ${n} tasks to ${l.name}`, () => moveTasks(selection, l.id)))}>
+              <MenuItem key={l.id} icon={<ListGlyph icon={l.icon} color={l.color} size={14} />} onSelect={() => (listMenu.close(), withUndo(`Moved ${n} tasks to ${l.name}`, () => moveTasks(selection, l.id)))}>
                 {l.name}
               </MenuItem>
             ))}

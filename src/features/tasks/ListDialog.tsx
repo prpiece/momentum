@@ -1,3 +1,4 @@
+import { IconPicker, ListGlyph } from "../../components/ui/AppIcon";
 import { Archive, Check, Pin, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Button, Dialog } from "../../components/ui/Dialog";
@@ -6,21 +7,20 @@ import type { TaskList } from "../../domain/types";
 import { addList, removeList, updateList, useData } from "../../stores/data";
 import { confirm, go } from "../../stores/ui";
 
-const EMOJI = ["📥", "💼", "🏠", "📚", "🎓", "💪", "🛒", "✈️", "💡", "🎯", "🧪", "💰", "🎨", "🎵", "🌱", "❤️", "🧘", "🍳", "🐾", "🛠️", "📝", "🚀", "⭐", "🗓️"];
 
 /** Create (no `list`) or edit a list. */
 export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList; onClose: () => void; folderId?: string | null }) {
   const folderMap = useData((s) => s.folders);
   const folders = useMemo(() => Object.values(folderMap).sort((a, b) => a.sortOrder - b.sortOrder), [folderMap]);
   const [name, setName] = useState(list?.name ?? "");
-  const [emoji, setEmoji] = useState<string | null>(list?.emoji ?? null);
+  const [icon, setIcon] = useState<string | null>(list?.icon ?? null);
   const [color, setColor] = useState<string | null>(list?.color ?? ACCENT_PRESETS[0].hex);
   const [folder, setFolder] = useState<string | null>(list?.folderId ?? folderId);
   const [tint, setTint] = useState(list?.tint ?? false);
 
   const save = () => {
     if (!name.trim()) return;
-    const patch = { name: name.trim(), emoji, color, folderId: folder, tint };
+    const patch = { name: name.trim(), icon, color, folderId: folder, tint };
     if (list) updateList(list.id, patch);
     else {
       const l = addList(patch.name, folder);
@@ -43,7 +43,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">Name</span>
           <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 focus-within:border-accent">
-            <span className="text-lg">{emoji ?? <span className="block size-3 rounded-full" style={{ background: color ?? "var(--fg-muted)" }} />}</span>
+            <ListGlyph icon={icon} color={color} size={18} />
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className="h-10 flex-1 bg-transparent outline-none" placeholder="e.g. School" />
           </div>
         </label>
@@ -62,16 +62,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
 
         <fieldset>
           <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Icon</legend>
-          <div className="flex flex-wrap gap-1">
-            <button type="button" onClick={() => setEmoji(null)} aria-pressed={emoji === null} className={`grid size-9 place-items-center rounded-sm text-xs text-muted ${emoji === null ? "bg-accent-soft ring-1 ring-accent" : "hover:bg-hover"}`}>
-              Dot
-            </button>
-            {EMOJI.map((e) => (
-              <button key={e} type="button" aria-label={e} aria-pressed={emoji === e} onClick={() => setEmoji(e)} className={`grid size-9 place-items-center rounded-sm text-lg ${emoji === e ? "bg-accent-soft ring-1 ring-accent" : "hover:bg-hover"}`}>
-                {e}
-              </button>
-            ))}
-          </div>
+          <IconPicker value={icon} onChange={setIcon} color={color ?? undefined} none="Dot" />
         </fieldset>
 
         <div className="flex flex-wrap items-center gap-4">

@@ -106,7 +106,7 @@ export function validateBackup(raw: unknown): Validation {
 export function repairReferences(d: Restored): Restored {
   const lists = d.lists.some((l) => l.id === INBOX_ID)
     ? d.lists
-    : [{ id: INBOX_ID, name: "Inbox", color: null, emoji: null, folderId: null, pinned: false, archived: false, tint: false, layout: "list" as const, sortOrder: -1 }, ...d.lists];
+    : [{ id: INBOX_ID, name: "Inbox", color: null, icon: null, folderId: null, pinned: false, archived: false, tint: false, layout: "list" as const, sortOrder: -1 }, ...d.lists];
   const folderIds = new Set(d.folders.map((f) => f.id));
   const listIds = new Set(lists.map((l) => l.id));
   const sections = d.sections.filter((s) => listIds.has(s.listId));

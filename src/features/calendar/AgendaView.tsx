@@ -5,7 +5,7 @@ import { itemsOnDay, type CalItem } from "../../domain/calendar";
 import { formatTime, fromLocalDate, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { useSettings } from "../../stores/settings";
 import { toggleDone } from "../tasks/actions";
-import { openItem } from "./Blocks";
+import { onItemMenu, openItem } from "./Blocks";
 
 /** Upcoming 30 days as a list, grouped by day; empty days are skipped. */
 export function AgendaView({ days, items }: { days: string[]; items: CalItem[] }) {
@@ -24,7 +24,7 @@ export function AgendaView({ days, items }: { days: string[]; items: CalItem[] }
           <ul className="min-w-0 flex-1 space-y-1">
             {g.items.map((i) => (
               <li key={i.uid}>
-                <div role="button" tabIndex={0} onClick={() => openItem(i)} onKeyDown={(e) => e.key === "Enter" && openItem(i)} className="flex items-center gap-3 rounded-sm px-2 py-1.5 hover:bg-hover">
+                <div role="button" tabIndex={0} onClick={() => openItem(i)} onContextMenu={onItemMenu(i)} onKeyDown={(e) => e.key === "Enter" && openItem(i)} className="flex items-center gap-3 rounded-sm px-2 py-1.5 hover:bg-hover">
                   <span className="w-28 shrink-0 font-mono text-xs text-muted">
                     {i.allDay || !i.start || !i.end ? "All day" : `${formatTime(i.start, timeFormat)} – ${formatTime(i.end, timeFormat)}`}
                   </span>

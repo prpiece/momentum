@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { atLocalTime } from "./dates";
 import type { Habit } from "./habits";
-import { completedPerDay, completedPerWeek, habitConsistency, niceScale } from "./stats";
+import { byWeekday, completedByList, completedPerDay, completedPerWeek, dayStreaks, habitConsistency, heatLevel, niceScale } from "./stats";
 import type { Task } from "./types";
 
 const TODAY = "2026-10-25";
@@ -65,5 +65,26 @@ describe("niceScale", () => {
     expect(niceScale(7)).toEqual({ top: 9, step: 3 });
     expect(niceScale(10)).toEqual({ top: 10, step: 5 });
     expect(niceScale(130)).toEqual({ top: 150, step: 50 });
+  });
+});
+
+describe("motivation stats", () => {
+  const b = (values: number[]) => values.map((value, i) => ({ start: `2026-10-${String(20 + i).padStart(2, "0")}`, label: "", value }));
+
+  it("counts the current streak through an empty today, and the best run", () => {
+    expect(dayStreaks(b([1, 1, 0, 2, 1, 3, 0]))).toEqual({ current: 3, best: 3 });
+    expect(dayStreaks(b([1, 1, 1, 1, 0, 0, 1]))).toEqual({ current: 1, best: 4 });
+    expect(dayStreaks(b([0, 0]))).toEqual({ current: 0, best: 0 });
+  });
+
+  it("sums by weekday and by list, and grades heat", () => {
+    // 2026-10-20 is a Tuesday.
+    expect(byWeekday(b([2, 0, 5]))).toEqual([0, 0, 2, 0, 5, 0, 0]);
+    const tasks = [done("2026-10-25", { listId: "a" }), done("2026-10-24", { listId: "a" }), done("2026-10-24", { listId: "b" }), done("2026-09-01", { listId: "b" })];
+    expect(completedByList(tasks, "2026-10-01")).toEqual([
+      { listId: "a", value: 2 },
+      { listId: "b", value: 1 },
+    ]);
+    expect([0, 1, 5, 10].map((v) => heatLevel(v, 10))).toEqual([0, 1, 2, 4]);
   });
 });

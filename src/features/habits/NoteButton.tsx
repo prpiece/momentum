@@ -1,11 +1,16 @@
-import { MessageSquareText } from "lucide-react";
+import { Annoyed, Frown, Laugh, Meh, MessageSquareText, Smile, type LucideIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { Popover } from "../../components/ui/Popover";
 import type { Habit, Mood } from "../../domain/habits";
 import type { LocalDate } from "../../domain/types";
 import { checkinOf, setCheckin, useHabits } from "../../stores/habits";
 
-export const MOOD_EMOJI = ["😞", "😕", "😐", "🙂", "😄"];
+const FACES: LucideIcon[] = [Frown, Annoyed, Meh, Smile, Laugh];
+/** Mood 1–5 as a face, tinted from muted red to green. */
+export function MoodFace({ mood, size = 16 }: { mood: Mood; size?: number }) {
+  const F = FACES[mood - 1];
+  return <F size={size} aria-label={`Mood ${mood} of 5`} style={{ color: `color-mix(in oklch, var(--success) ${(mood - 1) * 25}%, var(--danger))` }} />;
+}
 const MOODS: Mood[] = [1, 2, 3, 4, 5];
 
 /** Optional daily note + mood for a habit. */
@@ -28,7 +33,7 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
         }}
         className={`grid size-7 shrink-0 place-items-center rounded-sm hover:bg-hover ${c?.note || c?.mood ? "text-accent" : "text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
       >
-        {c?.mood ? <span className="text-sm">{MOOD_EMOJI[c.mood - 1]}</span> : <MessageSquareText size={15} />}
+        {c?.mood ? <MoodFace mood={c.mood} size={16} /> : <MessageSquareText size={15} />}
       </button>
       {open && (
         <Popover anchor={anchor} onClose={() => (setCheckin(habit.id, date, { note: note.trim() }), setOpen(false))} align="end" className="w-64 p-3">
@@ -41,9 +46,9 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
                 aria-checked={c?.mood === m}
                 aria-label={`Mood ${m} of 5`}
                 onClick={() => setCheckin(habit.id, date, { mood: c?.mood === m ? null : m })}
-                className={`grid size-9 place-items-center rounded-full text-xl transition-transform hover:scale-110 ${c?.mood === m ? "bg-accent-soft ring-2 ring-accent" : ""}`}
+                className={`grid size-9 place-items-center rounded-full transition-transform hover:scale-110 ${c?.mood === m ? "bg-accent-soft ring-2 ring-accent" : ""}`}
               >
-                {MOOD_EMOJI[m - 1]}
+                <MoodFace mood={m} size={22} />
               </button>
             ))}
           </div>

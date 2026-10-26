@@ -17,7 +17,7 @@ function file(): BackupFile {
     tables: {
       settings: [{ id: 1, value: JSON.stringify({ ...DEFAULT_SETTINGS, theme: "dark" }) }],
       folders: ws.folders.map(folderToRow),
-      lists: [listToRow({ id: "inbox", name: "Inbox", color: null, emoji: null, folderId: null, pinned: false, archived: false, tint: false, layout: "list", sortOrder: -1 }), ...ws.lists.map(listToRow)],
+      lists: [listToRow({ id: "inbox", name: "Inbox", color: null, icon: null, folderId: null, pinned: false, archived: false, tint: false, layout: "list", sortOrder: -1 }), ...ws.lists.map(listToRow)],
       sections: ws.sections.map(sectionToRow),
       tags: ws.tags.map(tagToRow),
       tasks: ws.tasks.map(taskToRow),

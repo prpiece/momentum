@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { atLocalTime, timed, wallKey } from "./dates";
 import type { Habit } from "./habits";
-import { reminderAt, remindersBetween } from "./reminders";
+import type { CalItem } from "./calendar";
+import { dedupeFires, digestBetween, reminderAt, remindersBetween, startsBetween } from "./reminders";
 import { toVM, type TaskVM } from "./taskViews";
 import type { Reminder, Schedule, Task } from "./types";
 
@@ -34,5 +35,29 @@ describe("reminders", () => {
     const win = [atLocalTime("2026-10-25", "19:00"), atLocalTime("2026-10-25", "21:00")] as const;
     expect(remindersBetween([], [h], () => new Map(), ...win, "24h", 1)).toHaveLength(1);
     expect(remindersBetween([], [h], () => new Map([["2026-10-25", 1]]), ...win, "24h", 1)).toHaveLength(0);
+  });
+
+  it("alerts when timed tasks and events start, skipping done and all-day items", () => {
+    const at = atLocalTime("2026-10-25", "10:00");
+    const end = atLocalTime("2026-10-25", "10:30");
+    const item = (p: Partial<CalItem>): CalItem => ({ uid: "task:a:", source: "task", id: "a", key: null, title: "Standup", allDay: false, startDate: "2026-10-25", endDate: "2026-10-25", start: at, end, color: "", done: false, recurring: false, readOnly: false, priority: 0, ...p });
+    const win = [atLocalTime("2026-10-25", "09:59"), atLocalTime("2026-10-25", "10:00")] as const;
+    const fires = startsBetween([item({}), item({ uid: "event:e:", source: "event", id: "e" }), item({ uid: "task:d:", done: true }), item({ uid: "task:x:", allDay: true })], ...win, "24h");
+    expect(fires.map((f) => f.target.kind)).toEqual(["task", "event"]);
+    expect(fires[0].body).toBe("Starting now · 10:00–10:30");
+    // An explicit "at start" reminder on the same task wins over the start alert.
+    const explicit = remindersBetween([vm(timed(at, 30), [{ kind: "before", minutes: 0 }], { id: "a" })], [], () => new Map(), ...win, "24h", 1);
+    expect(dedupeFires([...explicit, ...fires])).toHaveLength(2);
+  });
+
+  it("sends the daily summary once, at its time, only when something is due or overdue", () => {
+    const today = vm({ kind: "day", date: "2026-10-25" }, [], { id: "a" });
+    const late = vm({ kind: "day", date: "2026-10-20" }, [], { id: "b" });
+    const win = [atLocalTime("2026-10-25", "08:00"), atLocalTime("2026-10-25", "09:00")] as const;
+    const [f] = digestBetween([today, late], "09:00", ...win);
+    expect(f.key).toBe("digest:2026-10-25");
+    expect(f.body).toBe("1 due today · 1 overdue");
+    expect(digestBetween([today], "09:30", ...win)).toHaveLength(0);
+    expect(digestBetween([], "09:00", ...win)).toHaveLength(0);
   });
 });

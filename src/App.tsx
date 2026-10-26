@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { ListGlyph } from "./components/ui/AppIcon";
+import { ContextMenu } from "./components/ui/ContextMenu";
 import { EmptyState } from "./components/ui/EmptyState";
 import { Toaster } from "./components/ui/Toaster";
 import { onWriteError } from "./db/client";
@@ -15,6 +17,8 @@ import { CommandPalette } from "./features/shell/CommandPalette";
 import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dialogs";
 import { navFor } from "./features/shell/nav";
 import { Sidebar } from "./features/shell/Sidebar";
+import { Welcome } from "./features/shell/Welcome";
+import { WindowControls } from "./features/shell/WindowControls";
 import { TaskDrawer } from "./features/tasks/TaskDrawer";
 import { TaskView } from "./features/tasks/TaskView";
 import { taskViewSpec, type TaskViewSpec } from "./features/tasks/viewSpec";
@@ -47,13 +51,15 @@ function Header({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   const nav = navFor(view);
   const Icon = spec?.icon ?? nav.icon;
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 px-6">
-      {spec?.list?.emoji && spec.list.id !== "inbox" ? (
-        <span className="text-xl">{spec.list.emoji}</span>
+    // Also the window's title bar: drag to move, double-click to maximize (children pass clicks through).
+    <header data-tauri-drag-region className="flex h-14 shrink-0 select-none items-center gap-3 pl-6 pr-3 [&>:not(:last-child)]:pointer-events-none">
+      {spec?.list?.icon && spec.list.id !== "inbox" ? (
+        <ListGlyph icon={spec.list.icon} color={spec.list.color} size={20} />
       ) : (
         <Icon size={20} className="text-accent" style={spec?.list?.color ? { color: spec.list.color } : undefined} />
       )}
       <h1 className="truncate text-lg font-semibold tracking-tight">{spec?.title ?? nav.label}</h1>
+      <WindowControls />
     </header>
   );
 }
@@ -74,7 +80,7 @@ export default function App() {
         <Sidebar />
         <main className={`relative my-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm ${side === "left" ? "mr-2" : "ml-2"}`}>
           <Header view={view} spec={spec} />
-          <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+          <div key={view} className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
             <View view={view} spec={spec} />
           </div>
         </main>
@@ -85,6 +91,8 @@ export default function App() {
       <ScopeDialog />
       <ConfirmDialog />
       <EventDialog />
+      <ContextMenu />
+      <Welcome />
       <Toaster />
     </DndRoot>
   );

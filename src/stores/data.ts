@@ -38,7 +38,7 @@ const INBOX: TaskList = {
   id: INBOX_ID,
   name: "Inbox",
   color: null,
-  emoji: null,
+  icon: null,
   folderId: null,
   pinned: false,
   archived: false,

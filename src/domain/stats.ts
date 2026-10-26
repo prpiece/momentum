@@ -51,3 +51,35 @@ export function niceScale(max: number, ticks = 3): { top: number; step: number }
   const niceStep = Number.isInteger(step) ? step : Math.ceil(step);
   return { top: Math.ceil(max / niceStep) * niceStep, step: niceStep };
 }
+
+/** Days in a row (ending today, or yesterday while today is still empty) with at least one completion, and the best run. */
+export function dayStreaks(perDay: readonly Bucket[]): { current: number; best: number } {
+  let best = 0;
+  let run = 0;
+  for (const b of perDay) {
+    run = b.value > 0 ? run + 1 : 0;
+    best = Math.max(best, run);
+  }
+  let current = 0;
+  let i = perDay.length - 1;
+  if (i >= 0 && perDay[i].value === 0) i--;
+  for (; i >= 0 && perDay[i].value > 0; i--) current++;
+  return { current, best };
+}
+
+/** Completions per weekday (0 = Sunday) over the given daily buckets. */
+export function byWeekday(perDay: readonly Bucket[]): number[] {
+  const out = [0, 0, 0, 0, 0, 0, 0];
+  for (const b of perDay) out[fromLocalDate(b.start).getDay()] += b.value;
+  return out;
+}
+
+/** Tasks completed per list since `from` (inclusive), most first. */
+export function completedByList(tasks: readonly Task[], from: LocalDate): { listId: string; value: number }[] {
+  const counts = new Map<string, number>();
+  for (const t of tasks) if (t.status === "done" && t.completedAt && !t.deletedAt && localDay(t.completedAt) >= from) counts.set(t.listId, (counts.get(t.listId) ?? 0) + 1);
+  return [...counts].map(([listId, value]) => ({ listId, value })).sort((a, b) => b.value - a.value);
+}
+
+/** Heatmap intensity 0–4 relative to the busiest day (0 only for empty days). */
+export const heatLevel = (v: number, max: number): number => (v <= 0 || max <= 0 ? 0 : Math.max(1, Math.ceil((v / max) * 4)));

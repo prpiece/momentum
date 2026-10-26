@@ -1,3 +1,4 @@
+import { AppIcon } from "../../components/ui/AppIcon";
 import { addMonths, format, startOfMonth, startOfWeek } from "date-fns";
 import { Check, ChevronLeft, ChevronRight, Minus } from "lucide-react";
 import { useState } from "react";
@@ -41,7 +42,7 @@ export function HabitReview({ habits }: { habits: Habit[] }) {
               return (
                 <tr key={h.id} className="border-t border-border">
                   <td className="py-2 pr-2">
-                    <span className="mr-2">{h.icon}</span>
+                    <AppIcon name={h.icon} size={14} color={h.color} className="mr-2 inline align-[-2px]" />
                     {h.name}
                   </td>
                   {days.map((d) => {
@@ -72,7 +73,7 @@ export function HabitReview({ habits }: { habits: Habit[] }) {
             return (
               <li key={h.id} className="grid grid-cols-[10rem_1fr_3rem] items-center gap-3 text-sm" title={`${h.name}: ${rate === null ? "no check-ins expected yet" : `${pct}%`}`}>
                 <span className="truncate">
-                  <span className="mr-2">{h.icon}</span>
+                  <AppIcon name={h.icon} size={14} color={h.color} className="mr-2 inline align-[-2px]" />
                   {h.name}
                 </span>
                 <span className="h-2 overflow-hidden rounded-full bg-hover">

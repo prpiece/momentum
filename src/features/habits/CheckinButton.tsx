@@ -5,6 +5,8 @@ import { accentForeground } from "../../domain/color";
 import { isDone, targetOf, type Habit } from "../../domain/habits";
 import type { LocalDate } from "../../domain/types";
 import { setCheckin, tapCheckin, useHabits } from "../../stores/habits";
+import { openContextMenu } from "../../stores/ui";
+import { habitMenu } from "./habitMenu";
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
@@ -31,7 +33,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
         ref={anchor}
         type="button"
         aria-label={label}
-        title={habit.goal.kind === "count" ? `${label} (right-click to remove one)` : label}
+        title={`${label} (right-click for more)`}
         aria-pressed={habit.goal.kind === "once" ? done : undefined}
         onClick={(e) => {
           e.stopPropagation();
@@ -40,11 +42,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
             setEditing(true);
           } else tapCheckin(habit, date);
         }}
-        onContextMenu={(e) => {
-          if (habit.goal.kind !== "count") return;
-          e.preventDefault();
-          tapCheckin(habit, date, -1);
-        }}
+        onContextMenu={(e) => openContextMenu(e, habitMenu(habit, date))}
         className="relative grid shrink-0 place-items-center rounded-full transition-transform duration-[var(--dur)] active:scale-95"
         style={{ width: size, height: size }}
       >

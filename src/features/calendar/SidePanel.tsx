@@ -1,16 +1,21 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { addMonths, format, startOfMonth } from "date-fns";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { viewDays } from "../../domain/calendar";
-import { fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
+import { daysBetween, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
 import { sortVMs, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type WeekStart } from "../../domain/types";
 import { useData } from "../../stores/data";
-import { openTask, setCalAnchor, useUi } from "../../stores/ui";
+import { useSettings } from "../../stores/settings";
+import { openContextMenu, openTask, setCalAnchor, setCalSpan, useUi } from "../../stores/ui";
 import { toggleDone } from "../tasks/actions";
+import { taskMenu } from "../tasks/taskMenu";
 import { useDerived } from "../tasks/selectors";
+
+/** Longest range a drag shows as day columns; longer drags open the month. */
+const MAX_SPAN = 14;
 
 /** Mini month picker + "Arrange tasks": unscheduled tasks to drag onto the calendar. */
 export function SidePanel({ weekStart, visible }: { weekStart: WeekStart; visible: string[] }) {
@@ -22,6 +27,16 @@ export function SidePanel({ weekStart, visible }: { weekStart: WeekStart; visibl
   );
 }
 
+function showRange(lo: string, hi: string) {
+  const n = daysBetween(lo, hi) + 1;
+  setCalAnchor(lo);
+  if (n === 1) return;
+  if (n <= MAX_SPAN) return setCalSpan(n);
+  setCalSpan(null);
+  const s = useSettings.getState();
+  s.update({ calendar: { ...s.settings.calendar, view: "month" } });
+}
+
 function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: string[] }) {
   const anchor = useUi((s) => s.calAnchor);
   const [month, setMonth] = useState(() => toLocalDate(startOfMonth(fromLocalDate(anchor))));
@@ -29,6 +44,24 @@ function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: stri
   const today = todayLocal();
   const m = fromLocalDate(month).getMonth();
   const shift = (n: number) => setMonth(toLocalDate(addMonths(fromLocalDate(month), n)));
+  // Click a day to jump there; press and drag across days to show exactly that range.
+  const [drag, setDragState] = useState<{ from: string; to: string } | null>(null);
+  const dragRef = useRef(drag);
+  const setDrag = (d: typeof drag) => setDragState((dragRef.current = d));
+  const lo = drag && (drag.from < drag.to ? drag.from : drag.to);
+  const hi = drag && (drag.from < drag.to ? drag.to : drag.from);
+  const startDrag = (d: string) => {
+    setDrag({ from: d, to: d });
+    window.addEventListener(
+      "pointerup",
+      () => {
+        const r = dragRef.current;
+        setDrag(null);
+        if (r) showRange(r.from < r.to ? r.from : r.to, r.from < r.to ? r.to : r.from);
+      },
+      { once: true },
+    );
+  };
   return (
     <div className="border-b border-border p-3">
       <div className="mb-2 flex items-center">
@@ -47,15 +80,18 @@ function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: stri
           </span>
         ))}
         {days.map((d) => {
-          const inRange = visible.includes(d);
+          const dragging = !!lo && !!hi && d >= lo && d <= hi;
+          const inRange = drag ? dragging : visible.includes(d);
           return (
             <button
               key={d}
               type="button"
-              onClick={() => setCalAnchor(d)}
+              onPointerDown={(e) => e.button === 0 && startDrag(d)}
+              onPointerEnter={() => dragRef.current && setDrag({ ...dragRef.current, to: d })}
+              onClick={(e) => e.detail === 0 && setCalAnchor(d)}
               aria-label={format(fromLocalDate(d), "EEEE, MMMM d")}
-              className={`mx-auto grid size-7 place-items-center rounded-full font-mono text-xs transition-colors ${
-                d === today ? "bg-accent font-semibold text-accent-fg" : inRange ? "bg-accent-soft text-fg" : fromLocalDate(d).getMonth() === m ? "text-fg hover:bg-hover" : "text-muted hover:bg-hover"
+              className={`mx-auto grid size-7 select-none place-items-center rounded-full font-mono text-xs transition-colors ${
+                d === today && !dragging ? "bg-accent font-semibold text-accent-fg" : dragging ? "bg-accent/70 text-accent-fg" : inRange ? "bg-accent-soft text-fg" : fromLocalDate(d).getMonth() === m ? "text-fg hover:bg-hover" : "text-muted hover:bg-hover"
               }`}
             >
               {format(fromLocalDate(d), "d")}
@@ -130,6 +166,7 @@ function ArrangeItem({ vm }: { vm: TaskVM }) {
       {...attributes}
       {...listeners}
       onClick={() => openTask(t.id)}
+      onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, null))}
       className={`flex cursor-grab items-center gap-2 rounded-sm border border-border bg-surface-2 px-2 py-1.5 text-sm shadow-sm hover:border-accent ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id)} label={`Complete ${t.title}`} size={15} />

@@ -1,4 +1,4 @@
-import { AlarmClock, Check, ExternalLink, X } from "lucide-react";
+import { AlarmClock, CalendarClock, Check, ExternalLink, Sun, Target, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { atLocalTime, addDaysLocal, todayLocal } from "../domain/dates";
 import { apply, readAppearance } from "../lib/applySettings";
@@ -13,6 +13,8 @@ const snoozeOptions = () => {
     { label: "Tomorrow 9:00", minutes: Math.round((tomorrow9 - Date.now()) / 60_000) },
   ];
 };
+
+const ICON = { task: AlarmClock, habit: Target, event: CalendarClock, digest: Sun };
 
 /** Always-on-top popup with Done / Snooze / Open for each fired reminder. */
 export function ReminderWindow() {
@@ -46,11 +48,14 @@ export function ReminderWindow() {
 
   return (
     <div className="flex h-full flex-col justify-end gap-2 bg-bg p-2">
-      {items.map((r) => (
+      {items.map((r) => {
+        const Icon = ICON[r.target.kind];
+        const doable = r.target.kind === "task" || r.target.kind === "habit";
+        return (
         <article key={r.key} className="anim-rise rounded-md border border-border bg-surface-2 p-3 shadow-lg" aria-live="assertive">
           <div className="flex items-start gap-2.5">
             <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
-              <AlarmClock size={15} />
+              <Icon size={15} />
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-sm font-semibold">{r.title}</h2>
@@ -63,10 +68,12 @@ export function ReminderWindow() {
             </button>
           </div>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => void act({ dto: r, action: "done" })} className="flex h-7 items-center gap-1 rounded-sm bg-accent px-2.5 text-xs font-medium text-accent-fg hover:bg-accent-hover">
-              <Check size={13} /> Done
-            </button>
-            {snoozeOptions().map((o) => (
+            {doable && (
+              <button type="button" onClick={() => void act({ dto: r, action: "done" })} className="flex h-7 items-center gap-1 rounded-sm bg-accent px-2.5 text-xs font-medium text-accent-fg hover:bg-accent-hover">
+                <Check size={13} /> Done
+              </button>
+            )}
+            {r.target.kind !== "digest" && snoozeOptions().map((o) => (
               <button key={o.label} type="button" onClick={() => void act({ dto: r, action: "snooze", minutes: o.minutes })} className="h-7 rounded-sm bg-hover px-2.5 text-xs text-fg-2 hover:text-fg">
                 {o.label}
               </button>
@@ -76,7 +83,8 @@ export function ReminderWindow() {
             </button>
           </div>
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }

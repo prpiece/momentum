@@ -69,7 +69,6 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
               .sort((a, b) => a.sortOrder - b.sortOrder)
               .map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.emoji ? `${l.emoji} ` : ""}
                   {l.name}
                 </option>
               ))}

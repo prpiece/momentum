@@ -41,7 +41,7 @@ export function parseHabit(r: Row): Habit | null {
   return {
     id: r.id,
     name: r.name,
-    icon: typeof r.icon === "string" && r.icon ? r.icon : "✅",
+    icon: typeof r.icon === "string" && r.icon ? r.icon : "check",
     color: typeof r.color === "string" && /^#[0-9a-f]{6}$/i.test(r.color) ? r.color : "#5b5bd6",
     goal: parseGoal(json(r.goal)),
     frequency: parseFrequency(json(r.frequency)),

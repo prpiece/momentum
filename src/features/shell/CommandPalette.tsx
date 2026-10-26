@@ -1,3 +1,4 @@
+import { ListGlyph } from "../../components/ui/AppIcon";
 import { CornerDownLeft, Hash, Moon, PanelLeft, Plus, Search, Sun, SunMoon, Keyboard, ListPlus, CheckCircle2, Circle } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Dialog } from "../../components/ui/Dialog";
@@ -62,7 +63,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       id: `list-${l.id}`,
       group: "Lists",
       label: l.name,
-      icon: <span className="text-sm">{l.emoji ?? "•"}</span>,
+      icon: <ListGlyph icon={l.icon} color={l.color} size={16} />,
       run: navTo(l.id === "inbox" ? "inbox" : `list:${l.id}`),
     }));
     const tagItems = Object.values(tags).map((t) => ({ id: `tag-${t.id}`, group: "Tags", label: `#${t.name}`, icon: <Hash size={16} />, run: navTo(`tag:${t.id}`) }));

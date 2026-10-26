@@ -9,20 +9,26 @@ import {
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
+  Pencil,
+  Pin,
+  PinOff,
   Plus,
   Search,
+  Archive,
+  ArchiveRestore,
+  Trash2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Logo } from "../../components/Logo";
-import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
+import { ListGlyph } from "../../components/ui/AppIcon";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
 import type { Folder, TaskList, ViewId } from "../../domain/types";
 import { onDrop, type DropData } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { addFolder, moveTasks, removeFolder, removeTag, updateFolder, updateTag, updateTask, useData } from "../../stores/data";
+import { addFolder, moveTasks, removeFolder, removeList, removeTag, updateFolder, updateList, updateTag, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { confirm, go, setPalette, useUi } from "../../stores/ui";
+import { confirm, go, openContextMenu, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";
 import { FocusBadge } from "../focus/FocusView";
 import { editTask } from "../tasks/actions";
 import { ListDialog, ListDialogButton } from "../tasks/ListDialog";
@@ -71,23 +77,18 @@ function NavItem(props: {
   badge?: ReactNode;
   drop?: DropData;
   indent?: boolean;
-  menu?: (anchor: React.RefObject<HTMLButtonElement | null>, close: () => void) => ReactNode;
+  menu?: () => MenuEntry[];
 }) {
   const active = useUi((s) => s.view === props.id);
   const { setNodeRef, isOver } = useDroppable({ id: `nav:${props.id}`, data: props.drop, disabled: !props.drop });
   const [tip, setTip] = useState<DOMRect | null>(null);
-  const menu = useMenu();
   const show = (e: { currentTarget: HTMLElement }) => props.collapsed && setTip(e.currentTarget.getBoundingClientRect());
   return (
     <li ref={setNodeRef} className="group/nav relative">
       <button
         type="button"
         onClick={() => go(props.id)}
-        onContextMenu={(e) => {
-          if (!props.menu) return;
-          e.preventDefault();
-          menu.setOpen(true);
-        }}
+        onContextMenu={(e) => props.menu && openContextMenu(e, props.menu())}
         onMouseEnter={show}
         onMouseLeave={() => setTip(null)}
         onFocus={show}
@@ -105,16 +106,14 @@ function NavItem(props: {
       </button>
       {props.menu && !props.collapsed && (
         <button
-          ref={menu.anchor}
           type="button"
           aria-label={`${props.label} options`}
-          onClick={menu.toggle}
+          onClick={(e) => props.menu && openMenuAt(e.currentTarget, props.menu())}
           className="absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-sm text-muted opacity-0 hover:bg-hover hover:text-fg focus:opacity-100 group-hover/nav:opacity-100"
         >
           <MoreHorizontal size={15} />
         </button>
       )}
-      {menu.open && props.menu?.(menu.anchor, menu.close)}
       {tip && (
         <span
           role="tooltip"
@@ -129,7 +128,7 @@ function NavItem(props: {
 }
 
 const icon = (I: LucideIcon) => <I size={18} strokeWidth={1.9} />;
-const listIcon = (l: TaskList) => (l.emoji ? <span className="text-[0.95rem] leading-none">{l.emoji}</span> : <span className="size-2.5 rounded-full" style={{ background: l.color ?? "var(--fg-muted)" }} />);
+const listIcon = (l: TaskList) => <ListGlyph icon={l.icon} color={l.color} size={17} />;
 
 function SectionHeader({ label, open, onToggle, actions }: { label: string; open: boolean; onToggle: () => void; actions?: ReactNode }) {
   return (
@@ -196,11 +195,23 @@ export function Sidebar() {
       count={counts.lists[l.id]}
       drop={{ type: "list", listId: l.id }}
       indent={indent}
-      menu={(anchor, close) => (
-        <Popover anchor={anchor} onClose={close} align="end">
-          <MenuItem onSelect={() => (close(), setEditList(l))}>Edit list…</MenuItem>
-        </Popover>
-      )}
+      menu={() => [
+        { label: "Edit list…", icon: <Pencil size={14} />, run: () => setEditList(l) },
+        { label: l.pinned ? "Unpin" : "Pin to top", icon: l.pinned ? <PinOff size={14} /> : <Pin size={14} />, run: () => updateList(l.id, { pinned: !l.pinned }) },
+        { label: l.archived ? "Unarchive" : "Archive", icon: l.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />, run: () => updateList(l.id, { archived: !l.archived }) },
+        "sep",
+        {
+          label: "Delete list",
+          icon: <Trash2 size={14} />,
+          danger: true,
+          run: async () => {
+            if (await confirm(`Delete “${l.name}”?`, "The list and all of its tasks are deleted. This can't be undone.")) {
+              if (useUi.getState().view === `list:${l.id}`) go("inbox");
+              removeList(l.id);
+            }
+          },
+        },
+      ]}
     />
   );
 
@@ -224,9 +235,9 @@ export function Sidebar() {
 
   return (
     <aside aria-label="Navigation" className={`flex shrink-0 flex-col py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease)] ${collapsed ? "w-[4.25rem]" : "w-64"}`}>
-      <div className={`flex h-10 items-center px-3 ${collapsed ? "justify-center" : "justify-between"}`}>
+      <div data-tauri-drag-region className={`flex h-10 select-none items-center px-3 ${collapsed ? "justify-center" : "justify-between"}`}>
         {!collapsed && (
-          <div className="flex items-center gap-2.5 px-1">
+          <div className="pointer-events-none flex items-center gap-2.5 px-1">
             <Logo size={26} />
             <span className="text-[1.05rem] font-bold tracking-tight">Momentum</span>
           </div>
@@ -316,20 +327,17 @@ export function Sidebar() {
                             collapsed={false}
                             side={side}
                             count={counts.tags[t.id]}
-                            menu={(anchor, close) => (
-                              <Popover anchor={anchor} onClose={close} align="end">
-                                <MenuItem onSelect={() => (close(), setRenamingTag(t.id))}>Rename</MenuItem>
-                                <MenuItem
-                                  danger
-                                  onSelect={async () => {
-                                    close();
-                                    if (await confirm(`Delete tag “${t.name}”?`, "It is removed from every task.")) removeTag(t.id);
-                                  }}
-                                >
-                                  Delete tag
-                                </MenuItem>
-                              </Popover>
-                            )}
+                            menu={() => [
+                              { label: "Rename", icon: <Pencil size={14} />, run: () => setRenamingTag(t.id) },
+                              {
+                                label: "Delete tag",
+                                icon: <Trash2 size={14} />,
+                                danger: true,
+                                run: async () => {
+                                  if (await confirm(`Delete tag “${t.name}”?`, "It is removed from every task.")) removeTag(t.id);
+                                },
+                              },
+                            ]}
                           />
                         ),
                       )}
@@ -350,13 +358,26 @@ export function Sidebar() {
 }
 
 function FolderRow({ folder, count, onRename }: { folder: Folder; count: number; onRename: () => void }) {
-  const menu = useMenu();
   const [newList, setNewList] = useState(false);
+  const items = (): MenuEntry[] => [
+    { label: "New list in folder…", icon: <Plus size={14} />, run: () => setNewList(true) },
+    { label: "Rename", icon: <Pencil size={14} />, run: onRename },
+    "sep",
+    {
+      label: "Delete folder",
+      icon: <Trash2 size={14} />,
+      danger: true,
+      run: async () => {
+        if (await confirm(`Delete folder “${folder.name}”?`, "Its lists move out of the folder; no tasks are deleted.")) removeFolder(folder.id);
+      },
+    },
+  ];
   return (
     <div className="group/nav relative">
       <button
         type="button"
         onClick={() => updateFolder(folder.id, { collapsed: !folder.collapsed })}
+        onContextMenu={(e) => openContextMenu(e, items())}
         aria-expanded={!folder.collapsed}
         className="flex h-[var(--row-h)] w-full items-center gap-2 rounded-sm px-3 text-sm font-medium text-fg-2 hover:bg-hover hover:text-fg"
       >
@@ -364,24 +385,9 @@ function FolderRow({ folder, count, onRename }: { folder: Folder; count: number;
         <span className="flex-1 truncate text-left">{folder.name}</span>
         {count > 0 && <span className="font-mono text-xs text-muted group-hover/nav:opacity-0">{count}</span>}
       </button>
-      <button ref={menu.anchor} type="button" aria-label={`${folder.name} options`} onClick={menu.toggle} className="absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-sm text-muted opacity-0 hover:bg-hover focus:opacity-100 group-hover/nav:opacity-100">
+      <button type="button" aria-label={`${folder.name} options`} onClick={(e) => openMenuAt(e.currentTarget, items())} className="absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-sm text-muted opacity-0 hover:bg-hover focus:opacity-100 group-hover/nav:opacity-100">
         <MoreHorizontal size={15} />
       </button>
-      {menu.open && (
-        <Popover anchor={menu.anchor} onClose={menu.close} align="end">
-          <MenuItem onSelect={() => (menu.close(), setNewList(true))}>New list in folder…</MenuItem>
-          <MenuItem onSelect={() => (menu.close(), onRename())}>Rename</MenuItem>
-          <MenuItem
-            danger
-            onSelect={async () => {
-              menu.close();
-              if (await confirm(`Delete folder “${folder.name}”?`, "Its lists move out of the folder; no tasks are deleted.")) removeFolder(folder.id);
-            }}
-          >
-            Delete folder
-          </MenuItem>
-        </Popover>
-      )}
       {newList && <ListDialog folderId={folder.id} onClose={() => setNewList(false)} />}
     </div>
   );

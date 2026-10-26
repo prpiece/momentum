@@ -90,7 +90,8 @@ export type TaskList = {
   id: string;
   name: string;
   color: string | null;
-  emoji: string | null;
+  /** Icon key (`components/ui/AppIcon`); older data may hold an emoji. Column: `emoji`. */
+  icon: string | null;
   folderId: string | null;
   pinned: boolean;
   archived: boolean;
@@ -127,7 +128,7 @@ export type CalendarEvent = {
   deletedAt: Instant | null;
 };
 
-export const CAL_VIEWS = ["day", "3day", "week", "month", "agenda"] as const;
+export const CAL_VIEWS = ["day", "5day", "week", "month", "agenda"] as const;
 export type CalView = (typeof CAL_VIEWS)[number];
 export const COLOR_BYS = ["list", "priority", "tag"] as const;
 export type CalendarSettings = {
@@ -159,6 +160,25 @@ export const TIME_FORMATS = ["12h", "24h"] as const;
 export const WEEK_STARTS = [0, 1, 6] as const;
 export type WeekStart = (typeof WEEK_STARTS)[number];
 
+export const NOTIFY_STYLES = ["popup", "system", "both"] as const;
+export const NOTIFY_CORNERS = ["bottom-right", "top-right"] as const;
+export type NotifySettings = {
+  enabled: boolean;
+  /** popup: Momentum's card with Done / Snooze / Open; system: the OS toast; both. */
+  style: (typeof NOTIFY_STYLES)[number];
+  corner: (typeof NOTIFY_CORNERS)[number];
+  sound: boolean;
+  taskReminders: boolean;
+  habitReminders: boolean;
+  /** Timed tasks and events, as they start. */
+  starts: boolean;
+  /** Daily summary of due and overdue tasks at `digestTime` (HH:MM). */
+  digest: boolean;
+  digestTime: string;
+  focus: boolean;
+  quickAdd: boolean;
+};
+
 export type Settings = {
   theme: (typeof THEMES)[number];
   /** #rrggbb */
@@ -179,7 +199,9 @@ export type Settings = {
   /** Closing the window hides to the tray (reminders keep firing). */
   closeToTray: boolean;
   launchAtStartup: boolean;
-  notifications: boolean;
+  notify: NotifySettings;
+  /** The first-run welcome tour has been shown. */
+  onboarded: boolean;
   /** Tauri accelerator, e.g. `CommandOrControl+Shift+A`. */
   quickAddShortcut: string;
   pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number };

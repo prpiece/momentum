@@ -145,6 +145,31 @@
 .anim-slide-right { animation: slide-from-right 220ms var(--ease); }
 .anim-slide-left { animation: slide-from-left 220ms var(--ease); }
 
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@keyframes grow-y {
+  from { transform: scaleY(0); }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+}
+@keyframes ring-in {
+  from { stroke-dasharray: 0 var(--ring-c); }
+}
+@keyframes flicker {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  30% { transform: scale(1.06) rotate(-3deg); }
+  60% { transform: scale(0.97) rotate(2deg); }
+}
+/* Each view fades in when you switch to it (App keys the content by view). */
+.anim-view { animation: view-in 220ms var(--ease); }
+/* Chart marks grow from their baseline. */
+.anim-grow-y { animation: grow-y 520ms var(--ease) backwards; transform-box: fill-box; transform-origin: bottom; }
+.anim-grow-x { animation: grow-x 600ms var(--ease) backwards; transform-origin: left; }
+.anim-ring { animation: ring-in 900ms var(--ease); }
+.anim-flicker { animation: flicker 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
+
 .scroll-thin { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 
 /* Rendered Markdown in the task drawer */

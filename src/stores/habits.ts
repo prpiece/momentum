@@ -7,6 +7,7 @@ import { isDone, type CheckinMap, type Habit, type HabitCheckin, type HabitGroup
 import { after, reorder } from "../domain/order";
 import type { LocalDate } from "../domain/types";
 import { uid } from "./data";
+import { toast } from "./ui";
 
 type ById<T> = Record<string, T>;
 export type HabitData = { habits: Habit[]; groups: HabitGroup[]; checkins: HabitCheckin[] };
@@ -56,7 +57,7 @@ const saveHabit = (h: Habit) => void write(upsert("habits", habitToRow(h)));
 
 export function addHabit(input: Partial<Habit> & { name: string }): Habit {
   const h: Habit = {
-    icon: "✅",
+    icon: "check",
     color: "#5b5bd6",
     goal: { kind: "once" },
     frequency: { kind: "daily" },
@@ -125,11 +126,12 @@ export function setCheckin(habitId: string, date: LocalDate, patch: Partial<Pick
   void write(empty ? ["DELETE FROM habit_checkins WHERE habit_id = $1 AND date = $2", [habitId, date]] : checkinUpsert(next));
 }
 
-/** Tap: once-habits toggle; counted habits add `delta` (the row's menu offers −1). */
+/** Tap: once-habits toggle; counted habits add `delta` (the row's menu offers −1). Check-ins toast an Undo. */
 export function tapCheckin(h: Habit, date: LocalDate, delta = 1) {
   const value = checkinOf(h.id, date)?.value ?? 0;
-  if (h.goal.kind === "once") return setCheckin(h.id, date, { value: isDone(h, value) ? 0 : 1 });
-  setCheckin(h.id, date, { value: value + delta });
+  const next = h.goal.kind === "once" ? (isDone(h, value) ? 0 : 1) : Math.max(0, value + delta);
+  setCheckin(h.id, date, { value: next });
+  if (next > value) toast(isDone(h, next) && !isDone(h, value) ? `${h.name} done` : `${h.name}: ${next}`, { label: "Undo", run: () => setCheckin(h.id, date, { value }) });
 }
 
 export const setMood = (habitId: string, date: LocalDate, mood: Mood | null) => setCheckin(habitId, date, { mood });

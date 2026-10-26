@@ -1,3 +1,4 @@
+import { AppIcon, IconPicker } from "../../components/ui/AppIcon";
 import { Check, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button, Dialog } from "../../components/ui/Dialog";
@@ -5,7 +6,6 @@ import { ACCENT_PRESETS } from "../../domain/color";
 import type { Habit, HabitFrequency, HabitGoal } from "../../domain/habits";
 import { addGroup, addHabit, updateHabit, useHabits } from "../../stores/habits";
 
-const ICONS = ["✅", "💧", "🧘", "🏃", "📚", "💪", "🥗", "😴", "🚶", "🦷", "📵", "✍️", "🎸", "🧹", "💊", "🌞", "🙏", "💰", "🧠", "🚴"];
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const field = "h-9 rounded-sm border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent";
 
@@ -13,7 +13,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
   const groupMap = useHabits((s) => s.groups);
   const groups = useMemo(() => Object.values(groupMap).sort((a, b) => a.sortOrder - b.sortOrder), [groupMap]);
   const [name, setName] = useState(habit?.name ?? "");
-  const [icon, setIcon] = useState(habit?.icon ?? "✅");
+  const [icon, setIcon] = useState(habit?.icon ?? "check");
   const [color, setColor] = useState(habit?.color ?? ACCENT_PRESETS[0].hex);
   const [goal, setGoal] = useState<HabitGoal>(habit?.goal ?? { kind: "once" });
   const [freq, setFreq] = useState<HabitFrequency>(habit?.frequency ?? { kind: "daily" });
@@ -41,17 +41,11 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
       >
         <h2 className="text-lg font-semibold">{habit ? "Edit habit" : "New habit"}</h2>
         <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 focus-within:border-accent">
-          <span className="text-xl">{icon}</span>
+          <AppIcon name={icon} size={20} color={color} />
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Drink water" aria-label="Name" className="h-11 flex-1 bg-transparent outline-none" />
         </div>
 
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Icon">
-          {ICONS.map((i) => (
-            <button key={i} type="button" aria-pressed={icon === i} onClick={() => setIcon(i)} className={`grid size-9 place-items-center rounded-sm text-lg ${icon === i ? "bg-accent-soft ring-1 ring-accent" : "hover:bg-hover"}`}>
-              {i}
-            </button>
-          ))}
-        </div>
+        <IconPicker value={icon} onChange={(k) => k && setIcon(k)} color={color} />
 
         <div className="flex flex-wrap gap-2" role="group" aria-label="Color">
           {ACCENT_PRESETS.map((p) => (

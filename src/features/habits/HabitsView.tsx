@@ -1,15 +1,16 @@
+import { AppIcon, IconTile } from "../../components/ui/AppIcon";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { format } from "date-fns";
-import { Archive, ArchiveRestore, Flame, MoreHorizontal, Pencil, Plus, Target, Trash2 } from "lucide-react";
+import { ArchiveRestore, Flame, MoreHorizontal, Plus, Target, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { addDaysLocal, fromLocalDate, todayLocal } from "../../domain/dates";
 import { currentStreak, frequencyLabel, isScheduled, type Habit } from "../../domain/habits";
 import { onDrop } from "../../lib/dnd";
-import { removeGroup, removeHabit, reorderHabit, updateHabit, useHabits, valuesOf } from "../../stores/habits";
+import { removeGroup, reorderHabit, updateHabit, useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
-import { confirm } from "../../stores/ui";
+import { confirm, openContextMenu, openMenuAt } from "../../stores/ui";
+import { confirmRemoveHabit, habitMenu } from "./habitMenu";
 import { addPaletteSource } from "../shell/CommandPalette";
 import { CheckinButton } from "./CheckinButton";
 import { cellFill, cellTitle, HabitDetail } from "./HabitDetail";
@@ -35,7 +36,7 @@ onDrop("habit", (drag, drop) => {
 addPaletteSource((q) =>
   Object.values(useHabits.getState().habits)
     .filter((h) => matchScore(h.name, q) !== null)
-    .map((h) => ({ id: `habit-${h.id}`, group: "Habits", label: h.name, icon: <span>{h.icon}</span>, run: () => go("habits") })),
+    .map((h) => ({ id: `habit-${h.id}`, group: "Habits", label: h.name, icon: <AppIcon name={h.icon} size={16} color={h.color} />, run: () => go("habits") })),
 );
 
 export function HabitsView() {
@@ -127,11 +128,14 @@ export function HabitsView() {
               {showArchived && (
                 <ul className="mt-1 space-y-0.5 opacity-70">
                   {archived.map((h) => (
-                    <li key={h.id} className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm">
-                      <span>{h.icon}</span>
+                    <li key={h.id} onContextMenu={(e) => openContextMenu(e, habitMenu(h, date))} className="group flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-hover">
+                      <AppIcon name={h.icon} size={15} color={h.color} />
                       <span className="flex-1 truncate">{h.name}</span>
                       <button type="button" aria-label="Unarchive" onClick={() => updateHabit(h.id, { archived: false })} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
                         <ArchiveRestore size={14} />
+                      </button>
+                      <button type="button" aria-label={`Delete ${h.name}`} onClick={() => void confirmRemoveHabit(h)} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover hover:text-danger">
+                        <Trash2 size={14} />
                       </button>
                     </li>
                   ))}
@@ -171,7 +175,6 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
   const ws = useSettings((s) => s.settings.weekStart);
   const values = valuesOf(records);
   const streak = currentStreak(h, values, todayLocal(), ws);
-  const menu = useMenu();
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: `habit:${h.id}`, data: { type: "habit", id: h.id } });
   const scheduled = isScheduled(h, props.date) || h.frequency.kind === "perWeek";
 
@@ -182,11 +185,10 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
       {...attributes}
       {...listeners}
       onClick={props.onSelect}
+      onContextMenu={(e) => openContextMenu(e, habitMenu(h, props.date, props.onEdit))}
       className={`group flex items-center gap-3 rounded-md px-2 py-2 transition-colors ${props.selected ? "bg-accent-soft" : "hover:bg-hover"} ${isDragging ? "opacity-50" : ""} ${scheduled ? "" : "opacity-60"}`}
     >
-      <span className="grid size-9 shrink-0 place-items-center rounded-md text-lg" style={{ background: `color-mix(in oklch, ${h.color} 16%, transparent)` }}>
-        {h.icon}
-      </span>
+      <IconTile name={h.icon} color={h.color} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{h.name}</div>
         <div className="flex items-center gap-2 text-xs text-muted">
@@ -209,29 +211,9 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
       <div onPointerDown={(e) => e.stopPropagation()}>
         {scheduled ? <CheckinButton habit={h} date={props.date} /> : <span className="grid size-9 place-items-center text-[0.65rem] text-muted">Rest</span>}
       </div>
-      <button ref={menu.anchor} type="button" aria-label={`${h.name} options`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), menu.toggle())} className="grid size-7 shrink-0 place-items-center rounded-sm text-muted opacity-0 hover:bg-hover focus:opacity-100 group-hover:opacity-100">
+      <button type="button" aria-label={`${h.name} options`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), openMenuAt(e.currentTarget, habitMenu(h, props.date, props.onEdit)))} className="grid size-7 shrink-0 place-items-center rounded-sm text-muted opacity-40 transition-opacity hover:bg-hover focus:opacity-100 group-hover:opacity-100">
         <MoreHorizontal size={15} />
       </button>
-      {menu.open && (
-        <Popover anchor={menu.anchor} onClose={menu.close} align="end">
-          <MenuItem icon={<Pencil size={14} />} onSelect={() => (menu.close(), props.onEdit())}>
-            Edit
-          </MenuItem>
-          <MenuItem icon={<Archive size={14} />} onSelect={() => (menu.close(), updateHabit(h.id, { archived: true }))}>
-            Archive
-          </MenuItem>
-          <MenuItem
-            danger
-            icon={<Trash2 size={14} />}
-            onSelect={async () => {
-              menu.close();
-              if (await confirm(`Delete “${h.name}”?`, "Its whole check-in history is deleted too. Archive it instead to keep the history.")) removeHabit(h.id);
-            }}
-          >
-            Delete
-          </MenuItem>
-        </Popover>
-      )}
     </li>
   );
 }

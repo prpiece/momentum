@@ -1,14 +1,15 @@
 import { useDraggable } from "@dnd-kit/core";
-import { Check, Repeat } from "lucide-react";
+import { Check, PanelRightOpen, Repeat, Trash2 } from "lucide-react";
 import { memo, useState } from "react";
 import { minutesInDay, resizedSchedule, type CalItem, type Placed } from "../../domain/calendar";
 import { formatTime } from "../../domain/dates";
 import type { Schedule } from "../../domain/types";
 import { justDragged, markDragged } from "../../lib/dnd";
 import { useSettings } from "../../stores/settings";
-import { go, openEvent, openTask } from "../../stores/ui";
+import { go, openContextMenu, openEvent, openTask, type MenuEntry } from "../../stores/ui";
 import { toggleDone } from "../tasks/actions";
-import { applySchedule, minuteAt, pxPerMinute } from "./calendarActions";
+import { taskMenu } from "../tasks/taskMenu";
+import { applySchedule, deleteEvent, minuteAt, pxPerMinute } from "./calendarActions";
 
 export function openItem(item: CalItem) {
   if (justDragged()) return;
@@ -16,6 +17,21 @@ export function openItem(item: CalItem) {
   else if (item.source === "event") openEvent(item.id, item.key);
   else go(item.source === "habit" ? "habits" : "focus");
 }
+
+function itemMenu(item: CalItem): MenuEntry[] {
+  if (item.source === "task") return taskMenu(item.id, item.key);
+  if (item.source !== "event") return [];
+  return [
+    { label: "Open event", icon: <PanelRightOpen size={14} />, run: () => openEvent(item.id, item.key) },
+    ...(item.readOnly ? [] : ["sep" as const, { label: "Delete event", icon: <Trash2 size={14} />, danger: true, run: () => void deleteEvent(item.id, item.key) }]),
+  ];
+}
+
+/** Right-click handler for any calendar item (blocks, chips, agenda rows). */
+export const onItemMenu = (item: CalItem) => (e: React.MouseEvent) => {
+  const items = itemMenu(item);
+  if (items.length) openContextMenu(e, items);
+};
 
 const tint = (color: string, done: boolean) => ({
   background: `color-mix(in oklch, ${color} ${done ? 8 : 18}%, var(--surface-2))`,
@@ -98,6 +114,7 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
       {...attributes}
       {...listeners}
       onClick={() => openItem(item)}
+      onContextMenu={onItemMenu(item)}
       onKeyDown={(e) => e.key === "Enter" && openItem(item)}
       aria-label={`${item.title}, ${label}`}
       className={`group absolute overflow-hidden rounded-sm border-l-[3px] px-1.5 py-0.5 text-xs leading-tight shadow-sm transition-[opacity,box-shadow] duration-[var(--dur)] hover:z-10 hover:shadow-lg ${
@@ -137,6 +154,7 @@ export const Chip = memo(function Chip({ item, scope, showTime }: { item: CalIte
       {...attributes}
       {...listeners}
       onClick={() => openItem(item)}
+      onContextMenu={onItemMenu(item)}
       onKeyDown={(e) => e.key === "Enter" && openItem(item)}
       className={`flex h-5 min-w-0 items-center gap-1 rounded-[5px] border-l-[3px] px-1.5 text-[0.7rem] leading-none ${item.readOnly ? "" : "cursor-grab"} ${
         isDragging ? "opacity-30" : ""

@@ -11,8 +11,9 @@ import { justDragged, onDrop } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
 import { addTask, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { openTask, useUi } from "../../stores/ui";
+import { openContextMenu, openTask, useUi } from "../../stores/ui";
 import { editTask, toggleDone } from "../tasks/actions";
+import { taskMenu } from "../tasks/taskMenu";
 import { derive, useDerived } from "../tasks/selectors";
 
 const TONE: Record<Quadrant, string> = { 1: "var(--p3)", 2: "var(--accent)", 3: "var(--p2)", 4: "var(--fg-muted)" };
@@ -116,13 +117,14 @@ function MatrixItem({ vm }: { vm: TaskVM }) {
       {...attributes}
       {...listeners}
       onClick={() => !justDragged() && openTask(t.id, vm.key)}
+      onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => e.key === "Enter" && openTask(t.id, vm.key)}
       className={`flex cursor-grab items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm transition-colors ${selected ? "bg-accent-soft" : "hover:bg-hover"} ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} size={16} />
       <span className="min-w-0 flex-1 truncate">{t.title}</span>
       {vm.date && <span className={`shrink-0 text-xs ${vm.date < today ? "text-danger" : "text-muted"}`}>{relativeDayLabel(vm.date, today)}</span>}
-      {list && list.id !== "inbox" && <span className="max-w-24 shrink-0 truncate text-xs text-muted">{list.emoji ?? ""} {list.name}</span>}
+      {list && list.id !== "inbox" && <span className="max-w-24 shrink-0 truncate text-xs text-muted">{list.name}</span>}
     </li>
   );
 }

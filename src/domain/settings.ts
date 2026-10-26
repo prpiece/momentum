@@ -6,6 +6,8 @@ import {
   FONT_SIZES,
   GROUP_BYS,
   MODULE_VIEWS,
+  NOTIFY_CORNERS,
+  NOTIFY_STYLES,
   PRIORITIES,
   SIDES,
   SMART_LISTS,
@@ -43,7 +45,20 @@ export const DEFAULT_SETTINGS: Settings = {
   matrix: { importantPriorities: [2, 3], urgentDays: 2 },
   closeToTray: true,
   launchAtStartup: false,
-  notifications: true,
+  notify: {
+    enabled: true,
+    style: "both",
+    corner: "bottom-right",
+    sound: true,
+    taskReminders: true,
+    habitReminders: true,
+    starts: true,
+    digest: true,
+    digestTime: "08:00",
+    focus: true,
+    quickAdd: true,
+  },
+  onboarded: false,
   quickAddShortcut: "CommandOrControl+Shift+A",
   pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4 },
 };
@@ -81,7 +96,8 @@ function parseCalendar(raw: unknown): Settings["calendar"] {
   const d = DEFAULT_SETTINGS.calendar;
   const flag = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
   return {
-    view: oneOf(CAL_VIEWS, r.view) ? r.view : d.view,
+    // "3day" was replaced by "5day".
+    view: oneOf(CAL_VIEWS, r.view) ? r.view : r.view === "3day" ? "5day" : d.view,
     colorBy: oneOf(COLOR_BYS, r.colorBy) ? r.colorBy : d.colorBy,
     showCompleted: flag(r.showCompleted, d.showCompleted),
     showHabits: flag(r.showHabits, d.showHabits),
@@ -99,6 +115,26 @@ function parseMatrix(raw: unknown): Settings["matrix"] {
   const valid = prios.length > 0 && prios.length < PRIORITIES.length;
   const days = typeof r.urgentDays === "number" && Number.isInteger(r.urgentDays) && r.urgentDays >= 0 && r.urgentDays <= 30 ? r.urgentDays : d.urgentDays;
   return { importantPriorities: valid ? prios : d.importantPriorities, urgentDays: days };
+}
+
+function parseNotify(raw: unknown, legacyEnabled: unknown): Settings["notify"] {
+  const r = isRecord(raw) ? raw : {};
+  const d = DEFAULT_SETTINGS.notify;
+  const flag = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+  return {
+    // Before per-type settings there was a single `notifications` switch.
+    enabled: flag(r.enabled, flag(legacyEnabled, d.enabled)),
+    style: oneOf(NOTIFY_STYLES, r.style) ? r.style : d.style,
+    corner: oneOf(NOTIFY_CORNERS, r.corner) ? r.corner : d.corner,
+    sound: flag(r.sound, d.sound),
+    taskReminders: flag(r.taskReminders, d.taskReminders),
+    habitReminders: flag(r.habitReminders, d.habitReminders),
+    starts: flag(r.starts, d.starts),
+    digest: flag(r.digest, d.digest),
+    digestTime: typeof r.digestTime === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.digestTime) ? r.digestTime : d.digestTime,
+    focus: flag(r.focus, d.focus),
+    quickAdd: flag(r.quickAdd, d.quickAdd),
+  };
 }
 
 function parsePomodoro(raw: unknown): Settings["pomodoro"] {
@@ -131,7 +167,8 @@ export function parseSettings(raw: unknown): Settings {
     matrix: parseMatrix(r.matrix),
     closeToTray: typeof r.closeToTray === "boolean" ? r.closeToTray : d.closeToTray,
     launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
-    notifications: typeof r.notifications === "boolean" ? r.notifications : d.notifications,
+    notify: parseNotify(r.notify, r.notifications),
+    onboarded: r.onboarded === true,
     quickAddShortcut: typeof r.quickAddShortcut === "string" && /^[w+]+$/.test(r.quickAddShortcut) ? r.quickAddShortcut : d.quickAddShortcut,
     pomodoro: parsePomodoro(r.pomodoro),
   };

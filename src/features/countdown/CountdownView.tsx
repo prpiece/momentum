@@ -1,3 +1,4 @@
+import { IconPicker, IconTile } from "../../components/ui/AppIcon";
 import { format } from "date-fns";
 import { Check, Hourglass, Pin, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -9,7 +10,6 @@ import { addDaysLocal, fromLocalDate, todayLocal } from "../../domain/dates";
 import { deleteCountdown, saveCountdown, useCountdowns } from "../../stores/countdowns";
 import { confirm } from "../../stores/ui";
 
-const EMOJI = ["⏳", "🎂", "✈️", "🎓", "💍", "🎄", "🏖️", "🚭", "🏁", "📅", "❤️", "🎉"];
 
 export function CountdownView() {
   const map = useCountdowns((s) => s.items);
@@ -56,7 +56,7 @@ export function CountdownView() {
                 style={{ borderTop: `3px solid ${c.color}` }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{c.emoji}</span>
+                  <IconTile name={c.icon} color={c.color} size={34} />
                   <span className="min-w-0 flex-1 truncate font-semibold">{c.title}</span>
                   {c.pinned && <Pin size={13} className="text-accent" />}
                 </div>
@@ -81,7 +81,7 @@ function CountdownDialog({ item, onClose }: { item: Countdown | null; onClose: (
   const [date, setDate] = useState(item?.date ?? addDaysLocal(todayLocal(), 30));
   const [direction, setDirection] = useState<Countdown["direction"]>(item?.direction ?? "until");
   const [repeat, setRepeat] = useState<Countdown["repeat"]>(item?.repeat ?? "none");
-  const [emoji, setEmoji] = useState(item?.emoji ?? "⏳");
+  const [icon, setIcon] = useState(item?.icon ?? "hourglass");
   const [color, setColor] = useState(item?.color ?? ACCENT_PRESETS[0].hex);
   const [pinned, setPinned] = useState(item?.pinned ?? false);
   const field = "h-9 rounded-sm border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent";
@@ -92,7 +92,7 @@ function CountdownDialog({ item, onClose }: { item: Countdown | null; onClose: (
         onSubmit={(e) => {
           e.preventDefault();
           if (!title.trim()) return;
-          saveCountdown({ id: item?.id, title: title.trim(), date, direction, repeat: direction === "since" ? "none" : repeat, emoji, color, pinned });
+          saveCountdown({ id: item?.id, title: title.trim(), date, direction, repeat: direction === "since" ? "none" : repeat, icon, color, pinned });
           onClose();
         }}
       >
@@ -115,13 +115,7 @@ function CountdownDialog({ item, onClose }: { item: Countdown | null; onClose: (
             </select>
           )}
         </div>
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Icon">
-          {EMOJI.map((e) => (
-            <button key={e} type="button" aria-pressed={emoji === e} onClick={() => setEmoji(e)} className={`grid size-9 place-items-center rounded-sm text-lg ${emoji === e ? "bg-accent-soft ring-1 ring-accent" : "hover:bg-hover"}`}>
-              {e}
-            </button>
-          ))}
-        </div>
+        <IconPicker value={icon} onChange={(k) => k && setIcon(k)} color={color} />
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Color">
           {ACCENT_PRESETS.map((p) => (
             <button key={p.hex} type="button" aria-label={p.name} aria-pressed={color === p.hex} onClick={() => setColor(p.hex)} className="grid size-7 place-items-center rounded-full" style={{ background: p.hex }}>

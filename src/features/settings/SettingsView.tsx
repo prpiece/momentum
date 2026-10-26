@@ -2,6 +2,8 @@ import { Check, Pipette } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Segmented } from "../../components/ui/Segmented";
 import { AboutSection, DataSection } from "./DataSection";
+import { NotificationSection } from "./NotificationSection";
+import { openWelcome } from "../shell/Welcome";
 import { ACCENT_PRESETS } from "../../domain/color";
 import type { Settings, ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
@@ -218,15 +220,21 @@ export function SettingsView() {
         </Row>
       </Section>
 
-      <Section title="Reminders & system">
-        <Row label="Notifications">
-          <Toggle checked={s.notifications} onChange={(v) => update({ notifications: v })} text="OS notifications for reminders and focus" />
-        </Row>
+      <Section title="Notifications">
+        <NotificationSection />
+      </Section>
+
+      <Section title="System">
         <Row label="Closing the window">
           <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text="Keep running in the tray" />
         </Row>
         <Row label="Launch at login">
           <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text="Start minimized to the tray" />
+        </Row>
+        <Row label="Welcome tour">
+          <button type="button" onClick={openWelcome} className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover">
+            Show the tour again
+          </button>
         </Row>
         <Row label="Global quick add">
           <ShortcutInput value={s.quickAddShortcut} onChange={(v) => update({ quickAddShortcut: v })} />

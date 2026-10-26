@@ -1,13 +1,15 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { ChevronRight, ListChecks, Pin, Repeat, Bell, FileText } from "lucide-react";
 import { memo } from "react";
+import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import type { TreeRow } from "../../domain/taskViews";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { openTask, toggleCollapsed, useUi } from "../../stores/ui";
+import { openContextMenu, openTask, toggleCollapsed, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
+import { taskMenu } from "./taskMenu";
 
 export type RowClick = (id: string, e: React.MouseEvent) => void;
 
@@ -49,6 +51,7 @@ export const TaskRow = memo(function TaskRow(props: {
       role="option"
       aria-selected={selected}
       onClick={(e) => props.onClick(t.id, e)}
+      onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => {
         if (e.key === "Enter") openTask(t.id, vm.key);
         if (e.key === " ") {
@@ -118,7 +121,7 @@ export const TaskRow = memo(function TaskRow(props: {
         {t.pinned && <Pin size={13} className="text-accent" aria-label="Pinned" />}
         {list && (
           <span className="flex max-w-32 items-center gap-1 truncate">
-            {list.emoji ?? <span className="size-2 rounded-full" style={{ background: list.color ?? "var(--fg-muted)" }} />}
+            <ListGlyph icon={list.icon} color={list.color} size={13} />
             {list.name}
           </span>
         )}

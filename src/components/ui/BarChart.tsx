@@ -15,10 +15,12 @@ export function BarChart(props: {
   color?: string;
   title: string;
   height?: number;
+  /** viewBox width: narrower for half-width cards so text keeps its size. */
+  width?: number;
 }) {
   const { data, format = String, color = "var(--accent)", height = 180 } = props;
   const [hover, setHover] = useState<number | null>(null);
-  const W = 640;
+  const W = props.width ?? 640;
   const H = height;
   const padL = 28;
   const padB = 20;
@@ -54,7 +56,8 @@ export function BarChart(props: {
                   d={`M${x},${y(0)} v${-(h - r)} q0,${-r} ${r},${-r} h${barW - 2 * r} q${r},0 ${r},${r} v${h - r} z`}
                   fill={color}
                   opacity={hover === null || hover === i ? 1 : 0.45}
-                  className="transition-opacity duration-[var(--dur)]"
+                  className="anim-grow-y transition-opacity duration-[var(--dur)]"
+                  style={{ animationDelay: `${i * 25}ms` }}
                 />
               )}
               <text x={padL + i * slot + slot / 2} y={H - 6} textAnchor="middle" className="fill-[var(--fg-muted)] text-[10px]">

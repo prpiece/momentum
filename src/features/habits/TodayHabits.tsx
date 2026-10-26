@@ -1,10 +1,12 @@
+import { AppIcon } from "../../components/ui/AppIcon";
 import { ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { todayLocal } from "../../domain/dates";
 import { isDone, isDueToday } from "../../domain/habits";
 import { useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
-import { go, toggleCollapsed, useUi } from "../../stores/ui";
+import { go, openContextMenu, toggleCollapsed, useUi } from "../../stores/ui";
+import { habitMenu } from "./habitMenu";
 import { CheckinButton } from "./CheckinButton";
 
 /** Habits due today, shown above the Today task list. */
@@ -32,10 +34,10 @@ export function TodayHabits() {
       {!collapsed && (
         <div className="flex flex-wrap gap-2">
           {due.map((h) => (
-            <div key={h.id} className="flex items-center gap-2 rounded-full border border-border bg-surface-2 py-1 pl-1 pr-3 shadow-sm">
+            <div key={h.id} onContextMenu={(e) => openContextMenu(e, habitMenu(h, today))} className="flex items-center gap-2 rounded-full border border-border bg-surface-2 py-1 pl-1 pr-3 shadow-sm">
               <CheckinButton habit={h} date={today} size={30} />
-              <button type="button" onClick={() => go("habits")} className="text-sm hover:underline">
-                {h.icon} {h.name}
+              <button type="button" onClick={() => go("habits")} className="flex items-center gap-1.5 text-sm hover:underline">
+                <AppIcon name={h.icon} size={14} color={h.color} /> {h.name}
               </button>
             </div>
           ))}

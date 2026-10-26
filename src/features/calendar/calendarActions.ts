@@ -5,7 +5,7 @@ import { scheduleForKey } from "../../domain/recurrence";
 import type { Schedule } from "../../domain/types";
 import { isDragData, onDrop, type DragData } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { editEventOccurrence, updateEvent, updateTask, useData } from "../../stores/data";
+import { deleteEventOccurrence, deleteEvents, editEventOccurrence, updateEvent, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { askScope, toast } from "../../stores/ui";
 import { editTask } from "../tasks/actions";
@@ -46,6 +46,18 @@ export async function applySchedule(ref: Ref, schedule: Schedule) {
   if (!e.recurrence) return withUndo("Event moved", () => updateEvent(e.id, { schedule }));
   const scope = await askScope("edit");
   if (scope && ref.key) editEventOccurrence(e.id, ref.key, scope, { schedule });
+}
+
+/** Delete an event, or (recurring) the occurrences the user picks. Resolves false on cancel. */
+export async function deleteEvent(id: string, key: string | null): Promise<boolean> {
+  const e = useData.getState().events[id];
+  if (!e) return false;
+  if (e.recurrence && key) {
+    const scope = await askScope("delete");
+    if (!scope) return false;
+    withUndo("Event deleted", () => deleteEventOccurrence(id, key, scope));
+  } else withUndo("Event deleted", () => deleteEvents([id]));
+  return true;
 }
 
 // ---------- pointer geometry ----------

@@ -26,8 +26,10 @@ export function Popover(props: {
     const w = el.offsetWidth;
     const h = el.offsetHeight;
     let left = align === "end" ? r.right - w : r.left;
-    let top = r.bottom + 6;
-    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+    const point = !("current" in anchor);
+    // Anchored to an element: flip above it. At a point (right-click): just slide up to fit.
+    let top = point ? r.top + 2 : r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, point ? window.innerHeight - h - 8 : r.top - h - 6);
     left = Math.min(Math.max(8, left), window.innerWidth - w - 8);
     setPos({ top, left });
   }, [anchor, align]);
