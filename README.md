@@ -109,6 +109,10 @@ Tauri 2 (Rust) · React + TypeScript + Vite · Tailwind CSS v4 with CSS-variable
 
 Architecture notes and the decision log are in [PLAN.md](PLAN.md). Conventions for contributors (and AI agents) are in [CLAUDE.md](CLAUDE.md).
 
+## Credits
+
+Thanks to [@dalba0](https://github.com/dalba0) for the ideas behind v0.2.0: the custom title bar, right-click menus, notification settings, the welcome tour, the new Statistics page and the habit fixes.
+
 ## License
 
 [MIT](LICENSE)

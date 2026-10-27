@@ -82,6 +82,7 @@ export function AboutSection() {
         <div className="text-base font-semibold">Momentum</div>
         <div className="font-mono text-xs text-muted">Version {version}</div>
         <div className="mt-1 text-xs text-fg-2">An offline planner for tasks, calendar, habits and focus. Your data never leaves this device. MIT licensed.</div>
+        <div className="mt-1 text-xs text-muted">Thanks to dalba0 for the ideas that shaped version 0.2.</div>
       </div>
     </div>
   );
