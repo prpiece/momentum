@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { Segmented } from "../../components/ui/Segmented";
 import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
+import { TagsSection } from "./TagsSection";
 import { openWelcome } from "../shell/Welcome";
 import { ACCENT_PRESETS } from "../../domain/color";
 import type { Settings, ViewId } from "../../domain/types";
@@ -218,6 +219,10 @@ export function SettingsView() {
             Detect dates, !priority, #tags, ~lists
           </label>
         </Row>
+      </Section>
+
+      <Section title="Tags">
+        <TagsSection />
       </Section>
 
       <Section title="Notifications">

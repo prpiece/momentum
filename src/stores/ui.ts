@@ -33,6 +33,8 @@ type UiStore = {
   contextMenu: { x: number; y: number; items: MenuEntry[] } | null;
   /** Welcome tour reopened from Settings (first run is driven by settings.onboarded). */
   welcomeOpen: boolean;
+  /** Filter-bar query per task view (session-only). */
+  filters: Partial<Record<ViewId, string>>;
 };
 
 export const useUi = create<UiStore>(() => ({
@@ -50,10 +52,12 @@ export const useUi = create<UiStore>(() => ({
   calSpan: null,
   contextMenu: null,
   welcomeOpen: false,
+  filters: {},
 }));
 const set = useUi.setState;
 
 // Leaving a view closes what was opened from it (the task drawer would otherwise float over Settings).
+export const setFilter = (view: ViewId, query: string) => set((s) => ({ filters: { ...s.filters, [view]: query } }));
 export const go = (view: ViewId) => set({ view, selection: [], drawer: null, contextMenu: null });
 export const openTask = (id: string, key: string | null = null) => set({ drawer: { id, key } });
 export const closeDrawer = () => set({ drawer: null });

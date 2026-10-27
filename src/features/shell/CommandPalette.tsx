@@ -1,5 +1,5 @@
 import { ListGlyph } from "../../components/ui/AppIcon";
-import { CornerDownLeft, Hash, Moon, PanelLeft, Plus, Search, Sun, SunMoon, Keyboard, ListPlus, CheckCircle2, Circle } from "lucide-react";
+import { CornerDownLeft, Hash, Moon, PanelLeft, Plus, Search, Sun, SunMoon, Keyboard, ListPlus, ListFilter, CheckCircle2, Circle } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Dialog } from "../../components/ui/Dialog";
 import { matchScore } from "../../domain/taskViews";
@@ -37,6 +37,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
   const derived = useDerived();
   const lists = useData((s) => s.lists);
   const tags = useData((s) => s.tags);
+  const savedFilters = useSettings((s) => s.settings.savedFilters);
   const update = useSettings((s) => s.update);
   const collapsed = useSettings((s) => s.settings.sidebarCollapsed);
   const close = () => setPalette(false);
@@ -67,6 +68,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       run: navTo(l.id === "inbox" ? "inbox" : `list:${l.id}`),
     }));
     const tagItems = Object.values(tags).map((t) => ({ id: `tag-${t.id}`, group: "Tags", label: `#${t.name}`, icon: <Hash size={16} />, run: navTo(`tag:${t.id}`) }));
+    const filterItems = savedFilters.map((f) => ({ id: `filter-${f.id}`, group: "Lists", label: f.name, hint: f.query, icon: <ListFilter size={16} />, run: navTo(`filter:${f.id}`) }));
     const query = q.trim();
     if (!query) return commands.slice(0, 8).map((c) => ({ ...c, score: 0 }));
     const taskItems = derived.vms.map((vm) => ({
@@ -80,7 +82,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       done: vm.task.status !== "open",
     }));
     const scored: Item[] = [];
-    for (const c of [...commands, ...listItems, ...tagItems, ...sources.flatMap((s) => s(query))]) {
+    for (const c of [...commands, ...listItems, ...filterItems, ...tagItems, ...sources.flatMap((s) => s(query))]) {
       const score = matchScore(c.label, query);
       if (score !== null) scored.push({ ...c, score });
     }
@@ -94,7 +96,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       .sort((a, b) => a.score - b.score || order.indexOf(a.group) - order.indexOf(b.group))
       .slice(0, 40)
       .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
-  }, [q, derived, lists, tags, update, collapsed, onNewList]);
+  }, [q, derived, lists, tags, savedFilters, update, collapsed, onNewList]);
 
   const pick = (i: number) => items[i]?.run();
 

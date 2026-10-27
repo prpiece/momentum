@@ -2,7 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import {
   ChevronRight,
   FolderPlus,
-  Hash,
+  ListFilter,
   type LucideIcon,
   MoreHorizontal,
   PanelLeftClose,
@@ -23,10 +23,10 @@ import { Logo } from "../../components/Logo";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
-import type { Folder, TaskList, ViewId } from "../../domain/types";
+import type { Folder, SavedFilter, TaskList, ViewId } from "../../domain/types";
 import { onDrop, type DropData } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { addFolder, moveTasks, removeFolder, removeList, removeTag, updateFolder, updateList, updateTag, updateTask, useData } from "../../stores/data";
+import { addFolder, moveTasks, removeFolder, removeList, updateFolder, updateList, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { confirm, go, openContextMenu, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";
 import { useFocus } from "../../stores/focus";
@@ -163,16 +163,16 @@ export function Sidebar() {
   const { sidebarCollapsed: collapsed, sidebarSide: side, sidebarMoreOpen: moreOpen } = useSettings((s) => s.settings);
   const view = useUi((s) => s.view);
   const focusRunning = useFocus((s) => s.timer.status !== "idle");
+  const savedFilters = useSettings((s) => s.settings.savedFilters);
   const update = useSettings((s) => s.update);
   const lists = useData((s) => s.lists);
   const folders = useData((s) => s.folders);
-  const tags = useData((s) => s.tags);
   const counts = useCounts();
-  const [openSec, setOpenSec] = useState({ lists: true, tags: true, archived: false });
+  const [openSec, setOpenSec] = useState({ lists: true, filters: true, archived: false });
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState(false);
   const [editList, setEditList] = useState<TaskList | null>(null);
-  const [renamingTag, setRenamingTag] = useState<string | null>(null);
+  const [editingFilter, setEditingFilter] = useState<{ id: string; field: "name" | "query" } | null>(null);
 
   const Toggle = side === "left" ? (collapsed ? PanelLeftOpen : PanelLeftClose) : collapsed ? PanelRightOpen : PanelRightClose;
   const userLists = Object.values(lists)
@@ -186,6 +186,35 @@ export function Sidebar() {
     today: { type: "smart", id: "today" },
     upcoming: { type: "smart", id: "upcoming" },
   };
+
+  const patchFilter = (id: string, patch: Partial<SavedFilter>) => update({ savedFilters: savedFilters.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
+  const filterItem = (f: SavedFilter) =>
+    editingFilter?.id === f.id ? (
+      <InlineName key={f.id} initial={f[editingFilter.field]} onDone={(v) => (v && patchFilter(f.id, { [editingFilter.field]: v }), setEditingFilter(null))} />
+    ) : (
+      <NavItem
+        key={f.id}
+        id={`filter:${f.id}`}
+        label={f.name}
+        icon={<ListFilter size={15} className="text-muted" />}
+        collapsed={false}
+        side={side}
+        menu={() => [
+          { label: "Rename", icon: <Pencil size={14} />, run: () => setEditingFilter({ id: f.id, field: "name" }) },
+          { label: "Edit filter…", icon: <ListFilter size={14} />, run: () => setEditingFilter({ id: f.id, field: "query" }) },
+          "sep",
+          {
+            label: "Remove filter",
+            icon: <Trash2 size={14} />,
+            danger: true,
+            run: () => {
+              if (useUi.getState().view === `filter:${f.id}`) go("today");
+              update({ savedFilters: savedFilters.filter((x) => x.id !== f.id) });
+            },
+          },
+        ]}
+      />
+    );
 
   const listItem = (l: TaskList, indent = false) => (
     <NavItem
@@ -318,6 +347,13 @@ export function Sidebar() {
 
         {!collapsed && (
           <>
+            {savedFilters.length > 0 && (
+              <>
+                <SectionHeader label="Filters" open={openSec.filters} onToggle={() => setOpenSec({ ...openSec, filters: !openSec.filters })} />
+                {openSec.filters && <ul className="space-y-0.5">{savedFilters.map(filterItem)}</ul>}
+              </>
+            )}
+
             <SectionHeader
               label="Lists"
               open={openSec.lists}
@@ -350,43 +386,6 @@ export function Sidebar() {
               </ul>
             )}
 
-            {Object.keys(tags).length > 0 && (
-              <>
-                <SectionHeader label="Tags" open={openSec.tags} onToggle={() => setOpenSec({ ...openSec, tags: !openSec.tags })} />
-                {openSec.tags && (
-                  <ul className="space-y-0.5">
-                    {Object.values(tags)
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((t) =>
-                        renamingTag === t.id ? (
-                          <InlineName key={t.id} initial={t.name} onDone={(v) => (v && updateTag(t.id, { name: v }), setRenamingTag(null))} />
-                        ) : (
-                          <NavItem
-                            key={t.id}
-                            id={`tag:${t.id}`}
-                            label={t.name}
-                            icon={<Hash size={15} className="text-muted" />}
-                            collapsed={false}
-                            side={side}
-                            count={counts.tags[t.id]}
-                            menu={() => [
-                              { label: "Rename", icon: <Pencil size={14} />, run: () => setRenamingTag(t.id) },
-                              {
-                                label: "Delete tag",
-                                icon: <Trash2 size={14} />,
-                                danger: true,
-                                run: async () => {
-                                  if (await confirm(`Delete tag “${t.name}”?`, "It is removed from every task.")) removeTag(t.id);
-                                },
-                              },
-                            ]}
-                          />
-                        ),
-                      )}
-                  </ul>
-                )}
-              </>
-            )}
           </>
         )}
       </nav>

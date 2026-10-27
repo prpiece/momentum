@@ -72,7 +72,8 @@ export default function App() {
   const view = useUi((s) => s.view);
   const lists = useData((s) => s.lists);
   const tags = useData((s) => s.tags);
-  const spec = taskViewSpec(view, lists, tags);
+  const savedFilters = useSettings((s) => s.settings.savedFilters);
+  const spec = taskViewSpec(view, lists, tags, savedFilters);
 
   return (
     <DndRoot>

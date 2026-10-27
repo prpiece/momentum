@@ -1,7 +1,8 @@
-import { Hash, List, type LucideIcon } from "lucide-react";
+import { Hash, List, ListFilter, type LucideIcon } from "lucide-react";
 import { addDaysLocal } from "../../domain/dates";
+import { matchesFilter, nameKey, parseFilter } from "../../domain/filter";
 import { inSmartList, type TaskVM } from "../../domain/taskViews";
-import { SMART_LISTS, type LocalDate, type SmartListId, type Tag, type TaskList, type ViewId } from "../../domain/types";
+import { SMART_LISTS, type LocalDate, type SavedFilter, type SmartListId, type Tag, type TaskList, type ViewId } from "../../domain/types";
 import type { NewTask } from "../../stores/data";
 import { SMART_LIST_NAV } from "../shell/nav";
 
@@ -32,6 +33,7 @@ export function taskViewSpec(
   view: ViewId,
   lists: Record<string, TaskList>,
   tags: Record<string, Tag>,
+  savedFilters: readonly SavedFilter[],
 ): TaskViewSpec | null {
   if (isSmart(view)) {
     const nav = SMART_LIST_NAV.find((n) => n.id === view);
@@ -80,6 +82,33 @@ export function taskViewSpec(
       filter: (vm) => vm.task.tags.includes(tag.id),
       defaults: () => ({ tags: [tag.id] }),
       canAdd: true,
+    };
+  }
+  if (view.startsWith("filter:")) {
+    const saved = savedFilters.find((f) => `filter:${f.id}` === view);
+    if (!saved) return null;
+    // ponytail: dates in the query resolve when the spec is built (each App render), not per day boundary.
+    const f = parseFilter(saved.query, new Date());
+    const listId = f.listName === null ? undefined : Object.values(lists).find((l) => nameKey(l.name) === nameKey(f.listName ?? ""))?.id;
+    const tagIds = Object.values(tags)
+      .filter((t) => f.tags.some((n) => n.toLowerCase() === t.name.toLowerCase()))
+      .map((t) => t.id);
+    return {
+      id: view,
+      title: saved.name,
+      icon: ListFilter,
+      list: null,
+      tag: null,
+      tree: false,
+      splitCompleted: f.status === null,
+      filter: (vm, today) => matchesFilter(vm, f, { today, lists, tags }),
+      defaults: () => ({
+        ...(f.priority !== null ? { priority: f.priority } : {}),
+        ...(listId ? { listId } : {}),
+        ...(tagIds.length ? { tags: tagIds } : {}),
+        ...(f.date?.kind === "on" ? { schedule: { kind: "day" as const, date: f.date.date } } : {}),
+      }),
+      canAdd: f.status === null || f.status === "open",
     };
   }
   return null;

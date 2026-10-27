@@ -5,12 +5,14 @@ import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../comp
 import { todayLocal } from "../../domain/dates";
 import { DEFAULT_VIEW_OPTIONS } from "../../domain/settings";
 import type { GroupBy, ListLayout, SortBy, ViewOptions } from "../../domain/types";
+import { isEmptyFilter, matchesFilter, parseFilter } from "../../domain/filter";
 import { toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { go } from "../../stores/ui";
+import { go, useUi } from "../../stores/ui";
 import { TodayHabits } from "../habits/TodayHabits";
 import { BulkBar } from "./BulkBar";
+import { FilterBar } from "./FilterBar";
 import { KanbanView } from "./KanbanView";
 import { ListDialogButton } from "./ListDialog";
 import { QuickAdd } from "./QuickAdd";
@@ -45,6 +47,10 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   const settings = useSettings((s) => s.settings);
   const update = useSettings((s) => s.update);
   const list = useData((s) => (spec.list ? s.lists[spec.list.id] : undefined));
+  const lists = useData((s) => s.lists);
+  const tags = useData((s) => s.tags);
+  const query = useUi((s) => s.filters[spec.id] ?? "");
+  const adhoc = useMemo(() => parseFilter(query, new Date()), [query]);
   const options: ViewOptions =
     settings.viewOptions[spec.id] ?? (spec.list ? DEFAULT_VIEW_OPTIONS : { groupBy: spec.id === "upcoming" ? "date" : "none", sortBy: "date" });
   const setOptions = (o: Partial<ViewOptions>) => update({ viewOptions: { ...settings.viewOptions, [spec.id]: { ...options, ...o } } });
@@ -52,14 +58,18 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   const menu = useMenu();
 
   const source = spec.list ? derived.vms : derived.active;
-  const vms = useMemo(() => source.filter((v) => spec.filter(v, today)), [source, spec, today]);
+  const vms = useMemo(
+    () => source.filter((v) => spec.filter(v, today) && (isEmptyFilter(adhoc) || matchesFilter(v, adhoc, { today, lists, tags }))),
+    [source, spec, today, adhoc, lists, tags],
+  );
   const openCount = vms.filter((v) => v.task.status === "open").length;
   const tint = list?.tint && list.color ? { background: `color-mix(in oklch, ${list.color} 6%, var(--surface))` } : undefined;
 
   return (
     <div className="flex h-full min-h-0 flex-col" style={tint}>
       <div className="flex items-center gap-1 px-6 pb-3 pt-1">
-        <span className="font-mono text-sm text-muted">{openCount} open</span>
+        <span className="mr-2 shrink-0 font-mono text-sm text-muted">{openCount} open</span>
+        <FilterBar view={spec.id} />
         <div className="flex-1" />
         {list && (
           <div role="radiogroup" aria-label="Layout" className="mr-1 flex rounded-sm border border-border bg-bg p-0.5">
@@ -125,8 +135,8 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
       {spec.id === "today" && <TodayHabits />}
 
       {vms.length === 0 ? (
-        <EmptyState icon={spec.icon} title={EMPTY[spec.id]?.[0] ?? "Nothing here yet"}>
-          {EMPTY[spec.id]?.[1] ?? "Add a task above. Try “Plan trip next friday #travel”."}
+        <EmptyState icon={spec.icon} title={query ? "No matches" : (EMPTY[spec.id]?.[0] ?? "Nothing here yet")}>
+          {query ? "No task in this view matches the filter." : (EMPTY[spec.id]?.[1] ?? "Add a task above. Try “Plan trip next friday #travel”.")}
         </EmptyState>
       ) : layout === "kanban" && list ? (
         <KanbanView list={list} vms={vms} />

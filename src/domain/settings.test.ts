@@ -17,6 +17,21 @@ describe("parseSettings", () => {
     expect(s.sidebarSide).toBe("right");
   });
 
+  it("keeps well-formed saved filters only", () => {
+    const savedFilters = [
+      { id: "a", name: "Work", query: "#work" },
+      { id: "a", name: "dupe", query: "x" },
+      { id: "b", name: " ", query: "!high" },
+      { id: "c", name: "no query" },
+      "junk",
+    ];
+    expect(parseSettings({ savedFilters }).savedFilters).toEqual([
+      { id: "a", name: "Work", query: "#work" },
+      { id: "b", name: "!high", query: "!high" },
+    ]);
+    expect(parseSettings({ defaultView: "filter:a" }).defaultView).toBe("filter:a");
+  });
+
   it("carries merged smart lists over to their new ids", () => {
     expect(parseSettings({ defaultView: "next7" }).defaultView).toBe("upcoming");
     expect(parseSettings({ defaultView: "wontdo" }).defaultView).toBe("logbook");

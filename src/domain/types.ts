@@ -11,7 +11,10 @@ export const MODULE_VIEWS = ["calendar", "matrix", "habits", "focus", "countdown
 export type ModuleView = (typeof MODULE_VIEWS)[number];
 
 /** Every top-level screen. */
-export type ViewId = SmartListId | ModuleView | `list:${string}` | `tag:${string}`;
+export type ViewId = SmartListId | ModuleView | `list:${string}` | `tag:${string}` | `filter:${string}`;
+
+/** A filter query pinned to the sidebar (D51). */
+export type SavedFilter = { id: string; name: string; query: string };
 
 // ---------- Tasks ----------
 
@@ -186,6 +189,7 @@ export type Settings = {
   /** Natural-language parsing in quick add. */
   smartParse: boolean;
   viewOptions: Record<string, ViewOptions>;
+  savedFilters: SavedFilter[];
   calendar: CalendarSettings;
   matrix: { importantPriorities: Priority[]; urgentDays: number };
   /** Closing the window hides to the tray (reminders keep firing). */

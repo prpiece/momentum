@@ -7,7 +7,7 @@ import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import type { TreeRow } from "../../domain/taskViews";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { openContextMenu, openTask, toggleCollapsed, useUi } from "../../stores/ui";
+import { openContextMenu, openTask, setFilter, toggleCollapsed, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
 import { taskMenu } from "./taskMenu";
 
@@ -110,9 +110,19 @@ export const TaskRow = memo(function TaskRow(props: {
           )}
           {t.tags.map((id) =>
             tags[id] ? (
-              <span key={id} className="rounded-full bg-hover px-1.5 text-[0.7rem] text-fg-2">
+              <button
+                key={id}
+                type="button"
+                title={`Filter by #${tags[id].name}`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFilter(useUi.getState().view, `#${tags[id].name}`);
+                }}
+                className="rounded-full bg-hover px-1.5 text-[0.7rem] text-fg-2 hover:bg-accent-soft hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+              >
                 #{tags[id].name}
-              </span>
+              </button>
             ) : null,
           )}
         </Meta>

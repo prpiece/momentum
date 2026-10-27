@@ -49,7 +49,7 @@ export function useDerived(): Derived {
 }
 
 /** Open-task counts for the sidebar badges. */
-export function useCounts(): { smart: Record<SmartListId, number>; lists: Record<string, number>; tags: Record<string, number> } {
+export function useCounts(): { smart: Record<SmartListId, number>; lists: Record<string, number> } {
   const d = useDerived();
   const today = todayLocal();
   return useMemo(() => {
@@ -60,13 +60,11 @@ export function useCounts(): { smart: Record<SmartListId, number>; lists: Record
       logbook: 0,
     };
     const lists: Record<string, number> = {};
-    const tags: Record<string, number> = {};
     for (const vm of d.active) {
       if (vm.task.status !== "open") continue;
       lists[vm.task.listId] = (lists[vm.task.listId] ?? 0) + 1;
-      for (const tag of vm.task.tags) tags[tag] = (tags[tag] ?? 0) + 1;
       for (const id of SMART_LISTS) if (id !== "logbook" && inSmartList(id, vm, today)) smart[id]++;
     }
-    return { smart, lists, tags };
+    return { smart, lists };
   }, [d, today]);
 }

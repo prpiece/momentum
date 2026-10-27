@@ -33,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   timeFormat: "24h",
   smartParse: true,
   viewOptions: {},
+  savedFilters: [],
   calendar: {
     view: "week",
     colorBy: "list",
@@ -79,7 +80,7 @@ const renamed = (v: unknown): unknown => (typeof v === "string" && RENAMED_VIEWS
 
 export function isViewId(v: unknown): v is ViewId {
   if (oneOf(SMART_LISTS, v) || oneOf(MODULE_VIEWS, v)) return true;
-  return typeof v === "string" && /^(list|tag):.+/.test(v);
+  return typeof v === "string" && /^(list|tag|filter):.+/.test(v);
 }
 
 function parseViewOptions(raw: unknown): Settings["viewOptions"] {
@@ -92,6 +93,17 @@ function parseViewOptions(raw: unknown): Settings["viewOptions"] {
       groupBy: oneOf(GROUP_BYS, v.groupBy) ? v.groupBy : DEFAULT_VIEW_OPTIONS.groupBy,
       sortBy: oneOf(SORT_BYS, v.sortBy) ? v.sortBy : DEFAULT_VIEW_OPTIONS.sortBy,
     };
+  }
+  return out;
+}
+
+function parseSavedFilters(raw: unknown): Settings["savedFilters"] {
+  if (!Array.isArray(raw)) return [];
+  const out: Settings["savedFilters"] = [];
+  for (const f of raw) {
+    if (!isRecord(f) || typeof f.id !== "string" || typeof f.name !== "string" || typeof f.query !== "string") continue;
+    if (!f.id || out.some((x) => x.id === f.id)) continue;
+    out.push({ id: f.id, name: f.name.trim() || f.query, query: f.query });
   }
   return out;
 }
@@ -166,6 +178,7 @@ export function parseSettings(raw: unknown): Settings {
     timeFormat: oneOf(TIME_FORMATS, r.timeFormat) ? r.timeFormat : d.timeFormat,
     smartParse: typeof r.smartParse === "boolean" ? r.smartParse : d.smartParse,
     viewOptions: parseViewOptions(r.viewOptions),
+    savedFilters: parseSavedFilters(r.savedFilters),
     calendar: parseCalendar(r.calendar),
     matrix: parseMatrix(r.matrix),
     closeToTray: typeof r.closeToTray === "boolean" ? r.closeToTray : d.closeToTray,
