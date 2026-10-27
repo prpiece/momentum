@@ -178,6 +178,8 @@ export type Settings = {
   fontSize: (typeof FONT_SIZES)[number];
   sidebarSide: (typeof SIDES)[number];
   sidebarCollapsed: boolean;
+  /** The sidebar's "More" module group is expanded. */
+  sidebarMoreOpen: boolean;
   defaultView: ViewId;
   weekStart: WeekStart;
   timeFormat: (typeof TIME_FORMATS)[number];
