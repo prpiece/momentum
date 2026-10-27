@@ -162,6 +162,12 @@
   30% { transform: scale(1.06) rotate(-3deg); }
   60% { transform: scale(0.97) rotate(2deg); }
 }
+/* Onboarding steps slide in from the side you're moving toward (--dir: 1 forward, -1 back). */
+@keyframes step-in {
+  from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 18px)); }
+}
+.anim-step { animation: step-in 240ms var(--ease); }
+
 /* Each view fades in when you switch to it (App keys the content by view). */
 .anim-view { animation: view-in 220ms var(--ease); }
 /* Chart marks grow from their baseline. */
@@ -183,11 +189,18 @@
 .prose-md pre { background: var(--hover); padding: 0.75em; border-radius: 8px; overflow-x: auto; }
 .prose-md blockquote { border-left: 3px solid var(--border); padding-left: 0.75em; color: var(--fg-2); }
 
+/* Motion follows the OS unless Settings → Animations says otherwise (html[data-motion]). */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  ::before,
-  ::after {
+  html:not([data-motion="on"]) *,
+  html:not([data-motion="on"]) ::before,
+  html:not([data-motion="on"]) ::after {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
   }
+}
+html[data-motion="off"] *,
+html[data-motion="off"] ::before,
+html[data-motion="off"] ::after {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
 }

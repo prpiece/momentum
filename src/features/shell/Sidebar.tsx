@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Logo } from "../../components/Logo";
+import { Collapse } from "../../components/ui/Collapse";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
@@ -104,7 +105,11 @@ function NavItem(props: {
         <span className={`grid w-[18px] shrink-0 place-items-center ${active && !isOver ? "text-accent" : ""}`}>{props.icon}</span>
         <span className={`min-w-0 flex-1 truncate text-left transition-opacity duration-[var(--dur)] ${props.collapsed ? "opacity-0" : ""}`}>{props.label}</span>
         {!props.collapsed && props.badge}
-        {!props.collapsed && props.count ? <span className={`font-mono text-xs text-muted ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>{props.count}</span> : null}
+        {!props.collapsed && props.count ? (
+          <span key={props.count} className={`anim-pop font-mono text-xs text-muted ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>
+            {props.count}
+          </span>
+        ) : null}
       </button>
       {props.menu && !props.collapsed && (
         <button
@@ -187,6 +192,18 @@ export function Sidebar() {
     upcoming: { type: "smart", id: "upcoming" },
   };
 
+  const moreItem = (n: (typeof MORE_NAV)[number]) => (
+    <NavItem
+      key={n.id}
+      id={n.id}
+      label={n.label}
+      icon={icon(n.icon)}
+      collapsed={collapsed}
+      side={side}
+      indent={!collapsed}
+      badge={n.id === "focus" ? <FocusBadge /> : undefined}
+    />
+  );
   const patchFilter = (id: string, patch: Partial<SavedFilter>) => update({ savedFilters: savedFilters.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
   const filterItem = (f: SavedFilter) =>
     editingFilter?.id === f.id ? (
@@ -260,7 +277,9 @@ export function Sidebar() {
             onRename={() => setRenamingFolder(f.id)}
           />
         )}
-        {!f.collapsed && <ul className="space-y-0.5">{inside.map((l) => listItem(l, true))}</ul>}
+        <Collapse open={!f.collapsed}>
+          <ul className="space-y-0.5">{inside.map((l) => listItem(l, true))}</ul>
+        </Collapse>
       </li>
     );
   };
@@ -331,26 +350,23 @@ export function Sidebar() {
               </button>
             </li>
           )}
-          {MORE_NAV.filter((n) => (moreOpen && !collapsed) || n.id === view || (n.id === "focus" && focusRunning)).map((n) => (
-            <NavItem
-              key={n.id}
-              id={n.id}
-              label={n.label}
-              icon={icon(n.icon)}
-              collapsed={collapsed}
-              side={side}
-              indent={!collapsed}
-              badge={n.id === "focus" ? <FocusBadge /> : undefined}
-            />
-          ))}
+          {/* With More closed, the current view and a running focus timer stay reachable. */}
+          {(!moreOpen || collapsed) && MORE_NAV.filter((n) => n.id === view || (n.id === "focus" && focusRunning)).map(moreItem)}
         </ul>
+        {!collapsed && (
+          <Collapse open={moreOpen}>
+            <ul className="space-y-0.5 pt-0.5">{MORE_NAV.map(moreItem)}</ul>
+          </Collapse>
+        )}
 
         {!collapsed && (
           <>
             {savedFilters.length > 0 && (
               <>
                 <SectionHeader label="Filters" open={openSec.filters} onToggle={() => setOpenSec({ ...openSec, filters: !openSec.filters })} />
-                {openSec.filters && <ul className="space-y-0.5">{savedFilters.map(filterItem)}</ul>}
+                <Collapse open={openSec.filters}>
+                  <ul className="space-y-0.5">{savedFilters.map(filterItem)}</ul>
+                </Collapse>
               </>
             )}
 
@@ -369,7 +385,7 @@ export function Sidebar() {
                 </>
               }
             />
-            {openSec.lists && (
+            <Collapse open={openSec.lists}>
               <ul className="space-y-0.5">
                 {newFolder && <InlineName initial="" onDone={(v) => (v && addFolder(v), setNewFolder(false))} />}
                 {folderList.map(folderBlock)}
@@ -378,13 +394,15 @@ export function Sidebar() {
                 {archived.length > 0 && (
                   <li>
                     <button type="button" onClick={() => setOpenSec({ ...openSec, archived: !openSec.archived })} className="flex h-8 w-full items-center gap-2 px-3 text-xs text-muted hover:text-fg">
-                      <ChevronRight size={12} className={openSec.archived ? "rotate-90" : ""} /> Archived · {archived.length}
+                      <ChevronRight size={12} className={`transition-transform duration-[var(--dur)] ${openSec.archived ? "rotate-90" : ""}`} /> Archived · {archived.length}
                     </button>
-                    {openSec.archived && <ul className="space-y-0.5 opacity-70">{archived.map((l) => listItem(l, true))}</ul>}
+                    <Collapse open={openSec.archived}>
+                      <ul className="space-y-0.5 opacity-70">{archived.map((l) => listItem(l, true))}</ul>
+                    </Collapse>
                   </li>
                 )}
               </ul>
-            )}
+            </Collapse>
 
           </>
         )}

@@ -29,6 +29,8 @@
 - Recurring tasks ask whether a change applies to *this occurrence*, *this and following* or *all*.
 - Multi-select with <kbd>Ctrl</kbd>/<kbd>Shift</kbd>-click opens a bulk toolbar (complete, date, priority, move, tag, delete). There's undo for everything: a toast button or <kbd>Ctrl Z</kbd>.
 - <kbd>Ctrl K</kbd> command palette to search tasks, lists, tags and habits, or run commands.
+- Keyboard-first: <kbd>G</kbd> then a letter jumps to a view, <kbd>J</kbd>/<kbd>K</kbd> move between tasks, <kbd>1</kbd>–<kbd>3</kbd> set priority, <kbd>T</kbd> schedules for today, <kbd>C</kbd> completes, <kbd>/</kbd> filters. <kbd>?</kbd> lists them all.
+- Calm motion throughout. Settings → Animations follows your system setting, or turn it on or off.
 
 **Calendar**
 - Day, 3-Day, Week, Month and Agenda views, with an all-day row, a now-line, a mini month picker and keyboard shortcuts (<kbd>D</kbd> <kbd>X</kbd> <kbd>W</kbd> <kbd>M</kbd> <kbd>A</kbd> <kbd>T</kbd> <kbd>←</kbd> <kbd>→</kbd>).

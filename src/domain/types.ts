@@ -147,6 +147,8 @@ export type ViewOptions = { groupBy: GroupBy; sortBy: SortBy };
 
 export const THEMES = ["light", "dark", "system"] as const;
 export const DENSITIES = ["comfortable", "compact"] as const;
+/** "system" follows the OS reduced-motion setting (Windows: Animation effects). */
+export const MOTIONS = ["system", "on", "off"] as const;
 export const FONT_SIZES = ["sm", "md", "lg"] as const;
 export const SIDES = ["left", "right"] as const;
 export const TIME_FORMATS = ["12h", "24h"] as const;
@@ -178,6 +180,7 @@ export type Settings = {
   /** #rrggbb */
   accent: string;
   density: (typeof DENSITIES)[number];
+  motion: (typeof MOTIONS)[number];
   fontSize: (typeof FONT_SIZES)[number];
   sidebarSide: (typeof SIDES)[number];
   sidebarCollapsed: boolean;

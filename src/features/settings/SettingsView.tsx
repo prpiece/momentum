@@ -126,6 +126,19 @@ export function SettingsView() {
         <Row label="Accent">
           <AccentPicker value={s.accent} onChange={set("accent")} />
         </Row>
+        <Row label="Animations">
+          <Segmented
+            name="motion"
+            label="Animations"
+            value={s.motion}
+            onChange={set("motion")}
+            options={[
+              { value: "system", label: "System" },
+              { value: "on", label: "On" },
+              { value: "off", label: "Off" },
+            ]}
+          />
+        </Row>
         <Row label="Density">
           <Segmented
             name="density"

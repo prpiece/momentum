@@ -1,10 +1,13 @@
 import { Pin, Search, X } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { parseFilter } from "../../domain/filter";
 import type { ViewId } from "../../domain/types";
 import { uid } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { go, setFilter, useUi } from "../../stores/ui";
+
+const FOCUS_FILTER_EVENT = "momentum:focus-filter";
+export const focusFilter = () => window.dispatchEvent(new Event(FOCUS_FILTER_EVENT));
 
 /** Narrows the current task view with quick-add syntax: `#work !high ~home tomorrow overdue`. */
 export function FilterBar({ view }: { view: ViewId }) {
@@ -13,6 +16,13 @@ export function FilterBar({ view }: { view: ViewId }) {
   const update = useSettings((s) => s.update);
   const chips = useMemo(() => parseFilter(query, new Date()).chips, [query]);
   const canPin = query.trim() !== "" && !view.startsWith("filter:");
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const focus = () => input.current?.focus();
+    window.addEventListener(FOCUS_FILTER_EVENT, focus);
+    return () => window.removeEventListener(FOCUS_FILTER_EVENT, focus);
+  }, []);
 
   const pin = () => {
     const f = { id: uid(), name: query.trim(), query: query.trim() };
@@ -25,12 +35,14 @@ export function FilterBar({ view }: { view: ViewId }) {
     <div className="flex h-8 min-w-0 max-w-sm flex-1 items-center gap-1.5 rounded-sm border border-border bg-bg px-2 transition-colors focus-within:border-accent">
       <Search size={14} className="shrink-0 text-muted" />
       <input
+        ref={input}
         value={query}
         onChange={(e) => setFilter(view, e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Escape" && query) {
+          if (e.key === "Escape") {
             e.stopPropagation();
-            setFilter(view, "");
+            if (query) setFilter(view, "");
+            else e.currentTarget.blur();
           }
         }}
         placeholder="Filter: #tag !high ~list tomorrow"

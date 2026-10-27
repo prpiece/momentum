@@ -7,12 +7,13 @@ import { useSettings } from "../stores/settings";
 const FONT_PX: Record<Settings["fontSize"], string> = { sm: "14px", md: "15px", lg: "16.5px" };
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "fontSize" | "timeFormat" | "smartParse">;
+export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "fontSize" | "timeFormat" | "smartParse">;
 
 export function apply(s: Appearance) {
   const root = document.documentElement;
   root.dataset.theme = s.theme === "system" ? (darkQuery.matches ? "dark" : "light") : s.theme;
   root.dataset.density = s.density;
+  root.dataset.motion = s.motion;
   root.style.setProperty("--accent", s.accent);
   root.style.setProperty("--accent-fg", accentForeground(s.accent));
   root.style.fontSize = FONT_PX[s.fontSize];
@@ -37,8 +38,8 @@ export function useApplySettings() {
   useEffect(() => {
     apply(settings);
     try {
-      const { theme, accent, density, fontSize, timeFormat, smartParse } = settings;
-      localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ theme, accent, density, fontSize, timeFormat, smartParse }));
+      const { theme, accent, density, motion, fontSize, timeFormat, smartParse } = settings;
+      localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ theme, accent, density, motion, fontSize, timeFormat, smartParse }));
     } catch {
       // Storage unavailable: popups fall back to default appearance.
     }

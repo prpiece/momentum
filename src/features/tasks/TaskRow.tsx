@@ -1,10 +1,11 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { ChevronRight, ListChecks, Pin, Repeat, Bell, FileText } from "lucide-react";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import type { TreeRow } from "../../domain/taskViews";
+import { reducedMotion } from "../../lib/motion";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { openContextMenu, openTask, setFilter, toggleCollapsed, useUi } from "../../stores/ui";
@@ -41,6 +42,14 @@ export const TaskRow = memo(function TaskRow(props: {
   const overdue = !done && vm.date !== null && vm.date < today;
   const time = vm.schedule.kind === "timed" ? formatTime(new Date(vm.schedule.start), timeFormat) : null;
   const checklistDone = t.checklist.filter((c) => c.done).length;
+  // A just-added task rises in; a completed one stays struck through for a beat before it leaves the view.
+  const fresh = Date.now() - Date.parse(t.createdAt) < 1500;
+  const [leaving, setLeaving] = useState(false);
+  const complete = () => {
+    if (t.status !== "open" || reducedMotion()) return toggleDone(t.id, vm.key);
+    setLeaving(true);
+    setTimeout(() => (toggleDone(t.id, vm.key), setLeaving(false)), 300);
+  };
 
   return (
     <div
@@ -50,6 +59,7 @@ export const TaskRow = memo(function TaskRow(props: {
       {...listeners}
       role="option"
       aria-selected={selected}
+      data-task-id={t.id}
       onClick={(e) => props.onClick(t.id, e)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => {
@@ -59,9 +69,9 @@ export const TaskRow = memo(function TaskRow(props: {
           toggleDone(t.id, vm.key);
         }
       }}
-      className={`group relative flex min-h-[var(--row-h)] cursor-default items-start gap-2.5 rounded-sm py-[calc(var(--pad)*0.6)] pr-3 outline-none transition-colors duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
+      className={`group relative flex min-h-[var(--row-h)] cursor-default items-start gap-2.5 rounded-sm py-[calc(var(--pad)*0.6)] pr-3 outline-none transition-[color,background-color,opacity] duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
         isDragging ? "opacity-40" : ""
-      } ${selected || open ? "bg-accent-soft" : "hover:bg-hover"}`}
+      } ${selected || open ? "bg-accent-soft" : "hover:bg-hover"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
     >
       <div style={{ width: 8 + depth * 18 }} className="flex shrink-0 justify-end pt-[3px]">
         {childCount > 0 && (
@@ -80,10 +90,10 @@ export const TaskRow = memo(function TaskRow(props: {
         )}
       </div>
       <div className="pt-[2px]">
-        <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} />
+        <TaskCheckbox status={leaving ? "done" : t.status} priority={t.priority} onToggle={complete} label={`Complete ${t.title}`} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-[0.9rem] leading-6 ${done ? "text-muted line-through decoration-1" : ""}`}>
+        <div className={`truncate text-[0.9rem] leading-6 transition-colors duration-[var(--dur)] ${done || leaving ? "text-muted line-through decoration-1" : ""}`}>
           {t.title || <span className="text-muted">Untitled</span>}
         </div>
         <Meta>
