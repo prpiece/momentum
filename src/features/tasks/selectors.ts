@@ -56,13 +56,8 @@ export function useCounts(): { smart: Record<SmartListId, number>; lists: Record
     const smart: Record<SmartListId, number> = {
       inbox: 0,
       today: 0,
-      tomorrow: 0,
-      next7: 0,
-      overdue: 0,
-      unscheduled: 0,
-      high: 0,
-      completed: 0,
-      wontdo: 0,
+      upcoming: 0,
+      logbook: 0,
     };
     const lists: Record<string, number> = {};
     const tags: Record<string, number> = {};
@@ -70,7 +65,7 @@ export function useCounts(): { smart: Record<SmartListId, number>; lists: Record
       if (vm.task.status !== "open") continue;
       lists[vm.task.listId] = (lists[vm.task.listId] ?? 0) + 1;
       for (const tag of vm.task.tags) tags[tag] = (tags[tag] ?? 0) + 1;
-      for (const id of SMART_LISTS) if (id !== "completed" && id !== "wontdo" && inSmartList(id, vm, today)) smart[id]++;
+      for (const id of SMART_LISTS) if (id !== "logbook" && inSmartList(id, vm, today)) smart[id]++;
     }
     return { smart, lists, tags };
   }, [d, today]);

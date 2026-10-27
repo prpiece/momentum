@@ -241,28 +241,6 @@ export function SettingsView() {
         </Row>
       </Section>
 
-      <Section title="Smart Lists">
-        <div className="grid grid-cols-2 gap-2">
-          {SMART_LIST_NAV.map(({ id, label, icon: Icon }) => (
-            <label key={id} className="flex cursor-pointer items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:bg-hover">
-              <input
-                type="checkbox"
-                className="size-4 accent-[var(--accent)]"
-                checked={!s.hiddenSmartLists.includes(id)}
-                onChange={(e) =>
-                  update({
-                    hiddenSmartLists: e.target.checked
-                      ? s.hiddenSmartLists.filter((h) => h !== id)
-                      : [...s.hiddenSmartLists, id],
-                  })
-                }
-              />
-              <Icon size={16} className="text-muted" />
-              {label}
-            </label>
-          ))}
-        </div>
-      </Section>
 
       <Section title="Data">
         <DataSection />

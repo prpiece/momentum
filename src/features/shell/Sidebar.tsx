@@ -33,7 +33,7 @@ import { FocusBadge } from "../focus/FocusView";
 import { editTask } from "../tasks/actions";
 import { ListDialog, ListDialogButton } from "../tasks/ListDialog";
 import { useCounts } from "../tasks/selectors";
-import { MODULE_NAV, SETTINGS_NAV, SMART_LIST_NAV } from "./nav";
+import { MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
 
 type Side = "left" | "right";
 
@@ -53,12 +53,13 @@ onDrop("smart", (drag, drop) => {
   if (drag.type !== "task") return;
   const ids = dragged(drag.id);
   if (drop.id === "inbox") return withUndo("Moved to Inbox", () => moveTasks(ids, "inbox"));
+  // Upcoming means tomorrow.
   const date = drop.id === "today" ? todayLocal() : addDaysLocal(todayLocal(), 1);
   if (ids.length === 1 && useData.getState().tasks[ids[0]]?.recurrence) {
     const t = useData.getState().tasks[ids[0]];
     return void editTask(t.id, { schedule: moveToDate(drag.key ? scheduleForKey(t.schedule, drag.key) : t.schedule, date) }, drag.key);
   }
-  withUndo(`Scheduled for ${drop.id}`, () =>
+  withUndo(`Scheduled for ${drop.id === "today" ? "today" : "tomorrow"}`, () =>
     ids.forEach((id) => {
       const t = useData.getState().tasks[id];
       if (t && !t.recurrence) updateTask(id, { schedule: moveToDate(t.schedule, date) });
@@ -158,7 +159,7 @@ function InlineName({ initial, onDone }: { initial: string; onDone: (v: string |
 }
 
 export function Sidebar() {
-  const { sidebarCollapsed: collapsed, sidebarSide: side, hiddenSmartLists } = useSettings((s) => s.settings);
+  const { sidebarCollapsed: collapsed, sidebarSide: side } = useSettings((s) => s.settings);
   const update = useSettings((s) => s.update);
   const lists = useData((s) => s.lists);
   const folders = useData((s) => s.folders);
@@ -170,7 +171,6 @@ export function Sidebar() {
   const [editList, setEditList] = useState<TaskList | null>(null);
   const [renamingTag, setRenamingTag] = useState<string | null>(null);
 
-  const smart = SMART_LIST_NAV.filter((n) => !hiddenSmartLists.includes(n.id));
   const Toggle = side === "left" ? (collapsed ? PanelLeftOpen : PanelLeftClose) : collapsed ? PanelRightOpen : PanelRightClose;
   const userLists = Object.values(lists)
     .filter((l) => l.id !== "inbox")
@@ -181,7 +181,7 @@ export function Sidebar() {
   const smartDrop: Partial<Record<string, DropData>> = {
     inbox: { type: "smart", id: "inbox" },
     today: { type: "smart", id: "today" },
-    tomorrow: { type: "smart", id: "tomorrow" },
+    upcoming: { type: "smart", id: "upcoming" },
   };
 
   const listItem = (l: TaskList, indent = false) => (
@@ -263,7 +263,7 @@ export function Sidebar() {
 
       <nav className="scroll-thin mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2">
         <ul className="space-y-0.5">
-          {smart.map((n) => (
+          {SIDEBAR_SMART_NAV.map((n) => (
             <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} count={counts.smart[n.id] || undefined} drop={smartDrop[n.id]} />
           ))}
         </ul>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { atLocalTime, timed } from "./dates";
-import { flattenTree, groupVMs, inSmartList, matchScore, sortVMs, toVM, type TaskVM } from "./taskViews";
+import { flattenTree, groupVMs, inSmartList, isOverdue, matchScore, sortVMs, toVM, type TaskVM } from "./taskViews";
 import type { Schedule, SmartListId, Task, TaskList } from "./types";
 
 const TODAY = "2026-10-25";
@@ -37,20 +37,20 @@ const lists = (...ids: SmartListId[]) => (t: Task) => ids.filter((id) => inSmart
 
 describe("smart lists", () => {
   it("classifies by date, status, priority and list", () => {
-    expect(lists("today", "overdue", "next7")(mk({ schedule: day("2026-10-24") }))).toEqual(["today", "overdue"]);
-    expect(lists("today", "tomorrow", "next7")(mk({ schedule: day("2026-10-25") }))).toEqual(["today", "next7"]);
-    expect(lists("today", "tomorrow", "next7")(mk({ schedule: day("2026-10-26") }))).toEqual(["tomorrow", "next7"]);
-    expect(lists("next7")(mk({ schedule: day("2026-10-31") }))).toEqual(["next7"]);
-    expect(lists("next7")(mk({ schedule: day("2026-11-01") }))).toEqual([]);
-    expect(lists("unscheduled", "inbox")(mk())).toEqual(["unscheduled", "inbox"]);
+    expect(lists("today", "upcoming")(mk({ schedule: day("2026-10-24") }))).toEqual(["today"]);
+    expect(isOverdue(vm(mk({ schedule: day("2026-10-24") })), TODAY)).toBe(true);
+    expect(lists("today", "upcoming")(mk({ schedule: day("2026-10-25") }))).toEqual(["today"]);
+    expect(lists("today", "upcoming")(mk({ schedule: day("2026-10-26") }))).toEqual(["upcoming"]);
+    expect(lists("upcoming")(mk({ schedule: day("2027-03-01") }))).toEqual(["upcoming"]);
+    expect(lists("today", "upcoming", "inbox")(mk())).toEqual(["inbox"]);
     expect(lists("inbox")(mk({ listId: "work" }))).toEqual([]);
-    expect(lists("high")(mk({ priority: 3 }))).toEqual(["high"]);
   });
 
-  it("puts finished tasks only in Completed / Won't Do", () => {
-    const all: SmartListId[] = ["inbox", "today", "overdue", "unscheduled", "high", "completed", "wontdo"];
-    expect(lists(...all)(mk({ status: "done", priority: 3, schedule: day(TODAY) }))).toEqual(["completed"]);
-    expect(lists(...all)(mk({ status: "wont_do" }))).toEqual(["wontdo"]);
+  it("puts finished tasks only in the Logbook", () => {
+    const all: SmartListId[] = ["inbox", "today", "upcoming", "logbook"];
+    expect(lists(...all)(mk({ status: "done", priority: 3, schedule: day(TODAY) }))).toEqual(["logbook"]);
+    expect(lists(...all)(mk({ status: "wont_do" }))).toEqual(["logbook"]);
+    expect(isOverdue(vm(mk({ status: "done", schedule: day("2026-10-01") })), TODAY)).toBe(false);
   });
 
   it("dates timed tasks by their local start day", () => {
@@ -60,7 +60,8 @@ describe("smart lists", () => {
   it("uses the current occurrence of a recurring task", () => {
     const t = mk({ schedule: day("2026-10-20"), recurrence: { rule: "FREQ=DAILY", exdates: ["2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24"] } });
     expect(vm(t).date).toBe(TODAY);
-    expect(lists("overdue", "today")(t)).toEqual(["today"]);
+    expect(lists("today")(t)).toEqual(["today"]);
+    expect(isOverdue(vm(t), TODAY)).toBe(false);
   });
 });
 

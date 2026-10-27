@@ -8,6 +8,7 @@ import type { GroupBy, ListLayout, SortBy, ViewOptions } from "../../domain/type
 import { toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
+import { go } from "../../stores/ui";
 import { TodayHabits } from "../habits/TodayHabits";
 import { BulkBar } from "./BulkBar";
 import { KanbanView } from "./KanbanView";
@@ -44,7 +45,8 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   const settings = useSettings((s) => s.settings);
   const update = useSettings((s) => s.update);
   const list = useData((s) => (spec.list ? s.lists[spec.list.id] : undefined));
-  const options: ViewOptions = settings.viewOptions[spec.id] ?? (spec.list ? DEFAULT_VIEW_OPTIONS : { groupBy: "none", sortBy: "date" });
+  const options: ViewOptions =
+    settings.viewOptions[spec.id] ?? (spec.list ? DEFAULT_VIEW_OPTIONS : { groupBy: spec.id === "upcoming" ? "date" : "none", sortBy: "date" });
   const setOptions = (o: Partial<ViewOptions>) => update({ viewOptions: { ...settings.viewOptions, [spec.id]: { ...options, ...o } } });
   const layout: ListLayout = list?.layout ?? "list";
   const menu = useMenu();
@@ -97,6 +99,8 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
                 {s.label}
               </MenuItem>
             ))}
+            <MenuSeparator />
+            <MenuItem onSelect={() => (go("logbook"), menu.close())}>Open Logbook</MenuItem>
           </Popover>
         )}
         {list && list.id !== "inbox" && (
@@ -138,10 +142,6 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
 
 const EMPTY: Record<string, [string, string]> = {
   today: ["A clear day", "Nothing due today. Add something above, or enjoy the quiet."],
-  tomorrow: ["Tomorrow is open", "Plan ahead: tasks you add here are due tomorrow."],
-  overdue: ["You're all caught up", "No overdue tasks. Nice work."],
-  completed: ["No completed tasks yet", "Finished tasks land here, newest first."],
-  wontdo: ["Nothing set aside", "Tasks marked “Won't do” collect here."],
-  high: ["No high-priority tasks", "Add one with “!high” in quick add."],
-  unscheduled: ["Everything has a date", "Tasks without a date show up here."],
+  upcoming: ["Nothing coming up", "Tasks with a future date show up here. Ones you add here are due tomorrow."],
+  logbook: ["Nothing finished yet", "Completed and “Won't do” tasks collect here."],
 };

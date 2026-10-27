@@ -1,21 +1,16 @@
 import {
   AlarmClock,
-  Ban,
   CalendarDays,
   ChartColumn,
   CalendarRange,
   CircleCheckBig,
-  Flag,
   Grid2x2,
   Hourglass,
   Inbox,
   type LucideIcon,
   Settings,
   Sun,
-  Sunrise,
   Target,
-  TriangleAlert,
-  CircleDashed,
 } from "lucide-react";
 import type { ModuleView, SmartListId, ViewId } from "../../domain/types";
 
@@ -24,14 +19,11 @@ type NavDef<T extends ViewId> = { id: T; label: string; icon: LucideIcon };
 export const SMART_LIST_NAV: NavDef<SmartListId>[] = [
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "today", label: "Today", icon: Sun },
-  { id: "tomorrow", label: "Tomorrow", icon: Sunrise },
-  { id: "next7", label: "Next 7 Days", icon: CalendarRange },
-  { id: "overdue", label: "Overdue", icon: TriangleAlert },
-  { id: "unscheduled", label: "Unscheduled", icon: CircleDashed },
-  { id: "high", label: "High Priority", icon: Flag },
-  { id: "completed", label: "Completed", icon: CircleCheckBig },
-  { id: "wontdo", label: "Won't Do", icon: Ban },
+  { id: "upcoming", label: "Upcoming", icon: CalendarRange },
+  { id: "logbook", label: "Logbook", icon: CircleCheckBig },
 ];
+/** Logbook stays off the sidebar. */
+export const SIDEBAR_SMART_NAV = SMART_LIST_NAV.filter((n) => n.id !== "logbook");
 
 export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
   { id: "calendar", label: "Calendar", icon: CalendarDays },

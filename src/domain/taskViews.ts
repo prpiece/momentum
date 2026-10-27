@@ -37,22 +37,14 @@ export function inSmartList(id: SmartListId, vm: TaskVM, today: LocalDate): bool
     case "today":
       // Overdue items stay visible in Today until handled.
       return open && vm.date !== null && vm.date <= today;
-    case "tomorrow":
-      return open && vm.date === addDaysLocal(today, 1);
-    case "next7":
-      return open && vm.date !== null && vm.date >= today && vm.date <= addDaysLocal(today, 6);
-    case "overdue":
-      return open && vm.date !== null && vm.date < today;
-    case "unscheduled":
-      return open && vm.schedule.kind === "none";
-    case "high":
-      return open && t.priority === 3;
-    case "completed":
-      return t.status === "done";
-    case "wontdo":
-      return t.status === "wont_do";
+    case "upcoming":
+      return open && vm.date !== null && vm.date > today;
+    case "logbook":
+      return !open;
   }
 }
+
+export const isOverdue = (vm: TaskVM, today: LocalDate) => vm.task.status === "open" && vm.date !== null && vm.date < today;
 
 /** Sortable key: all-day items sort before timed items on the same day; undated last. */
 function dateKey(vm: TaskVM): string {

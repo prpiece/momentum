@@ -3,17 +3,8 @@ export type LocalDate = string;
 /** UTC instant, ISO 8601 (`Date.prototype.toISOString`). */
 export type Instant = string;
 
-export const SMART_LISTS = [
-  "inbox",
-  "today",
-  "tomorrow",
-  "next7",
-  "overdue",
-  "unscheduled",
-  "high",
-  "completed",
-  "wontdo",
-] as const;
+/** Logbook (done + won't do) is reached from search and the view menu, not the sidebar. */
+export const SMART_LISTS = ["inbox", "today", "upcoming", "logbook"] as const;
 export type SmartListId = (typeof SMART_LISTS)[number];
 
 export const MODULE_VIEWS = ["calendar", "matrix", "habits", "focus", "countdown", "stats", "settings"] as const;
@@ -190,7 +181,6 @@ export type Settings = {
   defaultView: ViewId;
   weekStart: WeekStart;
   timeFormat: (typeof TIME_FORMATS)[number];
-  hiddenSmartLists: SmartListId[];
   /** Natural-language parsing in quick add. */
   smartParse: boolean;
   viewOptions: Record<string, ViewOptions>;

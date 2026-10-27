@@ -7,7 +7,7 @@ import { Donut } from "../../components/ui/Donut";
 import { addDaysLocal, fromLocalDate, todayLocal } from "../../domain/dates";
 import { completionRate } from "../../domain/habits";
 import { byWeekday, completedByList, completedPerDay, completedPerWeek, dayStreaks, habitConsistency, type Bucket } from "../../domain/stats";
-import { inSmartList } from "../../domain/taskViews";
+import { isOverdue } from "../../domain/taskViews";
 import { PRIORITY_LABEL } from "../../domain/types";
 import { useData } from "../../stores/data";
 import { useHabits, valuesOf } from "../../stores/habits";
@@ -61,7 +61,7 @@ export function StatsView() {
   const lastWeek = weeks[weeks.length - 2]?.value ?? 0;
   const totalDone = year.reduce((n, b) => n + b.value, 0);
   const openVMs = derived.active.filter((v) => v.task.status === "open");
-  const overdue = derived.active.filter((v) => inSmartList("overdue", v, today)).length;
+  const overdue = derived.active.filter((v) => isOverdue(v, today)).length;
   const habitList = useMemo(() => Object.values(habits).filter((h) => !h.archived), [habits]);
   const from30 = addDaysLocal(today, -29);
   const consistency = habitConsistency(habitList, (id) => valuesOf(checkins[id]), from30, today, today, ws);

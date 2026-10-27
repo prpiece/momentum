@@ -25,9 +25,7 @@ const isSmart = (v: string): v is SmartListId => (SMART_LISTS as readonly string
 
 const SMART_DEFAULTS: Partial<Record<SmartListId, (today: LocalDate) => Partial<NewTask>>> = {
   today: (today) => ({ schedule: { kind: "day", date: today } }),
-  tomorrow: (today) => ({ schedule: { kind: "day", date: addDaysLocal(today, 1) } }),
-  next7: (today) => ({ schedule: { kind: "day", date: today } }),
-  high: () => ({ priority: 3 }),
+  upcoming: (today) => ({ schedule: { kind: "day", date: addDaysLocal(today, 1) } }),
 };
 
 export function taskViewSpec(
@@ -49,7 +47,7 @@ export function taskViewSpec(
       splitCompleted: inbox,
       filter: inbox ? (vm) => vm.task.listId === "inbox" : (vm, today) => inSmartList(view, vm, today),
       defaults: SMART_DEFAULTS[view] ?? (() => ({})),
-      canAdd: view !== "completed" && view !== "wontdo" && view !== "overdue",
+      canAdd: view !== "logbook",
     };
   }
   if (view.startsWith("list:")) {

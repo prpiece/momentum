@@ -32,7 +32,7 @@ export type DragData =
 
 export type DropData =
   | { type: "list"; listId: string }
-  | { type: "smart"; id: "inbox" | "today" | "tomorrow" }
+  | { type: "smart"; id: "inbox" | "today" | "upcoming" }
   | { type: "task"; id: string; container: string }
   | { type: "section"; listId: string; sectionId: string | null }
   /** Calendar target: a time-grid column (`time`), the all-day row (`allDay`) or a month cell (`keepTime`). */

@@ -17,8 +17,13 @@ describe("parseSettings", () => {
     expect(s.sidebarSide).toBe("right");
   });
 
-  it("filters and dedupes hidden smart lists", () => {
-    expect(parseSettings({ hiddenSmartLists: ["today", "bogus", "today", 7] }).hiddenSmartLists).toEqual(["today"]);
+  it("carries merged smart lists over to their new ids", () => {
+    expect(parseSettings({ defaultView: "next7" }).defaultView).toBe("upcoming");
+    expect(parseSettings({ defaultView: "wontdo" }).defaultView).toBe("logbook");
+    expect(parseSettings({ defaultView: "overdue" }).defaultView).toBe(DEFAULT_SETTINGS.defaultView);
+    expect(parseSettings({ viewOptions: { tomorrow: { groupBy: "priority", sortBy: "title" } } }).viewOptions).toEqual({
+      upcoming: { groupBy: "priority", sortBy: "title" },
+    });
   });
 
   it("is idempotent", () => {

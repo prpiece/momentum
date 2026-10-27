@@ -30,7 +30,6 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultView: "today",
   weekStart: 1,
   timeFormat: "24h",
-  hiddenSmartLists: ["wontdo"],
   smartParse: true,
   viewOptions: {},
   calendar: {
@@ -73,6 +72,10 @@ export function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** Smart lists merged in D49; old ids in saved settings carry over. */
+const RENAMED_VIEWS: Record<string, ViewId> = { tomorrow: "upcoming", next7: "upcoming", completed: "logbook", wontdo: "logbook" };
+const renamed = (v: unknown): unknown => (typeof v === "string" && RENAMED_VIEWS[v]) || v;
+
 export function isViewId(v: unknown): v is ViewId {
   if (oneOf(SMART_LISTS, v) || oneOf(MODULE_VIEWS, v)) return true;
   return typeof v === "string" && /^(list|tag):.+/.test(v);
@@ -81,8 +84,9 @@ export function isViewId(v: unknown): v is ViewId {
 function parseViewOptions(raw: unknown): Settings["viewOptions"] {
   if (!isRecord(raw)) return {};
   const out: Settings["viewOptions"] = {};
-  for (const [key, v] of Object.entries(raw)) {
-    if (!isRecord(v)) continue;
+  for (const [k, v] of Object.entries(raw)) {
+    const key = String(renamed(k));
+    if (!isRecord(v) || out[key]) continue;
     out[key] = {
       groupBy: oneOf(GROUP_BYS, v.groupBy) ? v.groupBy : DEFAULT_VIEW_OPTIONS.groupBy,
       sortBy: oneOf(SORT_BYS, v.sortBy) ? v.sortBy : DEFAULT_VIEW_OPTIONS.sortBy,
@@ -155,12 +159,9 @@ export function parseSettings(raw: unknown): Settings {
     fontSize: oneOf(FONT_SIZES, r.fontSize) ? r.fontSize : d.fontSize,
     sidebarSide: oneOf(SIDES, r.sidebarSide) ? r.sidebarSide : d.sidebarSide,
     sidebarCollapsed: typeof r.sidebarCollapsed === "boolean" ? r.sidebarCollapsed : d.sidebarCollapsed,
-    defaultView: isViewId(r.defaultView) ? r.defaultView : d.defaultView,
+    defaultView: ((v) => (isViewId(v) ? v : d.defaultView))(renamed(r.defaultView)),
     weekStart: oneOf(WEEK_STARTS, r.weekStart) ? r.weekStart : d.weekStart,
     timeFormat: oneOf(TIME_FORMATS, r.timeFormat) ? r.timeFormat : d.timeFormat,
-    hiddenSmartLists: Array.isArray(r.hiddenSmartLists)
-      ? [...new Set(r.hiddenSmartLists.filter((x) => oneOf(SMART_LISTS, x)))]
-      : d.hiddenSmartLists,
     smartParse: typeof r.smartParse === "boolean" ? r.smartParse : d.smartParse,
     viewOptions: parseViewOptions(r.viewOptions),
     calendar: parseCalendar(r.calendar),
