@@ -17,8 +17,10 @@
 
 **Tasks**
 - Quick-add bar with natural language: `Study chem tomorrow 5pm !high #school ~Uni every mon` sets the date, time, priority, tag, list and repeat, with each recognised piece shown as a chip. Press <kbd>Esc</kbd> to keep the text literal.
-- Smart Lists are live queries, not copies: Inbox, Today (including overdue), Tomorrow, Next 7 Days, Overdue, Unscheduled, High Priority, Completed, Won't Do. You can show or hide each one.
-- Lists with colours and emoji, folders, tags, and subtasks up to 5 levels. Drag to reorder, or drag onto a list, Today or Tomorrow in the sidebar.
+- Smart Lists are live queries, not copies: Inbox, Today (including overdue), Upcoming (grouped by day) and a Logbook of finished tasks.
+- Filter any view with the quick-add syntax (`#work !high ~Uni tomorrow`, plus `overdue`, `nodate`, `done`, `wontdo`), and pin a filter to the sidebar to keep it. Click a tag on a task to filter by it.
+- Lists with colours and emoji, folders, tags, and subtasks up to 5 levels. Drag to reorder, or drag onto a list, Today or Upcoming in the sidebar.
+- A quiet sidebar: Calendar up top, the other tools (Matrix, Habits, Focus, Countdown, Statistics) under a collapsible More.
 - Each list can be shown as a list, a Kanban board (custom sections) or a timeline. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
 - Task drawer:
   - Markdown notes, date, time and duration, multiple reminders, repeat rules (presets or custom).

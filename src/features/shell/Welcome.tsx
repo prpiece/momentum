@@ -47,7 +47,7 @@ const STEPS: Step[] = [
     title: "Capture anything, fast",
     body: (
       <>
-        Type in the add bar at the top of a list. Momentum understands plain language: <em className="text-fg">“Study chem tomorrow 5pm !high #school ~Uni”</em> sets the date, priority, tag and list. Press <Kbd>N</Kbd> to add a task, or <Kbd>Ctrl Shift A</Kbd> from any app.
+        Type in the add bar at the top of a list. Momentum understands plain language: <em className="text-fg">“Study chem tomorrow 5pm !high #school ~Uni”</em> sets the date, priority, tag and list. Press <Kbd>N</Kbd> to add a task, or <Kbd>Ctrl Shift A</Kbd> from any app. The same words work in the filter box above each list, and you can pin a filter to the sidebar.
       </>
     ),
   },
