@@ -56,7 +56,7 @@
 - Optional launch at login.
 - Global <kbd>Ctrl Shift A</kbd> opens quick add from anywhere.
 
-**Design**: light, dark and system themes, 9 accent presets plus a custom colour, comfortable or compact density, adjustable font size, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
+**Design**: light, dark and system themes, 9 accent presets (the taskbar and tray icons take the same colour), comfortable or compact density, adjustable font size, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
 
 ## Screenshots
 

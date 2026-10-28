@@ -1,8 +1,8 @@
 import { AlarmClock, CalendarClock, Check, ExternalLink, Sun, Target, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { atLocalTime, addDaysLocal, todayLocal } from "../domain/dates";
 import { apply, readAppearance } from "../lib/applySettings";
-import type { ReminderAction } from "../lib/os";
+import type { ReminderAction, ReminderShow } from "../lib/os";
 import type { ReminderDTO } from "../lib/reminderScheduler";
 
 const snoozeOptions = () => {
@@ -15,10 +15,31 @@ const snoozeOptions = () => {
 };
 
 const ICON = { task: AlarmClock, habit: Target, event: CalendarClock, digest: Sun };
+const WIDTH = 380;
+const MAX_HEIGHT = 560;
+
+/** Shrinks the window to its cards and pins it to the chosen corner of the screen. */
+async function fit(height: number, corner: ReminderShow["corner"]) {
+  const { getCurrentWindow, currentMonitor } = await import("@tauri-apps/api/window");
+  const { LogicalSize, PhysicalPosition } = await import("@tauri-apps/api/dpi");
+  const w = getCurrentWindow();
+  await w.setSize(new LogicalSize(WIDTH, Math.min(height, MAX_HEIGHT)));
+  const m = await currentMonitor();
+  if (m) {
+    const size = await w.outerSize();
+    const margin = Math.round(16 * m.scaleFactor);
+    const { x, y } = m.workArea.position;
+    const top = corner === "top-right" ? y + margin : y + m.workArea.size.height - size.height - margin;
+    await w.setPosition(new PhysicalPosition(x + m.workArea.size.width - size.width - margin, top));
+  }
+  await w.show();
+}
 
 /** Always-on-top popup with Done / Snooze / Open for each fired reminder. */
 export function ReminderWindow() {
   const [items, setItems] = useState<ReminderDTO[]>([]);
+  const corner = useRef<ReminderShow["corner"]>("bottom-right");
+  const stack = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const a = readAppearance();
@@ -26,14 +47,20 @@ export function ReminderWindow() {
     let off: (() => void) | undefined;
     void (async () => {
       const { listen } = await import("@tauri-apps/api/event");
-      off = await listen<ReminderDTO>("reminder:show", (e) => {
+      off = await listen<ReminderShow>("reminder:show", (e) => {
         const a2 = readAppearance();
         if (a2) apply(a2);
-        setItems((xs) => (xs.some((x) => x.key === e.payload.key) ? xs : [...xs, e.payload]));
+        const { dto } = e.payload;
+        corner.current = e.payload.corner;
+        setItems((xs) => (xs.some((x) => x.key === dto.key) ? xs : [...xs, dto]));
       });
     })();
     return () => off?.();
   }, []);
+
+  useLayoutEffect(() => {
+    if (items.length && stack.current) void fit(stack.current.offsetHeight, corner.current);
+  }, [items]);
 
   const act = async (a: ReminderAction) => {
     const { emit } = await import("@tauri-apps/api/event");
@@ -47,7 +74,8 @@ export function ReminderWindow() {
   };
 
   return (
-    <div className="flex h-full flex-col justify-end gap-2 bg-bg p-2">
+    <div className="h-full overflow-y-auto bg-bg">
+      <div ref={stack} className="flex flex-col gap-2 p-2">
       {items.map((r) => {
         const Icon = ICON[r.target.kind];
         const doable = r.target.kind === "task" || r.target.kind === "habit";
@@ -85,6 +113,7 @@ export function ReminderWindow() {
         </article>
         );
       })}
+      </div>
     </div>
   );
 }

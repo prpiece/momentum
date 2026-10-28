@@ -1,4 +1,4 @@
-import { isHex } from "./color";
+import { ACCENT_PRESETS } from "./color";
 import {
   CAL_VIEWS,
   COLOR_BYS,
@@ -169,7 +169,8 @@ export function parseSettings(raw: unknown): Settings {
   const d = DEFAULT_SETTINGS;
   return {
     theme: oneOf(THEMES, r.theme) ? r.theme : d.theme,
-    accent: isHex(r.accent) ? r.accent.toLowerCase() : d.accent,
+    // Only the presets: each has a matching app icon (D55). Custom colors from before fall back.
+    accent: ((v) => ACCENT_PRESETS.find((p) => p.hex === v)?.hex ?? d.accent)(typeof r.accent === "string" ? r.accent.toLowerCase() : null),
     density: oneOf(DENSITIES, r.density) ? r.density : d.density,
     motion: oneOf(MOTIONS, r.motion) ? r.motion : d.motion,
     fontSize: oneOf(FONT_SIZES, r.fontSize) ? r.fontSize : d.fontSize,
@@ -188,7 +189,7 @@ export function parseSettings(raw: unknown): Settings {
     launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
     notify: parseNotify(r.notify, r.notifications),
     onboarded: r.onboarded === true,
-    quickAddShortcut: typeof r.quickAddShortcut === "string" && /^[w+]+$/.test(r.quickAddShortcut) ? r.quickAddShortcut : d.quickAddShortcut,
+    quickAddShortcut: typeof r.quickAddShortcut === "string" && /^[\w+]+$/.test(r.quickAddShortcut) ? r.quickAddShortcut : d.quickAddShortcut,
     pomodoro: parsePomodoro(r.pomodoro),
   };
 }

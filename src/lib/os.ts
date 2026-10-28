@@ -6,7 +6,9 @@
 import { isTauri } from "../db/client";
 import { focusPhaseLabel } from "../features/focus/FocusView";
 import { createFromText } from "../features/tasks/quickAddSubmit";
+import { accentForeground } from "../domain/color";
 import { todayLocal } from "../domain/dates";
+import type { NotifySettings } from "../domain/types";
 import { isDone, targetOf } from "../domain/habits";
 import { checkinOf, setCheckin, useHabits } from "../stores/habits";
 import { setPhaseEndHandler, tickFocus } from "../stores/focus";
@@ -15,6 +17,7 @@ import { go, openEvent, openTask, toast } from "../stores/ui";
 import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderScheduler";
 import { setStatus, useData } from "../stores/data";
 
+export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
 export type ReminderAction = { dto: ReminderDTO; action: "done" | "open" | "dismiss" } | { dto: ReminderDTO; action: "snooze"; minutes: number };
 
 /** Done / snooze / open, whichever window the click came from. */
@@ -88,16 +91,38 @@ export function testNotification() {
   deliver({ key: `test:${Date.now()}`, at: new Date().toISOString(), title: "Momentum notifications work", body: "This is how reminders will look.", target: { kind: "digest" } });
 }
 
+/** The app mark (assets/app-icon.svg) tinted with the accent, as PNG bytes for the taskbar and tray. */
+async function appIconPng(accent: string): Promise<Uint8Array> {
+  const mix = (to: number, t: number) => `#${[1, 3, 5].map((i) => Math.round(parseInt(accent.slice(i, i + 2), 16) * (1 - t) + to * t).toString(16).padStart(2, "0")).join("")}`;
+  const fg = accentForeground(accent);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 1024 1024">
+    <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${mix(255, 0.12)}"/><stop offset="1" stop-color="${mix(0, 0.25)}"/></linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.18"/><stop offset="0.55" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+    <rect x="40" y="40" width="944" height="944" rx="220" fill="url(#bg)"/><rect x="40" y="40" width="944" height="944" rx="220" fill="url(#shine)"/>
+    <path d="M232 724 C 404 724 528 610 612 380" fill="none" stroke="${fg}" stroke-width="96" stroke-linecap="round"/>
+    <path d="M478 400 L 624 296 L 682 470" fill="none" stroke="${fg}" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="776" cy="700" r="64" fill="${fg}" fill-opacity="0.78"/></svg>`;
+  const img = new Image();
+  img.src = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  await img.decode();
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 256;
+  canvas.getContext("2d")?.drawImage(img, 0, 0);
+  const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/png"));
+  if (!blob) throw new Error("Couldn't render the app icon");
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
 export async function initOs() {
   setInterval(tickFocus, 1000);
   setPhaseEndHandler((_, next) => notifySettings().enabled && notifySettings().focus && notice("Momentum focus", focusPhaseLabel(next)));
 
   if (!isTauri) return startReminders((r) => deliver(r));
 
-  const [{ listen, emit }, { Window }, { PhysicalPosition }, notif, shortcut, autostart, { invoke }] = await Promise.all([
+  const [{ listen, emit }, { Window, getCurrentWindow }, { TrayIcon }, notif, shortcut, autostart, { invoke }] = await Promise.all([
     import("@tauri-apps/api/event"),
     import("@tauri-apps/api/window"),
-    import("@tauri-apps/api/dpi"),
+    import("@tauri-apps/api/tray"),
     import("@tauri-apps/plugin-notification"),
     import("@tauri-apps/plugin-global-shortcut"),
     import("@tauri-apps/plugin-autostart"),
@@ -116,28 +141,14 @@ export async function initOs() {
   // --- reminder popup ------------------------------------------------------
   // Native toasts on Windows have no action buttons through the plugin, so a small always-on-top
   // popup carries Done / Snooze / Open (PLAN R1).
-  const showReminderPopup = async (dto: ReminderDTO) => {
-    const w = await Window.getByLabel("reminder");
-    if (!w) return;
-    const { currentMonitor } = await import("@tauri-apps/api/window");
-    const m = await currentMonitor();
-    const size = await w.outerSize();
-    if (m) {
-      const margin = Math.round(16 * m.scaleFactor);
-      const { x, y } = m.workArea.position;
-      const top = notifySettings().corner === "top-right";
-      await w.setPosition(new PhysicalPosition(x + m.workArea.size.width - size.width - margin, top ? y + margin : y + m.workArea.size.height - size.height - margin));
-    }
-    await w.show();
-    await emit("reminder:show", dto);
-  };
   await listen<ReminderAction>("reminder:action", (e) => handleReminderAction(e.payload));
   deliver = (dto) => {
     const { style, sound } = notifySettings();
     if (style !== "popup") osNotify(dto.title, dto.body);
     if (style !== "system") {
       if (sound) chime();
-      void showReminderPopup(dto);
+      // The popup sizes and places itself around its cards.
+      void emit("reminder:show", { dto, corner: notifySettings().corner } satisfies ReminderShow);
     }
   };
   void startReminders((dto) => deliver(dto));
@@ -168,6 +179,19 @@ export async function initOs() {
   };
   await bindShortcut(settings().quickAddShortcut);
 
+  // --- app icon --------------------------------------------------------------
+  // The taskbar and tray icons take the accent color (D55).
+  const syncIcon = async (accent: string) => {
+    try {
+      const png = await appIconPng(accent);
+      await getCurrentWindow().setIcon(png);
+      await (await TrayIcon.getById("momentum"))?.setIcon(png);
+    } catch (err) {
+      console.error("App icon change failed", err);
+    }
+  };
+  await syncIcon(settings().accent);
+
   // --- close to tray & launch at login -------------------------------------
   await invoke("set_close_to_tray", { enabled: settings().closeToTray });
   const syncAutostart = async (want: boolean) => {
@@ -186,5 +210,6 @@ export async function initOs() {
     if (a.quickAddShortcut !== b.quickAddShortcut) void bindShortcut(a.quickAddShortcut);
     if (a.closeToTray !== b.closeToTray) void invoke("set_close_to_tray", { enabled: a.closeToTray });
     if (a.launchAtStartup !== b.launchAtStartup) void syncAutostart(a.launchAtStartup);
+    if (a.accent !== b.accent) void syncIcon(a.accent);
   });
 }

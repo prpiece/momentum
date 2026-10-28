@@ -26,7 +26,7 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       onClick={() => onChange(!checked)}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-[var(--dur)] ${checked ? "bg-accent" : "bg-border"}`}
     >
-      <span className={`absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform duration-[var(--dur)] ease-[var(--ease)] ${checked ? "translate-x-[1.125rem]" : "translate-x-0.5"}`} />
+      <span className={`absolute left-0 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform duration-[var(--dur)] ease-[var(--ease)] ${checked ? "translate-x-[1.125rem]" : "translate-x-0.5"}`} />
     </button>
   );
 }

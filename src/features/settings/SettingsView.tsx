@@ -1,4 +1,4 @@
-import { Check, Pipette } from "lucide-react";
+import { Check } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Segmented } from "../../components/ui/Segmented";
 import { AboutSection, DataSection } from "./DataSection";
@@ -35,7 +35,6 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function AccentPicker({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
-  const isPreset = ACCENT_PRESETS.some((p) => p.hex === value);
   const swatch = "grid size-7 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110";
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Accent color">
@@ -53,14 +52,6 @@ function AccentPicker({ value, onChange }: { value: string; onChange: (hex: stri
           {p.hex === value && <Check size={15} strokeWidth={3} className="text-accent-fg" />}
         </button>
       ))}
-      <label
-        title="Custom color"
-        className={`${swatch} cursor-pointer border border-dashed border-border focus-within:outline-2 focus-within:outline-accent`}
-        style={isPreset ? undefined : { background: value }}
-      >
-        <input type="color" className="sr-only" value={value} onChange={(e) => onChange(e.target.value)} />
-        {isPreset ? <Pipette size={14} className="text-muted" /> : <Check size={15} strokeWidth={3} className="text-accent-fg" />}
-      </label>
     </div>
   );
 }

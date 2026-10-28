@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, parseSettings } from "./settings";
+import type { Settings } from "./types";
 
 describe("parseSettings", () => {
   it("returns defaults for garbage", () => {
@@ -9,12 +10,26 @@ describe("parseSettings", () => {
   });
 
   it("keeps valid fields and replaces invalid ones individually", () => {
-    const s = parseSettings({ theme: "dark", accent: "#ABCDEF", density: "huge", weekStart: 3, sidebarSide: "right" });
+    const s = parseSettings({ theme: "dark", accent: "#2F6FED", density: "huge", weekStart: 3, sidebarSide: "right" });
     expect(s.theme).toBe("dark");
-    expect(s.accent).toBe("#abcdef");
+    expect(s.accent).toBe("#2f6fed");
+    expect(parseSettings({ accent: "#abcdef" }).accent).toBe(DEFAULT_SETTINGS.accent);
     expect(s.density).toBe(DEFAULT_SETTINGS.density);
     expect(s.weekStart).toBe(DEFAULT_SETTINGS.weekStart);
     expect(s.sidebarSide).toBe("right");
+  });
+
+  it("round-trips every non-default setting through save and load", () => {
+    const s: Settings = {
+      theme: "dark", accent: "#2f6fed", density: "compact", motion: "on", fontSize: "lg", sidebarSide: "right",
+      sidebarCollapsed: true, sidebarMoreOpen: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
+      viewOptions: { inbox: { groupBy: "priority", sortBy: "date" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
+      calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
+      matrix: { importantPriorities: [3], urgentDays: 5 }, closeToTray: false, launchAtStartup: true,
+      notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
+      onboarded: true, quickAddShortcut: "CommandOrControl+N", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3 },
+    };
+    expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
 
   it("keeps well-formed saved filters only", () => {

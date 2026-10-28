@@ -11,7 +11,8 @@ export function Segmented<T extends string | number>(props: {
   return (
     <div role="radiogroup" aria-label={props.label} className="inline-flex rounded-sm border border-border bg-bg p-0.5">
       {props.options.map((o) => (
-        <label key={String(o.value)}>
+        // `relative` keeps the sr-only radio inside the label; otherwise focusing it scrolls <main> to wherever it lands.
+        <label key={String(o.value)} className="relative">
           <input
             type="radio"
             name={props.name}

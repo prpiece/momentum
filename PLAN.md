@@ -147,7 +147,7 @@ momentum/
 
 1. **Foundation.**
    - Tauri + Vite scaffold and app identity.
-   - Design tokens, light/dark/system themes, accent presets plus a custom accent with derived variants.
+   - Design tokens, light/dark/system themes, accent presets with derived variants (custom accent dropped in D55).
    - App shell: top bar, sidebar that collapses (and can sit left or right), drawer slot on the opposite side.
    - SQLite, migration 0001, backup-before-migrate, settings persistence.
    - Tests: `dates.ts` helpers.
@@ -272,6 +272,9 @@ momentum/
 - **D52: Animations setting.** `settings.motion` is System / On / Off and lands on `html[data-motion]`; tokens.css zeroes motion for Off, or for System when the OS asks for reduced motion (Windows "Animation effects" off reaches WebView2 as `prefers-reduced-motion`). JS that waits on motion uses `lib/motion.ts`. Sidebar sections animate through `components/ui/Collapse`, which unmounts closed content so hidden rows can't catch drops.
 - **D53: Keyboard.** `G` + letter jumps to a view, `J`/`K` (or arrows) move focus between task rows, and `1 2 3 0`, `T`/`Shift T`, `C`, `Delete` act on the selection or the focused row (rows carry `data-task-id`). `T` skips repeating tasks, which need the scope prompt. `/` focuses the filter, `[` toggles the sidebar, `Ctrl ,` opens Settings.
 - **D54: Onboarding is hands-on.** Five steps: look and feel (applies live), add a real first task with the actual quick-add bar, the sidebar and filters, planning tools, and starter shortcuts.
+- **D55: Accent presets only; the app icon follows the accent.** The custom accent picker is gone, so each of the nine presets has an icon. `parseSettings` maps an old custom accent to the default. `lib/os.ts` renders the mark from `assets/app-icon.svg` with the accent gradient to a PNG and sets it on the main window (taskbar button) and the tray. The installer/exe icon stays indigo: Windows reads it from the binary, and a pinned taskbar shortcut keeps it.
+- **D56: The reminder popup fits its cards.** The main window emits `reminder:show` with the corner; the popup window sizes itself to its stack (max 560 logical px, then it scrolls) and places itself, instead of a fixed 380x440 window with empty space.
+- **D57: Settings save as you change them.** There is no Save button: every change writes through, and a test round-trips every non-default setting through `parseSettings`. The quick-add shortcut used to reset after a restart because its validator was `/^[w+]+$/` (missing backslash).
 - **R2: Global shortcut conflict.** If Ctrl+Shift+A is already taken by another app, registration fails. The app shows a toast and lets the user rebind it in Settings.
 - **R3: Unsigned builds.** SmartScreen will show a warning, and the README says so.
 - **R4: Project folder is inside OneDrive.** `node_modules` and `src-tauri/target` (several GB) would sync constantly and can hit file-lock errors during Rust builds. Recommended fix: move the project to `C:\dev\momentum`.
