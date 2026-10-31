@@ -119,7 +119,7 @@ Architecture notes and the decision log are in [PLAN.md](PLAN.md). Conventions f
 
 ## Credits
 
-Thanks to [@dalba0](https://github.com/dalba0) for the ideas behind v0.2.0: the custom title bar, right-click menus, notification settings, the welcome tour, the new Statistics page and the habit fixes.
+Thanks to [@dalba0](https://github.com/dalba0) for the idea behind Momentum and for testing the app throughout.
 
 ## License
 
