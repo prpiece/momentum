@@ -11,6 +11,8 @@ export type Derived = {
   childrenOf: (id: string) => TaskVM[];
   /** Live tasks in non-archived lists: what smart lists, calendar and search see. */
   active: TaskVM[];
+  /** Active top-level tasks. Matrix, calendar and focus show these; subtasks stay inside their parent (D58). */
+  roots: TaskVM[];
 };
 
 let memo: { tasks: Record<string, Task>; lists: Record<string, TaskList>; out: Derived } | null = null;
@@ -37,7 +39,9 @@ export function derive(tasks: Record<string, Task>, lists: Record<string, TaskLi
     byId: new Map(vms.map((v) => [v.task.id, v])),
     childrenOf: (id) => kids.get(id) ?? [],
     active: vms.filter((v) => !lists[v.task.listId]?.archived),
+    roots: [],
   };
+  out.roots = out.active.filter((v) => !v.task.parentId);
   memo = { tasks, lists, out };
   return out;
 }

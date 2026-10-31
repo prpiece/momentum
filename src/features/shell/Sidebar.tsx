@@ -144,7 +144,7 @@ function SectionHeader({ label, open, onToggle, actions }: { label: string; open
         <ChevronRight size={12} className={`transition-transform duration-[var(--dur)] ${open ? "rotate-90" : ""}`} />
         {label}
       </button>
-      <div className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/sec:opacity-100">{actions}</div>
+      <div className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/sec:opacity-100">{actions}</div>
     </div>
   );
 }
@@ -376,10 +376,10 @@ export function Sidebar() {
               onToggle={() => setOpenSec({ ...openSec, lists: !openSec.lists })}
               actions={
                 <>
-                  <button type="button" aria-label="New folder" title="New folder" onClick={() => setNewFolder(true)} className="grid size-6 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg">
+                  <button type="button" aria-label="New folder" title="New folder" onClick={() => setNewFolder(true)} className="grid size-6 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent">
                     <FolderPlus size={14} />
                   </button>
-                  <ListDialogButton>
+                  <ListDialogButton className="size-6">
                     <Plus size={15} />
                   </ListDialogButton>
                 </>

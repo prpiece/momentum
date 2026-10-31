@@ -86,6 +86,14 @@ function descendants(id: string): Task[] {
   return out;
 }
 
+/** The top-level task a subtask belongs to (itself when top-level). */
+export function rootOf(id: string): string {
+  const tasks = get().tasks;
+  let t = tasks[id];
+  while (t?.parentId && tasks[t.parentId]) t = tasks[t.parentId];
+  return t?.id ?? id;
+}
+
 export function depthOf(id: string | null): number {
   let d = 0;
   for (let t = id ? get().tasks[id] : undefined; t?.parentId; t = get().tasks[t.parentId]) d++;
@@ -191,7 +199,9 @@ export function setStatus(id: string, status: TaskStatus, occurrenceKey?: string
     log(done.id, kind);
     return;
   }
-  commit([{ ...t, status, completedAt: finished ? now() : null, updatedAt: now() }]);
+  // Subtasks are part of their parent: finishing it finishes the open ones too (D58). Reopening doesn't reopen them.
+  const kids = finished ? descendants(id).filter((d) => d.status === "open").map((d) => ({ ...d, status, completedAt: now(), updatedAt: now() })) : [];
+  commit([{ ...t, status, completedAt: finished ? now() : null, updatedAt: now() }, ...kids]);
   log(id, kind);
 }
 

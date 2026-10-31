@@ -34,7 +34,7 @@
 
 :root {
   /* --accent and --accent-fg are set at runtime from Settings (src/lib/applySettings.ts). */
-  --accent: #5b5bd6;
+  --accent: #2f6fed;
   --accent-fg: #ffffff;
   --accent-hover: color-mix(in oklch, var(--accent), black 10%);
   --accent-press: color-mix(in oklch, var(--accent), black 20%);

@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { Pause, Play, SkipForward, Square, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { BarChart } from "../../components/ui/BarChart";
+import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
 import { elapsedMs, formatClock, phaseMs, remainingMs, type FocusMode, type Phase } from "../../domain/focus";
 import { perWeek, type Bucket } from "../../domain/stats";
@@ -11,6 +12,7 @@ import { useData } from "../../stores/data";
 import { deleteSession, pauseFocus, resumeFocus, setFocusTask, skipPhase, startFocus, stopFocus, useFocus } from "../../stores/focus";
 import { useSettings } from "../../stores/settings";
 import { addStatsSection } from "../stats/StatsView";
+import { toggleDone } from "../tasks/actions";
 import { useDerived } from "../tasks/selectors";
 
 export function focusPhaseLabel(next: Phase): string {
@@ -88,7 +90,7 @@ export function FocusView() {
   const [taskId, setTaskId] = useState<string | null>(null);
   const now = useNow(t.status === "running");
 
-  const options = useMemo(() => sortVMs(derived.active.filter((v) => v.task.status === "open"), "date").slice(0, 200), [derived]);
+  const options = useMemo(() => sortVMs(derived.roots.filter((v) => v.task.status === "open"), "date").slice(0, 200), [derived]);
   const activeMode = t.status === "idle" ? mode : t.mode;
   const remaining = remainingMs(t, now, cfg);
   const elapsed = elapsedMs(t, now);
@@ -130,7 +132,7 @@ export function FocusView() {
               {t.status === "idle" ? "Ready" : t.mode === "stopwatch" ? "Stopwatch" : `${PHASE_NAME[t.phase]}${t.phase === "focus" ? ` · round ${t.round}` : ""}`}
               {t.status === "paused" && " · paused"}
             </div>
-            <div className="font-mono text-[clamp(2.5rem,7vh,3.75rem)] font-semibold tabular-nums tracking-tight">{clock}</div>
+            <div className={`font-mono font-semibold tabular-nums tracking-tight ${clock.length > 5 ? "text-[clamp(1.9rem,5vh,2.75rem)]" : "text-[clamp(2.5rem,7vh,3.75rem)]"}`}>{clock}</div>
           </div>
         </div>
 
@@ -148,6 +150,7 @@ export function FocusView() {
             </option>
           ))}
         </select>
+        {boundTask && <Steps parentId={boundTask} />}
 
         <div className="flex items-center gap-3">
           {t.status === "idle" ? (
@@ -231,6 +234,22 @@ export function FocusView() {
         </ul>
       </aside>
     </div>
+  );
+}
+
+/** The focused task's subtasks, checked off without leaving the timer (D58). */
+function Steps({ parentId }: { parentId: string }) {
+  const kids = useDerived().childrenOf(parentId);
+  if (!kids.length) return null;
+  return (
+    <ul aria-label="Subtasks" className="-mt-2 w-80 max-w-full space-y-0.5">
+      {kids.map(({ task: k, key }) => (
+        <li key={k.id} className="flex items-center gap-2.5 rounded-sm px-3 py-1 text-sm hover:bg-hover">
+          <TaskCheckbox status={k.status} priority={k.priority} onToggle={() => toggleDone(k.id, key)} label={`Complete ${k.title}`} size={16} />
+          <span className={`min-w-0 flex-1 truncate ${k.status !== "open" ? "text-muted line-through" : ""}`}>{k.title || "Untitled"}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

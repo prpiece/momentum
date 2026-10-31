@@ -5,7 +5,7 @@ import { scheduleForKey } from "../../domain/recurrence";
 import type { Schedule } from "../../domain/types";
 import { isDragData, onDrop, type DragData } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { deleteEventOccurrence, deleteEvents, editEventOccurrence, updateEvent, updateTask, useData } from "../../stores/data";
+import { deleteEventOccurrence, deleteEvents, editEventOccurrence, rootOf, updateEvent, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { askScope, toast } from "../../stores/ui";
 import { editTask } from "../tasks/actions";
@@ -87,7 +87,11 @@ export function dropMinute(e: DragEndEvent | DragMoveEvent, date: string): numbe
 /** What a drag refers to on the calendar; null for drags that don't belong here (habits). */
 export function dragRef(drag: DragData): Ref | null {
   if (drag.type === "block") return { source: drag.source, id: drag.id, key: drag.key };
-  if (drag.type === "task") return { source: "task", id: drag.id, key: drag.key };
+  // A subtask dragged from a list schedules its parent: the calendar only holds top-level tasks (D58).
+  if (drag.type === "task") {
+    const id = rootOf(drag.id);
+    return { source: "task", id, key: id === drag.id ? drag.key : null };
+  }
   return null;
 }
 

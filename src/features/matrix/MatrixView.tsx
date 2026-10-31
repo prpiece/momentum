@@ -1,5 +1,5 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { Settings2 } from "lucide-react";
+import { ListTree, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
@@ -9,7 +9,7 @@ import { sortVMs, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority } from "../../domain/types";
 import { justDragged, onDrop } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { addTask, updateTask, useData } from "../../stores/data";
+import { addTask, rootOf, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { openContextMenu, openTask, useUi } from "../../stores/ui";
 import { editTask, toggleDone } from "../tasks/actions";
@@ -24,7 +24,8 @@ onDrop("quadrant", (drag, drop) => {
   const rules = useSettings.getState().settings.matrix;
   const today = todayLocal();
   const sel = useUi.getState().selection;
-  const ids = sel.includes(drag.id) ? sel : [drag.id];
+  // A dragged subtask moves its parent: the matrix only holds top-level tasks (D58).
+  const ids = [...new Set((sel.includes(drag.id) ? sel : [drag.id]).map(rootOf))];
   const d = derive(tasks, lists);
   const vms = ids.map((id) => d.byId.get(id)).filter((v): v is TaskVM => !!v);
   const series = vms.filter((v) => v.task.recurrence && "schedule" in patchForQuadrant(v, drop.q, today, rules));
@@ -41,7 +42,7 @@ export function MatrixView() {
   const today = todayLocal();
   const groups = useMemo(() => {
     const out: Record<Quadrant, TaskVM[]> = { 1: [], 2: [], 3: [], 4: [] };
-    for (const vm of derived.active) if (vm.task.status === "open") out[quadrantOf(vm, today, rules)].push(vm);
+    for (const vm of derived.roots) if (vm.task.status === "open") out[quadrantOf(vm, today, rules)].push(vm);
     for (const q of QUADRANTS) out[q] = sortVMs(out[q], "date");
     return out;
   }, [derived, rules, today]);
@@ -107,6 +108,7 @@ function QuadrantPanel({ q, items }: { q: Quadrant; items: TaskVM[] }) {
 
 function MatrixItem({ vm }: { vm: TaskVM }) {
   const t = vm.task;
+  const kids = useDerived().childrenOf(t.id);
   const list = useData((s) => s.lists[t.listId]);
   const selected = useUi((s) => s.selection.includes(t.id));
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({ id: `matrix:${t.id}`, data: { type: "task", id: t.id, key: vm.key } });
@@ -123,6 +125,12 @@ function MatrixItem({ vm }: { vm: TaskVM }) {
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} size={16} />
       <span className="min-w-0 flex-1 truncate">{t.title}</span>
+      {kids.length > 0 && (
+        <span className="flex shrink-0 items-center gap-1 text-xs text-muted" aria-label="Subtasks done">
+          <ListTree size={12} />
+          {kids.filter((k) => k.task.status !== "open").length}/{kids.length}
+        </span>
+      )}
       {vm.date && <span className={`shrink-0 text-xs ${vm.date < today ? "text-danger" : "text-muted"}`}>{relativeDayLabel(vm.date, today)}</span>}
       {list && list.id !== "inbox" && <span className="max-w-24 shrink-0 truncate text-xs text-muted">{list.name}</span>}
     </li>

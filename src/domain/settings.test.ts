@@ -21,11 +21,11 @@ describe("parseSettings", () => {
 
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
-      theme: "dark", accent: "#2f6fed", density: "compact", motion: "on", fontSize: "lg", sidebarSide: "right",
+      theme: "dark", accent: "#0e8a85", density: "compact", motion: "on", fontSize: "lg", sidebarSide: "right",
       sidebarCollapsed: true, sidebarMoreOpen: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
-      matrix: { importantPriorities: [3], urgentDays: 5 }, closeToTray: false, launchAtStartup: true,
+      matrix: { importantPriorities: [3], urgentDays: 5 }, closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
       onboarded: true, quickAddShortcut: "CommandOrControl+N", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3 },
     };

@@ -1,5 +1,5 @@
 import { useSortable } from "@dnd-kit/sortable";
-import { ChevronRight, ListChecks, Pin, Repeat, Bell, FileText } from "lucide-react";
+import { ChevronRight, ListChecks, ListTree, Pin, Repeat, Bell, FileText } from "lucide-react";
 import { memo, useState } from "react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
@@ -73,7 +73,8 @@ export const TaskRow = memo(function TaskRow(props: {
         isDragging ? "opacity-40" : ""
       } ${selected || open ? "bg-accent-soft" : "hover:bg-hover"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
     >
-      <div style={{ width: 8 + depth * 18 }} className="flex shrink-0 justify-end pt-[3px]">
+      {/* A fixed toggle gutter keeps every checkbox in a column, with or without subtasks. */}
+      <div style={{ width: 16 + depth * 20 }} className="flex h-6 shrink-0 items-center justify-end">
         {childCount > 0 && (
           <button
             type="button"
@@ -83,13 +84,13 @@ export const TaskRow = memo(function TaskRow(props: {
               e.stopPropagation();
               toggleCollapsed(t.id);
             }}
-            className="-mr-1 grid size-4 place-items-center rounded text-muted hover:text-fg"
+            className="grid size-4 place-items-center rounded text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
           >
             <ChevronRight size={14} className={`transition-transform duration-[var(--dur)] ${collapsed ? "" : "rotate-90"}`} />
           </button>
         )}
       </div>
-      <div className="pt-[2px]">
+      <div className="flex h-6 items-center">
         <TaskCheckbox status={leaving ? "done" : t.status} priority={t.priority} onToggle={complete} label={`Complete ${t.title}`} />
       </div>
       <div className="min-w-0 flex-1">
@@ -107,8 +108,8 @@ export const TaskRow = memo(function TaskRow(props: {
           {t.reminders.length > 0 && <Bell size={12} aria-label="Has reminders" />}
           {t.description && <FileText size={12} aria-label="Has notes" />}
           {childCount > 0 && (
-            <span className="inline-flex items-center gap-1">
-              <ChevronRight size={11} />
+            <span className="inline-flex items-center gap-1" aria-label="Subtasks done">
+              <ListTree size={12} />
               {doneChildCount}/{childCount}
             </span>
           )}
@@ -137,7 +138,7 @@ export const TaskRow = memo(function TaskRow(props: {
           )}
         </Meta>
       </div>
-      <div className="flex shrink-0 items-center gap-2 pt-[3px] text-xs text-muted">
+      <div className="flex h-6 shrink-0 items-center gap-2 text-xs text-muted">
         {t.pinned && <Pin size={13} className="text-accent" aria-label="Pinned" />}
         {list && (
           <span className="flex max-w-32 items-center gap-1 truncate">

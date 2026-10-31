@@ -19,7 +19,8 @@
 - Quick-add bar with natural language: `Study chem tomorrow 5pm !high #school ~Uni every mon` sets the date, time, priority, tag, list and repeat, with each recognised piece shown as a chip. Press <kbd>Esc</kbd> to keep the text literal.
 - Smart Lists are live queries, not copies: Inbox, Today (including overdue), Upcoming (grouped by day) and a Logbook of finished tasks.
 - Filter any view with the quick-add syntax (`#work !high ~Uni tomorrow`, plus `overdue`, `nodate`, `done`, `wontdo`), and pin a filter to the sidebar to keep it. Click a tag on a task to filter by it.
-- Lists with colours and emoji, folders, tags, and subtasks up to 5 levels. Drag to reorder, or drag onto a list, Today or Upcoming in the sidebar.
+- Lists with colours and icons, folders, tags, and subtasks up to 5 levels. Drag to reorder, or drag onto a list, Today or Upcoming in the sidebar.
+- Subtasks belong to their task: they nest under it in lists, while the Matrix, Calendar and Focus timer show the parent with its progress. Completing a task completes its open subtasks, and the Focus timer lists the subtasks so you can tick them off as you go.
 - A quiet sidebar: Calendar up top, the other tools (Matrix, Habits, Focus, Countdown, Statistics) under a collapsible More.
 - Each list can be shown as a list, a Kanban board (custom sections) or a timeline. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
 - Task drawer:
@@ -55,8 +56,9 @@
 - Runs in the tray, so reminders still fire after you close the window.
 - Optional launch at login.
 - Global <kbd>Ctrl Shift A</kbd> opens quick add from anywhere.
+- Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click. This is its only network request, and you can turn it off in Settings → System.
 
-**Design**: light, dark and system themes, 9 accent presets (the taskbar and tray icons take the same colour), comfortable or compact density, adjustable font size, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
+**Design**: light, dark and system themes, 9 accent presets with Ocean blue as the default (the taskbar and tray icons take the same colour), comfortable or compact density, adjustable font size, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
 
 ## Screenshots
 
@@ -69,7 +71,7 @@
 
 ## Install
 
-Download the latest installer from the **[Releases](../../releases)** page.
+Download the latest installer from the **[Releases](../../releases)** page. After that, Momentum updates itself.
 
 - **Windows:** `Momentum_x.y.z_x64-setup.exe` (or the `.msi`).
   > **SmartScreen warning:** Momentum isn't code-signed, so Windows may show *"Windows protected your PC"*. Click **More info → Run anyway**. This is normal for open-source apps without a paid certificate.
@@ -94,7 +96,7 @@ npm test               # unit tests (recurrence, DST, matrix rules, streaks, NL 
 npm run tauri build    # installers → src-tauri/target/release/bundle/
 ```
 
-`npm run dev` runs the UI alone in a browser, with sample data and no persistence. That's handy for UI work. In `tauri dev`, **Settings → Developer → Load sample data** fills the real database.
+`npm run dev` runs the UI alone in a browser, with sample data and no persistence. That's handy for UI work. `npm run screenshots` regenerates the images in `docs/screenshots/` from that build (it uses Microsoft Edge). In `tauri dev`, **Settings → Developer → Load sample data** fills the real database.
 
 ## Cutting a release
 
@@ -105,7 +107,9 @@ npm run tauri build    # installers → src-tauri/target/release/bundle/
    git push origin v0.2.0
    ```
 3. The **Release** workflow (`.github/workflows/release.yml`) runs the tests, then builds Windows, macOS (Apple Silicon + Intel) and Linux installers with `tauri-action`, and attaches them to a **draft** GitHub Release.
-4. Check the draft on GitHub, edit the notes and publish it.
+4. Check the draft on GitHub, edit the notes and publish it. Publishing is what makes installed copies offer the update.
+
+The workflow signs the update bundles with the `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repository secrets. A fork needs its own key pair (`npx tauri signer generate`): put the public key in `plugins.updater.pubkey` in `tauri.conf.json` and point `endpoints` at the fork's releases.
 
 ## Tech
 

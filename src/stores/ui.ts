@@ -86,10 +86,10 @@ export const toggleCollapsed = (id: string) =>
   });
 
 let toastId = 0;
-export function toast(message: string, action?: Toast["action"]) {
+export function toast(message: string, action?: Toast["action"], ms = action ? 6000 : 3500) {
   const id = ++toastId;
   set((s) => ({ toasts: [...s.toasts.slice(-2), { id, message, action }] }));
-  setTimeout(() => dismissToast(id), action ? 6000 : 3500);
+  setTimeout(() => dismissToast(id), ms);
 }
 export const dismissToast = (id: number) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
 

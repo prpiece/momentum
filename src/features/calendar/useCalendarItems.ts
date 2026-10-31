@@ -33,7 +33,7 @@ export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
       }
       return lists[t.listId]?.color ?? "var(--accent)";
     };
-    const items = calendarItems({ tasks: derived.active, events: Object.values(events), colorOf, showCompleted: cal.showCompleted }, from, to);
+    const items = calendarItems({ tasks: derived.roots, events: Object.values(events), colorOf, showCompleted: cal.showCompleted }, from, to);
     if (cal.showHabits) {
       // One read-only all-day marker per scheduled habit day (per-week habits: days actually done).
       for (const h of Object.values(habits)) {

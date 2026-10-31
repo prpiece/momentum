@@ -133,13 +133,14 @@ momentum/
   - `react-markdown` for safe Markdown rendering.
   - Tauri plugins: `notification`, `global-shortcut`, `autostart`, `dialog` and `fs` (export/import).
   - `ical.js` for .ics import, which needs correct TZID and RRULE handling.
+  - `updater` and `process` Tauri plugins: signed in-app updates and the restart after one (D59).
 - **Deliberately not added:**
   - Chart library: the stats charts and heatmaps are small hand-written SVGs.
   - Color library: accent variants come from CSS `color-mix(in oklch, …)`, which WebView2 supports.
   - Color picker: native `<input type="color">`.
   - Router: views are a single `ui.view` state.
   - Form library, CSS-in-JS.
-- **Dev:** `vite`, `typescript`, `tailwindcss`, `vitest`, `@tauri-apps/cli`.
+- **Dev:** `vite`, `typescript`, `tailwindcss`, `vitest`, `@tauri-apps/cli`, `playwright-core` (README screenshots on the installed Edge, no browser download; D61).
 
 ---
 
@@ -278,3 +279,7 @@ momentum/
 - **R2: Global shortcut conflict.** If Ctrl+Shift+A is already taken by another app, registration fails. The app shows a toast and lets the user rebind it in Settings.
 - **R3: Unsigned builds.** SmartScreen will show a warning, and the README says so.
 - **R4: Project folder is inside OneDrive.** `node_modules` and `src-tauri/target` (several GB) would sync constantly and can hit file-lock errors during Rust builds. Recommended fix: move the project to `C:\dev\momentum`.
+- **D58: Subtasks are part of their parent.** Like Todoist, a subtask is a real task (its own date, priority, reminders) that lives nested under its parent in list views, and a dated subtask still shows in Today/Upcoming. Like Things and Microsoft To Do, it never stands alone in the cross-cutting views: Matrix, Calendar (grid and Arrange panel) and the Focus picker show top-level tasks only (`Derived.roots`), with a done/total count on Matrix cards. Dragging a subtask to the calendar or a quadrant acts on its top-level task (`rootOf`). Focusing on a task lists its subtasks under the timer so they can be checked off there. Completing or won't-doing a parent finishes its open subtasks (undo restores them); reopening it leaves them as they were.
+- **D59: In-app updates are the one network call.** `tauri-plugin-updater` checks `releases/latest/download/latest.json` on GitHub at launch (Settings → System → Updates turns it off, or "Check now"). A new version shows a toast with *Update and restart*; the download is verified against the public key in `tauri.conf.json`, and the Windows installer runs in passive mode. Release builds are signed by the `TAURI_SIGNING_PRIVATE_KEY` / `_PASSWORD` repository secrets; the key lives outside the repo. Only published (not draft) releases are offered.
+- **D60: Ocean blue is the default accent and the shipped icon.** The bundled icons (`npx tauri icon assets/app-icon.svg`) are blue, so the installer, the exe and a pinned taskbar shortcut match the default. The window and tray still repaint in the chosen accent at runtime (D55); Windows keeps a pinned shortcut's own icon.
+- **D61: README screenshots are generated.** `npm run screenshots` starts Vite, drives the seeded browser build through its stores with `playwright-core` on the installed Edge, and rewrites `docs/screenshots/`. Run it after any visible change.

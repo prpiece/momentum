@@ -112,7 +112,7 @@ function ArrangeTasks() {
   const tasks = useMemo(
     () =>
       sortVMs(
-        derived.active.filter((v) => v.task.status === "open" && v.schedule.kind === "none" && (!listId || v.task.listId === listId) && v.task.priority >= minPriority),
+        derived.roots.filter((v) => v.task.status === "open" && v.schedule.kind === "none" && (!listId || v.task.listId === listId) && v.task.priority >= minPriority),
         "priority",
       ),
     [derived, listId, minPriority],

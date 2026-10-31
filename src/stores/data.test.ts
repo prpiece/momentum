@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { atLocalTime, timed, wallKey } from "../domain/dates";
 import { toVM } from "../domain/taskViews";
+import { derive } from "../features/tasks/selectors";
 import {
   addTask,
   deleteOccurrence,
@@ -8,6 +9,7 @@ import {
   editOccurrence,
   replaceAll,
   restoreTasks,
+  rootOf,
   setParent,
   setStatus,
   undoable,
@@ -90,6 +92,26 @@ describe("subtasks", () => {
     expect(live()).toHaveLength(0);
     restoreTasks(ids);
     expect(live()).toHaveLength(2);
+  });
+
+  it("finishing a parent finishes its open subtasks; reopening leaves them done", () => {
+    const p = addTask({ title: "P" });
+    const a = addTask({ title: "A", parentId: p.id });
+    const b = addTask({ title: "B", parentId: a.id, status: "wont_do" });
+    setStatus(p.id, "done");
+    const t = useData.getState().tasks;
+    expect([t[a.id].status, t[b.id].status]).toEqual(["done", "wont_do"]);
+    setStatus(p.id, "open");
+    expect(useData.getState().tasks[a.id].status).toBe("done");
+  });
+
+  it("keeps subtasks out of the top-level views and maps them to their root", () => {
+    const p = addTask({ title: "P" });
+    const c = addTask({ title: "C", parentId: p.id, schedule: { kind: "day", date: "2026-10-31" } });
+    const g = addTask({ title: "G", parentId: c.id });
+    const { tasks, lists } = useData.getState();
+    expect(derive(tasks, lists).roots.map((v) => v.task.id)).toEqual([p.id]);
+    expect([rootOf(g.id), rootOf(c.id), rootOf(p.id)]).toEqual([p.id, p.id, p.id]);
   });
 });
 

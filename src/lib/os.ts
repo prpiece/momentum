@@ -15,6 +15,7 @@ import { setPhaseEndHandler, tickFocus } from "../stores/focus";
 import { useSettings } from "../stores/settings";
 import { go, openEvent, openTask, toast } from "../stores/ui";
 import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderScheduler";
+import { checkForUpdate } from "./updater";
 import { setStatus, useData } from "../stores/data";
 
 export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
@@ -203,6 +204,9 @@ export async function initOs() {
     }
   };
   await syncAutostart(settings().launchAtStartup);
+
+  // --- updates (D59) ---------------------------------------------------------
+  if (settings().checkUpdates) void checkForUpdate();
 
   useSettings.subscribe((s, prev) => {
     const a = s.settings;

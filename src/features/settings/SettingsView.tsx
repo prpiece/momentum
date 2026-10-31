@@ -5,6 +5,7 @@ import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
 import { TagsSection } from "./TagsSection";
 import { openWelcome } from "../shell/Welcome";
+import { checkForUpdate } from "../../lib/updater";
 import { ACCENT_PRESETS } from "../../domain/color";
 import type { Settings, ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
@@ -239,6 +240,14 @@ export function SettingsView() {
         </Row>
         <Row label="Launch at login">
           <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text="Start minimized to the tray" />
+        </Row>
+        <Row label="Updates">
+          <div className="flex flex-wrap items-center gap-3">
+            <Toggle checked={s.checkUpdates} onChange={(v) => update({ checkUpdates: v })} text="Check at launch" />
+            <button type="button" onClick={() => void checkForUpdate(true)} className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent">
+              Check now
+            </button>
+          </div>
         </Row>
         <Row label="Welcome tour">
           <button type="button" onClick={openWelcome} className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover">

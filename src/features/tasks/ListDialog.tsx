@@ -118,11 +118,11 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
   );
 }
 
-export function ListDialogButton({ list, children, folderId }: { list?: TaskList; children: ReactNode; folderId?: string | null }) {
+export function ListDialogButton({ list, children, folderId, className = "size-8" }: { list?: TaskList; children: ReactNode; folderId?: string | null; className?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" aria-label={list ? "List settings" : "New list"} title={list ? "List settings" : "New list"} onClick={() => setOpen(true)} className="grid size-8 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg">
+      <button type="button" aria-label={list ? "List settings" : "New list"} title={list ? "List settings" : "New list"} onClick={() => setOpen(true)} className={`grid place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent ${className}`}>
         {children}
       </button>
       {open && <ListDialog list={list} folderId={folderId} onClose={() => setOpen(false)} />}

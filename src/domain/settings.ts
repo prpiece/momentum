@@ -23,7 +23,7 @@ import {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
-  accent: "#5b5bd6",
+  accent: "#2f6fed",
   density: "comfortable",
   motion: "system",
   fontSize: "md",
@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   matrix: { importantPriorities: [2, 3], urgentDays: 2 },
   closeToTray: true,
   launchAtStartup: false,
+  checkUpdates: true,
   notify: {
     enabled: true,
     style: "both",
@@ -187,6 +188,7 @@ export function parseSettings(raw: unknown): Settings {
     matrix: parseMatrix(r.matrix),
     closeToTray: typeof r.closeToTray === "boolean" ? r.closeToTray : d.closeToTray,
     launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
+    checkUpdates: typeof r.checkUpdates === "boolean" ? r.checkUpdates : d.checkUpdates,
     notify: parseNotify(r.notify, r.notifications),
     onboarded: r.onboarded === true,
     quickAddShortcut: typeof r.quickAddShortcut === "string" && /^[\w+]+$/.test(r.quickAddShortcut) ? r.quickAddShortcut : d.quickAddShortcut,

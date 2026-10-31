@@ -158,7 +158,8 @@ export function IconTile({ name, color, size = 36, fallback }: { name: string; c
 export function IconPicker({ value, onChange, color, none }: { value: string | null; onChange: (key: string | null) => void; color?: string; none?: string }) {
   const current = iconOf(value);
   return (
-    <div className="scroll-thin grid max-h-40 grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-1 overflow-y-auto pr-1" role="group" aria-label="Icon">
+    // Padding inside the scroller keeps the selected ring from being clipped at its edges.
+    <div className="scroll-thin grid max-h-40 grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] justify-items-center gap-1 overflow-y-auto p-1" role="group" aria-label="Icon">
       {none && (
         <button type="button" onClick={() => onChange(null)} aria-pressed={value === null} className={`grid size-9 place-items-center rounded-sm text-[0.65rem] text-muted transition-colors ${value === null ? "bg-accent-soft ring-1 ring-accent" : "hover:bg-hover"}`}>
           {none}

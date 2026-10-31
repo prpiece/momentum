@@ -198,6 +198,8 @@ export type Settings = {
   /** Closing the window hides to the tray (reminders keep firing). */
   closeToTray: boolean;
   launchAtStartup: boolean;
+  /** Look for a new release on GitHub at launch (D59). */
+  checkUpdates: boolean;
   notify: NotifySettings;
   /** The first-run welcome tour has been shown. */
   onboarded: boolean;

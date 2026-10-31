@@ -7,12 +7,13 @@ Offline, local-first desktop planner: Tauri 2 (Rust) + React/TS/Vite + Tailwind 
 - `npm run dev`: UI only, in a browser. No persistence (see `isTauri` in `src/db/client.ts`).
 - `npm test`: selector lint + Vitest (domain, row mapping, store logic). Tests run in TZ=America/New_York.
 - `npm run build`: typecheck and build the frontend
-- `npm run tauri build`: produce the installers (`src-tauri/target/release/bundle/`)
+- `npm run tauri build`: produce the installers (`src-tauri/target/release/bundle/`). Updater bundles are signed, so set `TAURI_SIGNING_PRIVATE_KEY` (the key file `~/.tauri/momentum.key` or its contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` first, or the build fails at the signing step.
+- `npm run screenshots`: regenerate the README images in `docs/screenshots/`. Run it and commit the images after any visible UI change (PLAN D61).
 - DB location: `%APPDATA%\com.momentum.planner\momentum.db`, with pre-migration copies in `backups\` alongside it.
 - Schema changes: add `src-tauri/migrations/NNNN_name.sql` and register it in `migrations()` in `src-tauri/src/lib.rs`. Never edit a migration that has already been applied, because sqlx checksums them.
 
 ## Releases
-Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, then push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds a draft release (Windows first, then macOS and Linux).
+Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, then push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds a draft release (Windows first, then macOS and Linux), signed for the updater with the `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` secrets. Installed apps only see it once the draft is published (PLAN D59).
 
 ## Gotchas
 - **Restart race in `tauri dev`:** editing `src-tauri/` (Rust, migrations, icons) makes `tauri dev` restart the app. The new process can fail with WebView2 `0x800700AA` ("resource in use") while the old one still holds the profile. Just run it again. Release builds are unaffected.
@@ -30,7 +31,8 @@ Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/C
 - **Domain types are discriminated unions** (`status`, habit `frequency`, `goal`). Narrow them; never cast them.
 - **Validate at boundaries** (JSON import, .ics import, DB rows). Code inside the boundary trusts those types.
 - **Drag and drop:** dnd-kit pointer sensors only. `dragDropEnabled: false` is set in `tauri.conf.json` because Tauri's native file-drop handler would otherwise swallow drag events on Windows.
-- **Offline:** no network calls anywhere. Fonts come from `@fontsource`.
+- **Offline:** no network calls anywhere, except the update check (PLAN D59). Fonts come from `@fontsource`.
+- **Subtasks:** Matrix, calendar and focus read `Derived.roots`, never `active`; drops onto them map a subtask to `rootOf` (PLAN D58).
 - **New dependencies** need a one-line reason in PLAN.md §4.
 
 ## Design tokens (`src/styles/tokens.css`)

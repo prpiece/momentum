@@ -76,17 +76,20 @@ export function BarChart(props: {
           <span className="font-semibold">{format(data[hover].value)}</span> · {props.label(data[hover])}
         </div>
       )}
-      <table className="sr-only">
-        <caption>{props.title}</caption>
-        <tbody>
-          {data.map((d) => (
-            <tr key={d.start}>
-              <th scope="row">{props.label(d)}</th>
-              <td>{format(d.value)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* A table ignores sr-only's 1px height and would stretch the page; the wrapping div clips it. */}
+      <div className="sr-only">
+        <table>
+          <caption>{props.title}</caption>
+          <tbody>
+            {data.map((d) => (
+              <tr key={d.start}>
+                <th scope="row">{props.label(d)}</th>
+                <td>{format(d.value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }
