@@ -12,11 +12,14 @@ import {
   PRIORITIES,
   SIDES,
   SMART_LISTS,
+  SOUNDS,
+  ZOOMS,
   SORT_BYS,
   THEMES,
   TIME_FORMATS,
   WEEK_STARTS,
   type Settings,
+  type SoundEvent,
   type ViewId,
   type ViewOptions,
 } from "./types";
@@ -27,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   density: "comfortable",
   motion: "system",
   fontSize: "md",
+  zoom: 1,
   sidebarSide: "left",
   sidebarCollapsed: false,
   sidebarMoreOpen: false,
@@ -61,6 +65,11 @@ export const DEFAULT_SETTINGS: Settings = {
     digestTime: "08:00",
     focus: true,
     quickAdd: true,
+  },
+  sounds: {
+    enabled: true,
+    volume: 0.7,
+    picks: { task: "pop", habit: "marimba", streak: "fanfare", dayDone: "fanfare", focusEnd: "chime", longBreak: "ding" },
   },
   onboarded: false,
   quickAddShortcut: "CommandOrControl+Shift+A",
@@ -157,6 +166,18 @@ function parseNotify(raw: unknown, legacyEnabled: unknown): Settings["notify"] {
   };
 }
 
+function parseSounds(raw: unknown): Settings["sounds"] {
+  const r = isRecord(raw) ? raw : {};
+  const d = DEFAULT_SETTINGS.sounds;
+  const picks = isRecord(r.picks) ? r.picks : {};
+  const pick = (e: SoundEvent) => ((v) => (oneOf(SOUNDS, v) ? v : d.picks[e]))(picks[e]);
+  return {
+    enabled: typeof r.enabled === "boolean" ? r.enabled : d.enabled,
+    volume: typeof r.volume === "number" && r.volume >= 0 && r.volume <= 1 ? r.volume : d.volume,
+    picks: { task: pick("task"), habit: pick("habit"), streak: pick("streak"), dayDone: pick("dayDone"), focusEnd: pick("focusEnd"), longBreak: pick("longBreak") },
+  };
+}
+
 function parsePomodoro(raw: unknown): Settings["pomodoro"] {
   const r = isRecord(raw) ? raw : {};
   const d = DEFAULT_SETTINGS.pomodoro;
@@ -175,6 +196,7 @@ export function parseSettings(raw: unknown): Settings {
     density: oneOf(DENSITIES, r.density) ? r.density : d.density,
     motion: oneOf(MOTIONS, r.motion) ? r.motion : d.motion,
     fontSize: oneOf(FONT_SIZES, r.fontSize) ? r.fontSize : d.fontSize,
+    zoom: oneOf(ZOOMS, r.zoom) ? r.zoom : d.zoom,
     sidebarSide: oneOf(SIDES, r.sidebarSide) ? r.sidebarSide : d.sidebarSide,
     sidebarCollapsed: typeof r.sidebarCollapsed === "boolean" ? r.sidebarCollapsed : d.sidebarCollapsed,
     sidebarMoreOpen: r.sidebarMoreOpen === true,
@@ -190,6 +212,7 @@ export function parseSettings(raw: unknown): Settings {
     launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
     checkUpdates: typeof r.checkUpdates === "boolean" ? r.checkUpdates : d.checkUpdates,
     notify: parseNotify(r.notify, r.notifications),
+    sounds: parseSounds(r.sounds),
     onboarded: r.onboarded === true,
     quickAddShortcut: typeof r.quickAddShortcut === "string" && /^[\w+]+$/.test(r.quickAddShortcut) ? r.quickAddShortcut : d.quickAddShortcut,
     pomodoro: parsePomodoro(r.pomodoro),

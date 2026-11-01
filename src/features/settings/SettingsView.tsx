@@ -3,11 +3,12 @@ import { type ReactNode, useState } from "react";
 import { Segmented } from "../../components/ui/Segmented";
 import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
+import { SoundsSection } from "./SoundsSection";
 import { TagsSection } from "./TagsSection";
 import { openWelcome } from "../shell/Welcome";
 import { checkForUpdate } from "../../lib/updater";
 import { ACCENT_PRESETS } from "../../domain/color";
-import type { Settings, ViewId } from "../../domain/types";
+import { ZOOMS, type Settings, type ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
 import { hydrate } from "../../stores/data";
 import { hydrateCountdowns, saveCountdowns } from "../../stores/countdowns";
@@ -143,18 +144,26 @@ export function SettingsView() {
             ]}
           />
         </Row>
-        <Row label="Font size">
+        <Row label="Text size">
           <Segmented
             name="fontSize"
-            label="Font size"
+            label="Text size"
             value={s.fontSize}
             onChange={set("fontSize")}
             options={[
               { value: "sm", label: "Small" },
               { value: "md", label: "Default" },
               { value: "lg", label: "Large" },
+              { value: "xl", label: "Larger" },
+              { value: "xxl", label: "Largest" },
             ]}
           />
+        </Row>
+        <Row label="Zoom">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted">Ctrl + / Ctrl − / Ctrl 0</span>
+            <Segmented name="zoom" label="Zoom" value={s.zoom} onChange={set("zoom")} options={ZOOMS.map((z) => ({ value: z, label: `${Math.round(z * 100)}%` }))} />
+          </div>
         </Row>
       </Section>
 
@@ -232,6 +241,10 @@ export function SettingsView() {
 
       <Section title="Notifications">
         <NotificationSection />
+      </Section>
+
+      <Section title="Sounds">
+        <SoundsSection />
       </Section>
 
       <Section title="System">

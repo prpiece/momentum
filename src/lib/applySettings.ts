@@ -4,7 +4,7 @@ import { parseSettings } from "../domain/settings";
 import type { Settings } from "../domain/types";
 import { useSettings } from "../stores/settings";
 
-const FONT_PX: Record<Settings["fontSize"], string> = { sm: "14px", md: "15px", lg: "16.5px" };
+const FONT_PX: Record<Settings["fontSize"], string> = { sm: "14px", md: "15px", lg: "16.5px", xl: "18px", xxl: "20px" };
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "fontSize" | "timeFormat" | "smartParse">;

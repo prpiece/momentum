@@ -16,7 +16,7 @@ const KINDS: [Flag, string, string][] = [
   ["quickAdd", "Global quick add", "Confirms tasks added from anywhere"],
 ];
 
-function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button
       type="button"
@@ -31,7 +31,7 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
-function Line({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+export function Line({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <div className="flex items-center gap-4">
       <div className="min-w-0 flex-1">
@@ -133,7 +133,7 @@ export function NotificationSection() {
                   ))}
                 </div>
               </Line>
-              <Line title="Chime" hint="A soft two-note sound with each popup, and an alarm when a focus timer ends.">
+              <Line title="Chime" hint="A soft two-note sound with each popup.">
                 <Switch checked={n.sound} onChange={(sound) => set({ sound })} label="Chime" />
               </Line>
             </>

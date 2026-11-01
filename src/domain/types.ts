@@ -149,7 +149,9 @@ export const THEMES = ["light", "dark", "system"] as const;
 export const DENSITIES = ["comfortable", "compact"] as const;
 /** "system" follows the OS reduced-motion setting (Windows: Animation effects). */
 export const MOTIONS = ["system", "on", "off"] as const;
-export const FONT_SIZES = ["sm", "md", "lg"] as const;
+export const FONT_SIZES = ["sm", "md", "lg", "xl", "xxl"] as const;
+/** Whole-window zoom, as a webview zoom factor. */
+export const ZOOMS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75] as const;
 export const SIDES = ["left", "right"] as const;
 export const TIME_FORMATS = ["12h", "24h"] as const;
 /** date-fns weekStartsOn: Sunday, Monday, Saturday. */
@@ -175,6 +177,17 @@ export type NotifySettings = {
   quickAdd: boolean;
 };
 
+export const SOUNDS = ["chime", "pop", "ding", "marimba", "fanfare", "none"] as const;
+export type SoundName = (typeof SOUNDS)[number];
+export const SOUND_EVENTS = ["task", "habit", "streak", "dayDone", "focusEnd", "longBreak"] as const;
+export type SoundEvent = (typeof SOUND_EVENTS)[number];
+export type SoundSettings = {
+  enabled: boolean;
+  /** 0..1 */
+  volume: number;
+  picks: Record<SoundEvent, SoundName>;
+};
+
 export type Settings = {
   theme: (typeof THEMES)[number];
   /** #rrggbb */
@@ -182,6 +195,7 @@ export type Settings = {
   density: (typeof DENSITIES)[number];
   motion: (typeof MOTIONS)[number];
   fontSize: (typeof FONT_SIZES)[number];
+  zoom: (typeof ZOOMS)[number];
   sidebarSide: (typeof SIDES)[number];
   sidebarCollapsed: boolean;
   /** The sidebar's "More" module group is expanded. */
@@ -201,6 +215,7 @@ export type Settings = {
   /** Look for a new release on GitHub at launch (D59). */
   checkUpdates: boolean;
   notify: NotifySettings;
+  sounds: SoundSettings;
   /** The first-run welcome tour has been shown. */
   onboarded: boolean;
   /** Tauri accelerator, e.g. `CommandOrControl+Shift+A`. */

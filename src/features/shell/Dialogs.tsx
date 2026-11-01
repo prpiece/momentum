@@ -51,6 +51,7 @@ export const SHORTCUTS: [section: string, keys: string, what: string][] = [
   ["General", "Ctrl K", "Search & commands"],
   ["General", "N", "New task (focus quick add)"],
   ["General", "/", "Filter the current list"],
+  ["General", "Ctrl + / Ctrl − / Ctrl 0", "Zoom in / out / reset"],
   ["General", "Ctrl Shift A", "Quick add from anywhere (global)"],
   ["General", "Ctrl Z", "Undo last change"],
   ["General", "[", "Collapse / expand sidebar"],

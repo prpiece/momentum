@@ -16,6 +16,7 @@ import { useSettings } from "../stores/settings";
 import { go, openEvent, openTask, toast } from "../stores/ui";
 import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderScheduler";
 import { checkForUpdate } from "./updater";
+import { playEvent, playSound } from "./sounds";
 import { setStatus, useData } from "../stores/data";
 
 export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
@@ -54,34 +55,11 @@ async function showMain() {
   await w.setFocus();
 }
 
-/** A short two-note chime (Web Audio, so no sound file ships with the app); `rounds` > 1 makes an alarm. */
-function chime(rounds = 1) {
-  try {
-    const ctx = new AudioContext();
-    Array.from({ length: rounds }, () => [880, 1318.5]).flat().forEach((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      const t = ctx.currentTime + Math.floor(i / 2) * 0.7 + (i % 2) * 0.14;
-      o.frequency.value = f;
-      o.type = "sine";
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.18, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
-      o.connect(g).connect(ctx.destination);
-      o.start(t);
-      o.stop(t + 0.65);
-    });
-    setTimeout(() => void ctx.close(), rounds * 700 + 500);
-  } catch {
-    // No audio device: notifications still show.
-  }
-}
-
 const notifySettings = () => useSettings.getState().settings.notify;
 
 /** Shows a reminder the way Settings → Notifications says. Replaced with the OS version once Tauri is up. */
 let deliver = (dto: ReminderDTO) => {
-  if (notifySettings().sound) chime();
+  if (notifySettings().sound) playSound("chime", 1);
   toast(`${dto.title} · ${dto.body}`, dto.target.kind === "task" ? { label: "Done", run: () => handleReminderAction({ dto, action: "done" }) } : undefined);
 };
 /** Simple one-line notices (focus phases, quick add), gated by their own setting. */
@@ -121,7 +99,8 @@ export async function initOs() {
   // A phase ending is an alarm, so it rings and shows in-app even with notifications off.
   setPhaseEndHandler((_, next) => {
     const n = notifySettings();
-    if (n.sound) chime(3);
+    if (next === "long") playEvent("longBreak", 2);
+    else playEvent("focusEnd", 3);
     toast(`Timer done · ${focusPhaseLabel(next)}`);
     flashTaskbar();
     if (isTauri && n.enabled && n.focus) notice("Momentum focus", focusPhaseLabel(next));
@@ -138,6 +117,7 @@ export async function initOs() {
     import("@tauri-apps/plugin-autostart"),
     import("@tauri-apps/api/core"),
   ]);
+  const { getCurrentWebview } = await import("@tauri-apps/api/webview");
   const settings = () => useSettings.getState().settings;
 
   // --- notifications -------------------------------------------------------
@@ -157,7 +137,7 @@ export async function initOs() {
     const { style, sound } = notifySettings();
     if (style !== "popup") osNotify(dto.title, dto.body);
     if (style !== "system") {
-      if (sound) chime();
+      if (sound) playSound("chime", 1);
       // The popup sizes and places itself around its cards.
       void emit("reminder:show", { dto, corner: notifySettings().corner } satisfies ReminderShow);
     }
@@ -202,6 +182,7 @@ export async function initOs() {
     }
   };
   await syncIcon(settings().accent);
+  await getCurrentWebview().setZoom(settings().zoom);
 
   // --- close to tray & launch at login -------------------------------------
   await invoke("set_close_to_tray", { enabled: settings().closeToTray });
@@ -225,5 +206,6 @@ export async function initOs() {
     if (a.closeToTray !== b.closeToTray) void invoke("set_close_to_tray", { enabled: a.closeToTray });
     if (a.launchAtStartup !== b.launchAtStartup) void syncAutostart(a.launchAtStartup);
     if (a.accent !== b.accent) void syncIcon(a.accent);
+    if (a.zoom !== b.zoom) void getCurrentWebview().setZoom(a.zoom);
   });
 }
