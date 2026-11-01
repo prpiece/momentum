@@ -48,6 +48,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0005_focus_countdowns_reminders.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 6,
+            description: "rest days and celebrations",
+            sql: include_str!("../migrations/0006_progress.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

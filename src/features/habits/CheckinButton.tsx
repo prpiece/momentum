@@ -1,6 +1,8 @@
 import { Check, Plus } from "lucide-react";
 import { useRef, useState } from "react";
+import { Logo } from "../../components/Logo";
 import { Popover } from "../../components/ui/Popover";
+import { motionOn } from "../../lib/celebrate";
 import { accentForeground } from "../../domain/color";
 import { isDone, targetOf, type Habit } from "../../domain/habits";
 import type { LocalDate } from "../../domain/types";
@@ -21,6 +23,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
   const anchor = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [burst, setBurst] = useState(0);
   const r = size / 2 - 3;
   const circ = 2 * Math.PI * r;
   const progress = Math.min(1, value / target);
@@ -40,7 +43,10 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
           if (habit.goal.kind === "amount") {
             setDraft(value ? fmt(value) : "");
             setEditing(true);
-          } else tapCheckin(habit, date);
+          } else {
+            if (!done && value + 1 >= target && motionOn()) setBurst(Date.now());
+            tapCheckin(habit, date);
+          }
         }}
         onContextMenu={(e) => openContextMenu(e, habitMenu(habit, date))}
         className="relative grid shrink-0 place-items-center rounded-full transition-transform duration-[var(--dur)] active:scale-95"
@@ -49,7 +55,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
         <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden="true">
           <circle cx={size / 2} cy={size / 2} r={r} fill={done ? habit.color : "transparent"} stroke="var(--border)" strokeWidth={done ? 0 : 2.5} />
           {!done && progress > 0 && (
-            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={habit.color} strokeWidth={3} strokeLinecap="round" strokeDasharray={`${circ * progress} ${circ}`} />
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={habit.color} strokeWidth={3} strokeLinecap="round" strokeDasharray={`${circ * progress} ${circ}`} className="transition-[stroke-dasharray] duration-[400ms] ease-[var(--ease)]" />
           )}
         </svg>
         <span className="relative">
@@ -61,6 +67,11 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
             <Plus size={size * 0.4} className="text-muted" />
           )}
         </span>
+        {burst > 0 && (
+          <span key={burst} className="anim-badge pointer-events-none absolute -top-1 left-1/2 z-10" onAnimationEnd={() => setBurst(0)}>
+            <Logo size={20} />
+          </span>
+        )}
       </button>
       {editing && habit.goal.kind === "amount" && (
         <Popover anchor={anchor} onClose={() => setEditing(false)} className="w-56 p-3">

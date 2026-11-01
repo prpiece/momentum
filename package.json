@@ -27,6 +27,7 @@
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-sql": "^2.6.0",
     "@tauri-apps/plugin-updater": "^2.14.1",
+    "canvas-confetti": "^1.9.3",
     "chrono-node": "^2.10.3",
     "date-fns": "^4.4.0",
     "ical.js": "^2.2.1",
@@ -40,6 +41,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^26.6.5",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

@@ -113,6 +113,10 @@ export function checkinOf(habitId: string, date: LocalDate): HabitCheckin | unde
 }
 
 /** Set any of value / note / mood for a day. An empty check-in is removed. */
+/** Called after a check-in goes up (lib/celebrate: the sound, streak milestones, perfect days). */
+let onCheckin: (h: Habit, date: LocalDate, before: number, after: number) => void = () => {};
+export const setCheckinHandler = (fn: typeof onCheckin) => void (onCheckin = fn);
+
 export function setCheckin(habitId: string, date: LocalDate, patch: Partial<Pick<HabitCheckin, "value" | "note" | "mood">>) {
   const prev = checkinOf(habitId, date) ?? { habitId, date, value: 0, note: "", mood: null };
   const next: HabitCheckin = { ...prev, ...patch, value: Math.max(0, patch.value ?? prev.value) };
@@ -124,6 +128,8 @@ export function setCheckin(habitId: string, date: LocalDate, patch: Partial<Pick
     return { checkins: { ...s.checkins, [habitId]: forHabit } };
   });
   void write(empty ? ["DELETE FROM habit_checkins WHERE habit_id = $1 AND date = $2", [habitId, date]] : checkinUpsert(next));
+  const h = useHabits.getState().habits[habitId];
+  if (h && next.value > prev.value) onCheckin(h, date, prev.value, next.value);
 }
 
 /** Tap: once-habits toggle; counted habits add `delta` (the row's menu offers −1). Check-ins toast an Undo. */

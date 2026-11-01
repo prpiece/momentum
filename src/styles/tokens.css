@@ -176,6 +176,43 @@
 .anim-ring { animation: ring-in 900ms var(--ease); }
 .anim-flicker { animation: flicker 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
 
+/* ---------- celebrations (D63) ---------- */
+/* The logo traces itself in; its dot lands last. */
+@keyframes draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
+.anim-draw { animation: draw 520ms 160ms var(--ease) backwards; }
+@keyframes dot-in { 0% { transform: scale(0); } 70% { transform: scale(1.6); } 100% { transform: scale(1); } }
+.anim-dot { animation: dot-in 360ms 560ms var(--ease) backwards; transform-box: fill-box; transform-origin: center; }
+/* Small moments: a logo badge pops out of the checkbox and swooshes up. */
+@keyframes badge-up {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.3) rotate(0deg); }
+  25% { opacity: 1; transform: translate(-50%, -10px) scale(1.15) rotate(-6deg); }
+  100% { opacity: 0; transform: translate(-30%, -34px) scale(0.85) rotate(-14deg); }
+}
+.anim-badge { animation: badge-up 640ms var(--ease) forwards; }
+/* Big moments: the logo jumps in, bounces, and (weeks and up) spins with a trail. */
+@keyframes hero-in {
+  0% { opacity: 0; transform: translateY(40px) scale(0.3) rotate(-25deg); }
+  55% { opacity: 1; transform: translateY(-14px) scale(1.12) rotate(6deg); }
+  75% { transform: translateY(4px) scale(0.96) rotate(-2deg); }
+  100% { transform: none; }
+}
+@keyframes hero-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes hero-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.anim-hero { animation: hero-in 640ms var(--ease) backwards; }
+.anim-hero-spin { animation: hero-spin 900ms 640ms var(--ease) backwards, hero-bob 1.4s 1.6s ease-in-out infinite; filter: drop-shadow(0 0 18px color-mix(in oklch, var(--accent) 70%, transparent)); }
+.anim-hero-bob { animation: hero-bob 1.4s 700ms ease-in-out infinite; }
+/* Rings burst outward behind the logo; dots pop out along --dx/--dy. */
+@keyframes ring-burst { from { opacity: 0.9; transform: scale(0.4); } to { opacity: 0; transform: scale(2.6); } }
+.anim-ring-burst { animation: ring-burst 900ms var(--ease) backwards; }
+@keyframes pop-out {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.2); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
+}
+.anim-pop-out { animation: pop-out 820ms cubic-bezier(.15,.9,.3,1) backwards; }
+@keyframes card-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
+.anim-card { animation: card-in 360ms 380ms var(--ease) backwards; }
+
 .scroll-thin { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 
 /* Rendered Markdown in the task drawer */

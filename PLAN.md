@@ -75,7 +75,7 @@ React views ──► Zustand stores (in-memory, the read model every view share
 
 ## 2. Data model (SQLite tables)
 
-`folders`, `lists`, `sections` (Kanban columns per list), `tasks`, `task_tags`, `tags`, `checklist_items`, `reminders`, `recurrence_exceptions`, `task_activity`, `calendar_events`, `habits`, `habit_groups`, `habit_checkins`, `countdowns`, `focus_sessions`, `settings` (one key/value JSON row).
+`folders`, `lists`, `sections` (Kanban columns per list), `tasks`, `task_tags`, `tags`, `checklist_items`, `reminders`, `recurrence_exceptions`, `task_activity`, `calendar_events`, `habits`, `habit_groups`, `habit_checkins`, `countdowns`, `focus_sessions`, `rest_days`, `celebrations`, `settings` (one key/value JSON row).
 
 Notes on the brief's fields:
 - **`tasks`** has every field from the brief, plus `sectionId`, `recurrenceParentId`, `originalStart`, and a `durationMinutes` that stays in sync with `endAt`.
@@ -134,6 +134,7 @@ momentum/
   - Tauri plugins: `notification`, `global-shortcut`, `autostart`, `dialog` and `fs` (export/import).
   - `ical.js` for .ics import, which needs correct TZID and RRULE handling.
   - `updater` and `process` Tauri plugins: signed in-app updates and the restart after one (D59).
+  - `canvas-confetti` (about 6 KB, offline) for the celebration confetti, so we don't maintain a particle system (D63).
 - **Deliberately not added:**
   - Chart library: the stats charts and heatmaps are small hand-written SVGs.
   - Color library: accent variants come from CSS `color-mix(in oklch, …)`, which WebView2 supports.
@@ -284,3 +285,15 @@ momentum/
 - **D60: Ocean blue is the default accent and the shipped icon.** The bundled icons (`npx tauri icon assets/app-icon.svg`) are blue, so the installer, the exe and a pinned taskbar shortcut match the default. The window and tray still repaint in the chosen accent at runtime (D55); Windows keeps a pinned shortcut's own icon.
 - **D61: README screenshots are generated.** `npm run screenshots` starts Vite, drives the seeded browser build through its stores with `playwright-core` on the installed Edge, and rewrites `docs/screenshots/`. Run it after any visible change.
 - **D62: A focus phase ending is an alarm.** When a pomodoro phase runs out, the app plays the chime three times (if Chime is on), shows an in-app toast and flashes the taskbar button until the window gets focus (`requestUserAttention(Critical)`). This happens even with notifications off. The OS notification still follows Notifications → Focus.
+- **D63: Sounds and celebrations.** Sound effects are synthesized with Web Audio (`src/lib/sounds.ts`): five sounds, one pick per event in Settings → Sounds, plus a master volume and an off switch. The reminder chime stays under Notifications. Completing a task or reaching a habit's goal plays its sound, and a small logo badge pops out of the checkbox. Big moments (perfect day, week, month or year, habit streaks of 7/30/100/365 days, the long break, a new trophy) show the logo animating in with bursting rings, popping dots and confetti (`canvas-confetti`), dismissed by any click. Each plays once: its key is stored in `celebrations`. With animations off (Settings → Animations, or the OS setting while that is "System") a toast replaces the overlay; with the window hidden only the sound plays. The long break's sound replaces the focus alarm.
+- **D64: Perfect days are derived, not stored.** `src/domain/perfect.ts` computes them from tasks, habit check-ins, rest days and reschedules. That makes history count automatically (about a year back; reschedules only from v0.4).
+  - A **perfect day** has at least 1 task due. Everything in Today is done or marked Won't do by the end of the day, including overdue tasks and repeats. No task was moved later on or after its due day ("pushed off"). Every daily and weekday habit reached its goal.
+  - Days with nothing due, and rest days, are neutral.
+  - A **very good week** (calendar week, from the week-start setting) has at least 3 active days, at least 90% of its due tasks and habit check-ins done, and every per-week habit at its count. An active day has a task due, a task completed and, when there are habits, a habit kept.
+  - **Tiers:** every qualifying week is a perfect week, every 4th in a row a perfect month, every 52nd a perfect year. A week is celebrated when its last day becomes perfect, or else on the first visit after it ends.
+  - **Rest day:** one per week, taken from Today until the day ends (`rest_days`).
+  - **Trophies** are recomputed from history. The first run shelves them without a celebration (`init:v1`).
+  - Rescheduling now logs `from → to` in `task_activity.detail`.
+  - Rest days and played celebrations aren't part of JSON backups yet.
+- **D65: Zoom is the webview's.** Settings → Appearance → Zoom (80–175%, Ctrl + / Ctrl − / Ctrl 0) uses `setZoom`, so every pixel scales, fixed sizes included. Text size has 5 steps (14–20px root font size). Popups keep zoom at 100%.
+- **D66: Release notes come from CHANGELOG.md.** The release workflow puts the tag's `## vX.Y.Z` section above a `---` line in the release body. Settings → Updates shows the running version, the last check, the status, the notes above the line and download progress. After an update installs, a one-time "What's new" card shows those notes, which were saved to localStorage before installing, so no extra network call is needed.

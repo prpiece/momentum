@@ -14,6 +14,7 @@ import { useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { useDerived } from "../tasks/selectors";
 import { Heatmap } from "./Heatmap";
+import { TrophyShelf } from "../celebrate/TrophyShelf";
 
 /** Extra stat sections (focus time) contributed by later features. */
 type Section = { id: string; render: () => React.ReactNode };
@@ -147,6 +148,10 @@ export function StatsView() {
               tick={(b, i) => (i % 2 === 0 ? format(fromLocalDate(b.start), "MMM d") : "")}
             />
           )}
+        </Card>
+
+        <Card title="Trophies" hint="perfect days, weeks and milestones" className="lg:col-span-2">
+          <TrophyShelf />
         </Card>
 
         <Card title="Activity" hint={`last ${HEAT_WEEKS} weeks`} className="lg:col-span-2">

@@ -11,6 +11,7 @@ import { updateList, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { go, useUi } from "../../stores/ui";
 import { TodayHabits } from "../habits/TodayHabits";
+import { TodayStreak } from "../celebrate/TodayStreak";
 import { BulkBar } from "./BulkBar";
 import { FilterBar } from "./FilterBar";
 import { KanbanView } from "./KanbanView";
@@ -71,6 +72,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         <span className="mr-2 shrink-0 font-mono text-sm text-muted">{openCount} open</span>
         <FilterBar view={spec.id} />
         <div className="flex-1" />
+        {spec.id === "today" && <TodayStreak />}
         {list && (
           <div role="radiogroup" aria-label="Layout" className="mr-1 flex rounded-sm border border-border bg-bg p-0.5">
             {LAYOUTS.map((l) => (

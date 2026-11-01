@@ -1,0 +1,164 @@
+/*
+ * What plays when you finish something (D63, D64): a sound for every task and check-in, and a
+ * celebration for the big moments (perfect day/week/month/year, habit streak milestones, the
+ * long break, trophies). Each big moment plays once: its key goes into the celebrations table.
+ */
+import { create } from "zustand";
+import { addDaysLocal, todayLocal } from "../domain/dates";
+import { bestStreak, currentStreak, isDone, type Habit } from "../domain/habits";
+import { dayOf, dayRun, earnedTrophies, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyId } from "../domain/perfect";
+import type { LocalDate, SoundEvent } from "../domain/types";
+import { derive } from "../features/tasks/selectors";
+import { useData } from "../stores/data";
+import { useFocus } from "../stores/focus";
+import { useHabits, valuesOf } from "../stores/habits";
+import { markCelebrated, useProgress } from "../stores/progress";
+import { useSettings } from "../stores/settings";
+import { toast } from "../stores/ui";
+import { playEvent } from "./sounds";
+
+export type Celebration = { id: number; tier: Tier; title: string; detail: string };
+export const useCelebration = create<{ current: Celebration | null }>(() => ({ current: null }));
+export const dismissCelebration = () => useCelebration.setState({ current: null });
+
+/** Settings → Animations, or the OS setting while it's on "System". */
+export function motionOn(): boolean {
+  const m = useSettings.getState().settings.motion;
+  return m === "on" || (m === "system" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+}
+
+let nextId = 1;
+function celebrate(tier: Tier, title: string, detail: string, sound: SoundEvent) {
+  playEvent(sound, tier === "day" ? 1 : 2);
+  // Hidden in the tray or minimized: the sound is enough (the OS notification says what happened).
+  if (document.hidden) return;
+  if (!motionOn()) return toast(detail ? `${title} · ${detail}` : title);
+  useCelebration.setState({ current: { id: nextId++, tier, title, detail } });
+}
+
+/** Everything perfect days need, from the stores. Covers a little over a year of weeks. */
+const HISTORY_DAYS = 430;
+function prepared(today = todayLocal()) {
+  const { tasks, lists } = useData.getState();
+  const { habits, checkins } = useHabits.getState();
+  const { restDays, pushes } = useProgress.getState();
+  const input = {
+    tasks: derive(tasks, lists).roots.map((v) => v.task),
+    habits: Object.values(habits),
+    checkins: (id: string) => valuesOf(checkins[id]),
+    restDays,
+    pushes,
+    weekStart: useSettings.getState().settings.weekStart,
+    today,
+  };
+  const from = addDaysLocal(today, -HISTORY_DAYS);
+  return { p: prepare(input, from), from };
+}
+
+const TIER_TITLE: Record<Tier, string> = { day: "Perfect day!", week: "Perfect week!", month: "Perfect month!", year: "Perfect year!" };
+
+/** Today just became perfect: a day, or on the week's last day a week, month or year. */
+function checkToday() {
+  const today = todayLocal();
+  const { p } = prepared(today);
+  if (dayOf(p, today).kind !== "perfect") return;
+  const ws = weekStartOf(today, p.input.weekStart);
+  const lastDay = addDaysLocal(ws, 6) === today;
+  if (lastDay && weekQualifies(p, ws)) {
+    if (!markCelebrated([`day:${today}`, `week:${ws}`]).includes(`week:${ws}`)) return;
+    const run = weekRun(p, ws);
+    const tier = tierOfRun(run);
+    return celebrate(tier, TIER_TITLE[tier], run > 1 ? `${run} perfect weeks in a row` : "Every day, done and dusted", "dayDone");
+  }
+  if (!markCelebrated([`day:${today}`]).length) return;
+  const run = dayRun(p);
+  celebrate("day", TIER_TITLE.day, run > 1 ? `🔥 ${run} perfect days in a row` : "Everything due today is done", "dayDone");
+}
+
+/** A week that ended without a perfect last day still counts: celebrate it on the next visit. */
+export function checkLastWeek() {
+  const today = todayLocal();
+  const { p } = prepared(today);
+  const last = addDaysLocal(weekStartOf(today, p.input.weekStart), -7);
+  if (useProgress.getState().celebrated.has(`week:${last}`) || !weekQualifies(p, last)) return;
+  markCelebrated([`week:${last}`]);
+  const run = weekRun(p, last);
+  const tier = tierOfRun(run);
+  celebrate(tier, `Last week: ${TIER_TITLE[tier].toLowerCase()}`, run > 1 ? `${run} perfect weeks in a row` : "You had a very good week", "dayDone");
+}
+
+/** New trophies get a celebration; on the very first run they're just put on the shelf. */
+export function checkTrophies() {
+  const today = todayLocal();
+  const { p, from } = prepared(today);
+  const earned = earnedTrophies(p, from, allTime(today));
+  const keys = [...earned].map((t) => `trophy:${t}`);
+  const first = !useProgress.getState().celebrated.has("init:v1");
+  const fresh = markCelebrated(first ? [...keys, "init:v1"] : keys).filter((k) => k.startsWith("trophy:"));
+  if (first || !fresh.length) return;
+  const names = fresh.map((k) => TROPHIES.find((t) => `trophy:${t.id}` === k)?.name ?? "").join(" · ");
+  // Usually a trophy arrives with its own perfect-day celebration: add it to that one.
+  const cur = useCelebration.getState().current;
+  if (cur) useCelebration.setState({ current: { ...cur, detail: `${cur.detail}\n🏆 ${names}` } });
+  else celebrate("day", "Trophy unlocked!", names, "streak");
+}
+
+export function allTime(today: LocalDate) {
+  const tasks = Object.values(useData.getState().tasks);
+  const { habits, checkins } = useHabits.getState();
+  const ws = useSettings.getState().settings.weekStart;
+  return {
+    doneTasks: tasks.filter((t) => !t.deletedAt && t.status === "done").length,
+    focusMinutes: Object.values(useFocus.getState().sessions).reduce((n, s) => n + s.seconds / 60, 0),
+    bestHabitDays: Math.max(0, ...Object.values(habits).map((h) => ((s) => (s.unit === "day" ? s.count : 0))(bestStreak(h, valuesOf(checkins[h.id]), today, ws)))),
+  };
+}
+
+/** Perfect days in a row, for the Today flame. */
+export const perfectRun = () => dayRun(prepared().p);
+
+/** Earned trophies, for the Statistics shelf. */
+export function trophiesEarned(): Set<TrophyId> {
+  const today = todayLocal();
+  const { p, from } = prepared(today);
+  return earnedTrophies(p, from, allTime(today));
+}
+
+let lastTaskSound = 0;
+/** A task was completed (from anywhere: row, keyboard, reminder popup). */
+export function onTaskDone() {
+  // Completing several at once plays one sound, not a chord.
+  if (Date.now() - lastTaskSound > 150) playEvent("task");
+  lastTaskSound = Date.now();
+  queueCheck();
+}
+
+/** A habit check-in went up. */
+export function onCheckin(h: Habit, date: LocalDate, before: number, after: number) {
+  playEvent("habit");
+  const today = todayLocal();
+  if (date === today && !isDone(h, before) && isDone(h, after)) {
+    const { checkins } = useHabits.getState();
+    const s = currentStreak(h, valuesOf(checkins[h.id]), today, useSettings.getState().settings.weekStart);
+    const hit = STREAK_MILESTONES.find((m) => m === s.count);
+    if (s.unit === "day" && hit && markCelebrated([`streak:${h.id}:${hit}:${today}`]).length) celebrate("day", `${hit}-day streak!`, h.name, "streak");
+  }
+  queueCheck();
+}
+
+/** Reaching the long break in the focus timer. */
+export const onLongBreak = () => celebrate("day", "Long break earned!", "A full set of focus rounds. Stretch, breathe, hydrate.", "longBreak");
+
+// Runs after the store update settles, and once for a burst of completions.
+let queued = false;
+function queueCheck() {
+  if (queued) return;
+  queued = true;
+  setTimeout(() => {
+    queued = false;
+    if (!useProgress.getState().ready) return;
+    checkToday();
+    checkLastWeek();
+    checkTrophies();
+  }, 50);
+}

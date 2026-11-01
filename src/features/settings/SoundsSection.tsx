@@ -6,7 +6,7 @@ import { Line, Switch } from "./NotificationSection";
 
 const EVENTS: [SoundEvent, string, string][] = [
   ["task", "Task completed", "Each time you tick a task off"],
-  ["habit", "Habit checked in", "Each check-in on the Habits page"],
+  ["habit", "Habit checked in", "Each time a habit gets a check-in"],
   ["streak", "Habit streak milestone", "7, 30, 100 and 365 days in a row"],
   ["dayDone", "All done today", "Perfect days, weeks, months and years"],
   ["focusEnd", "Focus timer ends", "Plays three times, like an alarm"],

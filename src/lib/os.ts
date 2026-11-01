@@ -10,14 +10,15 @@ import { accentForeground } from "../domain/color";
 import { todayLocal } from "../domain/dates";
 import type { NotifySettings } from "../domain/types";
 import { isDone, targetOf } from "../domain/habits";
-import { checkinOf, setCheckin, useHabits } from "../stores/habits";
+import { checkinOf, setCheckin, setCheckinHandler, useHabits } from "../stores/habits";
 import { setPhaseEndHandler, tickFocus } from "../stores/focus";
 import { useSettings } from "../stores/settings";
 import { go, openEvent, openTask, toast } from "../stores/ui";
 import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderScheduler";
 import { checkForUpdate } from "./updater";
 import { playEvent, playSound } from "./sounds";
-import { setStatus, useData } from "../stores/data";
+import { checkLastWeek, checkTrophies, onCheckin, onLongBreak, onTaskDone } from "./celebrate";
+import { setDoneHandler, setStatus, useData } from "../stores/data";
 
 export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
 export type ReminderAction = { dto: ReminderDTO; action: "done" | "open" | "dismiss" } | { dto: ReminderDTO; action: "snooze"; minutes: number };
@@ -96,10 +97,17 @@ async function appIconPng(accent: string): Promise<Uint8Array> {
 
 export async function initOs() {
   setInterval(tickFocus, 1000);
+  setDoneHandler(onTaskDone);
+  setCheckinHandler(onCheckin);
+  // A week that just ended, and trophies earned from history (silently, the first time).
+  setTimeout(() => {
+    checkTrophies();
+    checkLastWeek();
+  }, 1500);
   // A phase ending is an alarm, so it rings and shows in-app even with notifications off.
   setPhaseEndHandler((_, next) => {
     const n = notifySettings();
-    if (next === "long") playEvent("longBreak", 2);
+    if (next === "long") onLongBreak();
     else playEvent("focusEnd", 3);
     toast(`Timer done · ${focusPhaseLabel(next)}`);
     flashTaskbar();
