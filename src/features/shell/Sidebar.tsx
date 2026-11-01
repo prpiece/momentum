@@ -285,7 +285,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside aria-label="Navigation" className={`flex shrink-0 flex-col py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease)] ${collapsed ? "w-[4.25rem]" : "w-64"}`}>
+    <aside aria-label="Navigation" className={`flex shrink-0 flex-col py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease)] ${collapsed ? "w-[calc(2.5rem+18px)]" : "w-64"}`}>
       <div data-tauri-drag-region className={`flex h-10 select-none items-center px-3 ${collapsed ? "justify-center" : "justify-between"}`}>
         {!collapsed && (
           <div className="pointer-events-none flex items-center gap-2.5 px-1">
