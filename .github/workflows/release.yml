@@ -62,6 +62,17 @@ jobs:
 
       - run: npm ci
 
+      # The tag's section of CHANGELOG.md tops the release notes; the app's "What's new" shows it (PLAN D66).
+      - name: Release notes from CHANGELOG.md
+        id: notes
+        shell: bash
+        run: |
+          {
+            echo "body<<NOTES_EOF"
+            awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -72,6 +83,10 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Momentum ${{ github.ref_name }}"
           releaseBody: |
+            ${{ steps.notes.outputs.body }}
+
+            ---
+
             Download the installer for your platform below.
 
             **Windows:** `Momentum_x.y.z_x64-setup.exe` (or the `.msi`). The build isn't code-signed, so Windows SmartScreen may say "Windows protected your PC". Click **More info → Run anyway**.

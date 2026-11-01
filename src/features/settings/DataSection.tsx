@@ -1,9 +1,10 @@
 import { CalendarPlus, Download, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Logo } from "../../components/Logo";
 import { isTauri } from "../../db/client";
 import { exportBackup, importIcs, pickFile, readBackup, restoreBackup } from "../../db/backup";
 import { ACCENT_PRESETS } from "../../domain/color";
+import { useAppVersion } from "../../lib/updater";
 import { confirm, toast } from "../../stores/ui";
 
 const btn = "flex h-9 items-center gap-2 rounded-sm border border-border px-3 text-sm hover:bg-hover disabled:opacity-50";
@@ -70,11 +71,7 @@ export function DataSection() {
 }
 
 export function AboutSection() {
-  const [version, setVersion] = useState("0.1.0");
-  useEffect(() => {
-    if (!isTauri) return;
-    void import("@tauri-apps/api/app").then(({ getVersion }) => getVersion().then(setVersion));
-  }, []);
+  const version = useAppVersion() ?? "dev";
   return (
     <div className="flex items-center gap-4">
       <Logo size={48} />

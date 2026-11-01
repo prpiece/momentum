@@ -101,6 +101,7 @@ npm run tauri build    # installers → src-tauri/target/release/bundle/
 ## Cutting a release
 
 1. Bump the version in `package.json` and `src-tauri/tauri.conf.json` (and `src-tauri/Cargo.toml`).
+   Add a `## vX.Y.Z` section to `CHANGELOG.md`: it tops the release notes and the app's "What's new" card.
 2. Commit, then tag and push:
    ```bash
    git tag v0.2.0

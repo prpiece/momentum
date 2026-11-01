@@ -13,7 +13,7 @@ Offline, local-first desktop planner: Tauri 2 (Rust) + React/TS/Vite + Tailwind 
 - Schema changes: add `src-tauri/migrations/NNNN_name.sql` and register it in `migrations()` in `src-tauri/src/lib.rs`. Never edit a migration that has already been applied, because sqlx checksums them.
 
 ## Releases
-Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, then push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds a draft release (Windows first, then macOS and Linux), signed for the updater with the `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` secrets. Installed apps only see it once the draft is published (PLAN D59).
+Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, add a `## vX.Y.Z` section to `CHANGELOG.md` (it becomes the release notes and the in-app "What's new", PLAN D66), then push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds a draft release (Windows first, then macOS and Linux), signed for the updater with the `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` secrets. Installed apps only see it once the draft is published (PLAN D59).
 
 ## Gotchas
 - **Restart race in `tauri dev`:** editing `src-tauri/` (Rust, migrations, icons) makes `tauri dev` restart the app. The new process can fail with WebView2 `0x800700AA` ("resource in use") while the old one still holds the profile. Just run it again. Release builds are unaffected.

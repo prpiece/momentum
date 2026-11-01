@@ -3,6 +3,8 @@ import { ListGlyph } from "./components/ui/AppIcon";
 import { ContextMenu } from "./components/ui/ContextMenu";
 import { EmptyState } from "./components/ui/EmptyState";
 import { Toaster } from "./components/ui/Toaster";
+import { CelebrationOverlay } from "./features/celebrate/CelebrationOverlay";
+import { WhatsNew } from "./features/shell/WhatsNew";
 import { onWriteError } from "./db/client";
 import type { ViewId } from "./domain/types";
 import { CalendarView } from "./features/calendar/CalendarView";
@@ -95,6 +97,8 @@ export default function App() {
       <ContextMenu />
       <Welcome />
       <Toaster />
+      <CelebrationOverlay />
+      <WhatsNew />
     </DndRoot>
   );
 }
