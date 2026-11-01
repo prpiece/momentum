@@ -133,7 +133,7 @@ export function NotificationSection() {
                   ))}
                 </div>
               </Line>
-              <Line title="Chime" hint="A soft two-note sound with each popup.">
+              <Line title="Chime" hint="A soft two-note sound with each popup, and an alarm when a focus timer ends.">
                 <Switch checked={n.sound} onChange={(sound) => set({ sound })} label="Chime" />
               </Line>
             </>

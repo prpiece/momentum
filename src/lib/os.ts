@@ -54,14 +54,14 @@ async function showMain() {
   await w.setFocus();
 }
 
-/** A short two-note chime (Web Audio, so no sound file ships with the app). */
-function chime() {
+/** A short two-note chime (Web Audio, so no sound file ships with the app); `rounds` > 1 makes an alarm. */
+function chime(rounds = 1) {
   try {
     const ctx = new AudioContext();
-    [880, 1318.5].forEach((f, i) => {
+    Array.from({ length: rounds }, () => [880, 1318.5]).flat().forEach((f, i) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
-      const t = ctx.currentTime + i * 0.14;
+      const t = ctx.currentTime + Math.floor(i / 2) * 0.7 + (i % 2) * 0.14;
       o.frequency.value = f;
       o.type = "sine";
       g.gain.setValueAtTime(0, t);
@@ -71,7 +71,7 @@ function chime() {
       o.start(t);
       o.stop(t + 0.65);
     });
-    setTimeout(() => void ctx.close(), 1200);
+    setTimeout(() => void ctx.close(), rounds * 700 + 500);
   } catch {
     // No audio device: notifications still show.
   }
@@ -86,6 +86,8 @@ let deliver = (dto: ReminderDTO) => {
 };
 /** Simple one-line notices (focus phases, quick add), gated by their own setting. */
 let notice = (title: string, body: string) => toast(`${title} · ${body}`);
+/** Flashes the taskbar button. Set once Tauri is up. */
+let flashTaskbar = () => {};
 
 /** Settings → Notifications → "Send a test". */
 export function testNotification() {
@@ -116,11 +118,18 @@ async function appIconPng(accent: string): Promise<Uint8Array> {
 
 export async function initOs() {
   setInterval(tickFocus, 1000);
-  setPhaseEndHandler((_, next) => notifySettings().enabled && notifySettings().focus && notice("Momentum focus", focusPhaseLabel(next)));
+  // A phase ending is an alarm, so it rings and shows in-app even with notifications off.
+  setPhaseEndHandler((_, next) => {
+    const n = notifySettings();
+    if (n.sound) chime(3);
+    toast(`Timer done · ${focusPhaseLabel(next)}`);
+    flashTaskbar();
+    if (isTauri && n.enabled && n.focus) notice("Momentum focus", focusPhaseLabel(next));
+  });
 
   if (!isTauri) return startReminders((r) => deliver(r));
 
-  const [{ listen, emit }, { Window, getCurrentWindow }, { TrayIcon }, notif, shortcut, autostart, { invoke }] = await Promise.all([
+  const [{ listen, emit }, { Window, getCurrentWindow, UserAttentionType }, { TrayIcon }, notif, shortcut, autostart, { invoke }] = await Promise.all([
     import("@tauri-apps/api/event"),
     import("@tauri-apps/api/window"),
     import("@tauri-apps/api/tray"),
@@ -138,6 +147,7 @@ export async function initOs() {
     if (canNotify) notif.sendNotification({ title, body });
   };
   notice = (title, body) => osNotify(title, body);
+  flashTaskbar = () => void getCurrentWindow().requestUserAttention(UserAttentionType.Critical).catch(() => undefined);
 
   // --- reminder popup ------------------------------------------------------
   // Native toasts on Windows have no action buttons through the plugin, so a small always-on-top
