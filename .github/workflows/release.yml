@@ -69,7 +69,7 @@ jobs:
         run: |
           {
             echo "body<<NOTES_EOF"
-            awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md
+            awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag { on = 1; next } /^## / { on = 0 } on && !/^ *!\[/' CHANGELOG.md
             echo "NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
 

@@ -4,6 +4,7 @@ import { ContextMenu } from "./components/ui/ContextMenu";
 import { EmptyState } from "./components/ui/EmptyState";
 import { Toaster } from "./components/ui/Toaster";
 import { CelebrationOverlay } from "./features/celebrate/CelebrationOverlay";
+import { UpdatePrompt } from "./features/shell/UpdatePrompt";
 import { WhatsNew } from "./features/shell/WhatsNew";
 import { onWriteError } from "./db/client";
 import type { ViewId } from "./domain/types";
@@ -99,6 +100,7 @@ export default function App() {
       <Toaster />
       <CelebrationOverlay />
       <WhatsNew />
+      <UpdatePrompt />
     </DndRoot>
   );
 }

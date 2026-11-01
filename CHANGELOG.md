@@ -1,6 +1,14 @@
 # Changelog
 
-Each release's section becomes the top of its GitHub release notes and the in-app "What's new" card.
+Each release's section becomes the top of its GitHub release notes and the in-app "What's new" (PLAN D66, D67).
+Each top-level bullet is one item. For a bigger release, give items a screenshot on an indented line under the bullet,
+`  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
+step-by-step tour. Screenshot lines are left out of the GitHub notes.
+
+## v0.4.1
+
+- **Updates pop up.** When a new version is out, Momentum asks in a dialog instead of a small message at the bottom.
+- **What's new tour.** After an update, Momentum walks you through what changed, with screenshots for bigger releases.
 
 ## v0.4.0
 

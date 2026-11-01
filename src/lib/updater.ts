@@ -3,6 +3,8 @@ import { create } from "zustand";
 import { isTauri } from "../db/client";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { toast } from "../stores/ui";
+import { changelogSection } from "../domain/changelog";
+import changelog from "../../CHANGELOG.md?raw";
 
 export type UpdateStatus =
   | { kind: "idle" }
@@ -13,7 +15,9 @@ export type UpdateStatus =
   | { kind: "error"; message: string };
 
 const CHECKED_KEY = "momentum:update-checked";
-const WHATS_NEW_KEY = "momentum:whats-new";
+/** Written by v0.4.0 before installing an update; read once so that update still gets its "What's new". */
+const LEGACY_WHATS_NEW_KEY = "momentum:whats-new";
+const SEEN_KEY = "momentum:seen-version";
 
 const readChecked = () => {
   try {
@@ -23,8 +27,8 @@ const readChecked = () => {
   }
 };
 
-/** Settings → Updates reads this; the launch check also toasts when there's news. */
-export const useUpdate = create<{ status: UpdateStatus; checkedAt: string | null }>(() => ({ status: { kind: "idle" }, checkedAt: readChecked() }));
+/** Settings → Updates reads this. `prompt` opens the update dialog when the launch check finds a release. */
+export const useUpdate = create<{ status: UpdateStatus; checkedAt: string | null; prompt: boolean }>(() => ({ status: { kind: "idle" }, checkedAt: readChecked(), prompt: false }));
 const set = useUpdate.setState;
 
 /** The release notes above the "---" line: the CHANGELOG.md section (D66). The rest is install help. */
@@ -59,7 +63,7 @@ export async function checkForUpdate(manual = false) {
     }
     pending = update;
     set({ status: { kind: "available", version: update.version, notes: releaseNotes(update.body) } });
-    if (!manual) toast(`Momentum ${update.version} is available.`, { label: "Update and restart", run: () => void installUpdate() }, 30_000);
+    if (!manual) set({ prompt: true });
   } catch (err) {
     console.error("Update check failed", err);
     set({ status: { kind: "error", message: "Couldn't reach GitHub to check for updates." } });
@@ -67,15 +71,12 @@ export async function checkForUpdate(manual = false) {
   }
 }
 
-/** Downloads, installs and restarts. The notes are kept for the "What's new" card after the restart. */
+export const dismissUpdatePrompt = () => set({ prompt: false });
+
+/** Downloads, installs and restarts. The new version's own CHANGELOG.md has the "What's new". */
 export async function installUpdate() {
   const update = pending;
   if (!update) return;
-  try {
-    localStorage.setItem(WHATS_NEW_KEY, JSON.stringify({ version: update.version, notes: releaseNotes(update.body) }));
-  } catch {
-    // No "What's new" card then; the update itself still installs.
-  }
   let total = 0;
   let got = 0;
   set({ status: { kind: "downloading", version: update.version, progress: null } });
@@ -104,16 +105,18 @@ export function useAppVersion(): string | null {
   return version;
 }
 
-/** The notes saved before the last update, once, if that version is the one now running. */
-export function takeWhatsNew(currentVersion: string): { version: string; notes: string } | null {
+/**
+ * The running version's CHANGELOG.md section, once, when it differs from the version seen last time.
+ * A fresh install just records its version.
+ */
+export function takeWhatsNew(currentVersion: string): string | null {
   try {
-    const raw = localStorage.getItem(WHATS_NEW_KEY);
-    if (!raw) return null;
-    localStorage.removeItem(WHATS_NEW_KEY);
-    const v: unknown = JSON.parse(raw);
-    if (typeof v !== "object" || v === null || !("version" in v) || !("notes" in v)) return null;
-    const { version, notes } = v;
-    return typeof version === "string" && typeof notes === "string" && version === currentVersion && notes ? { version, notes } : null;
+    const seen = localStorage.getItem(SEEN_KEY);
+    const legacy = localStorage.getItem(LEGACY_WHATS_NEW_KEY);
+    localStorage.setItem(SEEN_KEY, currentVersion);
+    localStorage.removeItem(LEGACY_WHATS_NEW_KEY);
+    const updated = (seen !== null && seen !== currentVersion) || legacy !== null;
+    return updated ? changelogSection(changelog, currentVersion) : null;
   } catch {
     return null;
   }
