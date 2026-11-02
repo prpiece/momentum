@@ -137,9 +137,9 @@ function NavItem(props: {
 const icon = (I: LucideIcon) => <I size={18} strokeWidth={1.9} />;
 const listIcon = (l: TaskList) => <ListGlyph icon={l.icon} color={l.color} size={17} />;
 
-function SectionHeader({ label, open, onToggle, actions }: { label: string; open: boolean; onToggle: () => void; actions?: ReactNode }) {
+function SectionHeader({ label, open, onToggle, actions, tour }: { label: string; open: boolean; onToggle: () => void; actions?: ReactNode; tour?: string }) {
   return (
-    <div className="group/sec mt-4 flex h-7 items-center px-2">
+    <div data-tour={tour} className="group/sec mt-4 flex h-7 items-center px-2">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex flex-1 items-center gap-1 text-[0.7rem] font-semibold uppercase tracking-wider text-muted hover:text-fg">
         <ChevronRight size={12} className={`transition-transform duration-[var(--dur)] ${open ? "rotate-90" : ""}`} />
         {label}
@@ -305,7 +305,7 @@ export function Sidebar() {
       </div>
 
       {!collapsed && (
-        <button type="button" onClick={() => setPalette(true)} className="mx-3 mt-2 flex h-9 items-center gap-2 rounded-sm border border-border bg-surface px-3 text-sm text-muted transition-colors hover:border-accent hover:text-fg">
+        <button type="button" data-tour="search" onClick={() => setPalette(true)} className="mx-3 mt-2 flex h-9 items-center gap-2 rounded-sm border border-border bg-surface px-3 text-sm text-muted transition-colors hover:border-accent hover:text-fg">
           <Search size={15} />
           <span className="flex-1 text-left">Search</span>
           <kbd className="rounded border border-border px-1.5 font-mono text-[0.65rem]">Ctrl K</kbd>
@@ -313,7 +313,7 @@ export function Sidebar() {
       )}
 
       <nav className="scroll-thin mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2">
-        <ul className="space-y-0.5">
+        <ul data-tour="nav" className="space-y-0.5">
           {SIDEBAR_SMART_NAV.map((n) => (
             <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} count={counts.smart[n.id] || undefined} drop={smartDrop[n.id]} />
           ))}
@@ -371,6 +371,7 @@ export function Sidebar() {
             )}
 
             <SectionHeader
+              tour="lists"
               label="Lists"
               open={openSec.lists}
               onToggle={() => setOpenSec({ ...openSec, lists: !openSec.lists })}
@@ -408,7 +409,7 @@ export function Sidebar() {
         )}
       </nav>
 
-      <ul className="px-2 pt-2">
+      <ul data-tour="settings" className="px-2 pt-2">
         <NavItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={icon(SETTINGS_NAV.icon)} collapsed={collapsed} side={side} />
       </ul>
       {editList && <ListDialog list={editList} onClose={() => setEditList(null)} />}

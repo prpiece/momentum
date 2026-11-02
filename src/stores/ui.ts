@@ -31,8 +31,8 @@ type UiStore = {
   /** Calendar showing a day range dragged out on the mini month (days from calAnchor); null = the view's own range. */
   calSpan: number | null;
   contextMenu: { x: number; y: number; items: MenuEntry[] } | null;
-  /** Welcome tour reopened from Settings (first run is driven by settings.onboarded). */
-  welcomeOpen: boolean;
+  /** Guided tour reopened from Settings (first run is driven by settings.onboarded). */
+  tourOpen: boolean;
   /** Filter-bar query per task view (session-only). */
   filters: Partial<Record<ViewId, string>>;
 };
@@ -51,7 +51,7 @@ export const useUi = create<UiStore>(() => ({
   eventDialog: null,
   calSpan: null,
   contextMenu: null,
-  welcomeOpen: false,
+  tourOpen: false,
   filters: {},
 }));
 const set = useUi.setState;

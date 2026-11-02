@@ -112,7 +112,7 @@ export function useGlobalShortcuts() {
       }
       if (mod || e.altKey) return;
       const ui = useUi.getState();
-      if (ui.paletteOpen || ui.scopeAsk || ui.confirmAsk || ui.shortcutsOpen || ui.welcomeOpen || !useSettings.getState().settings.onboarded) return;
+      if (ui.paletteOpen || ui.scopeAsk || ui.confirmAsk || ui.shortcutsOpen || ui.tourOpen || !useSettings.getState().settings.onboarded) return;
 
       const key = e.key.toLowerCase();
       if (Date.now() - gPressedAt < G_WINDOW_MS) {

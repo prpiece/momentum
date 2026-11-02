@@ -68,7 +68,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col" style={tint}>
-      <div className="flex items-center gap-1 px-6 pb-3 pt-1">
+      <div data-tour="toolbar" className="flex items-center gap-1 px-6 pb-3 pt-1">
         <span className="mr-2 shrink-0 font-mono text-sm text-muted">{openCount} open</span>
         <FilterBar view={spec.id} />
         <div className="flex-1" />
@@ -123,7 +123,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
       </div>
 
       {spec.canAdd && layout !== "kanban" && (
-        <div className="px-4 pb-2">
+        <div data-tour="quickadd" className="px-4 pb-2">
           <QuickAdd
             defaults={spec.defaults(today)}
             isVisible={(t) => {

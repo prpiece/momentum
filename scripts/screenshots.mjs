@@ -50,6 +50,13 @@ try {
   await shot("habits", view("dark", '"habits"'));
   await shot("focus", view("dark", '"focus"'));
   await shot("stats", view("dark", '"stats"'));
+  await shot("layout-topbar", view("dark", '"today"', 'set({ layout: "topbar" });'));
+  await shot("layout-dock", view("dark", '"calendar"', 'set({ layout: "dock", calendar: { ...s().calendar, view: "week" } });'));
+  // The guided tour on its quick-add step: restart it, then step forward.
+  await run(view("dark", '"today"', 'set({ layout: "classic", onboarded: false });'));
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await shot("tour", () => {});
 } finally {
   await browser.close();
   await server.close();

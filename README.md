@@ -31,6 +31,7 @@
 - Multi-select with <kbd>Ctrl</kbd>/<kbd>Shift</kbd>-click opens a bulk toolbar (complete, date, priority, move, tag, delete). There's undo for everything: a toast button or <kbd>Ctrl Z</kbd>.
 - <kbd>Ctrl K</kbd> command palette to search tasks, lists, tags and habits, or run commands.
 - Keyboard-first: <kbd>G</kbd> then a letter jumps to a view, <kbd>J</kbd>/<kbd>K</kbd> move between tasks, <kbd>1</kbd>–<kbd>3</kbd> set priority, <kbd>T</kbd> schedules for today, <kbd>C</kbd> completes, <kbd>/</kbd> filters. <kbd>?</kbd> lists them all.
+- A guided tour on first launch spotlights each part of the app with tips. Replay it from Settings → System.
 - Calm motion throughout. Settings → Animations follows your system setting, or turn it on or off.
 
 **Calendar**
@@ -58,7 +59,7 @@
 - Global <kbd>Ctrl Shift A</kbd> opens quick add from anywhere.
 - Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click. This is its only network request, and you can turn it off in Settings → System.
 
-**Design**: light, dark and system themes, 9 accent presets with Ocean blue as the default (the taskbar and tray icons take the same colour), comfortable or compact density, adjustable font size, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
+**Design**: four layouts (Classic sidebar, Flat edge-to-edge, Top bar, or a floating Dock), light, dark and system themes, 9 accent presets with Ocean blue as the default (the taskbar and tray icons take the same colour), comfortable or compact density, adjustable font size and zoom, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
 
 ## Screenshots
 
@@ -68,6 +69,8 @@
 | ![Calendar, light](docs/screenshots/calendar-light.png) | ![Month view](docs/screenshots/calendar-month.png) |
 | ![Eisenhower Matrix](docs/screenshots/matrix.png) | ![Habits](docs/screenshots/habits.png) |
 | ![Focus](docs/screenshots/focus.png) | ![Statistics](docs/screenshots/stats.png) |
+| ![Top bar layout](docs/screenshots/layout-topbar.png) | ![Dock layout](docs/screenshots/layout-dock.png) |
+| ![Guided tour](docs/screenshots/tour.png) | |
 
 ## Install
 

@@ -153,6 +153,9 @@ export const FONT_SIZES = ["sm", "md", "lg", "xl", "xxl"] as const;
 /** Whole-window zoom, as a webview zoom factor. */
 export const ZOOMS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75] as const;
 export const SIDES = ["left", "right"] as const;
+/** Window layouts (D68): floating sidebar card, edge-to-edge, navigation across the top, or a floating dock at the bottom. */
+export const LAYOUTS = ["classic", "flat", "topbar", "dock"] as const;
+export type Layout = (typeof LAYOUTS)[number];
 export const TIME_FORMATS = ["12h", "24h"] as const;
 /** date-fns weekStartsOn: Sunday, Monday, Saturday. */
 export const WEEK_STARTS = [0, 1, 6] as const;
@@ -196,6 +199,7 @@ export type Settings = {
   motion: (typeof MOTIONS)[number];
   fontSize: (typeof FONT_SIZES)[number];
   zoom: (typeof ZOOMS)[number];
+  layout: Layout;
   sidebarSide: (typeof SIDES)[number];
   sidebarCollapsed: boolean;
   /** The sidebar's "More" module group is expanded. */

@@ -21,7 +21,7 @@ describe("parseSettings", () => {
 
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
-      theme: "dark", accent: "#0e8a85", density: "compact", motion: "on", fontSize: "xxl", zoom: 1.25, sidebarSide: "right",
+      theme: "dark", accent: "#0e8a85", density: "compact", motion: "on", fontSize: "xxl", zoom: 1.25, layout: "dock", sidebarSide: "right",
       sidebarCollapsed: true, sidebarMoreOpen: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },

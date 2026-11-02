@@ -122,6 +122,8 @@
 }
 
 /* ---------- motion ---------- */
+/* The tour spotlight glides from one part of the app to the next (D69). */
+.tour-ring { transition: top 360ms var(--ease), left 360ms var(--ease), width 360ms var(--ease), height 360ms var(--ease), box-shadow 360ms var(--ease); }
 @keyframes pop {
   0% { transform: scale(0.6); }
   60% { transform: scale(1.15); }

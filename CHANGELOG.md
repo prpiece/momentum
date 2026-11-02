@@ -5,6 +5,15 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v0.5.0
+
+- **A guided tour.** Momentum now shows you around: it dims the app and walks you through each part, from quick add to the calendar, habits and focus timer, with tips along the way. Take it again any time from Settings → System.
+  ![The tour spotlighting quick add](whats-new/0.5.0/tour.png)
+- **Top bar layout.** Pick a new layout in Settings → Layout. Top bar puts navigation across the top and gives your tasks the full width.
+  ![The top bar layout](whats-new/0.5.0/topbar.png)
+- **Dock layout.** A floating dock at the bottom with every view one click away. There's also Flat, an edge-to-edge look, alongside the original Classic.
+  ![The dock layout](whats-new/0.5.0/dock.png)
+
 ## v0.4.1
 
 - **Updates pop up.** When a new version is out, Momentum asks in a dialog instead of a small message at the bottom.

@@ -6,7 +6,8 @@ import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
 import { UpdatesSection } from "./UpdatesSection";
 import { TagsSection } from "./TagsSection";
-import { openWelcome } from "../shell/Welcome";
+import { openTour } from "../shell/Tour";
+import { LayoutPicker } from "./LayoutPicker";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { ZOOMS, type Settings, type ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
@@ -168,18 +169,21 @@ export function SettingsView() {
       </Section>
 
       <Section title="Layout">
-        <Row label="Sidebar position">
-          <Segmented
-            name="sidebarSide"
-            label="Sidebar position"
-            value={s.sidebarSide}
-            onChange={set("sidebarSide")}
-            options={[
-              { value: "left", label: "Left" },
-              { value: "right", label: "Right" },
-            ]}
-          />
-        </Row>
+        <LayoutPicker />
+        {(s.layout === "classic" || s.layout === "flat") && (
+          <Row label="Sidebar position">
+            <Segmented
+              name="sidebarSide"
+              label="Sidebar position"
+              value={s.sidebarSide}
+              onChange={set("sidebarSide")}
+              options={[
+                { value: "left", label: "Left" },
+                { value: "right", label: "Right" },
+              ]}
+            />
+          </Row>
+        )}
         <Row label="Start view">
           <select
             value={s.defaultView}
@@ -254,9 +258,9 @@ export function SettingsView() {
         <Row label="Launch at login">
           <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text="Start minimized to the tray" />
         </Row>
-        <Row label="Welcome tour">
-          <button type="button" onClick={openWelcome} className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover">
-            Show the tour again
+        <Row label="Guided tour">
+          <button type="button" onClick={openTour} className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover">
+            Take the tour
           </button>
         </Row>
         <Row label="Global quick add">

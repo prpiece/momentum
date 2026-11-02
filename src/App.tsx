@@ -7,7 +7,7 @@ import { CelebrationOverlay } from "./features/celebrate/CelebrationOverlay";
 import { UpdatePrompt } from "./features/shell/UpdatePrompt";
 import { WhatsNew } from "./features/shell/WhatsNew";
 import { onWriteError } from "./db/client";
-import type { ViewId } from "./domain/types";
+import type { Layout, ViewId } from "./domain/types";
 import { CalendarView } from "./features/calendar/CalendarView";
 import { EventDialog } from "./features/calendar/EventDialog";
 import { CountdownView } from "./features/countdown/CountdownView";
@@ -19,8 +19,9 @@ import { SettingsView } from "./features/settings/SettingsView";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dialogs";
 import { navFor } from "./features/shell/nav";
+import { NavBar } from "./features/shell/NavBar";
 import { Sidebar } from "./features/shell/Sidebar";
-import { Welcome } from "./features/shell/Welcome";
+import { Tour } from "./features/shell/Tour";
 import { WindowControls } from "./features/shell/WindowControls";
 import { TaskDrawer } from "./features/tasks/TaskDrawer";
 import { TaskView } from "./features/tasks/TaskView";
@@ -32,6 +33,14 @@ import { useData } from "./stores/data";
 import { useSettings } from "./stores/settings";
 import { toast, useUi } from "./stores/ui";
 
+
+/** The content card's frame per layout (D68). Flat runs edge to edge with one divider. */
+const MAIN: Record<Layout, string> = {
+  classic: "my-2 rounded-lg border border-border shadow-sm",
+  flat: "border-border",
+  topbar: "mx-2 mb-2 rounded-lg border border-border shadow-sm",
+  dock: "m-2 rounded-lg border border-border shadow-sm",
+};
 
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
@@ -50,7 +59,7 @@ function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   );
 }
 
-function Header({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
+function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | null; controls: boolean }) {
   const nav = navFor(view);
   const Icon = spec?.icon ?? nav.icon;
   return (
@@ -62,7 +71,8 @@ function Header({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
         <Icon size={20} className="text-accent" style={spec?.list?.color ? { color: spec.list.color } : undefined} />
       )}
       <h1 className="truncate text-lg font-semibold tracking-tight">{spec?.title ?? nav.label}</h1>
-      <WindowControls />
+      {/* The top bar layout has them in the bar. */}
+      {controls && <WindowControls />}
     </header>
   );
 }
@@ -72,6 +82,7 @@ export default function App() {
   useGlobalShortcuts();
   useEffect(() => onWriteError(() => toast("Couldn't save a change. It will be lost if you close the app.")), []);
   const side = useSettings((s) => s.settings.sidebarSide);
+  const layout = useSettings((s) => s.settings.layout);
   const view = useUi((s) => s.view);
   const lists = useData((s) => s.lists);
   const tags = useData((s) => s.tags);
@@ -80,14 +91,15 @@ export default function App() {
 
   return (
     <DndRoot>
-      <div className={`relative flex h-full ${side === "right" ? "flex-row-reverse" : ""}`}>
-        <Sidebar />
-        <main className={`relative my-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm ${side === "left" ? "mr-2" : "ml-2"}`}>
-          <Header view={view} spec={spec} />
+      <div className={`relative flex h-full ${layout === "topbar" || layout === "dock" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
+        {layout === "topbar" ? <NavBar variant="top" /> : layout !== "dock" && <Sidebar />}
+        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface ${MAIN[layout]} ${layout === "classic" ? (side === "left" ? "mr-2" : "ml-2") : layout === "flat" ? (side === "left" ? "border-l" : "border-r") : ""}`}>
+          <Header view={view} spec={spec} controls={layout !== "topbar"} />
           <div key={view} className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
             <View view={view} spec={spec} />
           </div>
         </main>
+        {layout === "dock" && <NavBar variant="dock" />}
         <TaskDrawer />
       </div>
       <CommandPalette />
@@ -96,7 +108,7 @@ export default function App() {
       <ConfirmDialog />
       <EventDialog />
       <ContextMenu />
-      <Welcome />
+      <Tour />
       <Toaster />
       <CelebrationOverlay />
       <WhatsNew />
