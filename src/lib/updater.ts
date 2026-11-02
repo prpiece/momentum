@@ -31,8 +31,15 @@ const readChecked = () => {
 export const useUpdate = create<{ status: UpdateStatus; checkedAt: string | null; prompt: boolean }>(() => ({ status: { kind: "idle" }, checkedAt: readChecked(), prompt: false }));
 const set = useUpdate.setState;
 
-/** The release notes above the "---" line: the CHANGELOG.md section (D66). The rest is install help. */
-export const releaseNotes = (body: string | undefined) => (body ?? "").split(/\n-{3,}\n/)[0].trim();
+/**
+ * The release notes above the "---" line: the CHANGELOG.md section (D66). The rest is install help.
+ * Screenshot lines are dropped: on GitHub they're remote images, and the app makes no other network calls.
+ */
+export const releaseNotes = (body: string | undefined) =>
+  (body ?? "")
+    .split(/\n-{3,}\n/)[0]
+    .replace(/^[ \t]*!\[[^\]]*\]\([^)]*\)[ \t]*\n?/gm, "")
+    .trim();
 
 let pending: Update | null = null;
 

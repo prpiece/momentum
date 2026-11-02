@@ -63,13 +63,16 @@ jobs:
       - run: npm ci
 
       # The tag's section of CHANGELOG.md tops the release notes; the app's "What's new" shows it (PLAN D66).
+      # Screenshots point at public/whats-new/ in the app; on GitHub they load from the tagged source.
       - name: Release notes from CHANGELOG.md
         id: notes
         shell: bash
         run: |
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/public/"
+          notes=$(awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md | sed "s#](whats-new/#](${raw}whats-new/#")
           {
             echo "body<<NOTES_EOF"
-            awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag { on = 1; next } /^## / { on = 0 } on && !/^ *!\[/' CHANGELOG.md
+            echo "$notes"
             echo "NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -87,11 +90,18 @@ jobs:
 
             ---
 
-            Download the installer for your platform below.
+            ### Install
 
-            **Windows:** `Momentum_x.y.z_x64-setup.exe` (or the `.msi`). The build isn't code-signed, so Windows SmartScreen may say "Windows protected your PC". Click **More info → Run anyway**.
-            **macOS:** the `.dmg` for your chip (aarch64 = Apple Silicon). Unsigned: right-click the app → Open the first time.
-            **Linux:** `.AppImage` or `.deb`.
+            Already have Momentum? It updates itself: you'll be asked when you next open it.
+
+            | Platform | Download |
+            |---|---|
+            | **Windows** | `Momentum___VERSION___x64-setup.exe` (or the `.msi`) |
+            | **macOS, Apple Silicon** | `Momentum___VERSION___aarch64.dmg` |
+            | **macOS, Intel** | `Momentum___VERSION___x64.dmg` |
+            | **Linux** | `.AppImage`, `.deb` or `.rpm` |
+
+            The installers aren't code-signed yet. On Windows, if SmartScreen says "Windows protected your PC", click **More info → Run anyway**. On macOS, right-click the app and choose **Open** the first time.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
