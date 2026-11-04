@@ -62,7 +62,7 @@ export function UpdatesSection() {
           <ReactMarkdown>{status.notes}</ReactMarkdown>
         </div>
       )}
-      <Line title="Check at launch" hint="The update check is Momentum's only network call.">
+      <Line title="Check at launch" hint="Apart from the optional voice model download, the update check is Momentum's only network call.">
         <Switch checked={checkUpdates} onChange={(v) => update({ checkUpdates: v })} label="Check for updates at launch" />
       </Line>
     </div>

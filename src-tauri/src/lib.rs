@@ -1,4 +1,5 @@
 mod files;
+mod voice;
 
 use std::{
     fs,
@@ -247,6 +248,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .manage(CloseToTray(AtomicBool::new(true)))
+        .manage(voice::Voice::default())
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
             write_text_file,
@@ -256,7 +258,14 @@ pub fn run() {
             files::import_image,
             files::write_image,
             files::list_images,
-            files::delete_image
+            files::delete_image,
+            voice::voice_model_status,
+            voice::voice_download,
+            voice::voice_cancel_download,
+            voice::voice_remove,
+            voice::voice_start,
+            voice::voice_stop,
+            voice::voice_cancel
         ])
         // Closing the main window either hides it to the tray or quits the whole app. The hidden
         // popup windows would otherwise keep the process alive with no way back in.

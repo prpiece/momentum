@@ -5,6 +5,8 @@ import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
 import { UpdatesSection } from "./UpdatesSection";
+import { VoiceSection } from "./VoiceSection";
+import { VOICE_SECTION_ID } from "../../lib/voice";
 import { TagsSection } from "./TagsSection";
 import { openTour } from "../shell/Tour";
 import { LayoutPicker } from "./LayoutPicker";
@@ -19,9 +21,9 @@ import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/ui";
 import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (
-    <section className="rounded-md border border-border bg-surface-2 p-5 shadow-sm">
+    <section id={id} className="scroll-mt-4 rounded-md border border-border bg-surface-2 p-5 shadow-sm">
       <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted">{title}</h2>
       <div className="space-y-4">{children}</div>
     </section>
@@ -269,8 +271,16 @@ export function SettingsView() {
           </button>
         </Row>
         <Row label="Global quick add">
-          <ShortcutInput value={s.quickAddShortcut} onChange={(v) => update({ quickAddShortcut: v })} />
+          <ShortcutInput value={s.quickAddShortcut} onChange={(v) => (v === s.voiceShortcut ? toast("That shortcut is already push-to-talk.") : update({ quickAddShortcut: v }))} />
         </Row>
+      </Section>
+
+      <Section title="Voice" id={VOICE_SECTION_ID}>
+        <VoiceSection />
+        <Row label="Push to talk">
+          <ShortcutInput value={s.voiceShortcut} onChange={(v) => (v === s.quickAddShortcut ? toast("That shortcut already opens quick add.") : update({ voiceShortcut: v }))} />
+        </Row>
+        <p className="text-xs text-muted">Hold the shortcut, say a task, let go, then press Enter. Or say “start focus”, “stop focus”, “open today”, “open matrix” or “open calendar”.</p>
       </Section>
 
 

@@ -77,6 +77,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   onboarded: false,
   quickAddShortcut: "CommandOrControl+Shift+A",
+  voiceShortcut: "CommandOrControl+Alt+Space",
   pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, cycles: { kind: "infinite" } },
 };
 
@@ -194,6 +195,8 @@ function parsePomodoro(raw: unknown): Settings["pomodoro"] {
   return { focusMin: int(r.focusMin, 1, 180, d.focusMin), shortMin: int(r.shortMin, 1, 60, d.shortMin), longMin: int(r.longMin, 1, 90, d.longMin), longEvery: int(r.longEvery, 2, 12, d.longEvery), cycles: parseCycles(r.cycles) };
 }
 
+const accelerator = (v: unknown, fallback: string) => (typeof v === "string" && /^[\w+]+$/.test(v) ? v : fallback);
+
 /** Boundary parser: anything from disk or an import file becomes a valid Settings, field by field. */
 export function parseSettings(raw: unknown): Settings {
   const r = isRecord(raw) ? raw : {};
@@ -225,7 +228,8 @@ export function parseSettings(raw: unknown): Settings {
     notify: parseNotify(r.notify, r.notifications),
     sounds: parseSounds(r.sounds),
     onboarded: r.onboarded === true,
-    quickAddShortcut: typeof r.quickAddShortcut === "string" && /^[\w+]+$/.test(r.quickAddShortcut) ? r.quickAddShortcut : d.quickAddShortcut,
+    quickAddShortcut: accelerator(r.quickAddShortcut, d.quickAddShortcut),
+    voiceShortcut: ((v) => (v === accelerator(r.quickAddShortcut, d.quickAddShortcut) ? d.voiceShortcut : v))(accelerator(r.voiceShortcut, d.voiceShortcut)),
     pomodoro: parsePomodoro(r.pomodoro),
   };
 }
