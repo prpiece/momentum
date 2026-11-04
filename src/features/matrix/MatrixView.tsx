@@ -78,7 +78,7 @@ function QuadrantPanel({ q, items }: { q: Quadrant; items: TaskVM[] }) {
       ref={setNodeRef}
       aria-label={info.title}
       className={`flex min-h-0 flex-col rounded-lg border bg-surface-2 shadow-sm transition-colors duration-[var(--dur)] ${isOver ? "border-accent bg-accent-soft" : "border-border"}`}
-      style={{ borderTopColor: TONE[q], borderTopWidth: 3, ...(isOver ? {} : { backgroundColor: `color-mix(in oklch, ${TONE[q]} 7%, var(--surface-2))` }) }}
+      style={{ borderTopColor: TONE[q], borderTopWidth: 3, ...(isOver ? {} : { backgroundColor: `color-mix(in srgb, ${TONE[q]} 7%, var(--surface-2))` }) }}
     >
       <header className="flex items-baseline gap-2 px-4 pb-2 pt-3">
         <span className="grid size-5 place-items-center rounded-full font-mono text-[0.7rem] font-bold" style={{ background: TONE[q], color: "var(--q-on)" }}>
