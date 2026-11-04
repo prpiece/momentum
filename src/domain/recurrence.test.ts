@@ -1,8 +1,17 @@
 /// <reference types="node" />
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { atLocalTime, durationMinutes, timed, wallKey } from "./dates";
-import { describeRule, detachOccurrence, effective, nextOccurrence, occurrencesBetween, shiftAnchor, splitSeries } from "./recurrence";
+import { describeRule, detachOccurrence, effective, nextOccurrence, occurrencesBetween, shiftAnchor, splitSeries, summarizeSchedule } from "./recurrence";
 import type { Schedule, Task } from "./types";
+
+describe("summarizeSchedule", () => {
+  it("summarises date, time and repeat", () => {
+    expect(summarizeSchedule({ kind: "none" }, null)).toBe("No date");
+    expect(summarizeSchedule({ kind: "day", date: "2024-11-05" }, null)).toBe("Tue 5 Nov");
+    expect(summarizeSchedule(timed(atLocalTime("2024-11-05", "09:00"), 60), "FREQ=WEEKLY")).toBe("Tue 5 Nov · 09:00 · Weekly");
+    expect(summarizeSchedule({ kind: "day", date: "2024-11-05" }, "FREQ=DAILY;INTERVAL=3")).toMatch(/^Tue 5 Nov · Every 3 days/);
+  });
+});
 
 // TZ=America/New_York (vite.config.ts). DST 2026: Mar 8 spring forward, Nov 1 fall back.
 
