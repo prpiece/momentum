@@ -13,7 +13,10 @@ import { todayLocal } from "../domain/dates";
 import type { NotifySettings } from "../domain/types";
 import { isDone, targetOf } from "../domain/habits";
 import { checkinOf, setCheckin, setCheckinHandler, useHabits } from "../stores/habits";
-import { setPhaseEndHandler, tickFocus } from "../stores/focus";
+import { buildSnapshot, parseMiniAction } from "../domain/mini";
+import { toggleDone } from "../features/tasks/actions";
+import { derive } from "../features/tasks/selectors";
+import { pauseFocus, resumeFocus, setPhaseEndHandler, skipPhase, startFocus, tickFocus, useFocus } from "../stores/focus";
 import { useSettings } from "../stores/settings";
 import { go, openEvent, openTask, toast, useUi } from "../stores/ui";
 import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderScheduler";
@@ -171,22 +174,63 @@ export async function initOs() {
     const { view, calAnchor } = useUi.getState();
     void showQuickAdd(contextForView(view, useData.getState().lists, calAnchor));
   });
-  let bound: string | null = null;
-  const bindShortcut = async (accel: string) => {
-    if (bound) await shortcut.unregister(bound).catch(() => undefined);
-    bound = null;
+  const bound = new Map<string, string>();
+  const bindShortcut = async (slot: string, accel: string, run: () => void) => {
+    const prev = bound.get(slot);
+    if (prev) await shortcut.unregister(prev).catch(() => undefined);
+    bound.delete(slot);
     try {
       await shortcut.register(accel, (e) => {
-        if (e.state === "Pressed") void showQuickAdd(null);
+        if (e.state === "Pressed") run();
       });
-      bound = accel;
+      bound.set(slot, accel);
     } catch (err) {
       console.error("Global shortcut registration failed", err);
       toast(`Couldn't register ${accel.replace("CommandOrControl", "Ctrl")}: another app may be using it. Pick another in Settings.`);
     }
   };
-  await bindShortcut(settings().quickAddShortcut);
+  const bindQuickAdd = (accel: string) => bindShortcut("quickAdd", accel, () => void showQuickAdd(null));
+  const bindMini = (accel: string) => bindShortcut("mini", accel, () => void invoke("toggle_mini"));
+  await bindQuickAdd(settings().quickAddShortcut);
+  await bindMini(settings().miniShortcut);
 
+  // --- mini window (D80) -----------------------------------------------------
+  // It reads a compact snapshot and sends actions back; this window applies them like in-app clicks.
+  const publishMini = () => {
+    const { tasks, lists } = useData.getState();
+    const d = derive(tasks, lists);
+    const s = settings();
+    void emit("mini:state", buildSnapshot(d.roots, d.byId, useFocus.getState().timer, s.pomodoro, s.matrix, todayLocal(), Date.now()));
+  };
+  let miniTimer: ReturnType<typeof setTimeout> | undefined;
+  const publishMiniSoon = () => {
+    miniTimer ??= setTimeout(() => {
+      miniTimer = undefined;
+      publishMini();
+    }, 250);
+  };
+  await listen("mini:hello", publishMini);
+  await listen<unknown>("mini:action", (e) => {
+    const a = parseMiniAction(e.payload);
+    if (!a) return;
+    const known = (id: string) => !!useData.getState().tasks[id];
+    if (a.type === "toggle") {
+      if (known(a.id)) toggleDone(a.id, a.key);
+    } else if (a.type === "open") {
+      if (!known(a.id)) return;
+      void showMain();
+      openTask(a.id, a.key);
+    } else if (a.op === "start") {
+      const t = useFocus.getState().timer.status;
+      if ((t === "idle" || t === "done") && (a.taskId === null || known(a.taskId))) startFocus("pomodoro", a.taskId);
+    } else if (a.op === "pause") pauseFocus();
+    else if (a.op === "resume") resumeFocus();
+    else if (useFocus.getState().timer.status === "running" || useFocus.getState().timer.status === "paused") skipPhase();
+  });
+  useData.subscribe(publishMiniSoon);
+  useFocus.subscribe(publishMiniSoon);
+  setInterval(publishMini, 60_000); // midnight rolls Today over without any store change
+  publishMini();
   // --- app icon --------------------------------------------------------------
   // The taskbar and tray icons take the accent color (D55).
   const syncIcon = async (accent: string) => {
@@ -219,7 +263,9 @@ export async function initOs() {
   useSettings.subscribe((s, prev) => {
     const a = s.settings;
     const b = prev.settings;
-    if (a.quickAddShortcut !== b.quickAddShortcut) void bindShortcut(a.quickAddShortcut);
+    if (a.quickAddShortcut !== b.quickAddShortcut) void bindQuickAdd(a.quickAddShortcut);
+    if (a.miniShortcut !== b.miniShortcut) void bindMini(a.miniShortcut);
+    if (a.pomodoro !== b.pomodoro || a.matrix !== b.matrix) publishMiniSoon();
     if (a.closeToTray !== b.closeToTray) void invoke("set_close_to_tray", { enabled: a.closeToTray });
     if (a.launchAtStartup !== b.launchAtStartup) void syncAutostart(a.launchAtStartup);
     if (a.accent !== b.accent) void syncIcon(a.accent);
