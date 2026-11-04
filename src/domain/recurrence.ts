@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { RRule, type Options } from "rrule";
 import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, fromLocalDate, hhmm, scheduleDate, timed } from "./dates";
 import type { Recurrence, Schedule, Task } from "./types";
@@ -176,6 +177,16 @@ export const REPEAT_PRESETS = [
   { label: "Monthly", rule: "FREQ=MONTHLY" },
   { label: "Yearly", rule: "FREQ=YEARLY" },
 ] as const;
+
+/** One-line chip label for a task's schedule, e.g. "Tue 5 Nov · 09:00 · Weekly" or "No date". */
+export function summarizeSchedule(s: Schedule, rule: string | null): string {
+  const date = scheduleDate(s);
+  if (!date) return "No date";
+  const parts = [format(fromLocalDate(date), "EEE d MMM")];
+  if (s.kind === "timed") parts.push(hhmm(new Date(s.start)));
+  if (rule) parts.push(REPEAT_PRESETS.find((p) => p.rule === rule)?.label ?? describeRule(rule));
+  return parts.join(" · ");
+}
 
 /**
  * "All occurrences": the user moved one occurrence from `from` to `to`; move the series anchor

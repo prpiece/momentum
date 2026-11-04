@@ -1,11 +1,12 @@
 import { format } from "date-fns";
-import { Ban, ChevronLeft, Copy, Flag, Hash, ListChecks, Pin, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Ban, CalendarDays, ChevronLeft, Copy, Flag, Hash, ListChecks, ListTodo, Pin, Trash2, X } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { IconButton } from "../../components/ui/Dialog";
+import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { loadActivity } from "../../db/repo";
-import { scheduleForKey } from "../../domain/recurrence";
+import { scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
 import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, type Activity, type Task } from "../../domain/types";
 import { addTask, depthOf, duplicateTask, ensureTags, uid, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
@@ -52,27 +53,11 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
   return (
     <>
       <header className="flex items-center gap-1 border-b border-border px-3 py-2">
-        {parent ? (
+        {parent && (
           <button type="button" onClick={() => openTask(parent.id)} className="flex min-w-0 items-center gap-1 rounded-sm px-1.5 py-1 text-xs text-muted hover:bg-hover hover:text-fg">
             <ChevronLeft size={14} />
             <span className="truncate">{parent.title}</span>
           </button>
-        ) : (
-          <select
-            aria-label="List"
-            value={t.listId}
-            onChange={(e) => set({ listId: e.target.value })}
-            className="h-8 max-w-44 truncate rounded-sm bg-transparent px-1.5 text-sm text-fg-2 hover:bg-hover"
-          >
-            {Object.values(lists)
-              .filter((l) => !l.archived || l.id === t.listId)
-              .sort((a, b) => a.sortOrder - b.sortOrder)
-              .map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-          </select>
         )}
         <div className="flex-1" />
         <IconButton label={t.pinned ? "Unpin" : "Pin"} active={t.pinned} onClick={() => set({ pinned: !t.pinned })}>
@@ -92,7 +77,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         </IconButton>
       </header>
 
-      <div className="scroll-thin flex-1 space-y-5 overflow-y-auto px-5 py-4">
+      <div className="scroll-thin flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="pt-1.5">
             <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, key)} label="Complete" size={20} />
@@ -100,38 +85,107 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
           <TitleInput task={t} />
         </div>
 
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="Priority">
-          <Flag size={16} className="mr-2 text-muted" />
-          {[...PRIORITIES].reverse().map((p) => (
-            <button
-              key={p}
-              type="button"
-              role="radio"
-              aria-checked={t.priority === p}
-              onClick={() => set({ priority: p })}
-              className={`flex h-7 items-center gap-1 rounded-full px-2.5 text-xs transition-colors ${t.priority === p ? "bg-accent-soft font-semibold text-fg ring-1 ring-accent" : "text-fg-2 hover:bg-hover"}`}
-            >
-              <Flag size={12} style={{ color: p ? `var(--p${p})` : "var(--fg-muted)" }} fill={p ? `var(--p${p})` : "none"} />
-              {PRIORITY_LABEL[p]}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip
+            label="Priority"
+            icon={<Flag size={13} style={{ color: t.priority ? `var(--p${t.priority})` : "var(--fg-muted)" }} fill={t.priority ? `var(--p${t.priority})` : "none"} />}
+            text={t.priority ? PRIORITY_LABEL[t.priority] : "Priority"}
+            set={t.priority !== 0}
+          >
+            {(close) => (
+              <div className="flex items-center gap-1 p-1.5" role="radiogroup" aria-label="Priority">
+                {[...PRIORITIES].reverse().map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    role="radio"
+                    aria-checked={t.priority === p}
+                    onClick={() => (set({ priority: p }), close())}
+                    className={`flex h-7 items-center gap-1 rounded-full px-2.5 text-xs transition-colors ${t.priority === p ? "bg-accent-soft font-semibold text-fg ring-1 ring-accent" : "text-fg-2 hover:bg-hover"}`}
+                  >
+                    <Flag size={12} style={{ color: p ? `var(--p${p})` : "var(--fg-muted)" }} fill={p ? `var(--p${p})` : "none"} />
+                    {PRIORITY_LABEL[p]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Chip>
+          <Chip label="Schedule" icon={<CalendarDays size={13} />} text={summarizeSchedule(shown, t.recurrence?.rule ?? null)} set={shown.kind !== "none"}>
+            {() => (
+              <div className="w-80 max-w-full p-3">
+                <ScheduleEditor
+                  schedule={shown}
+                  recurrence={t.recurrence}
+                  reminders={t.reminders}
+                  onSchedule={(schedule) => void editTask(t.id, { schedule }, key)}
+                  onRecurrence={(recurrence) => void editTask(t.id, { recurrence, ...(recurrence && t.schedule.kind === "none" ? { schedule: shown } : {}) }, key)}
+                  onReminders={(reminders) => set({ reminders })}
+                />
+              </div>
+            )}
+          </Chip>
+          {!parent && (
+            <Chip label="List" icon={<ListTodo size={13} />} text={lists[t.listId]?.name ?? "List"} set>
+              {(close) => (
+                <div role="menu" className="max-h-64 min-w-44 overflow-y-auto">
+                  {Object.values(lists)
+                    .filter((l) => !l.archived || l.id === t.listId)
+                    .sort((a, b) => a.sortOrder - b.sortOrder)
+                    .map((l) => (
+                      <MenuItem key={l.id} active={l.id === t.listId} onSelect={() => (set({ listId: l.id }), close())}>
+                        {l.name}
+                      </MenuItem>
+                    ))}
+                </div>
+              )}
+            </Chip>
+          )}
+          <Chip
+            label="Tags"
+            icon={<Hash size={13} />}
+            text={t.tags.length ? t.tags.map((id) => tags[id]?.name).filter(Boolean).map((n) => `#${n}`).join(" ") : "Tags"}
+            set={t.tags.length > 0}
+          >
+            {() => (
+              <div className="w-72 max-w-full p-3">
+                <TagEditor task={t} tags={tags} />
+              </div>
+            )}
+          </Chip>
         </div>
 
-        <ScheduleEditor
-          schedule={shown}
-          recurrence={t.recurrence}
-          reminders={t.reminders}
-          onSchedule={(schedule) => void editTask(t.id, { schedule }, key)}
-          onRecurrence={(recurrence) => void editTask(t.id, { recurrence, ...(recurrence && t.schedule.kind === "none" ? { schedule: shown } : {}) }, key)}
-          onReminders={(reminders) => set({ reminders })}
-        />
-
-        <TagEditor task={t} tags={tags} />
         <Description task={t} />
         <Subtasks task={t} />
         <Checklist task={t} />
         <ActivityLog task={t} />
       </div>
+    </>
+  );
+}
+
+/** Compact summary button that opens its editor in a popover; focus returns to the chip on close. */
+function Chip({ label, icon, text, set, children }: { label: string; icon: ReactNode; text: string; set: boolean; children: (close: () => void) => ReactNode }) {
+  const m = useMenu();
+  const close = () => (m.close(), m.anchor.current?.focus());
+  return (
+    <>
+      <button
+        ref={m.anchor}
+        type="button"
+        aria-label={`${label}: ${text}`}
+        aria-haspopup="dialog"
+        aria-expanded={m.open}
+        onClick={m.toggle}
+        className={`flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors ${set ? "bg-accent-soft text-fg" : "bg-hover text-muted hover:text-fg"}`}
+      >
+        <span className="shrink-0">{icon}</span>
+        <span className="truncate">{text}</span>
+      </button>
+      {m.open && (
+        <Popover anchor={m.anchor} onClose={close}>
+          {children(close)}
+        </Popover>
+      )}
     </>
   );
 }
@@ -210,7 +264,7 @@ function Description({ task }: { task: Task }) {
         aria-label="Edit description"
         onClick={(e) => !(e.target instanceof HTMLAnchorElement) && setEditing(true)}
         onKeyDown={(e) => e.key === "Enter" && setEditing(true)}
-        className="prose-md cursor-text rounded-md p-2 text-sm text-fg-2 hover:bg-hover"
+        className="prose-md min-h-32 flex-1 cursor-text rounded-md p-2 text-sm text-fg-2 hover:bg-hover"
       >
         <ReactMarkdown>{task.description}</ReactMarkdown>
       </div>
@@ -225,9 +279,9 @@ function Description({ task }: { task: Task }) {
         setEditing(false);
         if (v !== task.description) updateTask(task.id, { description: v });
       }}
-      placeholder="Notes (Markdown supported)"
+      placeholder="Write a note… (Markdown supported)"
       aria-label="Description"
-      className="field-sizing-content min-h-20 w-full resize-none rounded-md border border-transparent bg-transparent p-2 text-sm outline-none placeholder:text-muted hover:border-border focus:border-accent"
+      className="min-h-32 w-full flex-1 resize-none rounded-md border border-transparent bg-transparent p-2 text-sm outline-none placeholder:text-muted hover:border-border focus:border-accent"
     />
   );
 }
@@ -332,9 +386,9 @@ function ActivityLog({ task }: { task: Task }) {
     return () => void (live = false);
   }, [task.id, task.updatedAt]);
   return (
-    <section className="border-t border-border pt-4">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Activity</h3>
-      <ul className="space-y-1 text-xs text-muted">
+    <details className="border-t border-border pt-3">
+      <summary className="cursor-pointer rounded-sm text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg">Activity</summary>
+      <ul className="mt-2 space-y-1 text-xs text-muted">
         {items.filter((a) => a.kind !== "created").map((a) => (
           <li key={a.id}>
             <span className="font-mono">{format(new Date(a.at), "MMM d, HH:mm")}</span> · {ACTIVITY_TEXT[a.kind]} {a.detail}
@@ -344,6 +398,6 @@ function ActivityLog({ task }: { task: Task }) {
           <span className="font-mono">{format(new Date(task.createdAt), "MMM d, HH:mm")}</span> · Created
         </li>
       </ul>
-    </section>
+    </details>
   );
 }
