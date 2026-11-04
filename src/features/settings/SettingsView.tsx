@@ -170,6 +170,11 @@ export function SettingsView() {
 
       <Section title="Layout">
         <LayoutPicker />
+        {s.layout === "dock" && (
+          <Row label="Dock labels">
+            <Toggle checked={s.dockLabels} onChange={(v) => update({ dockLabels: v })} text="Show text under the icons" />
+          </Row>
+        )}
         {(s.layout === "classic" || s.layout === "flat") && (
           <Row label="Sidebar position">
             <Segmented

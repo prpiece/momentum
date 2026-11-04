@@ -1,10 +1,12 @@
 import { useDroppable } from "@dnd-kit/core";
 import { ChevronDown, ListFilter, MoreHorizontal, Plus, Search } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type MouseEvent, type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Logo } from "../../components/Logo";
 import { ListGlyph } from "../../components/ui/AppIcon";
+import { fitModules } from "../../domain/dockFit";
 import type { ViewId } from "../../domain/types";
 import type { DropData } from "../../lib/dnd";
+import { GO } from "../../lib/shortcuts";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { go, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";
@@ -16,29 +18,71 @@ import { MODULE_NAV, MORE_NAV, PRIMARY_MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_N
 
 type Variant = "top" | "dock";
 
-function BarItem(props: { id: ViewId; label: string; icon: ReactNode; variant: Variant; count?: number; badge?: ReactNode; drop?: DropData }) {
+/** Dock item geometry in rem: one fixed width, so the overflow fit needs no per-item measuring (D77). */
+const DOCK_ITEM_REM = 4.25;
+const DOCK_ICON_REM = 2.5;
+const DOCK_GAP_REM = 0.125;
+const DOCK_SEP_REM = 0.75; // margins around a 1px divider
+const DOCK_PAD_REM = 1.5; // nav padding, both sides
+const DOCK_INSET_REM = 1; // breathing room to the window edge
+
+const dockBtn = (labels: boolean) =>
+  `relative flex shrink-0 items-center justify-center rounded-sm text-sm transition-colors duration-[var(--dur)] ${labels ? "h-12 w-[4.25rem] flex-col gap-0.5 text-[0.65rem] font-medium leading-none" : "size-10"}`;
+const dockState = (active: boolean) => (active ? "bg-accent-soft font-semibold text-fg" : "text-fg-2 hover:bg-hover hover:text-fg");
+
+/** Styled tooltip for dock items: label plus shortcut, on hover and keyboard focus. Motion is zeroed globally under reduced motion. */
+function Tip({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <span className="group relative flex shrink-0">
+      {children}
+      <span
+        role="presentation"
+        className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-sm border border-border bg-surface-2 px-2 py-1 text-xs text-fg opacity-0 shadow-lg transition-opacity duration-[var(--dur)] group-hover:opacity-100 group-has-[:focus-visible]:opacity-100"
+      >
+        {label}
+        {hint && <kbd className="rounded border border-border px-1 font-mono text-[0.65rem] text-muted">{hint}</kbd>}
+      </span>
+    </span>
+  );
+}
+
+const goHint = (id: ViewId) => {
+  const key = Object.entries(GO).find(([, v]) => v === id)?.[0];
+  return key ? `G ${key.toUpperCase()}` : undefined;
+};
+
+function BarItem(props: { id: ViewId; label: string; icon: ReactNode; variant: Variant; labels?: boolean; tooltip?: boolean; count?: number; badge?: ReactNode; drop?: DropData }) {
   const active = useUi((s) => s.view === props.id);
   const { setNodeRef, isOver } = useDroppable({ id: `bar:${props.id}`, data: props.drop, disabled: !props.drop });
   const dock = props.variant === "dock";
-  return (
+  const labels = dock && props.labels === true;
+  const button = (
     <button
       ref={setNodeRef}
       type="button"
       onClick={() => go(props.id)}
       aria-current={active ? "page" : undefined}
       aria-label={dock ? props.label : undefined}
-      title={dock ? props.label : undefined}
-      className={`relative flex shrink-0 items-center gap-2 rounded-sm text-sm transition-colors duration-[var(--dur)] ${dock ? "size-10 justify-center" : "h-8 px-3"} ${
-        isOver ? "bg-accent text-accent-fg" : active ? "bg-accent-soft font-semibold text-fg" : "text-fg-2 hover:bg-hover hover:text-fg"
+      title={dock && !props.tooltip ? props.label : undefined}
+      className={`${dock ? dockBtn(labels) : "relative flex h-8 shrink-0 items-center gap-2 rounded-sm px-3 text-sm transition-colors duration-[var(--dur)]"} focus-visible:ring-2 focus-visible:ring-accent ${
+        isOver ? "bg-accent text-accent-fg" : dockState(active)
       }`}
     >
       <span className={active && !isOver ? "text-accent" : ""}>{props.icon}</span>
+      {labels && <span>{props.label}</span>}
       {!dock && props.label}
       {!dock && props.badge}
       {props.count ? (
         <span className={dock ? "absolute right-0.5 top-0.5 min-w-4 rounded-full bg-accent px-1 font-mono text-[0.6rem] leading-4 text-accent-fg" : "font-mono text-xs text-muted"}>{props.count}</span>
       ) : null}
     </button>
+  );
+  return props.tooltip ? (
+    <Tip label={props.label} hint={goHint(props.id)}>
+      {button}
+    </Tip>
+  ) : (
+    button
   );
 }
 
@@ -52,6 +96,7 @@ export function NavBar({ variant }: { variant: Variant }) {
   const savedFilters = useSettings((s) => s.settings.savedFilters);
   const view = useUi((s) => s.view);
   const [newList, setNewList] = useState(false);
+  const dockLabels = useSettings((s) => s.settings.dockLabels);
   const dock = variant === "dock";
   const size = 18;
 
@@ -68,37 +113,66 @@ export function NavBar({ variant }: { variant: Variant }) {
     ];
   };
   const onList = view.startsWith("list:") || view.startsWith("filter:");
-  const modules = dock ? MODULE_NAV : PRIMARY_MODULE_NAV;
-  const btn = `flex shrink-0 items-center gap-1.5 rounded-sm text-sm transition-colors duration-[var(--dur)] hover:bg-hover hover:text-fg ${dock ? "size-10 justify-center" : "h-8 px-3"}`;
-  const sep = <span className={dock ? "mx-1 h-6 w-px shrink-0 bg-border" : "mx-1 h-5 w-px shrink-0 bg-border"} aria-hidden />;
+  const btn = "flex h-8 shrink-0 items-center gap-1.5 rounded-sm px-3 text-sm transition-colors duration-[var(--dur)] hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent";
+  const sep = <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />;
+  const smartItems = SIDEBAR_SMART_NAV.map((n) => (
+    <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} labels={dockLabels} tooltip={dock} count={counts.smart[n.id] || undefined} drop={n.id === "logbook" ? undefined : { type: "smart", id: n.id }} />
+  ));
+
+  // Dock: all modules, the trailing ones folded into "More" when the window is too narrow (D77).
+  const outerRef = useRef<HTMLDivElement>(null);
+  const smartRef = useRef<HTMLDivElement>(null);
+  const lastRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(MODULE_NAV.length);
+  useLayoutEffect(() => {
+    const outer = outerRef.current;
+    const smart = smartRef.current;
+    const last = lastRef.current;
+    if (!dock || !outer || !smart || !last) return;
+    const measure = () => {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const avail = outer.clientWidth - (DOCK_INSET_REM + DOCK_PAD_REM + 2 * DOCK_SEP_REM) * rem - 4 - smart.offsetWidth - last.offsetWidth;
+      const item = (dockLabels ? DOCK_ITEM_REM : DOCK_ICON_REM) * rem;
+      setFit(fitModules(avail, item, DOCK_GAP_REM * rem, MODULE_NAV.length));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(outer);
+    ro.observe(smart);
+    ro.observe(last);
+    return () => ro.disconnect();
+  }, [dock, dockLabels]);
+
+  const dockSep = <span className="mx-1.5 h-8 w-px shrink-0 bg-border" aria-hidden />;
+  const shown = MODULE_NAV.slice(0, fit);
+  const hidden = MODULE_NAV.slice(fit);
+  const hiddenActive = hidden.some((n) => n.id === view);
+  const dockPlain = (label: string, hint: string | undefined, icon: ReactNode, active: boolean, props: { onClick: (e: MouseEvent<HTMLButtonElement>) => void; tour?: string }) => (
+    <Tip label={label} hint={hint}>
+      <button type="button" aria-label={label} data-tour={props.tour} onClick={props.onClick} className={`${dockBtn(dockLabels)} focus-visible:ring-2 focus-visible:ring-accent ${dockState(active)}`}>
+        <span className={active ? "text-accent" : ""}>{icon}</span>
+        {dockLabels && <span>{label}</span>}
+      </button>
+    </Tip>
+  );
 
   const items = (
     <>
-      {SIDEBAR_SMART_NAV.map((n) => (
-        <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} count={counts.smart[n.id] || undefined} drop={n.id === "logbook" ? undefined : { type: "smart", id: n.id }} />
-      ))}
+      {smartItems}
       {sep}
-      {modules.map((n) => (
+      {PRIMARY_MODULE_NAV.map((n) => (
         <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} badge={n.id === "focus" ? <FocusBadge /> : undefined} />
       ))}
-      {!dock && (
-        <>
-          {/* The current module stays visible next to Calendar, like the sidebar's closed "More". */}
-          {MORE_NAV.filter((n) => n.id === view).map((n) => (
-            <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} />
-          ))}
-          <button type="button" aria-label="More" onClick={(e) => openMenuAt(e.currentTarget, MORE_NAV.map((n) => ({ label: n.label, icon: <n.icon size={14} />, run: () => go(n.id) })))} className={`${btn} text-fg-2`}>
-            <MoreHorizontal size={size} /> More
-          </button>
-        </>
-      )}
+      {/* The current module stays visible next to Calendar, like the sidebar's closed "More". */}
+      {MORE_NAV.filter((n) => n.id === view).map((n) => (
+        <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} />
+      ))}
+      <button type="button" aria-label="More" onClick={(e) => openMenuAt(e.currentTarget, MORE_NAV.map((n) => ({ label: n.label, icon: <n.icon size={14} />, run: () => go(n.id) })))} className={`${btn} text-fg-2`}>
+        <MoreHorizontal size={size} /> More
+      </button>
       <button type="button" aria-label="Lists" title="Lists" data-tour="lists" onClick={(e) => openMenuAt(e.currentTarget, listsMenu())} className={`${btn} ${onList ? "bg-accent-soft font-semibold text-fg" : "text-fg-2"}`}>
         <ListFilter size={size} className={onList ? "text-accent" : ""} />
-        {!dock && (
-          <>
-            Lists <ChevronDown size={14} />
-          </>
-        )}
+        Lists <ChevronDown size={14} />
       </button>
     </>
   );
@@ -106,16 +180,29 @@ export function NavBar({ variant }: { variant: Variant }) {
   return (
     <>
       {dock ? (
-        <div className="flex shrink-0 justify-center pb-2">
-          <nav aria-label="Navigation" data-tour="nav" className="scroll-thin flex max-w-[calc(100%-1rem)] items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
-            {items}
-            {sep}
-            <button type="button" aria-label="Search" title="Search (Ctrl K)" data-tour="search" onClick={() => setPalette(true)} className={`${btn} text-fg-2`}>
-              <Search size={size} />
-            </button>
-            <span data-tour="settings" className="contents">
-              <BarItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={<SETTINGS_NAV.icon size={size} />} variant={variant} />
-            </span>
+        <div ref={outerRef} className="flex shrink-0 justify-center pb-2">
+          <nav aria-label="Navigation" data-tour="nav" className="flex max-w-[calc(100%-1rem)] items-center rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
+            <div ref={smartRef} className="flex items-center gap-0.5">
+              {smartItems}
+            </div>
+            {dockSep}
+            <div className="flex items-center gap-0.5">
+              {shown.map((n) => (
+                <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} labels={dockLabels} tooltip badge={n.id === "focus" ? <FocusBadge /> : undefined} />
+              ))}
+              {hidden.length > 0 &&
+                dockPlain("More", undefined, <MoreHorizontal size={size} />, hiddenActive, {
+                  onClick: (e) => openMenuAt(e.currentTarget, hidden.map((n) => ({ label: n.label, icon: <n.icon size={14} />, hint: goHint(n.id), run: () => go(n.id) }))),
+                })}
+            </div>
+            {dockSep}
+            <div ref={lastRef} className="flex items-center gap-0.5">
+              {dockPlain("Lists", undefined, <ListFilter size={size} />, onList, { tour: "lists", onClick: (e) => openMenuAt(e.currentTarget, listsMenu()) })}
+              {dockPlain("Search", "Ctrl K", <Search size={size} />, false, { tour: "search", onClick: () => setPalette(true) })}
+              <span data-tour="settings" className="contents">
+                <BarItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={<SETTINGS_NAV.icon size={size} />} variant={variant} labels={dockLabels} tooltip />
+              </span>
+            </div>
           </nav>
         </div>
       ) : (

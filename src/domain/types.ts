@@ -200,6 +200,8 @@ export type Settings = {
   fontSize: (typeof FONT_SIZES)[number];
   zoom: (typeof ZOOMS)[number];
   layout: Layout;
+  /** Dock layout: small text labels under the icons (D77). */
+  dockLabels: boolean;
   sidebarSide: (typeof SIDES)[number];
   sidebarCollapsed: boolean;
   /** The sidebar's "More" module group is expanded. */

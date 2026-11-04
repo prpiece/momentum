@@ -25,7 +25,7 @@ const typing = (e: KeyboardEvent) => {
 };
 
 /** `G` then a letter jumps to a view. */
-const GO: Record<string, ViewId> = {
+export const GO: Record<string, ViewId> = {
   i: "inbox",
   t: "today",
   u: "upcoming",
