@@ -10,6 +10,7 @@ use tauri::{
     AppHandle, Manager, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_window_state::StateFlags;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 const DB_URL: &str = "sqlite:momentum.db";
@@ -148,6 +149,32 @@ fn show_main(app: &AppHandle) {
     }
 }
 
+/// Physical-pixel rectangle: (x, y, width, height).
+type Rect = (i32, i32, u32, u32);
+
+/// Shrinks `win` to fit inside `area` and slides it fully in; `center` ignores `win`'s position.
+fn fit_rect(win: Rect, area: Rect, center: bool) -> Rect {
+    let (w, h) = (win.2.min(area.2), win.3.min(area.3));
+    let x = if center { area.0 + (area.2 - w) as i32 / 2 } else { win.0.clamp(area.0, area.0 + (area.2 - w) as i32) };
+    let y = if center { area.1 + (area.3 - h) as i32 / 2 } else { win.1.clamp(area.1, area.1 + (area.3 - h) as i32) };
+    (x, y, w, h)
+}
+
+/// Keeps the main window inside the monitor's work area (the part not covered by the taskbar).
+/// A first launch is centered; a restored window only moves or shrinks if it does not fit.
+/// A maximized window is left to the OS.
+fn fit_main_to_work_area(app: &tauri::App, first_run: bool) -> tauri::Result<()> {
+    let Some(w) = app.get_webview_window("main") else { return Ok(()) };
+    if w.is_maximized()? {
+        return Ok(());
+    }
+    let Some(m) = w.current_monitor()?.or(w.primary_monitor()?) else { return Ok(()) };
+    let (a, p, s) = (m.work_area(), w.outer_position()?, w.outer_size()?);
+    let (x, y, width, height) = fit_rect((p.x, p.y, s.width, s.height), (a.position.x, a.position.y, a.size.width, a.size.height), first_run);
+    w.set_size(tauri::PhysicalSize::new(width, height))?;
+    w.set_position(tauri::PhysicalPosition::new(x, y))
+}
+
 fn show_quick_add(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("quickadd") {
         let _ = w.center();
@@ -201,6 +228,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // Size, position and maximized survive restarts. The main window starts hidden and is shown
+        // in `setup` once it has been fitted to the work area; popups are placed by their own code.
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
+                .with_denylist(&["quickadd", "reminder"])
+                .build(),
+        )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .manage(CloseToTray(AtomicBool::new(true)))
@@ -223,14 +258,38 @@ pub fn run() {
         .setup(move |app| {
             backup_before_migrate(&app.path().app_config_dir()?, latest)?;
             build_tray(app)?;
+            let first_run = !app.path().app_config_dir()?.join(".window-state.json").exists();
+            fit_main_to_work_area(app, first_run)?;
             // Launched at login: start in the tray so reminders run without a window popping up.
-            if std::env::args().any(|a| a == "--minimized") {
-                if let Some(w) = app.get_webview_window("main") {
-                    w.hide()?;
-                }
+            if !std::env::args().any(|a| a == "--minimized") {
+                show_main(app.handle());
             }
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running Momentum");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fit_rect;
+
+    const AREA: (i32, i32, u32, u32) = (0, 0, 1366, 728);
+
+    #[test]
+    fn shrinks_to_the_work_area() {
+        assert_eq!(fit_rect((100, 100, 1280, 820), AREA, false), (86, 0, 1280, 728));
+    }
+    #[test]
+    fn leaves_a_window_that_fits() {
+        assert_eq!(fit_rect((50, 20, 900, 600), AREA, false), (50, 20, 900, 600));
+    }
+    #[test]
+    fn pulls_an_offscreen_window_back() {
+        assert_eq!(fit_rect((5000, -300, 900, 600), AREA, false), (466, 0, 900, 600));
+    }
+    #[test]
+    fn centers_on_first_run_in_a_secondary_monitor() {
+        assert_eq!(fit_rect((0, 0, 1280, 820), (1920, 0, 1920, 1040), true), (2240, 110, 1280, 820));
+    }
 }

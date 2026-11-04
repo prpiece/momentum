@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, parseSettings } from "./settings";
+import { DEFAULT_SETTINGS, effectiveDensity, parseSettings } from "./settings";
 import type { Settings } from "./types";
 
 describe("parseSettings", () => {
@@ -92,5 +92,13 @@ describe("parseSettings migrations", () => {
 
   it("maps the retired 3-day calendar view to 5 days", () => {
     expect(parseSettings({ calendar: { view: "3day" } }).calendar.view).toBe("5day");
+  });
+});
+
+describe("effectiveDensity", () => {
+  it("forces compact on short windows and keeps the saved choice otherwise", () => {
+    expect(effectiveDensity("comfortable", 728)).toBe("compact");
+    expect(effectiveDensity("comfortable", 760)).toBe("comfortable");
+    expect(effectiveDensity("compact", 1000)).toBe("compact");
   });
 });
