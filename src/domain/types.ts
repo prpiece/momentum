@@ -199,6 +199,8 @@ export type Cycles = { kind: "infinite" } | { kind: "finite"; count: number };
 /** Image/gradient shown behind the content area (D79). `name` is a file in the backgrounds folder. */
 export type Background = { kind: "none" } | { kind: "gradient"; id: GradientId } | { kind: "image"; name: string };
 
+export type QuadrantColors = [string | null, string | null, string | null, string | null];
+
 export type Settings = {
   theme: (typeof THEMES)[number];
   /** #rrggbb */
@@ -228,6 +230,8 @@ export type Settings = {
   savedFilters: SavedFilter[];
   calendar: CalendarSettings;
   matrix: { importantPriorities: Priority[]; urgentDays: number };
+  /** Quadrant colours (D85), indexed by quadrant - 1: an accent preset hex, or null for the theme default. */
+  matrixColors: QuadrantColors;
   /** Closing the window hides to the tray (reminders keep firing). */
   closeToTray: boolean;
   launchAtStartup: boolean;

@@ -59,6 +59,7 @@ export const DEFAULT_SETTINGS: Settings = {
     arrangeOpen: true,
   },
   matrix: { importantPriorities: [2, 3], urgentDays: 2 },
+  matrixColors: [null, null, null, null],
   closeToTray: true,
   launchAtStartup: false,
   checkUpdates: true,
@@ -157,6 +158,15 @@ function parseMatrix(raw: unknown): Settings["matrix"] {
   return { importantPriorities: valid ? prios : d.importantPriorities, urgentDays: days };
 }
 
+/** Anything but an accent preset (or null) falls back to the theme default for that quadrant. */
+function parseMatrixColors(raw: unknown): Settings["matrixColors"] {
+  const at = (i: number): string | null => {
+    const v = Array.isArray(raw) ? raw[i] : null;
+    return typeof v === "string" ? (ACCENT_PRESETS.find((p) => p.hex === v.toLowerCase())?.hex ?? null) : null;
+  };
+  return [at(0), at(1), at(2), at(3)];
+}
+
 function parseNotify(raw: unknown, legacyEnabled: unknown): Settings["notify"] {
   const r = isRecord(raw) ? raw : {};
   const d = DEFAULT_SETTINGS.notify;
@@ -243,6 +253,7 @@ export function parseSettings(raw: unknown): Settings {
     savedFilters: parseSavedFilters(r.savedFilters),
     calendar: parseCalendar(r.calendar),
     matrix: parseMatrix(r.matrix),
+    matrixColors: parseMatrixColors(r.matrixColors),
     closeToTray: typeof r.closeToTray === "boolean" ? r.closeToTray : d.closeToTray,
     launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
     checkUpdates: typeof r.checkUpdates === "boolean" ? r.checkUpdates : d.checkUpdates,
@@ -254,12 +265,4 @@ export function parseSettings(raw: unknown): Settings {
     miniShortcut: accelerator(r.miniShortcut, d.miniShortcut),
     pomodoro: parsePomodoro(r.pomodoro),
   };
-}
-
-/** Below this window height (CSS px) the UI turns compact on its own, so short screens keep their content. */
-export const COMPACT_BELOW_HEIGHT = 760;
-
-/** The density actually applied: the saved choice, forced to compact on short windows. */
-export function effectiveDensity(saved: Settings["density"], windowHeight: number): Settings["density"] {
-  return windowHeight < COMPACT_BELOW_HEIGHT ? "compact" : saved;
 }

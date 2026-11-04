@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { durationMinutes, fromLocalDate, wallKey } from "./dates";
-import { parseQuickAdd } from "./quickAdd";
+import { parseQuickAdd, withToken } from "./quickAdd";
 
 // Sunday 25 Oct 2026, 10:00 local (TZ=America/New_York).
 const NOW = new Date(2026, 9, 25, 10, 0);
@@ -75,5 +75,35 @@ describe("parseQuickAdd", () => {
 
   it("falls back to the input when only tokens were typed", () => {
     expect(parseQuickAdd("#urgent", NOW).title).toBe("#urgent");
+  });
+});
+
+describe("keyword tokens (D89)", () => {
+  const LISTS = ["School", "Home Chores", "Home"];
+  it("reads spoken priority, tag and list phrases", () => {
+    const p = parseQuickAdd("Study chem tomorrow, priority high, tag chemistry, list School.", NOW, true, LISTS);
+    expect(p).toMatchObject({ title: "Study chem", priority: 3, tags: ["chemistry"], listName: "School" });
+    expect(p.chips.map((c) => c.kind)).toEqual(["date", "priority", "tag", "list"]);
+  });
+  it("accepts 'high priority' word order", () => {
+    expect(parseQuickAdd("call mom low priority", NOW).priority).toBe(1);
+  });
+  it("prefers the longest existing list name", () => {
+    expect(parseQuickAdd("vacuum list home chores", NOW, true, LISTS)).toMatchObject({ title: "vacuum", listName: "Home Chores" });
+  });
+  it("falls back to one word for unknown lists but never to prose", () => {
+    expect(parseQuickAdd("buy milk list Errands", NOW, true, LISTS).listName).toBe("Errands");
+    expect(parseQuickAdd("make a list of groceries", NOW, true, LISTS)).toMatchObject({ title: "make a list of groceries", listName: null });
+    expect(parseQuickAdd("finish the list", NOW, true, LISTS).listName).toBeNull();
+  });
+});
+
+describe("withToken", () => {
+  it("replaces an existing chip or appends a token", () => {
+    const text = "study !low";
+    const p = parseQuickAdd(text, NOW);
+    expect(withToken(text, p.chips, "priority", "!high")).toBe("study !high");
+    expect(withToken(text, p.chips, "list", "~School")).toBe("study !low ~School");
+    expect(withToken("", [], "list", "~School")).toBe("~School");
   });
 });

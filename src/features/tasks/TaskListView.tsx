@@ -91,7 +91,7 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
   });
 
   return (
-    <div ref={scroller} className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 pb-24" role="listbox" aria-multiselectable="true" aria-label={spec.title}>
+    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 pb-24" role="listbox" aria-multiselectable="true" aria-label={spec.title}>
       <SortableContext items={taskIds.map((id) => `${container}:${id}`)} strategy={verticalListSortingStrategy}>
         <div style={{ height: virtual.getTotalSize(), position: "relative" }}>
           {virtual.getVirtualItems().map((vi) => {

@@ -206,12 +206,12 @@ export function NavBar({ variant }: { variant: Variant }) {
           </nav>
         </div>
       ) : (
-        <div data-tauri-drag-region className="glass flex h-12 shrink-0 select-none items-center gap-3 px-3">
+        <div data-tauri-drag-region className="flex h-12 shrink-0 select-none items-center gap-3 px-3">
           <div className="pointer-events-none flex shrink-0 items-center gap-2 px-1">
             <Logo size={24} />
             <span className="font-bold tracking-tight">Momentum</span>
           </div>
-          <nav aria-label="Navigation" data-tour="nav" className="scroll-thin flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+          <nav aria-label="Navigation" data-tour="nav" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
             {items}
           </nav>
           <button type="button" data-tour="search" onClick={() => setPalette(true)} className="flex h-8 shrink-0 items-center gap-2 rounded-sm border border-border bg-surface px-3 text-sm text-muted transition-colors hover:border-accent hover:text-fg">

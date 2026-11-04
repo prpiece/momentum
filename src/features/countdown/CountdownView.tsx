@@ -38,7 +38,7 @@ export function CountdownView() {
     );
 
   return (
-    <div className="scroll-thin h-full overflow-y-auto px-6 pb-10">
+    <div className="h-full overflow-y-auto px-6 pb-10">
       <div className="mb-4 flex justify-end">
         <button type="button" onClick={() => setEditing("new")} className="flex h-8 items-center gap-1.5 rounded-sm bg-accent px-3 text-xs font-medium text-accent-fg hover:bg-accent-hover">
           <Plus size={14} /> New countdown

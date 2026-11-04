@@ -1,12 +1,13 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { ListTree, Settings2 } from "lucide-react";
+import { Check, ListTree, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
+import { accentForeground, ACCENT_PRESETS } from "../../domain/color";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { patchForQuadrant, QUADRANT_INFO, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
 import { sortVMs, type TaskVM } from "../../domain/taskViews";
-import { PRIORITIES, PRIORITY_LABEL, type Priority } from "../../domain/types";
+import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
 import { justDragged, onDrop } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
 import { addTask, rootOf, updateTask, useData } from "../../stores/data";
@@ -88,7 +89,7 @@ function QuadrantPanel({ q, items }: { q: Quadrant; items: TaskVM[] }) {
         <span className="text-xs text-muted">{info.hint}</span>
         <span className="ml-auto font-mono text-xs text-muted">{items.length}</span>
       </header>
-      <ul className="scroll-thin min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
+      <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
         {items.map((vm) => (
           <MatrixItem key={vm.task.id} vm={vm} />
         ))}
@@ -137,6 +138,54 @@ function MatrixItem({ vm }: { vm: TaskVM }) {
   );
 }
 
+/** Per-quadrant colour from the accent presets (D85); unset keeps the theme default. */
+function QuadrantColorPicker() {
+  const colors = useSettings((s) => s.settings.matrixColors);
+  const accent = useSettings((s) => s.settings.accent);
+  const update = useSettings((s) => s.update);
+  const pick = (q: Quadrant, hex: string | null) => {
+    const next: QuadrantColors = [...colors];
+    next[q - 1] = hex;
+    update({ matrixColors: next });
+  };
+  const link = "rounded-sm px-1.5 py-0.5 text-xs text-fg-2 hover:bg-hover hover:text-fg";
+  return (
+    <>
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Colours</h3>
+        <span className="flex gap-1">
+          <button type="button" className={link} onClick={() => update({ matrixColors: [accent, accent, accent, accent] })}>Use accent for all</button>
+          <button type="button" className={link} disabled={colors.every((c) => c === null)} onClick={() => update({ matrixColors: [null, null, null, null] })}>Reset</button>
+        </span>
+      </div>
+      {QUADRANTS.map((q) => (
+        <div key={q} className="mt-2" role="group" aria-label={`${QUADRANT_INFO[q].title} colour`}>
+          <p className="flex items-center gap-1.5 text-xs text-fg-2">
+            <span className="size-2.5 rounded-full" style={{ background: TONE[q] }} />
+            {QUADRANT_INFO[q].title}
+          </p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {ACCENT_PRESETS.map((p) => (
+              <button
+                key={p.hex}
+                type="button"
+                title={p.name}
+                aria-label={p.name}
+                aria-pressed={colors[q - 1] === p.hex}
+                onClick={() => pick(q, colors[q - 1] === p.hex ? null : p.hex)}
+                className="grid size-5 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110"
+                style={{ background: p.hex }}
+              >
+                {colors[q - 1] === p.hex && <Check size={11} strokeWidth={3.5} style={{ color: accentForeground(p.hex) }} />}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function RulesEditor() {
   const rules = useSettings((s) => s.settings.matrix);
   const update = useSettings((s) => s.update);
@@ -152,7 +201,7 @@ function RulesEditor() {
         <Settings2 size={15} /> Rules
       </button>
       {menu.open && (
-        <Popover anchor={menu.anchor} onClose={menu.close} align="end" className="w-72 p-4">
+        <Popover anchor={menu.anchor} onClose={menu.close} align="end" className="max-h-[80vh] w-72 overflow-y-auto p-4">
           <h3 className="text-sm font-semibold">Important means priority…</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {[...PRIORITIES].reverse().map((p) => (
@@ -184,6 +233,7 @@ function RulesEditor() {
             days (or overdue)
           </div>
           <p className="mt-3 text-xs text-muted">Dragging a task between quadrants changes its priority and due date to match these rules.</p>
+          <QuadrantColorPicker />
         </Popover>
       )}
     </>

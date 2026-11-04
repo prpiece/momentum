@@ -122,7 +122,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
           className="h-14 flex-1 bg-transparent text-base outline-none placeholder:text-muted"
         />
       </div>
-      <ul id="palette-results" role="listbox" className="scroll-thin max-h-[50vh] overflow-y-auto p-2">
+      <ul id="palette-results" role="listbox" className="max-h-[50vh] overflow-y-auto p-2">
         {items.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">No matches for “{q}”.</li>}
         {items.map((it, i) => (
           <li key={it.id} id={`pi-${it.id}`} role="option" aria-selected={i === cursor}>

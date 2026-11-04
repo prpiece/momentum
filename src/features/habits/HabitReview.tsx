@@ -20,7 +20,7 @@ export function HabitReview({ habits }: { habits: Habit[] }) {
   const monthEnd = addDaysLocal(toLocalDate(addMonths(fromLocalDate(month), 1)), -1);
 
   return (
-    <div className="scroll-thin h-full space-y-8 overflow-y-auto p-6">
+    <div className="h-full space-y-8 overflow-y-auto p-6">
       <section>
         <Nav title={`Week of ${format(fromLocalDate(weekStart), "MMM d")}`} onPrev={() => setWeekStart(addDaysLocal(weekStart, -7))} onNext={() => setWeekStart(addDaysLocal(weekStart, 7))} />
         <table className="w-full text-sm">

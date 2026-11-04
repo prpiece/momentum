@@ -20,7 +20,7 @@ export function TimelineView({ vms }: { vms: TaskVM[] }) {
   const outside = open.length - dated.length - undated.length;
 
   return (
-    <div className="scroll-thin min-h-0 flex-1 overflow-auto px-4 pb-10">
+    <div className="min-h-0 flex-1 overflow-auto px-4 pb-10">
       <div className="mb-3 flex items-center gap-2">
         <button type="button" aria-label="Previous week" onClick={() => setStart(addDaysLocal(start, -7))} className="grid size-8 place-items-center rounded-sm text-muted hover:bg-hover">
           <ChevronLeft size={18} />

@@ -104,7 +104,7 @@ export function HabitsView() {
             </button>
           ))}
         </div>
-        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
           <SortableContext items={active.map((h) => `habit:${h.id}`)} strategy={verticalListSortingStrategy}>
             {groups.map(
               (g) =>

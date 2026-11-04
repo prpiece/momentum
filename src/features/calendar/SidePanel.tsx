@@ -142,7 +142,7 @@ function ArrangeTasks() {
           </select>
         </div>
       </div>
-      <ul className="scroll-thin mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-3">
+      <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-3">
         {tasks.map((vm) => (
           <ArrangeItem key={vm.task.id} vm={vm} />
         ))}

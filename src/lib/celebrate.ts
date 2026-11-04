@@ -6,7 +6,8 @@
 import { create } from "zustand";
 import { addDaysLocal, todayLocal } from "../domain/dates";
 import { bestStreak, currentStreak, isDone, type Habit } from "../domain/habits";
-import { dayOf, dayRun, earnedTrophies, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyId } from "../domain/perfect";
+import { dayOf, dayRun, levelOf, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, trophyCounts, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyCounts } from "../domain/perfect";
+import { LEVEL_LOOKS } from "../features/celebrate/trophyLooks";
 import type { LocalDate, SoundEvent } from "../domain/types";
 import { derive } from "../features/tasks/selectors";
 import { useData } from "../stores/data";
@@ -87,16 +88,20 @@ export function checkLastWeek() {
   celebrate(tier, `Last week: ${TIER_TITLE[tier].toLowerCase()}`, run > 1 ? `${run} perfect weeks in a row` : "You had a very good week", "dayDone");
 }
 
-/** New trophies get a celebration; on the very first run they're just put on the shelf. */
+/** Each new trophy level gets a celebration; levels already reached when the ladders first load are recorded silently (D86). */
 export function checkTrophies() {
-  const today = todayLocal();
-  const { p, from } = prepared(today);
-  const earned = earnedTrophies(p, from, allTime(today));
-  const keys = [...earned].map((t) => `trophy:${t}`);
-  const first = !useProgress.getState().celebrated.has("init:v1");
-  const fresh = markCelebrated(first ? [...keys, "init:v1"] : keys).filter((k) => k.startsWith("trophy:"));
+  const counts = currentTrophyCounts();
+  const keys = TROPHIES.flatMap((t) => t.levels.slice(0, levelOf(t, counts[t.id])).map((_, i) => `trophy:${t.id}:${i + 1}`));
+  const first = !useProgress.getState().celebrated.has("init:ladders");
+  const fresh = markCelebrated(first ? [...keys, "init:ladders"] : keys).filter((k) => k.startsWith("trophy:"));
   if (first || !fresh.length) return;
-  const names = fresh.map((k) => TROPHIES.find((t) => `trophy:${t.id}` === k)?.name ?? "").join(" · ");
+  const names = fresh
+    .map((k) => {
+      const [, id, lvl] = k.split(":");
+      const t = TROPHIES.find((x) => x.id === id);
+      return t ? `${LEVEL_LOOKS[Number(lvl) - 1].name} · ${t.levels[Number(lvl) - 1]} ${t.name.toLowerCase()}` : "";
+    })
+    .join(" · ");
   // Usually a trophy arrives with its own perfect-day celebration: add it to that one.
   const cur = useCelebration.getState().current;
   if (cur) useCelebration.setState({ current: { ...cur, detail: `${cur.detail}\n🏆 ${names}` } });
@@ -117,11 +122,11 @@ export function allTime(today: LocalDate) {
 /** Perfect days in a row, for the Today flame. */
 export const perfectRun = () => dayRun(prepared().p);
 
-/** Earned trophies, for the Statistics shelf. */
-export function trophiesEarned(): Set<TrophyId> {
+/** What each trophy ladder measures right now, for the shelf and level checks. */
+export function currentTrophyCounts(): TrophyCounts {
   const today = todayLocal();
   const { p, from } = prepared(today);
-  return earnedTrophies(p, from, allTime(today));
+  return trophyCounts(p, from, allTime(today));
 }
 
 let lastTaskSound = 0;

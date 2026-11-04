@@ -110,8 +110,8 @@ export function FocusView() {
 
   return (
     // Narrow windows stack the timer above today's sessions and scroll; nothing may shrink under the ring.
-    <div className="scroll-thin flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-      <div className="scroll-thin flex shrink-0 flex-col items-center justify-center-safe gap-5 p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      <div className="flex shrink-0 flex-col items-center justify-center-safe gap-5 p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {t.status === "idle" && (
           <div role="radiogroup" aria-label="Timer mode" className="flex rounded-sm border border-border bg-bg p-0.5">
             {(["pomodoro", "stopwatch"] as const).map((m) => (
@@ -239,7 +239,7 @@ export function FocusView() {
           <span className="font-sans text-sm text-muted">m</span>
         </div>
         <div className="text-xs text-muted">{todays.length} session{todays.length === 1 ? "" : "s"}</div>
-        <ul className="scroll-thin mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto">
+        <ul className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto">
           {todays.map((s) => (
             <li key={s.id} className="group flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-hover">
               <span className="font-mono text-xs text-muted">{format(new Date(s.startAt), "HH:mm")}</span>

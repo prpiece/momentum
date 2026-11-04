@@ -71,7 +71,7 @@ export function StatsView() {
   const listMax = Math.max(1, ...perList.map((l) => l.value));
 
   return (
-    <div className="scroll-thin h-full overflow-y-auto px-6 pb-10">
+    <div className="h-full overflow-y-auto px-6 pb-10">
       {/* Hero: the streak and a line of encouragement. */}
       <section
         className="anim-rise relative overflow-hidden rounded-lg border border-border p-6 shadow-sm"
@@ -150,7 +150,7 @@ export function StatsView() {
           )}
         </Card>
 
-        <Card title="Trophies" hint="perfect days, weeks and milestones" className="lg:col-span-2">
+        <Card title="Trophies" hint="levels to climb" className="lg:col-span-2">
           <TrophyShelf />
         </Card>
 

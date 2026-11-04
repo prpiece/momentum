@@ -36,17 +36,16 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
   );
   const roots = sortVMs(vms.filter((v) => !v.task.parentId && v.task.status === "open"), "manual");
   const [adding, setAdding] = useState(false);
-  const draggingTask = useDndContext().active?.data.current?.type === "task";
   const unsectioned = roots.filter((v) => !v.task.sectionId || !sections.some((s) => s.id === v.task.sectionId));
-  // Hidden when empty, except while a task is dragged (still a drop target) or when there are no sections to add to.
-  const showUnsectioned = unsectioned.length > 0 || draggingTask || sections.length === 0;
+  // Only when it holds tasks, or there are no sections to add to (D88). Never conjured by a drag.
+  const showUnsectioned = unsectioned.length > 0 || sections.length === 0;
   const columns: { section: Section | null; items: TaskVM[] }[] = [
     ...(showUnsectioned ? [{ section: null, items: unsectioned }] : []),
     ...sections.map((section) => ({ section, items: roots.filter((v) => v.task.sectionId === section.id) })),
   ];
 
   return (
-    <div className="scroll-thin flex min-h-0 flex-1 gap-4 overflow-x-auto px-4 pb-6">
+    <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto px-4 pb-6">
       <SortableContext items={sections.map((s) => `col:${s.id}`)} strategy={horizontalListSortingStrategy}>
         {columns.map((c) => (
           <Column key={c.section?.id ?? "none"} list={list} section={c.section} items={c.items} index={c.section ? sections.indexOf(c.section) : -1} count={sections.length} />
@@ -149,7 +148,7 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
           </Popover>
         )}
       </header>
-      <div className="scroll-thin flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto p-1">
+      <div className="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto p-1">
         {items.map((vm) => (
           <Card key={vm.task.id} vm={vm} />
         ))}

@@ -1,7 +1,7 @@
 import { CalendarDays, Flag, Hash, List, Mic, Plus, Repeat } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTime, relativeDayLabel, todayLocal } from "../domain/dates";
-import { parseQuickAdd, type ChipKind } from "../domain/quickAdd";
+import { parseQuickAdd, withToken, type ChipKind } from "../domain/quickAdd";
 import { contextLabel, type QuickAddContext } from "../domain/quickAddContext";
 import { describeRule } from "../domain/recurrence";
 import { PRIORITY_LABEL } from "../domain/types";
@@ -21,12 +21,19 @@ export function QuickAddWindow() {
   const [text, setText] = useState("");
   const [raw, setRaw] = useState(false);
   const [context, setContext] = useState<QuickAddContext | null>(null);
+  const [lists, setLists] = useState<string[]>([]);
   const [appearance, setAppearance] = useState(readAppearance);
   const [voice, setVoice] = useState<VoicePhase>({ kind: "idle" });
   const [level, setLevel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const smart = appearance?.smartParse ?? true;
-  const parsed = useMemo(() => parseQuickAdd(text, new Date(), smart && !raw), [text, smart, raw]);
+  const parsed = useMemo(() => parseQuickAdd(text, new Date(), smart && !raw, lists), [text, smart, raw, lists]);
+  const parsing = smart && !raw;
+  /** Tap-to-set (D89): edits the text, so the main window still parses one source of truth. */
+  const setToken = (kind: "priority" | "list", token: string) => {
+    setText((t) => withToken(t, parseQuickAdd(t, new Date(), true, lists).chips, kind, token));
+    input.current?.focus();
+  };
 
   useEffect(() => {
     if (appearance) apply(appearance);
@@ -43,8 +50,10 @@ export function QuickAddWindow() {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const w = getCurrentWindow();
       off = [
-        await listen<QuickAddContext | null>("quickadd:focus", (e) => {
-          setContext(e.payload);
+        await listen<{ context: QuickAddContext | null; lists: unknown }>("quickadd:focus", (e) => {
+          setContext(e.payload.context);
+          // Boundary: only strings become list names.
+          setLists(Array.isArray(e.payload.lists) ? e.payload.lists.filter((n): n is string => typeof n === "string") : []);
           setAppearance(readAppearance());
           input.current?.focus();
           input.current?.select();
@@ -169,6 +178,47 @@ export function QuickAddWindow() {
             </span>
           );
         })}
+        {parsing && (
+          <>
+            <select
+              aria-label="Set priority"
+              value=""
+              onChange={(e) => e.target.value && setToken("priority", `!${e.target.value}`)}
+              className="h-6 rounded-full border border-dashed border-border bg-transparent px-2 text-xs text-fg-2 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <option value="">{parsed.priority === null ? "+ Priority" : "Priority…"}</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="none">None</option>
+            </select>
+            {lists.length > 0 && (
+              <select
+                aria-label="Set list"
+                value=""
+                onChange={(e) => e.target.value && setToken("list", `~${e.target.value.replace(/\s+/g, "")}`)}
+                className="h-6 max-w-32 rounded-full border border-dashed border-border bg-transparent px-2 text-xs text-fg-2 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <option value="">{parsed.listName === null ? "+ List" : "List…"}</option>
+                {lists.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setText((t) => `${t.trimEnd()} #`.trimStart());
+                input.current?.focus();
+              }}
+              className="h-6 rounded-full border border-dashed border-border px-2 text-xs text-fg-2 hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              + Tag
+            </button>
+          </>
+        )}
         <span className="ml-auto text-xs text-muted">
           <kbd className="font-mono">Enter</kbd> add · <kbd className="font-mono">Esc</kbd> {parsed.chips.length && !raw ? "plain text" : "close"}
         </span>

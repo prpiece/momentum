@@ -77,6 +77,37 @@ function repeatMatches(text: string): Match[] {
   return out;
 }
 
+/** Words that read as prose after "list" ("make a list of…"), so they never become a list name. */
+// ponytail: a fixed stopword set; widen it if other phrasings trip the fallback.
+const NOT_A_LIST = new Set(["of", "for", "to", "the", "a", "an", "and", "with", "from", "on", "in", "at", "is", "it", "that", "this", "my", "all"]);
+
+/** Keyword forms of the tokens (D89), so they can be spoken: "priority high", "high priority", "tag chem", "list School". */
+function keywordMatches(text: string, listNames: readonly string[]): Match[] {
+  const out: Match[] = [];
+  for (const m of text.matchAll(/(^|\s)(?:priority\s+(high|medium|med|low|none)|(high|medium|med|low)\s+priority)\b/gi)) {
+    const p = PRIORITY_WORDS[(m[2] ?? m[3]).toLowerCase()];
+    const start = (m.index ?? 0) + m[1].length;
+    out.push({ kind: "priority", start, end: (m.index ?? 0) + m[0].length, apply: (r) => void (r.priority = p) });
+  }
+  for (const m of text.matchAll(/(^|\s)tag\s+([\p{L}\p{N}_\-/]+)/giu)) {
+    const start = (m.index ?? 0) + m[1].length;
+    const tag = m[2];
+    out.push({ kind: "tag", start, end: (m.index ?? 0) + m[0].length, apply: (r) => void r.tags.push(tag) });
+  }
+  const byLength = [...listNames].sort((a, b) => b.length - a.length);
+  for (const m of text.matchAll(/(^|\s)list\s+/gi)) {
+    const start = (m.index ?? 0) + m[1].length;
+    const after = (m.index ?? 0) + m[0].length;
+    const rest = text.slice(after);
+    // The longest existing list name wins, so "list Home Chores" isn't cut to "Home".
+    const known = byLength.find((n) => rest.toLowerCase().startsWith(n.toLowerCase()) && !/[\p{L}\p{N}]/u.test(rest.charAt(n.length)));
+    const name = known ?? rest.match(/^[\p{L}\p{N}_\-]+/u)?.[0];
+    if (!name || (!known && NOT_A_LIST.has(name.toLowerCase()))) continue;
+    out.push({ kind: "list", start, end: after + name.length, apply: (r) => void (r.listName = name) });
+  }
+  return out;
+}
+
 function tokenMatches(text: string): Match[] {
   const out: Match[] = [];
   for (const m of text.matchAll(/(^|\s)!(\w+)/g)) {
@@ -106,10 +137,11 @@ const mask = (text: string, spans: { start: number; end: number }[]) =>
   spans.reduce((t, s) => t.slice(0, s.start) + " ".repeat(s.end - s.start) + t.slice(s.end), text);
 
 /**
- * Quick-add grammar: free text plus `!high` / `!2` priority, `#tag`, `~List`,
- * repeat phrases ("every Mon and Wed", "daily", "every 2 weeks") and any date/time chrono understands.
+ * Quick-add grammar: free text plus `!high` / `!2` priority, `#tag`, `~List` (or their keyword forms,
+ * matched against `listNames` for lists), repeat phrases ("every Mon and Wed", "daily", "every 2 weeks")
+ * and any date/time chrono understands.
  */
-export function parseQuickAdd(input: string, now: Date, enabled = true): ParsedTask {
+export function parseQuickAdd(input: string, now: Date, enabled = true, listNames: readonly string[] = []): ParsedTask {
   const result: ParsedTask = {
     title: input.trim(),
     schedule: { kind: "none" },
@@ -122,7 +154,7 @@ export function parseQuickAdd(input: string, now: Date, enabled = true): ParsedT
   if (!enabled) return result;
 
   const matches: Match[] = [];
-  for (const m of [...tokenMatches(input), ...repeatMatches(input)]) {
+  for (const m of [...tokenMatches(input), ...keywordMatches(input, listNames), ...repeatMatches(input)]) {
     if (!matches.some((x) => overlaps(x, m))) matches.push(m);
   }
 
@@ -160,7 +192,17 @@ export function parseQuickAdd(input: string, now: Date, enabled = true): ParsedT
   const title = mask(input, matches)
     .replace(/\s+(on|at|by|for)\s*$/i, "")
     .replace(/\s+/g, " ")
+    // Spoken text leaves punctuation where tokens were ("tomorrow, priority high."): drop the orphans.
+    .replace(/\s+([,.;:!?])(?=\s|$)/g, "$1")
+    .replace(/([,;:])(?:[\s,;:.]*[,;:.])+/g, "$1")
+    .replace(/^[\s,;:.]+|[\s,;:.]+$/g, "")
     .trim();
   result.title = title || input.trim();
   return result;
+}
+
+/** Sets a priority or list token in quick-add text: replaces the existing chip's span, or appends one (D89). */
+export function withToken(text: string, chips: readonly Chip[], kind: "priority" | "list", token: string): string {
+  const c = chips.find((x) => x.kind === kind);
+  return c ? text.slice(0, c.start) + token + text.slice(c.end) : `${text.trimEnd()} ${token}`.trimStart();
 }

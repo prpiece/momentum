@@ -305,7 +305,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside aria-label="Navigation" className={`glass flex shrink-0 flex-col py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease)] ${collapsed ? "w-[calc(2.5rem+18px)]" : "w-64"}`}>
+    <aside aria-label="Navigation" className={`flex shrink-0 flex-col py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease)] ${collapsed ? "w-[calc(2.5rem+18px)]" : "w-64"}`}>
       <div data-tauri-drag-region className={`flex h-10 select-none items-center px-3 ${collapsed ? "justify-center" : "justify-between"}`}>
         {!collapsed && (
           <div className="pointer-events-none flex items-center gap-2.5 px-1">
@@ -332,7 +332,7 @@ export function Sidebar() {
         </button>
       )}
 
-      <nav className="scroll-thin mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2">
+      <nav className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2">
         <ul data-tour="nav" className="space-y-0.5">
           {SIDEBAR_SMART_NAV.map((n) => (
             <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} count={counts.smart[n.id] || undefined} drop={smartDrop[n.id]} />

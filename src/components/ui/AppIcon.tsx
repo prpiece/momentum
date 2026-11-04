@@ -159,7 +159,7 @@ export function IconPicker({ value, onChange, color, none }: { value: string | n
   const current = iconOf(value);
   return (
     // Padding inside the scroller keeps the selected ring from being clipped at its edges.
-    <div className="scroll-thin grid max-h-40 grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] justify-items-center gap-1 overflow-y-auto p-1" role="group" aria-label="Icon">
+    <div className="grid max-h-40 grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] justify-items-center gap-1 overflow-y-auto p-1" role="group" aria-label="Icon">
       {none && (
         <button type="button" onClick={() => onChange(null)} aria-pressed={value === null} className={`grid size-9 place-items-center rounded-sm text-[0.65rem] text-muted transition-colors ${value === null ? "bg-accent-soft ring-1 ring-accent" : "hover:bg-hover"}`}>
           {none}

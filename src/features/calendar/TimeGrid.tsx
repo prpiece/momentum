@@ -69,7 +69,7 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         ))}
       </div>
 
-      <div ref={scroller} className="scroll-thin relative min-h-0 flex-1 overflow-y-auto">
+      <div ref={scroller} className="relative min-h-0 flex-1 overflow-y-auto">
         <div className="relative grid" style={{ gridTemplateColumns: cols, height: 24 * hourPx }}>
           <div className="relative">
             {Array.from({ length: 23 }, (_, i) => i + 1).map((h) => (

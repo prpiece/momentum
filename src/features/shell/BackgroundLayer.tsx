@@ -34,6 +34,8 @@ export function BackgroundLayer() {
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       <div className="absolute" style={{ ...layer, inset, filter: `blur(${blur}px)` }} />
       <div className="absolute inset-0" style={{ background: `rgb(var(--dim-rgb) / ${dim}%)` }} />
+      {/* One frost over the whole window (D84): the frame around the content card matches the sidebar instead of showing the raw gradient. */}
+      <div className="absolute inset-0" style={{ background: "var(--glass)" }} />
     </div>
   );
 }

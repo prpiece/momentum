@@ -125,6 +125,22 @@ export function MiniWindow() {
   );
 }
 
+/** Completes the task in the main window (D80, D87). */
+function DoneBox({ t, small }: { t: MiniTask; small?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={false}
+      aria-label={`Complete ${t.title}`}
+      onClick={() => void send({ type: "toggle", id: t.id, key: t.key })}
+      className={`group grid shrink-0 place-items-center rounded-full border-[1.75px] border-muted hover:border-accent ${small ? "size-3.5" : "size-[18px]"}`}
+    >
+      <Check size={small ? 9 : 11} strokeWidth={3.5} className="text-accent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+    </button>
+  );
+}
+
 function TaskTab({ snap }: { snap: MiniSnapshot }) {
   if (!snap.tasks.length) return <p className="px-2 py-6 text-center text-sm text-muted">Nothing due today.</p>;
   return (
@@ -133,16 +149,7 @@ function TaskTab({ snap }: { snap: MiniSnapshot }) {
       <ul className="space-y-0.5">
         {snap.tasks.map((t) => (
           <li key={t.id} className="flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-hover">
-            <button
-              type="button"
-              role="checkbox"
-              aria-checked={false}
-              aria-label={`Complete ${t.title}`}
-              onClick={() => void send({ type: "toggle", id: t.id, key: t.key })}
-              className="group grid size-[18px] shrink-0 place-items-center rounded-full border-[1.75px] border-muted hover:border-accent"
-            >
-              <Check size={11} strokeWidth={3.5} className="text-accent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
-            </button>
+            <DoneBox t={t} />
             <button type="button" onClick={() => void send({ type: "open", id: t.id, key: t.key })} title="Open in Momentum" className="min-w-0 flex-1 truncate text-left text-sm">
               {t.title}
             </button>
@@ -200,8 +207,9 @@ function MatrixTab({ snap }: { snap: MiniSnapshot }) {
             </h3>
             <ul className="mt-0.5 min-h-0 space-y-0.5">
               {top.map((t: MiniTask) => (
-                <li key={t.id}>
-                  <button type="button" onClick={() => void send({ type: "open", id: t.id, key: t.key })} title={t.title} className="block w-full truncate rounded-sm px-0.5 text-left text-xs text-fg-2 hover:bg-hover hover:text-fg">
+                <li key={t.id} className="flex items-center gap-1 rounded-sm px-0.5 hover:bg-hover">
+                  <DoneBox t={t} small />
+                  <button type="button" onClick={() => void send({ type: "open", id: t.id, key: t.key })} title={t.title} className="min-w-0 flex-1 truncate text-left text-xs text-fg-2 hover:text-fg">
                     {t.title}
                   </button>
                 </li>

@@ -4,7 +4,7 @@ import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { parseQuickAdd, type ChipKind } from "../../domain/quickAdd";
 import { describeRule } from "../../domain/recurrence";
 import { PRIORITY_LABEL, type Task } from "../../domain/types";
-import type { NewTask } from "../../stores/data";
+import { useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { createFromText, listByName } from "./quickAddSubmit";
 
@@ -54,7 +54,9 @@ export function QuickAdd(props: {
     return () => window.removeEventListener(QUICK_ADD_EVENT, focus);
   }, []);
 
-  const parsed = useMemo(() => parseQuickAdd(text, new Date(), parsing), [text, parsing]);
+  const lists = useData((s) => s.lists);
+  const names = useMemo(() => Object.values(lists).map((l) => l.name), [lists]);
+  const parsed = useMemo(() => parseQuickAdd(text, new Date(), parsing, names), [text, parsing, names]);
   const today = todayLocal();
 
   const chipLabel = (kind: ChipKind, raw: string): string => {
@@ -68,7 +70,7 @@ export function QuickAdd(props: {
     }
     if (kind === "priority" && parsed.priority !== null) return PRIORITY_LABEL[parsed.priority];
     if (kind === "repeat" && parsed.rule) return describeRule(parsed.rule);
-    if (kind === "list") return listByName(raw.slice(1))?.name ?? `${raw} (no such list)`;
+    if (kind === "list" && parsed.listName) return listByName(parsed.listName)?.name ?? `${parsed.listName} (no such list)`;
     return raw;
   };
 

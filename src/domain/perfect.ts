@@ -166,37 +166,33 @@ export const tierOfRun = (run: number): Tier => (run % 52 === 0 ? "year" : run %
 /** A habit streak worth a celebration. */
 export const STREAK_MILESTONES = [7, 30, 100, 365] as const;
 
+/** Trophy ladders (D86): each kind climbs through levels, starting small. */
 export const TROPHIES = [
-  { id: "first-day", name: "First perfect day", hint: "Finish everything due in a day" },
-  { id: "week", name: "Perfect week", hint: "A very good week: 3+ active days, 90% done" },
-  { id: "month", name: "Perfect month", hint: "4 perfect weeks in a row" },
-  { id: "year", name: "Perfect year", hint: "52 perfect weeks in a row" },
-  { id: "tasks-100", name: "100 tasks done", hint: "Complete 100 tasks" },
-  { id: "habit-30", name: "30-day habit streak", hint: "Keep one habit 30 days in a row" },
-  { id: "focus-10h", name: "10 hours of focus", hint: "Log 10 hours in the focus timer" },
+  { id: "tasks", name: "Tasks done", unit: "tasks", levels: [10, 25, 50, 100, 250, 500, 1000, 2500] },
+  { id: "focus", name: "Focus time", unit: "hours", levels: [1, 5, 10, 25, 50, 100, 250, 500] },
+  { id: "habit", name: "Habit streak", unit: "days", levels: [3, 7, 14, 30, 60, 100, 200, 365] },
+  { id: "days", name: "Perfect days", unit: "days", levels: [1, 5, 10, 25, 50, 100] },
+  { id: "weeks", name: "Perfect weeks", unit: "in a row", levels: [1, 4, 12, 26, 52] },
 ] as const;
-export type TrophyId = (typeof TROPHIES)[number]["id"];
+export type Trophy = (typeof TROPHIES)[number];
+export type TrophyId = Trophy["id"];
+export type TrophyCounts = Record<TrophyId, number>;
 
-/** Trophies earned over the prepared window, plus all-time counts the caller supplies. */
-export function earnedTrophies(p: Prepared, from: LocalDate, all: { doneTasks: number; focusMinutes: number; bestHabitDays: number }): Set<TrophyId> {
-  const out = new Set<TrophyId>();
-  for (let d = from; d <= p.input.today; d = addDaysLocal(d, 1)) {
-    if (dayOf(p, d).kind === "perfect") {
-      out.add("first-day");
-      break;
-    }
-  }
+/** Levels reached: 0 = none yet, `levels.length` = the top. */
+export const levelOf = (t: Trophy, count: number): number => t.levels.filter((l) => count >= l).length;
+
+/**
+ * The count each ladder measures. Perfect days and weeks come from the prepared window.
+ * ponytail: perfect days only count within that window (~14 months); keep a running total if the top level needs longer.
+ */
+export function trophyCounts(p: Prepared, from: LocalDate, all: { doneTasks: number; focusMinutes: number; bestHabitDays: number }): TrophyCounts {
+  let days = 0;
+  for (let d = from; d <= p.input.today; d = addDaysLocal(d, 1)) if (dayOf(p, d).kind === "perfect") days++;
   let run = 0;
   let best = 0;
   for (let w = weekStartOf(from, p.input.weekStart); w <= p.input.today; w = addDaysLocal(w, 7)) {
     run = weekQualifies(p, w) ? run + 1 : 0;
     best = Math.max(best, run);
   }
-  if (best >= 1) out.add("week");
-  if (best >= 4) out.add("month");
-  if (best >= 52) out.add("year");
-  if (all.doneTasks >= 100) out.add("tasks-100");
-  if (all.bestHabitDays >= 30) out.add("habit-30");
-  if (all.focusMinutes >= 600) out.add("focus-10h");
-  return out;
+  return { tasks: all.doneTasks, focus: all.focusMinutes / 60, habit: all.bestHabitDays, days, weeks: best };
 }

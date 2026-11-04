@@ -4,8 +4,9 @@ import type { Task } from "../../domain/types";
 import { addTask, ensureTags, useData, type NewTask } from "../../stores/data";
 import { openTask, toast } from "../../stores/ui";
 
-export const listByName = (name: string) =>
-  Object.values(useData.getState().lists).find((l) => l.name.replace(/\s+/g, "").toLowerCase() === name.toLowerCase());
+const nameKey = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+export const listByName = (name: string) => Object.values(useData.getState().lists).find((l) => nameKey(l.name) === nameKey(name));
+export const listNames = () => Object.values(useData.getState().lists).map((l) => l.name);
 
 /**
  * The one way quick-add text becomes a task (in-app bar and the global Ctrl+Shift+A window).
@@ -13,7 +14,7 @@ export const listByName = (name: string) =>
  */
 export function createFromText(text: string, defaults: Partial<NewTask>, parsing: boolean, announce: (t: Task) => boolean): Task | null {
   if (!text.trim()) return null;
-  const p = parseQuickAdd(text, new Date(), parsing);
+  const p = parseQuickAdd(text, new Date(), parsing, listNames());
   const lists = useData.getState().lists;
   const listId = (p.listName && listByName(p.listName)?.id) || defaults.listId;
   const t = addTask({

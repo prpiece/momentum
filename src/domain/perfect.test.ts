@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal, atLocalTime } from "./dates";
 import type { Habit, HabitFrequency } from "./habits";
-import { dayOf, dayRun, earnedTrophies, prepare, tierOfRun, weekQualifies, weekRun, type ProgressInput } from "./perfect";
+import { dayOf, dayRun, levelOf, prepare, trophyCounts, TROPHIES, tierOfRun, weekQualifies, weekRun, type ProgressInput } from "./perfect";
 import type { LocalDate, Task } from "./types";
 
 // A Monday, so with weekStart 1 the week is 2026-10-26 … 2026-11-01.
@@ -108,9 +108,13 @@ describe("runs and weeks", () => {
 });
 
 describe("trophies", () => {
-  it("awards from history and all-time counts", () => {
+  it("counts from history and all-time totals", () => {
     const tasks = [0, 1, 2].map((n) => task(day(n), day(n)));
-    const got = earnedTrophies(prepare(input({ tasks }), MON), MON, { doneTasks: 100, focusMinutes: 599, bestHabitDays: 30 });
-    expect([...got].sort()).toEqual(["first-day", "habit-30", "tasks-100", "week"]);
+    const got = trophyCounts(prepare(input({ tasks }), MON), MON, { doneTasks: 100, focusMinutes: 90, bestHabitDays: 30 });
+    expect(got).toEqual({ tasks: 100, focus: 1.5, habit: 30, days: 3, weeks: 1 });
+  });
+  it("climbs levels at each threshold", () => {
+    const tasks = TROPHIES[0];
+    expect([0, 9, 10, 24, 25, 2500, 9999].map((n) => levelOf(tasks, n))).toEqual([0, 0, 1, 1, 2, 8, 8]);
   });
 });

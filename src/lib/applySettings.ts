@@ -1,19 +1,24 @@
 import { useEffect } from "react";
 import { accentForeground } from "../domain/color";
-import { effectiveDensity, parseSettings } from "../domain/settings";
+import { parseSettings } from "../domain/settings";
 import type { Settings } from "../domain/types";
 import { useSettings } from "../stores/settings";
 
 const FONT_PX: Record<Settings["fontSize"], string> = { sm: "14px", md: "15px", lg: "16.5px", xl: "18px", xxl: "20px" };
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "fontSize" | "timeFormat" | "smartParse">;
+export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "fontSize" | "timeFormat" | "smartParse" | "matrixColors">;
 
-/** `windowHeight` (main window only) lets short windows go compact without touching the saved setting. */
-export function apply(s: Appearance, windowHeight = Infinity) {
+export function apply(s: Appearance) {
   const root = document.documentElement;
-  root.dataset.theme = s.theme === "system" ? (darkQuery.matches ? "dark" : "light") : s.theme;
-  root.dataset.density = effectiveDensity(s.density, windowHeight);
+  const theme = s.theme === "system" ? (darkQuery.matches ? "dark" : "light") : s.theme;
+  root.dataset.theme = theme;
+  // A picked quadrant colour replaces the theme default; dark mode lifts it toward white for contrast (D85).
+  s.matrixColors.forEach((c, i) => {
+    if (c) root.style.setProperty(`--q${i + 1}`, theme === "dark" ? `color-mix(in oklch, ${c} 72%, white)` : c);
+    else root.style.removeProperty(`--q${i + 1}`);
+  });
+  root.dataset.density = s.density;
   root.dataset.motion = s.motion;
   root.style.setProperty("--accent", s.accent);
   root.style.setProperty("--accent-fg", accentForeground(s.accent));
@@ -37,19 +42,16 @@ export function readAppearance(): Appearance | null {
 export function useApplySettings() {
   const settings = useSettings((s) => s.settings);
   useEffect(() => {
-    apply(settings, window.innerHeight);
-    const onResize = () => apply(settings, window.innerHeight);
-    window.addEventListener("resize", onResize);
+    apply(settings);
     try {
-      const { theme, accent, density, motion, fontSize, timeFormat, smartParse } = settings;
-      localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ theme, accent, density, motion, fontSize, timeFormat, smartParse }));
+      const { theme, accent, density, motion, fontSize, timeFormat, smartParse, matrixColors } = settings;
+      localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ theme, accent, density, motion, fontSize, timeFormat, smartParse, matrixColors }));
     } catch {
       // Storage unavailable: popups fall back to default appearance.
     }
-    const onChange = () => apply(settings, window.innerHeight);
+    const onChange = () => apply(settings);
     if (settings.theme === "system") darkQuery.addEventListener("change", onChange);
     return () => {
-      window.removeEventListener("resize", onResize);
       darkQuery.removeEventListener("change", onChange);
     };
   }, [settings]);

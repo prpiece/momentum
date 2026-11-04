@@ -34,6 +34,10 @@ _Avoid_: Upload, media, embed
 One of the four cells of the Eisenhower matrix, derived from a task's importance and urgency rather than stored on it.
 _Avoid_: Box, category, bucket
 
+**Quadrant colour**:
+The colour that marks a quadrant everywhere it appears; a theme default unless the user picks one.
+_Avoid_: Matrix theme
+
 ## Focus
 
 **Phase**:
@@ -62,6 +66,10 @@ _Avoid_: Widget, overlay, compact mode
 The single-line natural-language entry that turns typed or spoken text into a task.
 _Avoid_: Capture, new task box
 
+**Token**:
+A marker inside quick-add text that sets a field instead of becoming title: a symbol form (`!high`, `#tag`, `~List`) or its keyword form (`priority high`, `tag x`, `list x`).
+_Avoid_: Command, shortcut
+
 **Voice quick-add**:
 Quick-add whose text comes from on-device speech recognition instead of typing.
 _Avoid_: Dictation, voice commands
@@ -87,3 +95,13 @@ _Avoid_: Bottom bar, taskbar
 **Background**:
 A user-chosen image or preset gradient shown behind the content area.
 _Avoid_: Wallpaper, theme
+
+## Progress
+
+**Trophy**:
+A kind of achievement measured by one count (tasks done, focus hours, habit streak, perfect days, perfect weeks).
+_Avoid_: Badge, award
+
+**Level**:
+One rung of a trophy's ladder, reached when its count passes a threshold; each level has its own look.
+_Avoid_: Tier, milestone, rank

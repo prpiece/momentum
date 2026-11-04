@@ -79,7 +79,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         </IconButton>
       </header>
 
-      <div className="scroll-thin flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="pt-1.5">
             <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, key)} label="Complete" size={20} />

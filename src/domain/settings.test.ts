@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, effectiveDensity, parseSettings } from "./settings";
+import { DEFAULT_SETTINGS, parseSettings } from "./settings";
 import type { Settings } from "./types";
 
 describe("parseSettings", () => {
@@ -19,13 +19,18 @@ describe("parseSettings", () => {
     expect(s.sidebarSide).toBe("right");
   });
 
+  it("keeps only preset quadrant colours", () => {
+    expect(parseSettings({ matrixColors: ["#2F6FED", "red", 3] }).matrixColors).toEqual(["#2f6fed", null, null, null]);
+    expect(parseSettings({ matrixColors: "nope" }).matrixColors).toEqual([null, null, null, null]);
+  });
+
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
       theme: "dark", accent: "#0e8a85", density: "compact", motion: "on", fontSize: "xxl", zoom: 1.25, layout: "dock", background: { kind: "gradient", id: "ember" }, backgroundDim: 55, backgroundBlur: 12, dockLabels: false, sidebarSide: "right",
       sidebarCollapsed: true, sidebarMoreOpen: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
-      matrix: { importantPriorities: [3], urgentDays: 5 }, closeToTray: false, launchAtStartup: true, checkUpdates: false,
+      matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["#0e8a85", null, null, "#2f6fed"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
       sounds: { enabled: false, volume: 0.3, picks: { task: "ding", habit: "none", streak: "pop", dayDone: "chime", focusEnd: "marimba", longBreak: "fanfare" } },
       onboarded: true, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
@@ -107,14 +112,6 @@ describe("parseSettings migrations", () => {
 
   it("maps the retired 3-day calendar view to 5 days", () => {
     expect(parseSettings({ calendar: { view: "3day" } }).calendar.view).toBe("5day");
-  });
-});
-
-describe("effectiveDensity", () => {
-  it("forces compact on short windows and keeps the saved choice otherwise", () => {
-    expect(effectiveDensity("comfortable", 728)).toBe("compact");
-    expect(effectiveDensity("comfortable", 760)).toBe("comfortable");
-    expect(effectiveDensity("compact", 1000)).toBe("compact");
   });
 });
 

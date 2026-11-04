@@ -44,7 +44,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
   );
 
   return (
-    <div className="scroll-thin h-full space-y-6 overflow-y-auto p-6">
+    <div className="h-full space-y-6 overflow-y-auto p-6">
       <header className="flex items-center gap-3">
         <IconTile name={habit.icon} color={habit.color} size={48} />
         <div className="min-w-0 flex-1">
@@ -160,7 +160,7 @@ function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; 
   return (
     <section>
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Past year</h3>
-      <div className="scroll-thin overflow-x-auto">
+      <div className="overflow-x-auto">
         <svg width={width} height={height} role="img" aria-label={`${habit.name}: daily check-ins over the past year`}>
           {weeks.map((w, wi) => {
             const d0 = fromLocalDate(w);
