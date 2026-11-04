@@ -256,7 +256,10 @@ pub fn run() {
             files::import_image,
             files::write_image,
             files::list_images,
-            files::delete_image
+            files::delete_image,
+            files::write_backup_zip,
+            files::read_backup_zip,
+            files::restore_backup_attachments
         ])
         // Closing the main window either hides it to the tray or quits the whole app. The hidden
         // popup windows would otherwise keep the process alive with no way back in.

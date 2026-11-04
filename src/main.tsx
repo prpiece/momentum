@@ -35,6 +35,8 @@ if (popup === "quickadd" || popup === "reminder") {
     countdowns.replaceCountdowns(seed.sampleCountdowns());
     focus.replaceSessions(seed.sampleFocus(Object.values(data.useData.getState().tasks)));
   }
+  // Old unreferenced note images are cleaned up in the background (D78).
+  void import("./lib/appFiles").then((f) => f.sweepAttachments(Object.values(data.useData.getState().tasks).map((t) => t.description))).catch(console.error);
   go(useSettings.getState().settings.defaultView);
   root.render(
     <React.StrictMode>

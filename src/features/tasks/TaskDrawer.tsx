@@ -1,17 +1,19 @@
 import { format } from "date-fns";
-import { Ban, CalendarDays, ChevronLeft, Copy, Flag, Hash, ListChecks, ListTodo, Pin, Trash2, X } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { Ban, CalendarDays, ChevronLeft, Copy, Flag, Hash, ImagePlus, ListChecks, ListTodo, Pin, Trash2, X } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { IconButton } from "../../components/ui/Dialog";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
+import { isTauri } from "../../db/client";
 import { loadActivity } from "../../db/repo";
+import { importImage, MAX_IMAGE_BYTES, newImageName, writeImage } from "../../lib/appFiles";
 import { scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
 import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, type Activity, type Task } from "../../domain/types";
 import { addTask, depthOf, duplicateTask, ensureTags, uid, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { closeDrawer, openTask, useUi } from "../../stores/ui";
+import { closeDrawer, openTask, toast, useUi } from "../../stores/ui";
 import { deleteTasks, editTask, setWontDo, toggleDone } from "./actions";
+import { NoteMarkdown } from "./NoteMarkdown";
 import { ScheduleEditor } from "./ScheduleEditor";
 import { useDerived } from "./selectors";
 
@@ -256,6 +258,45 @@ function Description({ task }: { task: Task }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(task.description);
   useEffect(() => setV(task.description), [task.description]);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const insert = (name: string) => {
+    const el = ref.current;
+    if (!el) return;
+    const md = `![](attachment:${name})`;
+    const at = el.selectionStart;
+    setV(el.value.slice(0, at) + md + el.value.slice(el.selectionEnd));
+    requestAnimationFrame(() => el.setSelectionRange(at + md.length, at + md.length));
+  };
+  const fail = (err: unknown) => toast(err instanceof Error ? err.message : String(err));
+  const addImages = async (files: File[]) => {
+    if (!isTauri) return toast("Images work in the desktop app.");
+    for (const f of files) {
+      const name = newImageName(f.type || f.name);
+      if (!name) toast(`${f.name || "That file"} isn't a PNG, JPG, GIF or WebP image.`);
+      else if (f.size > MAX_IMAGE_BYTES) toast("Images can be at most 10 MB.");
+      else
+        try {
+          await writeImage("attachments", name, f);
+          insert(name);
+        } catch (err) {
+          fail(err);
+        }
+    }
+  };
+  const pickImage = async () => {
+    if (!isTauri) return toast("Images work in the desktop app.");
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const path = await open({ multiple: false, directory: false, filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp"] }] });
+      if (typeof path !== "string") return;
+      const name = newImageName(path);
+      if (!name) return toast("That isn't a PNG, JPG, GIF or WebP image.");
+      await importImage("attachments", name, path);
+      insert(name);
+    } catch (err) {
+      fail(err);
+    }
+  };
   if (!editing && task.description)
     return (
       <div
@@ -266,23 +307,44 @@ function Description({ task }: { task: Task }) {
         onKeyDown={(e) => e.key === "Enter" && setEditing(true)}
         className="prose-md min-h-32 flex-1 cursor-text rounded-md p-2 text-sm text-fg-2 hover:bg-hover"
       >
-        <ReactMarkdown>{task.description}</ReactMarkdown>
+        <NoteMarkdown>{task.description}</NoteMarkdown>
       </div>
     );
   return (
-    <textarea
-      autoFocus={editing}
-      value={v}
-      onChange={(e) => setV(e.target.value)}
-      onFocus={() => setEditing(true)}
-      onBlur={() => {
-        setEditing(false);
-        if (v !== task.description) updateTask(task.id, { description: v });
-      }}
-      placeholder="Write a note… (Markdown supported)"
-      aria-label="Description"
-      className="min-h-32 w-full flex-1 resize-none rounded-md border border-transparent bg-transparent p-2 text-sm outline-none placeholder:text-muted hover:border-border focus:border-accent"
-    />
+    <div className="flex min-h-32 flex-1 flex-col">
+      <textarea
+        ref={ref}
+        autoFocus={editing}
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onFocus={() => setEditing(true)}
+        onBlur={() => {
+          setEditing(false);
+          if (v !== task.description) updateTask(task.id, { description: v });
+        }}
+        onPaste={(e) => {
+          const imgs = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+          if (!imgs.length) return;
+          e.preventDefault();
+          void addImages(imgs);
+        }}
+        onDragOver={(e) => e.dataTransfer.types.includes("Files") && e.preventDefault()}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return;
+          e.preventDefault();
+          void addImages([...e.dataTransfer.files]);
+        }}
+        placeholder="Write a note… (Markdown supported; paste or drop images)"
+        aria-label="Description"
+        className="min-h-32 w-full flex-1 resize-none rounded-md border border-transparent bg-transparent p-2 text-sm outline-none placeholder:text-muted hover:border-border focus:border-accent"
+      />
+      {editing && (
+        // mouseDown is prevented so the textarea keeps focus (a blur would save and leave edit mode).
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void pickImage()} className="mt-1 flex items-center gap-1 self-start rounded-sm px-1.5 py-1 text-xs text-muted hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-accent">
+          <ImagePlus size={14} /> Add image
+        </button>
+      )}
+    </div>
   );
 }
 
