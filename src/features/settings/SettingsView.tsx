@@ -271,6 +271,9 @@ export function SettingsView() {
         <Row label="Global quick add">
           <ShortcutInput value={s.quickAddShortcut} onChange={(v) => update({ quickAddShortcut: v })} />
         </Row>
+        <Row label="Mini window">
+          <ShortcutInput value={s.miniShortcut} onChange={(v) => update({ miniShortcut: v })} />
+        </Row>
       </Section>
 
 

@@ -191,11 +191,24 @@ fn show_quick_add(app: &AppHandle) {
     }
 }
 
+/// Shows the mini window, or hides it when it is already up (tray, header button and hotkey).
+#[tauri::command]
+fn toggle_mini(app: AppHandle) {
+    let Some(w) = app.get_webview_window("mini") else { return };
+    if w.is_visible().unwrap_or(false) {
+        let _ = w.hide();
+    } else {
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Momentum", true, None::<&str>)?;
     let quick = MenuItem::with_id(app, "quick", "Quick add…", true, None::<&str>)?;
+    let mini = MenuItem::with_id(app, "mini", "Mini window", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Momentum", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &quick, &PredefinedMenuItem::separator(app)?, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &quick, &mini, &PredefinedMenuItem::separator(app)?, &quit])?;
     let mut tray = TrayIconBuilder::with_id("momentum")
         .tooltip("Momentum")
         .menu(&menu)
@@ -203,6 +216,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show_main(app),
             "quick" => show_quick_add(app),
+            "mini" => toggle_mini(app.clone()),
             // Real quit: bypasses the window's close-to-tray handler.
             "quit" => app.exit(0),
             _ => {}
@@ -249,6 +263,7 @@ pub fn run() {
         .manage(CloseToTray(AtomicBool::new(true)))
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
+            toggle_mini,
             write_text_file,
             read_text_file,
             backups_dir,

@@ -229,5 +229,7 @@ export type Settings = {
   onboarded: boolean;
   /** Tauri accelerator, e.g. `CommandOrControl+Shift+A`. */
   quickAddShortcut: string;
+  /** Toggles the mini window (D80). */
+  miniShortcut: string;
   pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number; cycles: Cycles };
 };

@@ -37,6 +37,21 @@
         "dragDropEnabled": false
       },
       {
+        "label": "mini",
+        "title": "Momentum Mini",
+        "url": "index.html?window=mini",
+        "width": 320,
+        "height": 420,
+        "minWidth": 260,
+        "minHeight": 300,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "center": true,
+        "dragDropEnabled": false
+      },
+      {
         "label": "reminder",
         "title": "Momentum Reminders",
         "url": "index.html?window=reminder",

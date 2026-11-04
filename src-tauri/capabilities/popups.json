@@ -1,10 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "popups",
-  "description": "Quick-add and reminder popups: no database access; they talk to the main window through events",
+  "description": "Quick-add, reminder and mini popups: no database access; they talk to the main window through events",
   "windows": [
     "quickadd",
-    "reminder"
+    "reminder",
+    "mini"
   ],
   "permissions": [
     "core:default",
@@ -13,6 +14,7 @@
     "core:window:allow-set-focus",
     "core:window:allow-set-position",
     "core:window:allow-center",
-    "core:window:allow-set-size"
+    "core:window:allow-set-size",
+    "core:window:allow-start-dragging"
   ]
 }

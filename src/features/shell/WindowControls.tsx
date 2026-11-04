@@ -1,8 +1,9 @@
-import { Copy, Minus, Square, X } from "lucide-react";
+import { Copy, Minus, PictureInPicture2, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isTauri } from "../../db/client";
 
 type Win = Awaited<ReturnType<typeof getWindow>>;
+const invoke = async (cmd: string) => (await import("@tauri-apps/api/core")).invoke(cmd);
 const getWindow = async () => (await import("@tauri-apps/api/window")).getCurrentWindow();
 
 /**
@@ -34,6 +35,9 @@ export function WindowControls() {
   const btn = "grid h-8 w-10 place-items-center rounded-sm text-muted transition-colors duration-[var(--dur)] hover:bg-hover hover:text-fg";
   return (
     <div className="ml-auto flex shrink-0 items-center gap-0.5">
+      <button type="button" aria-label="Mini window" title="Mini window" onClick={() => void invoke("toggle_mini")} className={btn}>
+        <PictureInPicture2 size={16} />
+      </button>
       <button type="button" aria-label="Minimize" title="Minimize" onClick={() => void win.minimize()} className={btn}>
         <Minus size={16} />
       </button>
