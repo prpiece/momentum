@@ -1,3 +1,5 @@
+import type { GradientId } from "./backgrounds";
+
 /** Local calendar date, `YYYY-MM-DD`. Never converted to an instant. */
 export type LocalDate = string;
 /** UTC instant, ISO 8601 (`Date.prototype.toISOString`). */
@@ -194,6 +196,9 @@ export type SoundSettings = {
 /** How many focus phases a pomodoro session runs: until stopped, or exactly `count` (D75). */
 export type Cycles = { kind: "infinite" } | { kind: "finite"; count: number };
 
+/** Image/gradient shown behind the content area (D79). `name` is a file in the backgrounds folder. */
+export type Background = { kind: "none" } | { kind: "gradient"; id: GradientId } | { kind: "image"; name: string };
+
 export type Settings = {
   theme: (typeof THEMES)[number];
   /** #rrggbb */
@@ -203,6 +208,11 @@ export type Settings = {
   fontSize: (typeof FONT_SIZES)[number];
   zoom: (typeof ZOOMS)[number];
   layout: Layout;
+  background: Background;
+  /** Background dim, 0..80 (%). */
+  backgroundDim: number;
+  /** Background image blur, 0..20 (px). */
+  backgroundBlur: number;
   /** Dock layout: small text labels under the icons (D77). */
   dockLabels: boolean;
   sidebarSide: (typeof SIDES)[number];

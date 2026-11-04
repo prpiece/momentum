@@ -181,7 +181,7 @@ export function NavBar({ variant }: { variant: Variant }) {
     <>
       {dock ? (
         <div ref={outerRef} className="flex shrink-0 justify-center pb-2">
-          <nav aria-label="Navigation" data-tour="nav" className="flex max-w-[calc(100%-1rem)] items-center rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
+          <nav aria-label="Navigation" data-tour="nav" className="glass flex max-w-[calc(100%-1rem)] items-center rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
             <div ref={smartRef} className="flex items-center gap-0.5">
               {smartItems}
             </div>
@@ -206,7 +206,7 @@ export function NavBar({ variant }: { variant: Variant }) {
           </nav>
         </div>
       ) : (
-        <div data-tauri-drag-region className="flex h-12 shrink-0 select-none items-center gap-3 px-3">
+        <div data-tauri-drag-region className="glass flex h-12 shrink-0 select-none items-center gap-3 px-3">
           <div className="pointer-events-none flex shrink-0 items-center gap-2 px-1">
             <Logo size={24} />
             <span className="font-bold tracking-tight">Momentum</span>

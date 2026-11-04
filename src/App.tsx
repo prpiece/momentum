@@ -16,6 +16,7 @@ import { HabitsView } from "./features/habits/HabitsView";
 import { MatrixView } from "./features/matrix/MatrixView";
 import { StatsView } from "./features/stats/StatsView";
 import { SettingsView } from "./features/settings/SettingsView";
+import { BackgroundLayer } from "./features/shell/BackgroundLayer";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dialogs";
 import { navFor } from "./features/shell/nav";
@@ -91,7 +92,8 @@ export default function App() {
 
   return (
     <DndRoot>
-      <div className={`relative flex h-full ${layout === "topbar" || layout === "dock" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
+      <div className={`relative isolate flex h-full ${layout === "topbar" || layout === "dock" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
+        <BackgroundLayer />
         {layout === "topbar" ? <NavBar variant="top" /> : layout !== "dock" && <Sidebar />}
         <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface ${MAIN[layout]} ${layout === "classic" ? (side === "left" ? "mr-2" : "ml-2") : layout === "flat" ? (side === "left" ? "border-l" : "border-r") : ""}`}>
           <Header view={view} spec={spec} controls={layout !== "topbar"} />

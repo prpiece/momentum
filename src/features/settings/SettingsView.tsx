@@ -7,6 +7,7 @@ import { SoundsSection } from "./SoundsSection";
 import { UpdatesSection } from "./UpdatesSection";
 import { TagsSection } from "./TagsSection";
 import { openTour } from "../shell/Tour";
+import { BackgroundPicker } from "./BackgroundPicker";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { ZOOMS, type Settings, type ViewId } from "../../domain/types";
@@ -119,6 +120,9 @@ export function SettingsView() {
         </Row>
         <Row label="Accent">
           <AccentPicker value={s.accent} onChange={set("accent")} />
+        </Row>
+        <Row label="Background">
+          <BackgroundPicker />
         </Row>
         <Row label="Animations">
           <Segmented
