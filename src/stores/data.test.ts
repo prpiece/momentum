@@ -3,10 +3,12 @@ import { atLocalTime, timed, wallKey } from "../domain/dates";
 import { toVM } from "../domain/taskViews";
 import { derive } from "../features/tasks/selectors";
 import {
+  addSection,
   addTask,
   deleteOccurrence,
   deleteTasks,
   editOccurrence,
+  moveSection,
   replaceAll,
   restoreTasks,
   rootOf,
@@ -133,5 +135,20 @@ describe("undoable", () => {
     revert();
     expect(live()).toHaveLength(1);
     expect(useData.getState().tasks[s.id].recurrence?.exdates).toEqual([]);
+  });
+});
+
+describe("moveSection", () => {
+  const names = () => Object.values(useData.getState().sections).sort((a, b) => a.sortOrder - b.sortOrder).map((s) => s.name);
+  it("moves a section to an index among its list's sections, writing one row", () => {
+    const [a, b, c] = ["A", "B", "C"].map((n) => addSection("l1", n));
+    const other = addSection("l2", "X");
+    moveSection(c.id, 0);
+    expect(names().filter((n) => n !== "X")).toEqual(["C", "A", "B"]);
+    moveSection(c.id, 2);
+    expect(names().filter((n) => n !== "X")).toEqual(["A", "B", "C"]);
+    expect(useData.getState().sections[a.id].sortOrder).toBe(a.sortOrder);
+    expect(useData.getState().sections[other.id].sortOrder).toBe(other.sortOrder);
+    expect(useData.getState().sections[b.id].sortOrder).toBe(b.sortOrder);
   });
 });

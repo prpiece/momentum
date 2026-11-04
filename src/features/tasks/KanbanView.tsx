@@ -1,4 +1,5 @@
-import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
+import { horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
@@ -7,7 +8,7 @@ import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { sortVMs, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
-import { addSection, addTask, removeSection, updateSection, updateTask, useData } from "../../stores/data";
+import { addSection, addTask, moveSection, removeSection, updateSection, updateTask, useData } from "../../stores/data";
 import { confirm, openContextMenu, openTask, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
 import { taskMenu } from "./taskMenu";
@@ -19,6 +20,13 @@ onDrop("kanban-column", (drag, drop) => {
   for (const id of ids) updateTask(id, { listId: drop.listId, sectionId: drop.sectionId });
 });
 
+onDrop("column", (drag, drop) => {
+  if (drag.type !== "column" || drag.id === drop.id) return;
+  const siblings = Object.values(useData.getState().sections).filter((x) => x.listId === drop.listId).sort((a, b) => a.sortOrder - b.sortOrder);
+  const to = siblings.findIndex((x) => x.id === drop.id);
+  if (to >= 0) moveSection(drag.id, to);
+});
+
 /** Board of the list's sections; the first column holds tasks without a section. */
 export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
   const allSections = useData((s) => s.sections);
@@ -28,16 +36,22 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
   );
   const roots = sortVMs(vms.filter((v) => !v.task.parentId && v.task.status === "open"), "manual");
   const [adding, setAdding] = useState(false);
+  const draggingTask = useDndContext().active?.data.current?.type === "task";
+  const unsectioned = roots.filter((v) => !v.task.sectionId || !sections.some((s) => s.id === v.task.sectionId));
+  // Hidden when empty, except while a task is dragged (still a drop target) or when there are no sections to add to.
+  const showUnsectioned = unsectioned.length > 0 || draggingTask || sections.length === 0;
   const columns: { section: Section | null; items: TaskVM[] }[] = [
-    { section: null, items: roots.filter((v) => !v.task.sectionId || !sections.some((s) => s.id === v.task.sectionId)) },
+    ...(showUnsectioned ? [{ section: null, items: unsectioned }] : []),
     ...sections.map((section) => ({ section, items: roots.filter((v) => v.task.sectionId === section.id) })),
   ];
 
   return (
     <div className="scroll-thin flex min-h-0 flex-1 gap-4 overflow-x-auto px-4 pb-6">
-      {columns.map((c) => (
-        <Column key={c.section?.id ?? "none"} list={list} section={c.section} items={c.items} />
-      ))}
+      <SortableContext items={sections.map((s) => `col:${s.id}`)} strategy={horizontalListSortingStrategy}>
+        {columns.map((c) => (
+          <Column key={c.section?.id ?? "none"} list={list} section={c.section} items={c.items} index={c.section ? sections.indexOf(c.section) : -1} count={sections.length} />
+        ))}
+      </SortableContext>
       <div className="w-72 shrink-0">
         {adding ? (
           <input
@@ -63,11 +77,21 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
   );
 }
 
-function Column({ list, section, items }: { list: TaskList; section: Section | null; items: TaskVM[] }) {
-  const { setNodeRef, isOver } = useDroppable({
+function Column({ list, section, items, index, count }: { list: TaskList; section: Section | null; items: TaskVM[]; index: number; count: number }) {
+  const dragType = useDndContext().active?.data.current?.type;
+  // Task drops and column reorder use separate droppables on the same node, enabled one at a time.
+  const drop = useDroppable({
     id: `kanban:${list.id}:${section?.id ?? "none"}`,
     data: { type: "kanban-column", listId: list.id, sectionId: section?.id ?? null },
+    disabled: dragType === "column",
   });
+  const sort = useSortable({
+    id: `col:${section?.id ?? "none"}`,
+    data: { type: "column", id: section?.id ?? "", listId: list.id },
+    disabled: !section || dragType === "task",
+  });
+  const { isOver } = drop;
+  const setNodeRef = (el: HTMLElement | null) => (drop.setNodeRef(el), sort.setNodeRef(el));
   const [draft, setDraft] = useState("");
   const menu = useMenu();
   const [renaming, setRenaming] = useState(false);
@@ -75,12 +99,19 @@ function Column({ list, section, items }: { list: TaskList; section: Section | n
   return (
     <section
       ref={setNodeRef}
-      aria-label={section?.name ?? "Not sectioned"}
+      style={{ transform: sort.transform ? `translate3d(${sort.transform.x}px, 0, 0)` : undefined, transition: sort.transition }}
+      aria-label={section?.name ?? "Unsectioned"}
       className={`flex w-72 shrink-0 flex-col rounded-lg border p-2 transition-colors duration-[var(--dur)] ${
+        sort.isDragging ? "z-10 opacity-80 shadow-lg " : ""
+      }${
         isOver ? "border-accent bg-accent-soft" : "border-transparent bg-bg"
       }`}
     >
-      <header className="flex h-9 items-center gap-2 px-2">
+      <header
+        ref={section ? sort.setActivatorNodeRef : undefined}
+        {...(section && !renaming ? { ...sort.attributes, ...sort.listeners } : {})}
+        className={`flex h-9 items-center gap-2 px-2 ${section ? "cursor-grab" : ""}`}
+      >
         {renaming && section ? (
           <input
             autoFocus
@@ -93,7 +124,7 @@ function Column({ list, section, items }: { list: TaskList; section: Section | n
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
           />
         ) : (
-          <h3 className="flex-1 truncate text-sm font-semibold">{section?.name ?? "Not sectioned"}</h3>
+          <h3 className="flex-1 truncate text-sm font-semibold">{section?.name ?? "Unsectioned"}</h3>
         )}
         <span className="font-mono text-xs text-muted">{items.length}</span>
         {section && (
@@ -104,11 +135,13 @@ function Column({ list, section, items }: { list: TaskList; section: Section | n
         {menu.open && section && (
           <Popover anchor={menu.anchor} onClose={menu.close} align="end">
             <MenuItem onSelect={() => (menu.close(), setRenaming(true))}>Rename</MenuItem>
+            <MenuItem disabled={index <= 0} onSelect={() => (menu.close(), moveSection(section.id, index - 1))}>Move left</MenuItem>
+            <MenuItem disabled={index >= count - 1} onSelect={() => (menu.close(), moveSection(section.id, index + 1))}>Move right</MenuItem>
             <MenuItem
               danger
               onSelect={async () => {
                 menu.close();
-                if (await confirm(`Delete section “${section.name}”?`, "Its tasks move to “Not sectioned”.")) removeSection(section.id);
+                if (await confirm(`Delete section “${section.name}”?`, "Its tasks move to “Unsectioned”.")) removeSection(section.id);
               }}
             >
               Delete section
@@ -131,7 +164,7 @@ function Column({ list, section, items }: { list: TaskList; section: Section | n
           }
         }}
         placeholder="+ Add task"
-        aria-label={`Add task to ${section?.name ?? "Not sectioned"}`}
+        aria-label={`Add task to ${section?.name ?? "Unsectioned"}`}
         className="mt-1 h-9 rounded-sm bg-transparent px-2 text-sm outline-none placeholder:text-muted focus:bg-surface"
       />
     </section>

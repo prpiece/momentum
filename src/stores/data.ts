@@ -451,6 +451,14 @@ export function updateSection(id: string, patch: Partial<Section>) {
   void repo.saveSection(next);
 }
 
+/** Move a section to 	oIndex among its list's sections (one sortOrder write). */
+export function moveSection(id: string, toIndex: number) {
+  const sec = get().sections[id];
+  if (!sec) return;
+  const siblings = Object.values(get().sections).filter((x) => x.listId === sec.listId);
+  for (const o of reorderItems(siblings, id, toIndex)) updateSection(o.id, { sortOrder: o.sortOrder });
+}
+
 export function removeSection(id: string) {
   set((s) => {
     const { [id]: _gone, ...sections } = s.sections;

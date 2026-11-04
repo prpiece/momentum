@@ -74,13 +74,15 @@ export function MenuItem(props: {
   danger?: boolean;
   active?: boolean;
   hint?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       role="menuitem"
+      disabled={props.disabled}
       onClick={props.onSelect}
-      className={`flex w-full items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-hover ${
+      className={`flex w-full items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-hover disabled:pointer-events-none disabled:opacity-40 ${
         props.danger ? "text-danger" : "text-fg"
       } ${props.active ? "bg-accent-soft" : ""}`}
     >
