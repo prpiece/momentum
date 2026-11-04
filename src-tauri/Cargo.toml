@@ -31,6 +31,13 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-window-state = "2"
 zip = { version = "9", default-features = false, features = ["deflate"] }
+# Voice quick-add (D81): Parakeet via sherpa-onnx (static libs), mic capture, model download + check.
+sherpa-onnx = "2.0.1"
+cpal = "0.18"
+reqwest = { version = "0.13", default-features = false }
+sha2 = "0.10"
+tar = "0.4"
+bzip2 = "0.6"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

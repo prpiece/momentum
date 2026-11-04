@@ -241,5 +241,7 @@ export type Settings = {
   quickAddShortcut: string;
   /** Toggles the mini window (D80). */
   miniShortcut: string;
+  /** Push-to-talk for voice quick-add (D81); same format, never equal to `quickAddShortcut`. */
+  voiceShortcut: string;
   pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number; cycles: Cycles };
 };

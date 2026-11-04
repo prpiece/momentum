@@ -1,7 +1,7 @@
 /*
  * OS integration for the main window: notifications, the reminder popup, the global quick-add
- * shortcut, close-to-tray, launch at login and the focus ticker. The main window is the only
- * writer; the popup windows send it events ("quickadd:create", "reminder:action").
+ * and voice shortcuts, close-to-tray, launch at login and the focus ticker. The main window is the
+ * only writer; the popup windows send it events ("quickadd:create", "voice:toggle", "reminder:action").
  */
 import { isTauri } from "../db/client";
 import { focusPhaseLabel } from "../features/focus/FocusView";
@@ -16,7 +16,9 @@ import { checkinOf, setCheckin, setCheckinHandler, useHabits } from "../stores/h
 import { buildSnapshot, parseMiniAction } from "../domain/mini";
 import { toggleDone } from "../features/tasks/actions";
 import { derive } from "../features/tasks/selectors";
-import { pauseFocus, resumeFocus, setPhaseEndHandler, skipPhase, startFocus, tickFocus, useFocus } from "../stores/focus";
+import { pauseFocus, resumeFocus, setPhaseEndHandler, skipPhase, startFocus, stopFocus, tickFocus, useFocus } from "../stores/focus";
+import { matchVoiceCommand, type VoiceCommand, type VoicePopupEvent } from "../domain/voice";
+import { openVoiceSettings, refreshVoiceModel, voiceCancel, voiceErrorText, voiceStart, voiceStop } from "./voice";
 import { useSettings } from "../stores/settings";
 import { go, openEvent, openTask, toast, useUi } from "../stores/ui";
 import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderScheduler";
@@ -174,25 +176,106 @@ export async function initOs() {
     const { view, calAnchor } = useUi.getState();
     void showQuickAdd(contextForView(view, useData.getState().lists, calAnchor));
   });
-  const bound = new Map<string, string>();
-  const bindShortcut = async (slot: string, accel: string, run: () => void) => {
-    const prev = bound.get(slot);
-    if (prev) await shortcut.unregister(prev).catch(() => undefined);
-    bound.delete(slot);
-    try {
-      await shortcut.register(accel, (e) => {
-        if (e.state === "Pressed") run();
-      });
-      bound.set(slot, accel);
-    } catch (err) {
-      console.error("Global shortcut registration failed", err);
-      toast(`Couldn't register ${accel.replace("CommandOrControl", "Ctrl")}: another app may be using it. Pick another in Settings.`);
-    }
+  /** A global shortcut that can be re-bound from Settings. */
+  const binder = (onEvent: (state: "Pressed" | "Released") => void) => {
+    let bound: string | null = null;
+    return async (accel: string) => {
+      if (bound) await shortcut.unregister(bound).catch(() => undefined);
+      bound = null;
+      try {
+        await shortcut.register(accel, (e) => onEvent(e.state));
+        bound = accel;
+      } catch (err) {
+        console.error("Global shortcut registration failed", err);
+        toast(`Couldn't register ${accel.replace("CommandOrControl", "Ctrl")}: another app may be using it. Pick another in Settings.`);
+      }
+    };
   };
-  const bindQuickAdd = (accel: string) => bindShortcut("quickAdd", accel, () => void showQuickAdd(null));
-  const bindMini = (accel: string) => bindShortcut("mini", accel, () => void invoke("toggle_mini"));
+  const onPress = (run: () => void) => binder((state) => state === "Pressed" && run());
+  const bindQuickAdd = onPress(() => void showQuickAdd(null));
+  const bindMini = onPress(() => void invoke("toggle_mini"));
   await bindQuickAdd(settings().quickAddShortcut);
   await bindMini(settings().miniShortcut);
+
+  // --- voice quick-add (D81) -------------------------------------------------
+  // Hold the shortcut (or click the popup's mic) to record; Rust transcribes on release. A voice
+  // command runs here; anything else lands in the popup's input to confirm with Enter.
+  type VoiceState = { kind: "idle" } | { kind: "starting"; then: "keep" | "stop" | "cancel" } | { kind: "recording" } | { kind: "transcribing" };
+  let voice: VoiceState = { kind: "idle" };
+  const voiceNow = (): VoiceState => voice; // read through a call: the state changes across awaits
+  const toPopup = (e: VoicePopupEvent) => void emit("quickadd:voice", e);
+  const runVoiceCommand = (cmd: VoiceCommand) => {
+    const timer = useFocus.getState().timer;
+    if (cmd === "startFocus") {
+      if (timer.status === "idle" || timer.status === "done") startFocus("pomodoro", null);
+      if (notifySettings().enabled && notifySettings().focus) osNotify("Momentum focus", "Focus started");
+    } else if (cmd === "stopFocus") {
+      if (timer.status === "running" || timer.status === "paused") stopFocus();
+    } else {
+      void showMain();
+      go(cmd === "openToday" ? "today" : cmd === "openMatrix" ? "matrix" : "calendar");
+    }
+  };
+  const startVoice = async (fromPopup: boolean) => {
+    if (voiceNow().kind !== "idle") return;
+    voice = { kind: "starting", then: "keep" };
+    let ready = false;
+    try {
+      ready = (await refreshVoiceModel()).state === "ready";
+    } catch (err) {
+      console.error("Voice model status failed", err);
+    }
+    if (!ready) {
+      voice = { kind: "idle" };
+      await (await Window.getByLabel("quickadd"))?.hide();
+      await showMain();
+      openVoiceSettings();
+      return;
+    }
+    if (!fromPopup) await showQuickAdd(null);
+    toPopup({ kind: "listening" });
+    try {
+      await voiceStart();
+    } catch (err) {
+      voice = { kind: "idle" };
+      return toPopup({ kind: "error", message: voiceErrorText(err) });
+    }
+    const now = voiceNow();
+    voice = { kind: "recording" };
+    if (now.kind === "starting" && now.then === "stop") void stopVoice();
+    if (now.kind === "starting" && now.then === "cancel") cancelVoice();
+  };
+  const stopVoice = async () => {
+    const now = voiceNow();
+    if (now.kind === "starting") voice = { kind: "starting", then: "stop" };
+    if (now.kind !== "recording") return;
+    voice = { kind: "transcribing" };
+    toPopup({ kind: "transcribing" });
+    try {
+      const text = await voiceStop();
+      const cmd = matchVoiceCommand(text);
+      if (cmd) {
+        runVoiceCommand(cmd);
+        toPopup({ kind: "close" });
+      } else if (text) toPopup({ kind: "text", text });
+      else toPopup({ kind: "error", message: "Didn't catch that. Keep holding the shortcut while you speak." });
+    } catch (err) {
+      toPopup({ kind: "error", message: voiceErrorText(err) });
+    } finally {
+      voice = { kind: "idle" };
+    }
+  };
+  const cancelVoice = () => {
+    const now = voiceNow();
+    if (now.kind === "starting") voice = { kind: "starting", then: "cancel" };
+    if (now.kind !== "recording") return;
+    voiceCancel();
+    voice = { kind: "idle" };
+  };
+  await listen("voice:toggle", () => void (voiceNow().kind === "idle" ? startVoice(true) : stopVoice()));
+  await listen("voice:cancel", cancelVoice);
+  const bindVoice = binder((state) => void (state === "Pressed" ? startVoice(false) : stopVoice()));
+  await bindVoice(settings().voiceShortcut);
 
   // --- mini window (D80) -----------------------------------------------------
   // It reads a compact snapshot and sends actions back; this window applies them like in-app clicks.
@@ -266,6 +349,7 @@ export async function initOs() {
     if (a.quickAddShortcut !== b.quickAddShortcut) void bindQuickAdd(a.quickAddShortcut);
     if (a.miniShortcut !== b.miniShortcut) void bindMini(a.miniShortcut);
     if (a.pomodoro !== b.pomodoro || a.matrix !== b.matrix) publishMiniSoon();
+    if (a.voiceShortcut !== b.voiceShortcut) void bindVoice(a.voiceShortcut);
     if (a.closeToTray !== b.closeToTray) void invoke("set_close_to_tray", { enabled: a.closeToTray });
     if (a.launchAtStartup !== b.launchAtStartup) void syncAutostart(a.launchAtStartup);
     if (a.accent !== b.accent) void syncIcon(a.accent);
