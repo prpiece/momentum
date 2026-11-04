@@ -31,19 +31,19 @@ export function DataSection() {
   });
 
   const importIt = run(async () => {
-    const path = await pickFile("json", "Momentum backup");
+    const path = await pickFile(["zip", "json"], "Momentum backup");
     if (!path) return;
     const r = await readBackup(path);
     if (!r.ok) return toast(r.error);
     const d = r.data;
     const summary = `${d.tasks.length} tasks, ${d.lists.length - 1} lists, ${d.events.length} events, ${d.habits.length} habits, ${d.countdowns.length} countdowns${r.dropped ? ` (${r.dropped} unreadable rows skipped)` : ""}.`;
     if (!(await confirm("Replace all data with this backup?", `${summary} Everything currently in Momentum is replaced. A copy of the current database is saved first.`, "Replace"))) return;
-    const snapshot = await restoreBackup(d);
+    const snapshot = await restoreBackup(d, path);
     toast(`Backup restored. Previous data saved to ${snapshot}`);
   });
 
   const icsIt = run(async () => {
-    const path = await pickFile("ics", "Calendar file");
+    const path = await pickFile(["ics"], "Calendar file");
     if (!path) return;
     const { count, skipped } = await importIcs(path, ACCENT_PRESETS[1].hex);
     toast(`Imported ${count} event${count === 1 ? "" : "s"}${skipped ? `, skipped ${skipped}` : ""}. They're read-only; re-importing the same file updates them.`);
@@ -54,7 +54,7 @@ export function DataSection() {
       {!isTauri && <p className="text-xs text-muted">Backups and imports work in the desktop app.</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={!isTauri || busy} onClick={exportIt} className={btn}>
-          <Download size={15} /> Export backup (.json)
+          <Download size={15} /> Export backup (.zip)
         </button>
         <button type="button" disabled={!isTauri || busy} onClick={importIt} className={btn}>
           <Upload size={15} /> Restore from backup

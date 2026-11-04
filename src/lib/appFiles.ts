@@ -1,5 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { isTauri } from "../db/client";
+import { attachmentRefs, staleAttachments } from "../domain/attachments";
 
 /**
  * Images kept in the app's config dir (D78 attachments, D79 backgrounds). Rust validates every
@@ -34,4 +35,11 @@ export async function imageUrl(kind: ImageFolder, name: string): Promise<string 
   if (!isTauri) return null;
   const dir = await dirOf(kind);
   return convertFileSrc(`${dir}${dir.includes("\\") ? "\\" : "/"}${name}`);
+}
+
+/** Startup cleanup: delete attachments no note references that are older than 30 days (D78). */
+export async function sweepAttachments(descriptions: Iterable<string>): Promise<void> {
+  if (!isTauri) return;
+  const refs = attachmentRefs(descriptions);
+  for (const name of staleAttachments(await listImages("attachments"), refs, Date.now() / 1000, 30)) await deleteImage("attachments", name);
 }

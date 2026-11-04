@@ -18,26 +18,28 @@ async function invoke<T>(cmd: string, args: Record<string, unknown>): Promise<T>
 
 const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
 
-/** Export every table as JSON to a file the user picks. Returns the path, or null if cancelled. */
+/** Export every table as JSON, zipped with the note attachments, to a file the user picks. Returns the path, or null if cancelled. */
 export async function exportBackup(): Promise<string | null> {
   const tables = Object.fromEntries(await Promise.all(BACKUP_TABLES.map(async (t) => [t, await select<Row>(`SELECT * FROM ${t}`)] as const)));
   const file = { app: "Momentum", format: BACKUP_FORMAT, schemaVersion: LATEST_SCHEMA, exportedAt: new Date().toISOString(), tables } satisfies Omit<BackupFile, "tables"> & { tables: Record<string, Row[]> };
   const { save } = await import("@tauri-apps/plugin-dialog");
-  const path = await save({ defaultPath: `momentum-backup-${stamp().slice(0, 10)}.json`, filters: [{ name: "Momentum backup", extensions: ["json"] }] });
+  const path = await save({ defaultPath: `momentum-backup-${stamp().slice(0, 10)}.zip`, filters: [{ name: "Momentum backup", extensions: ["zip"] }] });
   if (!path) return null;
-  await invoke("write_text_file", { path: path.toLowerCase().endsWith(".json") ? path : `${path}.json`, contents: JSON.stringify(file, null, 1) });
+  await invoke("write_backup_zip", { path: isZip(path) ? path : `${path}.zip`, json: JSON.stringify(file, null, 1) });
   return path;
 }
 
-export async function pickFile(extension: "json" | "ics", name: string): Promise<string | null> {
+const isZip = (path: string) => path.toLowerCase().endsWith(".zip");
+
+export async function pickFile(extensions: string[], name: string): Promise<string | null> {
   const { open } = await import("@tauri-apps/plugin-dialog");
-  const path = await open({ multiple: false, directory: false, filters: [{ name, extensions: [extension] }] });
+  const path = await open({ multiple: false, directory: false, filters: [{ name, extensions }] });
   return typeof path === "string" ? path : null;
 }
 
-/** Read + validate a backup without touching the database (the UI confirms with the counts first). */
+/** Read + validate a backup (.zip or .json) without touching the database (the UI confirms with the counts first). */
 export async function readBackup(path: string) {
-  const text = await invoke<string>("read_text_file", { path });
+  const text = await invoke<string>(isZip(path) ? "read_backup_zip" : "read_text_file", { path });
   try {
     return validateBackup(JSON.parse(text));
   } catch {
@@ -60,8 +62,9 @@ export async function snapshotDatabase(reason: string): Promise<string> {
  * ponytail: sequential writes, not one transaction (plugin-sql pools connections); upgrade to a
  * Rust-side transaction if partial restores ever happen in practice.
  */
-export async function restoreBackup(d: Restored): Promise<string> {
+export async function restoreBackup(d: Restored, path: string): Promise<string> {
   const snapshot = await snapshotDatabase("before-import");
+  if (isZip(path)) await invoke("restore_backup_attachments", { path });
   await write(...[...BACKUP_TABLES, "reminder_log"].reverse().map((t): [string] => [`DELETE FROM ${t}`]));
   await saveWorkspace({ tasks: d.tasks, events: d.events, lists: d.lists, folders: d.folders, sections: d.sections, tags: d.tags });
   await write(...d.activity.map((a): [string, unknown[]] => ["INSERT INTO task_activity (task_id, at, kind, detail) VALUES ($1, $2, $3, $4)", [a.taskId, a.at, a.kind, a.detail]]));
