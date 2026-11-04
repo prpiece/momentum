@@ -5,6 +5,21 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v0.6.0
+
+- **A calmer task panel.** Priority, date, list and tags now sit in one row of chips under the title, each opening its editor when you click it. Your notes get the rest of the space, and the activity log stays folded away until you want it.
+  ![The task panel with chips and a roomy note](whats-new/0.6.0/drawer.png)
+- **Clearer matrix colours.** The four quadrants are red, blue, violet and grey, each with its own tint, so you can tell them apart at a glance whatever accent colour you pick.
+  ![The matrix in its new colours](whats-new/0.6.0/matrix.png)
+- **An easier dock.** The dock now shows labels under its icons, groups your lists, views and tools, and folds anything that doesn't fit into a More menu. Hover an item to see its keyboard shortcut. Prefer it minimal? Turn labels off in Settings → Layout.
+  ![The labelled dock](whats-new/0.6.0/dock.png)
+- **Focus sessions that finish.** Choose how many cycles to run, or ∞ to keep going. When the last one ends you get a summary instead of another break. You can also clear the minute boxes while typing; leave one empty and it goes back to its default.
+  ![The focus timer with a cycle count](whats-new/0.6.0/focus.png)
+- **Folders inside folders.** Nest folders up to three levels deep. Hover a folder for quick buttons to add a list or a subfolder, and drag folders onto each other to reorganise.
+- **Rearrange board columns.** Drag a section by its header, or use Move left and Move right in its menu. The Unsectioned column hides when it's empty.
+- **Press N anywhere.** N now starts a new task from every view. On boards and the calendar it opens quick add already set to that list or day.
+- **Fits your screen.** Momentum opens inside the space your taskbar leaves free, remembers its size and position, and switches to a compact layout on short screens.
+
 ## v0.5.0
 
 - **A guided tour.** Momentum now shows you around: it dims the app and walks you through each part, from quick add to the calendar, habits and focus timer, with tips along the way. Take it again any time from Settings → System.
