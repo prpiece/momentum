@@ -1,3 +1,5 @@
+mod files;
+
 use std::{
     fs,
     path::Path,
@@ -245,7 +247,17 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .manage(CloseToTray(AtomicBool::new(true)))
-        .invoke_handler(tauri::generate_handler![set_close_to_tray, write_text_file, read_text_file, backups_dir])
+        .invoke_handler(tauri::generate_handler![
+            set_close_to_tray,
+            write_text_file,
+            read_text_file,
+            backups_dir,
+            files::image_dir,
+            files::import_image,
+            files::write_image,
+            files::list_images,
+            files::delete_image
+        ])
         // Closing the main window either hides it to the tray or quits the whole app. The hidden
         // popup windows would otherwise keep the process alive with no way back in.
         .on_window_event(|window, event| {
