@@ -30,7 +30,8 @@ export type DragData =
   | { type: "block"; id: string; key: string | null; edge: "start" | "end" | null; source: "task" | "event" }
   | { type: "habit"; id: string }
   /** Board column grabbed by its header. */
-  | { type: "column"; id: string; listId: string };
+  | { type: "column"; id: string; listId: string }
+  | { type: "folder"; id: string };
 
 export type DropData =
   | { type: "list"; listId: string }
@@ -43,7 +44,9 @@ export type DropData =
   | { type: "quadrant"; q: 1 | 2 | 3 | 4 }
   | { type: "kanban-column"; listId: string; sectionId: string | null }
   | { type: "habit"; id: string }
-  | { type: "column"; id: string; listId: string };
+  | { type: "column"; id: string; listId: string }
+  /** Sidebar folder; `id: null` is the top level. */
+  | { type: "folder"; id: string | null };
 
 type Handler = (drag: DragData, drop: DropData, e: DragEndEvent) => void;
 const handlers = new Map<DropData["type"], Handler>();
@@ -68,9 +71,9 @@ const collision: CollisionDetection = (args) => {
 };
 
 export const isDragData = (v: unknown): v is DragData =>
-  typeof v === "object" && v !== null && "type" in v && (v.type === "task" || v.type === "block" || v.type === "habit" || v.type === "column");
+  typeof v === "object" && v !== null && "type" in v && (v.type === "task" || v.type === "block" || v.type === "habit" || v.type === "column" || v.type === "folder");
 
-const DROP_TYPES: readonly DropData["type"][] = ["list", "smart", "task", "section", "slot", "arrange", "quadrant", "kanban-column", "habit", "column"];
+const DROP_TYPES: readonly DropData["type"][] = ["list", "smart", "task", "section", "slot", "arrange", "quadrant", "kanban-column", "habit", "column", "folder"];
 const isDropData = (v: unknown): v is DropData =>
   typeof v === "object" && v !== null && "type" in v && (DROP_TYPES as readonly unknown[]).includes(v.type);
 

@@ -158,11 +158,12 @@ export const listToRow = (l: TaskList): Row => ({
 
 export const parseFolder = (r: Row): Folder | null =>
   typeof r.id === "string"
-    ? { id: r.id, name: str(r.name, "Folder"), sortOrder: num(r.sort_order), collapsed: bool(r.collapsed) }
+    ? { id: r.id, name: str(r.name, "Folder"), parentId: optStr(r.parent_id), sortOrder: num(r.sort_order), collapsed: bool(r.collapsed) }
     : null;
 export const folderToRow = (f: Folder): Row => ({
   id: f.id,
   name: f.name,
+  parent_id: f.parentId,
   sort_order: f.sortOrder,
   collapsed: f.collapsed ? 1 : 0,
 });

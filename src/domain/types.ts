@@ -95,7 +95,7 @@ export type TaskList = {
   sortOrder: number;
 };
 
-export type Folder = { id: string; name: string; sortOrder: number; collapsed: boolean };
+export type Folder = { id: string; name: string; parentId: string | null; sortOrder: number; collapsed: boolean };
 export type Section = { id: string; listId: string; name: string; sortOrder: number };
 export type Tag = { id: string; name: string; color: string | null };
 

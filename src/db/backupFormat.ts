@@ -9,6 +9,7 @@ import type { Habit, HabitCheckin, HabitGroup } from "../domain/habits";
 import { isRecord, parseSettings } from "../domain/settings";
 import { INBOX_ID, type Activity, type CalendarEvent, type Folder, type Section, type Settings, type Tag, type Task, type TaskList } from "../domain/types";
 import { parseCheckin, parseGroup, parseHabit } from "./habitRows";
+import { repairFolderParents } from "../domain/folders";
 import { parseActivity, parseAll, parseEvent, parseFolder, parseList, parseSection, parseTag, parseTask, type Row } from "./rows";
 import { parseCountdown, parseSession } from "./miscRows";
 
@@ -107,7 +108,8 @@ export function repairReferences(d: Restored): Restored {
   const lists = d.lists.some((l) => l.id === INBOX_ID)
     ? d.lists
     : [{ id: INBOX_ID, name: "Inbox", color: null, icon: null, folderId: null, pinned: false, archived: false, tint: false, layout: "list" as const, sortOrder: -1 }, ...d.lists];
-  const folderIds = new Set(d.folders.map((f) => f.id));
+  const folders = repairFolderParents(d.folders);
+  const folderIds = new Set(folders.map((f) => f.id));
   const listIds = new Set(lists.map((l) => l.id));
   const sections = d.sections.filter((s) => listIds.has(s.listId));
   const sectionIds = new Set(sections.map((s) => s.id));
@@ -134,6 +136,7 @@ export function repairReferences(d: Restored): Restored {
   const habitIds = new Set(d.habits.map((h) => h.id));
   return {
     ...d,
+    folders,
     lists: lists.map((l) => ({ ...l, folderId: l.folderId && folderIds.has(l.folderId) ? l.folderId : null })),
     sections,
     tasks,

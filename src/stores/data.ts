@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import * as repo from "../db/repo";
+import { canAddChild, canNest, childFolders } from "../domain/folders";
 import { after, before, reorder as reorderItems } from "../domain/order";
 import { detachOccurrence, effective, scheduleForKey, shiftAnchor, splitSeries } from "../domain/recurrence";
 import { scheduleDate } from "../domain/dates";
@@ -404,8 +405,10 @@ export function removeList(id: string) {
   void repo.deleteList(id);
 }
 
-export function addFolder(name: string): Folder {
-  const f: Folder = { id: uid(), name, sortOrder: after(Object.values(get().folders)), collapsed: false };
+/** A subfolder past the depth cap is refused (returns null). */
+export function addFolder(name: string, parentId: string | null = null): Folder | null {
+  if (parentId && !canAddChild(get().folders, parentId)) return null;
+  const f: Folder = { id: uid(), name, parentId, sortOrder: after(childFolders(get().folders, parentId)), collapsed: false };
   set((s) => ({ folders: { ...s.folders, [f.id]: f } }));
   void repo.saveFolder(f);
   return f;
@@ -419,15 +422,32 @@ export function updateFolder(id: string, patch: Partial<Folder>) {
   void repo.saveFolder(next);
 }
 
-/** Lists inside move to the top level (FK ON DELETE SET NULL does the same on disk). */
+/** Re-parent a folder (with its subtree); refuses cycles and depth overflow. Returns whether it moved. */
+export function moveFolder(id: string, parentId: string | null): boolean {
+  const f = get().folders[id];
+  if (!f || f.parentId === parentId || !canNest(get().folders, id, parentId)) return false;
+  const next = { ...f, parentId, sortOrder: after(childFolders(get().folders, parentId)) };
+  set((s) => ({ folders: { ...s.folders, [id]: next } }));
+  void repo.saveFolder(next);
+  return true;
+}
+
+/** Child lists and folders move up one level, into the deleted folder's parent. */
 export function removeFolder(id: string) {
+  const { folders: allFolders, lists: allLists } = get();
+  const up = allFolders[id]?.parentId ?? null;
+  const kids = childFolders(allFolders, id).map((c) => ({ ...c, parentId: up }));
+  const lists = Object.values(allLists).filter((l) => l.folderId === id).map((l) => ({ ...l, folderId: up }));
   set((s) => {
     const { [id]: _gone, ...folders } = s.folders;
-    const lists = Object.fromEntries(
-      Object.entries(s.lists).map(([k, l]) => [k, l.folderId === id ? { ...l, folderId: null } : l]),
-    );
-    return { folders, lists };
+    return {
+      folders: { ...folders, ...Object.fromEntries(kids.map((k) => [k.id, k])) },
+      lists: { ...s.lists, ...Object.fromEntries(lists.map((l) => [l.id, l])) },
+    };
   });
+  // Rows move out before the delete so ON DELETE SET NULL never fires on them.
+  kids.forEach((k) => void repo.saveFolder(k));
+  lists.forEach((l) => void repo.saveList(l));
   void repo.deleteFolder(id);
 }
 

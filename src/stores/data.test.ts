@@ -4,11 +4,15 @@ import { toVM } from "../domain/taskViews";
 import { derive } from "../features/tasks/selectors";
 import {
   addSection,
+  addFolder,
+  addList,
   addTask,
   deleteOccurrence,
   deleteTasks,
   editOccurrence,
   moveSection,
+  moveFolder,
+  removeFolder,
   replaceAll,
   restoreTasks,
   rootOf,
@@ -150,5 +154,21 @@ describe("moveSection", () => {
     expect(useData.getState().sections[a.id].sortOrder).toBe(a.sortOrder);
     expect(useData.getState().sections[other.id].sortOrder).toBe(other.sortOrder);
     expect(useData.getState().sections[b.id].sortOrder).toBe(b.sortOrder);
+  });
+});
+
+describe("nested folders", () => {
+  it("refuses invalid moves and lifts children up when a folder is deleted", () => {
+    const a = addFolder("A")!;
+    const b = addFolder("B", a.id)!;
+    const c = addFolder("C", b.id)!;
+    expect(addFolder("D", c.id)).toBeNull();
+    expect(moveFolder(a.id, c.id)).toBe(false);
+    const l = addList("L", b.id);
+    removeFolder(b.id);
+    const { folders, lists } = useData.getState();
+    expect(folders[b.id]).toBeUndefined();
+    expect(folders[c.id].parentId).toBe(a.id);
+    expect(lists[l.id].folderId).toBe(a.id);
   });
 });
