@@ -19,7 +19,7 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
   const day = (n: number): Schedule => ({ kind: "day", date: d(n) });
   const at = (n: number, time: string, minutes = 60): Schedule => timed(atLocalTime(d(n), time), minutes);
 
-  const folders: Folder[] = [{ id: id(), name: "Uni", sortOrder: 0, collapsed: false }];
+  const folders: Folder[] = [{ id: id(), name: "Uni", parentId: null, sortOrder: 0, collapsed: false }];
   const mk = (name: string, icon: string, color: string, sortOrder: number, folderId: string | null = null): TaskList => ({
     id: id(),
     name,

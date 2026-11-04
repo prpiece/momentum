@@ -1,7 +1,8 @@
-import { useDroppable } from "@dnd-kit/core";
+import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   ChevronRight,
   FolderPlus,
+  ListPlus,
   ListFilter,
   type LucideIcon,
   MoreHorizontal,
@@ -25,9 +26,10 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
 import type { Folder, SavedFilter, TaskList, ViewId } from "../../domain/types";
-import { onDrop, type DropData } from "../../lib/dnd";
+import { canAddChild, canNest, childFolders } from "../../domain/folders";
+import { justDragged, onDrop, type DragData, type DropData } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { addFolder, moveTasks, removeFolder, removeList, updateFolder, updateList, updateTask, useData } from "../../stores/data";
+import { addFolder, moveFolder, moveTasks, removeFolder, removeList, updateFolder, updateList, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { confirm, go, openContextMenu, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";
 import { useFocus } from "../../stores/focus";
@@ -49,6 +51,10 @@ onDrop("list", (drag, drop) => {
   const ids = dragged(drag.id);
   const name = useData.getState().lists[drop.listId]?.name ?? "list";
   withUndo(`Moved ${ids.length > 1 ? `${ids.length} tasks` : "task"} to ${name}`, () => moveTasks(ids, drop.listId));
+});
+
+onDrop("folder", (drag, drop) => {
+  if (drag.type === "folder") moveFolder(drag.id, drop.id);
 });
 
 onDrop("smart", (drag, drop) => {
@@ -175,7 +181,8 @@ export function Sidebar() {
   const counts = useCounts();
   const [openSec, setOpenSec] = useState({ lists: true, filters: true, archived: false });
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
-  const [newFolder, setNewFolder] = useState(false);
+  /** Where the inline new-folder input shows: "" is the top level, an id is under that folder. */
+  const [newFolder, setNewFolder] = useState<string | null>(null);
   const [editList, setEditList] = useState<TaskList | null>(null);
   const [editingFilter, setEditingFilter] = useState<{ id: string; field: "name" | "query" } | null>(null);
 
@@ -185,7 +192,8 @@ export function Sidebar() {
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.sortOrder - b.sortOrder);
   const activeLists = userLists.filter((l) => !l.archived);
   const archived = userLists.filter((l) => l.archived);
-  const folderList = Object.values(folders).sort((a, b) => a.sortOrder - b.sortOrder);
+  const folderKids = (parentId: string | null) => childFolders(folders, parentId).sort((a, b) => a.sortOrder - b.sortOrder);
+  const topFolders = folderKids(null);
   const smartDrop: Partial<Record<string, DropData>> = {
     inbox: { type: "smart", id: "inbox" },
     today: { type: "smart", id: "today" },
@@ -264,6 +272,13 @@ export function Sidebar() {
     />
   );
 
+  const folderCount = (f: Folder): number =>
+    activeLists.filter((l) => l.folderId === f.id).reduce((n, l) => n + (counts.lists[l.id] ?? 0), 0) + folderKids(f.id).reduce((n, c) => n + folderCount(c), 0);
+  const newFolderInput = (parentId: string | null) =>
+    newFolder === (parentId ?? "") && (
+      <InlineName initial="" onDone={(v) => (v && addFolder(v, parentId), setNewFolder(null))} />
+    );
+
   const folderBlock = (f: Folder) => {
     const inside = activeLists.filter((l) => l.folderId === f.id);
     return (
@@ -273,12 +288,17 @@ export function Sidebar() {
         ) : (
           <FolderRow
             folder={f}
-            count={inside.reduce((n, l) => n + (counts.lists[l.id] ?? 0), 0)}
+            count={folderCount(f)}
             onRename={() => setRenamingFolder(f.id)}
+            onAddSub={() => (updateFolder(f.id, { collapsed: false }), setNewFolder(f.id))}
           />
         )}
         <Collapse open={!f.collapsed}>
-          <ul className="space-y-0.5">{inside.map((l) => listItem(l, true))}</ul>
+          <ul className="ml-3 space-y-0.5">
+            {newFolderInput(f.id)}
+            {folderKids(f.id).map(folderBlock)}
+            {inside.map((l) => listItem(l, true))}
+          </ul>
         </Collapse>
       </li>
     );
@@ -377,7 +397,7 @@ export function Sidebar() {
               onToggle={() => setOpenSec({ ...openSec, lists: !openSec.lists })}
               actions={
                 <>
-                  <button type="button" aria-label="New folder" title="New folder" onClick={() => setNewFolder(true)} className="grid size-6 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent">
+                  <button type="button" aria-label="New folder" title="New folder" onClick={() => setNewFolder("")} className="grid size-6 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent">
                     <FolderPlus size={14} />
                   </button>
                   <ListDialogButton className="size-6">
@@ -388,10 +408,11 @@ export function Sidebar() {
             />
             <Collapse open={openSec.lists}>
               <ul className="space-y-0.5">
-                {newFolder && <InlineName initial="" onDone={(v) => (v && addFolder(v), setNewFolder(false))} />}
-                {folderList.map(folderBlock)}
+                {newFolderInput(null)}
+                {topFolders.map(folderBlock)}
+                <TopLevelDrop />
                 {activeLists.filter((l) => !l.folderId || !folders[l.folderId]).map((l) => listItem(l))}
-                {!activeLists.length && !folderList.length && <li className="px-3 py-1 text-xs text-muted">No lists yet. Use + to create one.</li>}
+                {!activeLists.length && !topFolders.length && <li className="px-3 py-1 text-xs text-muted">No lists yet. Use + to create one.</li>}
                 {archived.length > 0 && (
                   <li>
                     <button type="button" onClick={() => setOpenSec({ ...openSec, archived: !openSec.archived })} className="flex h-8 w-full items-center gap-2 px-3 text-xs text-muted hover:text-fg">
@@ -417,37 +438,76 @@ export function Sidebar() {
   );
 }
 
-function FolderRow({ folder, count, onRename }: { folder: Folder; count: number; onRename: () => void }) {
+/** Only while a folder is dragged: dropping here moves it to the top level. */
+function TopLevelDrop() {
+  const dragging = useDndContext().active?.data.current?.type === "folder";
+  const { setNodeRef, isOver } = useDroppable({ id: "folder-drop:top", data: { type: "folder", id: null } satisfies DropData, disabled: !dragging });
+  if (!dragging) return null;
+  return (
+    <li ref={setNodeRef} className={`mx-1 rounded-sm border border-dashed px-3 py-1.5 text-xs ${isOver ? "border-accent bg-accent-soft text-fg" : "border-border text-muted"}`}>
+      Move to top level
+    </li>
+  );
+}
+
+const iconBtn = "grid size-6 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent";
+
+function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; count: number; onRename: () => void; onAddSub: () => void }) {
   const [newList, setNewList] = useState(false);
+  const folders = useData((s) => s.folders);
+  const canSub = canAddChild(folders, folder.id);
+  const drag = useDraggable({ id: `folder:${folder.id}`, data: { type: "folder", id: folder.id } satisfies DragData });
+  const drop = useDroppable({ id: `folder-drop:${folder.id}`, data: { type: "folder", id: folder.id } satisfies DropData });
+  const dragId = useDndContext().active?.data.current;
+  const target = drop.isOver && typeof dragId === "object" && dragId?.type === "folder" && canNest(folders, dragId.id, folder.id) && dragId.id !== folder.id;
   const items = (): MenuEntry[] => [
     { label: "New list in folder…", icon: <Plus size={14} />, run: () => setNewList(true) },
+    ...(canSub ? [{ label: "New subfolder…", icon: <FolderPlus size={14} />, run: onAddSub }] : []),
     { label: "Rename", icon: <Pencil size={14} />, run: onRename },
+    ...(folder.parentId ? [{ label: "Move to top level", icon: <ChevronRight size={14} />, run: () => void moveFolder(folder.id, null) }] : []),
     "sep",
     {
       label: "Delete folder",
       icon: <Trash2 size={14} />,
       danger: true,
       run: async () => {
-        if (await confirm(`Delete folder “${folder.name}”?`, "Its lists move out of the folder; no tasks are deleted.")) removeFolder(folder.id);
+        if (await confirm(`Delete folder “${folder.name}”?`, "Its lists and subfolders move up one level; no tasks are deleted.")) removeFolder(folder.id);
       },
     },
   ];
+  const t = drag.transform;
   return (
-    <div className="group/nav relative">
+    <div
+      ref={(n) => (drag.setNodeRef(n), drop.setNodeRef(n))}
+      style={t ? { transform: `translate3d(${t.x}px, ${t.y}px, 0)`, position: "relative", zIndex: 20 } : undefined}
+      className={`group/nav relative rounded-sm ${target ? "ring-2 ring-accent" : ""} ${drag.isDragging ? "opacity-70" : ""}`}
+    >
       <button
         type="button"
-        onClick={() => updateFolder(folder.id, { collapsed: !folder.collapsed })}
+        {...drag.listeners}
+        onKeyDown={undefined} /* pointer drag only: Enter/Space must keep toggling the folder */
+        onClick={() => !justDragged() && updateFolder(folder.id, { collapsed: !folder.collapsed })}
         onContextMenu={(e) => openContextMenu(e, items())}
         aria-expanded={!folder.collapsed}
         className="flex h-[var(--row-h)] w-full items-center gap-2 rounded-sm px-3 text-sm font-medium text-fg-2 hover:bg-hover hover:text-fg"
       >
         <ChevronRight size={14} className={`text-muted transition-transform duration-[var(--dur)] ${folder.collapsed ? "" : "rotate-90"}`} />
         <span className="flex-1 truncate text-left">{folder.name}</span>
-        {count > 0 && <span className="font-mono text-xs text-muted group-hover/nav:opacity-0">{count}</span>}
+        {count > 0 && <span className="font-mono text-xs text-muted group-focus-within/nav:opacity-0 group-hover/nav:opacity-0">{count}</span>}
       </button>
-      <button type="button" aria-label={`${folder.name} options`} onClick={(e) => openMenuAt(e.currentTarget, items())} className="absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-sm text-muted opacity-0 hover:bg-hover focus:opacity-100 group-hover/nav:opacity-100">
-        <MoreHorizontal size={15} />
-      </button>
+      <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center opacity-0 focus-within:opacity-100 group-hover/nav:opacity-100">
+        <button type="button" aria-label={`New list in ${folder.name}`} title="New list" onClick={() => setNewList(true)} className={iconBtn}>
+          <ListPlus size={14} />
+        </button>
+        {canSub && (
+          <button type="button" aria-label={`New subfolder in ${folder.name}`} title="New subfolder" onClick={onAddSub} className={iconBtn}>
+            <FolderPlus size={14} />
+          </button>
+        )}
+        <button type="button" aria-label={`${folder.name} options`} onClick={(e) => openMenuAt(e.currentTarget, items())} className={iconBtn}>
+          <MoreHorizontal size={15} />
+        </button>
+      </div>
       {newList && <ListDialog folderId={folder.id} onClose={() => setNewList(false)} />}
     </div>
   );

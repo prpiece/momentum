@@ -1,4 +1,5 @@
 import type { Activity, ActivityKind, CalendarEvent, Folder, Section, Tag, Task, TaskList } from "../domain/types";
+import { folderDepth } from "../domain/folders";
 import { select, upsert, write } from "./client";
 import {
   eventToRow,
@@ -75,9 +76,10 @@ export function saveWorkspace(ws: Workspace) {
     const parent = t.parentId ? byId.get(t.parentId) : undefined;
     return parent && n < 50 ? depth(parent, n + 1) : n;
   };
+  const byFolder = Object.fromEntries(ws.folders.map((f) => [f.id, f]));
   const tasks = [...ws.tasks].sort((a, b) => depth(a) - depth(b) || Number(!!a.recurrenceParentId) - Number(!!b.recurrenceParentId));
   return write(
-    ...ws.folders.map((f) => upsert("folders", folderToRow(f))),
+    ...[...ws.folders].sort((a, b) => folderDepth(byFolder, a.id) - folderDepth(byFolder, b.id)).map((f) => upsert("folders", folderToRow(f))),
     ...ws.lists.map((l) => upsert("lists", listToRow(l))),
     ...ws.sections.map((s) => upsert("sections", sectionToRow(s))),
     ...ws.tags.map((t) => upsert("tags", tagToRow(t))),

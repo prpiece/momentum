@@ -54,6 +54,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0006_progress.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "nested folders",
+            sql: include_str!("../migrations/0007_folder_parent.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

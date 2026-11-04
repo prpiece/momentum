@@ -3,10 +3,14 @@ import { atLocalTime, timed, wallKey } from "../domain/dates";
 import { toVM } from "../domain/taskViews";
 import { derive } from "../features/tasks/selectors";
 import {
+  addFolder,
+  addList,
   addTask,
   deleteOccurrence,
   deleteTasks,
   editOccurrence,
+  moveFolder,
+  removeFolder,
   replaceAll,
   restoreTasks,
   rootOf,
@@ -133,5 +137,21 @@ describe("undoable", () => {
     revert();
     expect(live()).toHaveLength(1);
     expect(useData.getState().tasks[s.id].recurrence?.exdates).toEqual([]);
+  });
+});
+
+describe("nested folders", () => {
+  it("refuses invalid moves and lifts children up when a folder is deleted", () => {
+    const a = addFolder("A")!;
+    const b = addFolder("B", a.id)!;
+    const c = addFolder("C", b.id)!;
+    expect(addFolder("D", c.id)).toBeNull();
+    expect(moveFolder(a.id, c.id)).toBe(false);
+    const l = addList("L", b.id);
+    removeFolder(b.id);
+    const { folders, lists } = useData.getState();
+    expect(folders[b.id]).toBeUndefined();
+    expect(folders[c.id].parentId).toBe(a.id);
+    expect(lists[l.id].folderId).toBe(a.id);
   });
 });
