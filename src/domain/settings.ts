@@ -229,3 +229,11 @@ export function parseSettings(raw: unknown): Settings {
     pomodoro: parsePomodoro(r.pomodoro),
   };
 }
+
+/** Below this window height (CSS px) the UI turns compact on its own, so short screens keep their content. */
+export const COMPACT_BELOW_HEIGHT = 760;
+
+/** The density actually applied: the saved choice, forced to compact on short windows. */
+export function effectiveDensity(saved: Settings["density"], windowHeight: number): Settings["density"] {
+  return windowHeight < COMPACT_BELOW_HEIGHT ? "compact" : saved;
+}
