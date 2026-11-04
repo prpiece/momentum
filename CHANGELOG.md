@@ -5,6 +5,18 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v0.8.0
+
+- **Trophies you can climb.** Every trophy now has levels that start small: 10 tasks, then 25, 50, 100 and on up to 2500. The same goes for focus hours, habit streaks, perfect days and perfect weeks. Each level has its own metal and badge shape, from bronze to prism, and every new level gets a celebration.
+  ![Trophy cards with levels and progress](whats-new/0.8.0/trophies.png)
+- **Your own matrix colours.** Pick a colour for each quadrant in Matrix → Rules, use your accent for all four, or reset to the defaults. Dark mode adjusts them for you.
+  ![Choosing quadrant colours](whats-new/0.8.0/matrix-colours.png)
+- **Say it instead of typing symbols.** Quick add now understands "priority high", "tag chemistry" and "list School", so voice works without "!" or "#". It matches your own list names, even ones with spaces. In the quick add window you can also tap Priority, List or Tag to set them.
+- **Finish tasks from the mini window.** Tasks in its Matrix tab now have checkboxes.
+- **Comfortable spacing that sticks.** Comfortable and Compact now always do what you pick, including on shorter screens.
+- **Smoother backgrounds.** The whole window frame is softly frosted, so a gradient no longer shows as a hard border around the page, and scrollbars are slimmer and no longer clipped by rounded corners.
+- **Tidier boards.** The Unsectioned column no longer pops up while you drag. It only appears when a task actually has no section.
+
 ## v0.7.0
 
 - **Images in your notes.** Paste, drop or add pictures straight into a task's note. Zip backups now include them, so nothing goes missing when you restore.
