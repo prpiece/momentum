@@ -5,6 +5,15 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v0.7.0
+
+- **Images in your notes.** Paste, drop or add pictures straight into a task's note. Zip backups now include them, so nothing goes missing when you restore.
+- **Make it yours with a background.** Pick one of 8 gradients or use your own image, then adjust the dim and blur until the text reads comfortably.
+  ![A custom image behind the app](whats-new/0.7.0/background.png)
+- **A mini window that stays on top.** It shows your current task, the focus timer and the matrix in a small always-on-top window. Open it from the tray, the header button or Ctrl+Alt+M (you can change the shortcut).
+  ![The mini window on its Focus tab](whats-new/0.7.0/mini.png)
+- **Add tasks by voice.** Hold Ctrl+Alt+Space or click the mic and say what you need. It runs on your computer with NVIDIA Parakeet, so nothing leaves it. This is optional: a one-time 482 MB download from Settings → Voice. A few spoken commands work too, like "start focus".
+
 ## v0.6.0
 
 - **A calmer task panel.** Priority, date, list and tags now sit in one row of chips under the title, each opening its editor when you click it. Your notes get the rest of the space, and the activity log stays folded away until you want it.
