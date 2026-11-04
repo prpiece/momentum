@@ -16,7 +16,7 @@ import { editTask, toggleDone } from "../tasks/actions";
 import { taskMenu } from "../tasks/taskMenu";
 import { derive, useDerived } from "../tasks/selectors";
 
-const TONE: Record<Quadrant, string> = { 1: "var(--p3)", 2: "var(--accent)", 3: "var(--p2)", 4: "var(--fg-muted)" };
+const TONE: Record<Quadrant, string> = { 1: "var(--q1)", 2: "var(--q2)", 3: "var(--q3)", 4: "var(--q4)" };
 
 onDrop("quadrant", (drag, drop) => {
   if (drag.type !== "task") return;
@@ -78,10 +78,10 @@ function QuadrantPanel({ q, items }: { q: Quadrant; items: TaskVM[] }) {
       ref={setNodeRef}
       aria-label={info.title}
       className={`flex min-h-0 flex-col rounded-lg border bg-surface-2 shadow-sm transition-colors duration-[var(--dur)] ${isOver ? "border-accent bg-accent-soft" : "border-border"}`}
-      style={{ borderTopColor: TONE[q], borderTopWidth: 3 }}
+      style={{ borderTopColor: TONE[q], borderTopWidth: 3, ...(isOver ? {} : { backgroundColor: `color-mix(in oklch, ${TONE[q]} 7%, var(--surface-2))` }) }}
     >
       <header className="flex items-baseline gap-2 px-4 pb-2 pt-3">
-        <span className="grid size-5 place-items-center rounded-full font-mono text-[0.7rem] font-bold text-white" style={{ background: TONE[q] }}>
+        <span className="grid size-5 place-items-center rounded-full font-mono text-[0.7rem] font-bold" style={{ background: TONE[q], color: "var(--q-on)" }}>
           {q}
         </span>
         <h2 className="text-sm font-semibold">{info.title}</h2>
