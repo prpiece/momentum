@@ -78,8 +78,14 @@ jobs:
           body = open("body.md").read().replace("$NOTES_PLACEHOLDER", os.environ["NOTES"]).replace("__VERSION__", sys.argv[1])
           open("body.md", "w").write(body)
           PY
-          gh release create "$GITHUB_REF_NAME" --draft --title "Momentum $GITHUB_REF_NAME" --notes-file body.md --verify-tag
-          id=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --jq ".[] | select(.draft and .tag_name==\"$GITHUB_REF_NAME\") | .id" | head -1)
+          # Re-runs reuse this tag's draft. A new draft's id comes from the create response itself:
+          # the release list lags behind a just-created draft, so looking it up there can come back empty.
+          id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases" --jq ".[] | select(.draft and .tag_name==\"$GITHUB_REF_NAME\") | .id" | head -1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/$id" -F body=@body.md --silent
+          else
+            id=$(gh api "repos/${GITHUB_REPOSITORY}/releases" -f tag_name="$GITHUB_REF_NAME" -f name="Momentum $GITHUB_REF_NAME" -F draft=true -F body=@body.md --jq .id)
+          fi
           test -n "$id"
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
