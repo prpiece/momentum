@@ -1,6 +1,7 @@
 import { ACCENT_PRESETS } from "./color";
 import {
   CAL_VIEWS,
+  type Cycles,
   COLOR_BYS,
   DENSITIES,
   FONT_SIZES,
@@ -75,7 +76,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   onboarded: false,
   quickAddShortcut: "CommandOrControl+Shift+A",
-  pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4 },
+  pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, cycles: { kind: "infinite" } },
 };
 
 export const DEFAULT_VIEW_OPTIONS: ViewOptions = { groupBy: "none", sortBy: "manual" };
@@ -180,11 +181,16 @@ function parseSounds(raw: unknown): Settings["sounds"] {
   };
 }
 
+function parseCycles(raw: unknown): Cycles {
+  if (!isRecord(raw) || raw.kind !== "finite" || typeof raw.count !== "number" || !Number.isFinite(raw.count)) return { kind: "infinite" };
+  return { kind: "finite", count: Math.min(24, Math.max(1, Math.round(raw.count))) };
+}
+
 function parsePomodoro(raw: unknown): Settings["pomodoro"] {
   const r = isRecord(raw) ? raw : {};
   const d = DEFAULT_SETTINGS.pomodoro;
   const int = (v: unknown, lo: number, hi: number, fallback: number) => (typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi ? v : fallback);
-  return { focusMin: int(r.focusMin, 1, 180, d.focusMin), shortMin: int(r.shortMin, 1, 60, d.shortMin), longMin: int(r.longMin, 1, 90, d.longMin), longEvery: int(r.longEvery, 2, 12, d.longEvery) };
+  return { focusMin: int(r.focusMin, 1, 180, d.focusMin), shortMin: int(r.shortMin, 1, 60, d.shortMin), longMin: int(r.longMin, 1, 90, d.longMin), longEvery: int(r.longEvery, 2, 12, d.longEvery), cycles: parseCycles(r.cycles) };
 }
 
 /** Boundary parser: anything from disk or an import file becomes a valid Settings, field by field. */

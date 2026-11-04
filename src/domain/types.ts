@@ -191,6 +191,9 @@ export type SoundSettings = {
   picks: Record<SoundEvent, SoundName>;
 };
 
+/** How many focus phases a pomodoro session runs: until stopped, or exactly `count` (D75). */
+export type Cycles = { kind: "infinite" } | { kind: "finite"; count: number };
+
 export type Settings = {
   theme: (typeof THEMES)[number];
   /** #rrggbb */
@@ -224,5 +227,5 @@ export type Settings = {
   onboarded: boolean;
   /** Tauri accelerator, e.g. `CommandOrControl+Shift+A`. */
   quickAddShortcut: string;
-  pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number };
+  pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number; cycles: Cycles };
 };

@@ -107,7 +107,7 @@ export async function initOs() {
   // A phase ending is an alarm, so it rings and shows in-app even with notifications off.
   setPhaseEndHandler((_, next) => {
     const n = notifySettings();
-    if (next === "long") onLongBreak();
+    if (next === "long") onLongBreak(); // "done" rings the plain focus-end alarm
     else playEvent("focusEnd", 3);
     toast(`Timer done · ${focusPhaseLabel(next)}`);
     flashTaskbar();
