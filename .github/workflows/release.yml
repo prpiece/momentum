@@ -1,5 +1,7 @@
-# Builds installers for Windows (first), macOS and Linux and attaches them to a draft
-# GitHub Release whenever a version tag (v1.2.3) is pushed. See README → "Cutting a release".
+# Builds installers for Windows, macOS and Linux and attaches them to ONE draft GitHub Release
+# whenever a version tag (v1.2.3) is pushed. See README → "Cutting a release".
+# The draft is created once up front: GitHub's release-by-tag lookup ignores drafts, so parallel
+# build jobs creating their own would split the assets across duplicate drafts (v0.7.0 did).
 name: Release
 
 on:
@@ -23,8 +25,66 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  build:
+  # Creates the single draft every build job uploads to.
+  release:
     needs: test
+    runs-on: ubuntu-22.04
+    outputs:
+      id: ${{ steps.create.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+      # The tag's section of CHANGELOG.md tops the release notes; the app's "What's new" shows it (PLAN D66).
+      # Screenshots point at public/whats-new/ in the app; on GitHub they load from the tagged source.
+      - name: Release notes from CHANGELOG.md
+        id: notes
+        shell: bash
+        run: |
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/public/"
+          notes=$(awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md | sed "s#](whats-new/#](${raw}whats-new/#")
+          {
+            echo "body<<NOTES_EOF"
+            echo "$notes"
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create the draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ steps.notes.outputs.body }}
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cat > body.md <<'BODY_EOF'
+          $NOTES_PLACEHOLDER
+
+          ---
+
+          ### Install
+
+          Already have Momentum? It updates itself: you'll be asked when you next open it.
+
+          | Platform | Download |
+          |---|---|
+          | **Windows** | `Momentum___VERSION___x64-setup.exe` (or the `.msi`) |
+          | **macOS, Apple Silicon** | `Momentum___VERSION___aarch64.dmg` |
+          | **macOS, Intel** | `Momentum___VERSION___x64.dmg` |
+          | **Linux** | `.AppImage`, `.deb` or `.rpm` |
+
+          The installers aren't code-signed yet. On Windows, if SmartScreen says "Windows protected your PC", click **More info → Run anyway**. On macOS, right-click the app and choose **Open** the first time.
+          BODY_EOF
+          python3 - "$version" <<'PY'
+          import os, sys
+          body = open("body.md").read().replace("$NOTES_PLACEHOLDER", os.environ["NOTES"]).replace("__VERSION__", sys.argv[1])
+          open("body.md", "w").write(body)
+          PY
+          gh release create "$GITHUB_REF_NAME" --draft --title "Momentum $GITHUB_REF_NAME" --notes-file body.md --verify-tag
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --jq ".[] | select(.draft and .tag_name==\"$GITHUB_REF_NAME\") | .id" | head -1)
+          test -n "$id"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: release
     strategy:
       fail-fast: false
       matrix:
@@ -62,46 +122,30 @@ jobs:
 
       - run: npm ci
 
-      # The tag's section of CHANGELOG.md tops the release notes; the app's "What's new" shows it (PLAN D66).
-      # Screenshots point at public/whats-new/ in the app; on GitHub they load from the tagged source.
-      - name: Release notes from CHANGELOG.md
-        id: notes
-        shell: bash
-        run: |
-          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/public/"
-          notes=$(awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md | sed "s#](whats-new/#](${raw}whats-new/#")
-          {
-            echo "body<<NOTES_EOF"
-            echo "$notes"
-            echo "NOTES_EOF"
-          } >> "$GITHUB_OUTPUT"
-
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Signs the updater bundles; tauri-action then attaches latest.json for in-app updates (PLAN D59).
+          # Signs the updater bundles; tauri-action then merges this platform into latest.json (PLAN D59).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Momentum ${{ github.ref_name }}"
-          releaseBody: |
-            ${{ steps.notes.outputs.body }}
-
-            ---
-
-            ### Install
-
-            Already have Momentum? It updates itself: you'll be asked when you next open it.
-
-            | Platform | Download |
-            |---|---|
-            | **Windows** | `Momentum___VERSION___x64-setup.exe` (or the `.msi`) |
-            | **macOS, Apple Silicon** | `Momentum___VERSION___aarch64.dmg` |
-            | **macOS, Intel** | `Momentum___VERSION___x64.dmg` |
-            | **Linux** | `.AppImage`, `.deb` or `.rpm` |
-
-            The installers aren't code-signed yet. On Windows, if SmartScreen says "Windows protected your PC", click **More info → Run anyway**. On macOS, right-click the app and choose **Open** the first time.
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.release.outputs.id }}
           args: ${{ matrix.args }}
+
+  # Parallel jobs merge latest.json one after another; a simultaneous finish could drop a platform.
+  # ponytail: detect it instead of serialising the builds; re-run the failed job if this ever trips.
+  verify:
+    needs: [release, build]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: latest.json lists every platform
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/${{ needs.release.outputs.id }}/assets" --jq '.[] | select(.name=="latest.json") | .id')
+          test -n "$id" || { echo "latest.json missing"; exit 1; }
+          gh api -H "Accept: application/octet-stream" "repos/${GITHUB_REPOSITORY}/releases/assets/$id" > latest.json
+          for p in windows-x86_64 darwin-aarch64 darwin-x86_64 linux-x86_64; do
+            jq -e --arg p "$p" '.platforms[$p].url and .platforms[$p].signature' latest.json > /dev/null || { echo "latest.json lacks $p"; exit 1; }
+          done
+          echo "latest.json covers all platforms"
