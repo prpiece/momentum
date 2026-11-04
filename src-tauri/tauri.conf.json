@@ -70,7 +70,7 @@
       "devCsp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPCONFIG/attachments/**", "$APPCONFIG/backgrounds/**"]
+        "scope": []
       }
     }
   },

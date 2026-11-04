@@ -303,6 +303,10 @@ pub fn run() {
         .setup(move |app| {
             backup_before_migrate(&app.path().app_config_dir()?, latest)?;
             build_tray(app)?;
+            // Without it images don't show, but the app still works.
+            if let Err(e) = files::allow_asset_dirs(app.handle()) {
+                eprintln!("could not allow the image folders: {e}");
+            }
             let first_run = !app.path().app_config_dir()?.join(".window-state.json").exists();
             // The window starts hidden; a failed fit must not keep it that way (D76).
             if let Err(e) = fit_main_to_work_area(app, first_run) {

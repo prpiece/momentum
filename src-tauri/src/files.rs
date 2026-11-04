@@ -37,6 +37,15 @@ fn valid_name(name: &str) -> Result<&str, String> {
     }
 }
 
+/// Lets the webview read both folders over the asset protocol. Granted at startup with the exact
+/// paths the commands write to; the static `$APPCONFIG/...` glob in tauri.conf.json returned 403 on Windows.
+pub fn allow_asset_dirs(app: &AppHandle) -> Result<(), String> {
+    for kind in ["attachments", "backgrounds"] {
+        app.asset_protocol_scope().allow_directory(dir(app, kind)?, true).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Folder path, so the frontend can build asset URLs (`convertFileSrc`).
 #[tauri::command]
 pub fn image_dir(app: AppHandle, kind: String) -> Result<String, String> {
