@@ -28,9 +28,18 @@ describe("parseSettings", () => {
       matrix: { importantPriorities: [3], urgentDays: 5 }, closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
       sounds: { enabled: false, volume: 0.3, picks: { task: "ding", habit: "none", streak: "pop", dayDone: "chime", focusEnd: "marimba", longBreak: "fanfare" } },
-      onboarded: true, quickAddShortcut: "CommandOrControl+N", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3 },
+      onboarded: true, quickAddShortcut: "CommandOrControl+N", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
+  });
+
+  it("parses the pomodoro cycle count at the boundary", () => {
+    const c = (cycles: unknown) => parseSettings({ pomodoro: { cycles } }).pomodoro.cycles;
+    expect(c(undefined)).toEqual({ kind: "infinite" });
+    expect(c({ kind: "finite", count: 99 })).toEqual({ kind: "finite", count: 24 });
+    expect(c({ kind: "finite", count: 0 })).toEqual({ kind: "finite", count: 1 });
+    expect(c({ kind: "finite", count: "x" })).toEqual({ kind: "infinite" });
+    expect(c({ kind: "bogus", count: 3 })).toEqual({ kind: "infinite" });
   });
 
   it("keeps well-formed saved filters only", () => {

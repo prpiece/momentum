@@ -2,9 +2,10 @@ import { format } from "date-fns";
 import { Pause, Play, SkipForward, Square, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { BarChart } from "../../components/ui/BarChart";
+import { NumField } from "../../components/ui/NumField";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
-import { elapsedMs, formatClock, phaseMs, remainingMs, type FocusMode, type Phase } from "../../domain/focus";
+import { DEFAULT_POMODORO, elapsedMs, formatClock, phaseMs, remainingMs, type FocusMode, type Phase } from "../../domain/focus";
 import { perWeek, type Bucket } from "../../domain/stats";
 import { sortVMs } from "../../domain/taskViews";
 import { addDaysLocal } from "../../domain/dates";
@@ -15,7 +16,8 @@ import { addStatsSection } from "../stats/StatsView";
 import { toggleDone } from "../tasks/actions";
 import { useDerived } from "../tasks/selectors";
 
-export function focusPhaseLabel(next: Phase): string {
+export function focusPhaseLabel(next: Phase | "done"): string {
+  if (next === "done") return "Session done. Well played!";
   if (next === "focus") return "Break's over. Time to focus.";
   return next === "long" ? "Great session! Take a long break." : "Nice work! Take a short break.";
 }
@@ -91,12 +93,12 @@ export function FocusView() {
   const now = useNow(t.status === "running");
 
   const options = useMemo(() => sortVMs(derived.roots.filter((v) => v.task.status === "open"), "date").slice(0, 200), [derived]);
-  const activeMode = t.status === "idle" ? mode : t.mode;
+  const activeMode = t.status === "running" || t.status === "paused" ? t.mode : mode;
   const remaining = remainingMs(t, now, cfg);
   const elapsed = elapsedMs(t, now);
-  const total = t.status !== "idle" && t.mode === "pomodoro" ? phaseMs(t.phase, cfg) : 0;
+  const total = (t.status === "running" || t.status === "paused") && t.mode === "pomodoro" ? phaseMs(t.phase, cfg) : 0;
   const progress = total ? 1 - (remaining ?? 0) / total : 0;
-  const clock = t.status === "idle" ? (mode === "pomodoro" ? formatClock(cfg.focusMin * 60_000) : "00:00") : formatClock(remaining ?? elapsed);
+  const clock = t.status === "done" ? `${Math.round(t.focusMs / 60_000)}m` : t.status === "idle" ? (mode === "pomodoro" ? formatClock(cfg.focusMin * 60_000) : "00:00") : formatClock(remaining ?? elapsed);
   const today = todayLocal();
   const todays = Object.values(sessions)
     .filter((s) => toLocalDate(new Date(s.startAt)) === today)
@@ -123,13 +125,13 @@ export function FocusView() {
         <div className="relative grid size-[clamp(12rem,42vh,16.5rem)] shrink-0 place-items-center">
           <svg viewBox={`0 0 ${2 * R + 24} ${2 * R + 24}`} className="absolute inset-0 size-full -rotate-90" aria-hidden="true">
             <circle cx={R + 12} cy={R + 12} r={R} fill="none" stroke="var(--border)" strokeWidth={8} />
-            {activeMode === "pomodoro" && t.status !== "idle" && (
+            {activeMode === "pomodoro" && (t.status === "running" || t.status === "paused") && (
               <circle cx={R + 12} cy={R + 12} r={R} fill="none" stroke={t.phase === "focus" ? "var(--accent)" : "var(--success)"} strokeWidth={8} strokeLinecap="round" strokeDasharray={`${C * progress} ${C}`} className="transition-[stroke-dasharray] duration-1000 ease-linear" />
             )}
           </svg>
           <div className="text-center" role="timer" aria-live="off">
             <div className="text-xs font-semibold uppercase tracking-widest text-muted">
-              {t.status === "idle" ? "Ready" : t.mode === "stopwatch" ? "Stopwatch" : `${PHASE_NAME[t.phase]}${t.phase === "focus" ? ` · round ${t.round}` : ""}`}
+              {t.status === "idle" ? "Ready" : t.status === "done" ? "Session done" : t.mode === "stopwatch" ? "Stopwatch" : `${PHASE_NAME[t.phase]}${t.phase === "focus" ? ` · round ${t.round}${t.cycles.kind === "finite" ? ` of ${t.cycles.count}` : ""}` : ""}`}
               {t.status === "paused" && " · paused"}
             </div>
             <div className={`font-mono font-semibold tabular-nums tracking-tight ${clock.length > 5 ? "text-[clamp(1.9rem,5vh,2.75rem)]" : "text-[clamp(2.5rem,7vh,3.75rem)]"}`}>{clock}</div>
@@ -153,7 +155,16 @@ export function FocusView() {
         {boundTask && <Steps parentId={boundTask} />}
 
         <div className="flex items-center gap-3">
-          {t.status === "idle" ? (
+          {t.status === "done" ? (
+            <>
+              <button type="button" onClick={() => startFocus("pomodoro", t.taskId)} className="flex h-12 items-center gap-2 rounded-full bg-accent px-8 text-base font-semibold text-accent-fg shadow-sm hover:bg-accent-hover">
+                <Play size={18} fill="currentColor" /> Start again
+              </button>
+              <button type="button" onClick={stopFocus} className="h-12 rounded-full bg-hover px-5 text-sm text-fg-2 hover:text-fg">
+                Close
+              </button>
+            </>
+          ) : t.status === "idle" ? (
             <button type="button" onClick={() => startFocus(mode, taskId)} className="flex h-12 items-center gap-2 rounded-full bg-accent px-8 text-base font-semibold text-accent-fg shadow-sm hover:bg-accent-hover">
               <Play size={18} fill="currentColor" /> Start
             </button>
@@ -192,21 +203,30 @@ export function FocusView() {
             ).map(([k, label, lo, hi]) => (
               <label key={k} className="flex items-center gap-1.5">
                 {label}
-                <input
-                  type="number"
-                  min={lo}
-                  max={hi}
-                  value={cfg[k]}
-                  onChange={(e) => {
-                    const n = Math.round(Number(e.target.value));
-                    if (n >= lo && n <= hi) update({ pomodoro: { ...cfg, [k]: n } });
-                  }}
-                  className="h-7 w-14 rounded-sm border border-border bg-surface px-1.5 text-fg outline-none focus:border-accent"
-                />
+                <NumField label={label} lo={lo} hi={hi} def={DEFAULT_POMODORO[k]} value={cfg[k]} onCommit={(n) => update({ pomodoro: { ...cfg, [k]: n } })} />
                 {k === "longEvery" ? "rounds" : "min"}
               </label>
             ))}
+            <span className="flex items-center gap-1.5">
+              Cycles
+              <button
+                type="button"
+                role="switch"
+                aria-checked={cfg.cycles.kind === "infinite"}
+                aria-label="Repeat until stopped"
+                onClick={() => update({ pomodoro: { ...cfg, cycles: cfg.cycles.kind === "infinite" ? { kind: "finite", count: 4 } : { kind: "infinite" } } })}
+                className={`h-7 rounded-sm border px-2 text-base leading-none ${cfg.cycles.kind === "infinite" ? "border-accent bg-accent-soft text-fg" : "border-border"}`}
+              >
+                ∞
+              </button>
+              {cfg.cycles.kind === "finite" && <NumField label="Number of cycles" lo={1} hi={24} def={4} value={cfg.cycles.count} onCommit={(n) => update({ pomodoro: { ...cfg, cycles: { kind: "finite", count: n } } })} />}
+            </span>
           </div>
+        )}
+        {t.status === "done" && (
+          <p className="text-sm text-fg-2">
+            {t.cycles} cycle{t.cycles === 1 ? "" : "s"} completed · {Math.round(t.focusMs / 60_000)} min focused
+          </p>
         )}
       </div>
 
@@ -258,7 +278,7 @@ export function FocusBadge() {
   const t = useFocus((s) => s.timer);
   const cfg = useSettings((s) => s.settings.pomodoro);
   const now = useNow(t.status === "running");
-  if (t.status === "idle") return null;
+  if (t.status === "idle" || t.status === "done") return null;
   const ms = remainingMs(t, now, cfg) ?? elapsedMs(t, now);
   return <span className={`font-mono text-[0.7rem] ${t.status === "paused" ? "text-muted" : "text-accent"}`}>{formatClock(ms)}</span>;
 }

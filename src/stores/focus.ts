@@ -13,7 +13,7 @@ const get = useFocus.getState;
 const set = useFocus.setState;
 
 /** Called when a focus phase ends on its own (the OS layer turns it into a notification). */
-let onPhaseEnd: (phase: timer.Phase, next: timer.Phase) => void = () => {};
+let onPhaseEnd: (phase: timer.Phase, next: timer.Phase | "done") => void = () => {};
 export const setPhaseEndHandler = (fn: typeof onPhaseEnd) => void (onPhaseEnd = fn);
 
 export async function hydrateFocus() {
@@ -34,7 +34,7 @@ function record(s: FocusSession | null) {
 
 const cfg = () => useSettings.getState().settings.pomodoro;
 
-export const startFocus = (mode: FocusMode, taskId: string | null) => set({ timer: timer.start(mode, taskId, Date.now()) });
+export const startFocus = (mode: FocusMode, taskId: string | null) => set({ timer: timer.start(mode, taskId, Date.now(), cfg().cycles) });
 export const pauseFocus = () => set({ timer: timer.pause(get().timer, Date.now()) });
 export const resumeFocus = () => set({ timer: timer.resume(get().timer, Date.now()) });
 export const setFocusTask = (taskId: string | null) => {
@@ -63,7 +63,7 @@ export function tickFocus() {
   if (t.status !== "running" || t.mode !== "pomodoro") return;
   if ((timer.remainingMs(t, Date.now(), cfg()) ?? 1) > 0) return;
   const { before, state } = skipPhase();
-  if (before.status !== "idle" && state.status !== "idle") onPhaseEnd(before.phase, state.phase);
+  if (before.status === "running" && state.status !== "idle") onPhaseEnd(before.phase, state.status === "done" ? "done" : state.phase);
 }
 
 export function deleteSession(id: string) {
