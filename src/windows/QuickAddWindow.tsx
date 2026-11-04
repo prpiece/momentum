@@ -2,6 +2,7 @@ import { CalendarDays, Flag, Hash, List, Plus, Repeat } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTime, relativeDayLabel, todayLocal } from "../domain/dates";
 import { parseQuickAdd, type ChipKind } from "../domain/quickAdd";
+import { contextLabel, type QuickAddContext } from "../domain/quickAddContext";
 import { describeRule } from "../domain/recurrence";
 import { PRIORITY_LABEL } from "../domain/types";
 import { apply, readAppearance } from "../lib/applySettings";
@@ -15,6 +16,7 @@ const ICON: Record<ChipKind, typeof Flag> = { date: CalendarDays, priority: Flag
 export function QuickAddWindow() {
   const [text, setText] = useState("");
   const [raw, setRaw] = useState(false);
+  const [context, setContext] = useState<QuickAddContext | null>(null);
   const [appearance, setAppearance] = useState(readAppearance);
   const input = useRef<HTMLInputElement>(null);
   const smart = appearance?.smartParse ?? true;
@@ -34,7 +36,8 @@ export function QuickAddWindow() {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const w = getCurrentWindow();
       off = [
-        await listen("quickadd:focus", () => {
+        await listen<QuickAddContext | null>("quickadd:focus", (e) => {
+          setContext(e.payload);
           setAppearance(readAppearance());
           input.current?.focus();
           input.current?.select();
@@ -54,9 +57,10 @@ export function QuickAddWindow() {
   const submit = async () => {
     if (!text.trim()) return;
     const { emit } = await import("@tauri-apps/api/event");
-    await emit("quickadd:create", { text, raw });
+    await emit("quickadd:create", { text, raw, context });
     setText("");
     setRaw(false);
+    setContext(null);
     await hide();
   };
 
@@ -92,6 +96,12 @@ export function QuickAddWindow() {
         />
       </div>
       <div className="flex min-h-7 flex-wrap items-center gap-1.5 pb-1">
+        {context && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs font-medium">
+            {context.kind === "list" ? <List size={12} className="text-accent" /> : <CalendarDays size={12} className="text-accent" />}
+            {contextLabel(context, today)}
+          </span>
+        )}
         {parsed.chips.map((c) => {
           const Icon = ICON[c.kind];
           return (

@@ -5,6 +5,8 @@
  */
 import { isTauri } from "../db/client";
 import { focusPhaseLabel } from "../features/focus/FocusView";
+import { contextForView, patchForContext, type QuickAddContext } from "../domain/quickAddContext";
+import { QUICK_ADD_POPUP_EVENT } from "../features/tasks/QuickAdd";
 import { createFromText } from "../features/tasks/quickAddSubmit";
 import { accentForeground } from "../domain/color";
 import { todayLocal } from "../domain/dates";
@@ -13,7 +15,7 @@ import { isDone, targetOf } from "../domain/habits";
 import { checkinOf, setCheckin, setCheckinHandler, useHabits } from "../stores/habits";
 import { setPhaseEndHandler, tickFocus } from "../stores/focus";
 import { useSettings } from "../stores/settings";
-import { go, openEvent, openTask, toast } from "../stores/ui";
+import { go, openEvent, openTask, toast, useUi } from "../stores/ui";
 import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderScheduler";
 import { checkForUpdate } from "./updater";
 import { playEvent, playSound } from "./sounds";
@@ -153,22 +155,29 @@ export async function initOs() {
   void startReminders((dto) => deliver(dto));
 
   // --- global quick add ----------------------------------------------------
-  await listen<{ text: string; raw: boolean }>("quickadd:create", (e) => {
-    const t = createFromText(e.payload.text, {}, settings().smartParse && !e.payload.raw, () => false);
+  await listen<{ text: string; raw: boolean; context: QuickAddContext | null }>("quickadd:create", (e) => {
+    const t = createFromText(e.payload.text, patchForContext(e.payload.context, (id) => id in useData.getState().lists), settings().smartParse && !e.payload.raw, () => false);
     if (t && notifySettings().enabled && notifySettings().quickAdd) osNotify("Added to Momentum", t.title);
+  });
+  const showQuickAdd = async (context: QuickAddContext | null) => {
+    const w = await Window.getByLabel("quickadd");
+    await w?.center();
+    await w?.show();
+    await w?.setFocus();
+    await emit("quickadd:focus", context);
+  };
+  // `N` with no inline bar on screen (D70): open the popup pre-filled from the current view.
+  window.addEventListener(QUICK_ADD_POPUP_EVENT, () => {
+    const { view, calAnchor } = useUi.getState();
+    void showQuickAdd(contextForView(view, useData.getState().lists, calAnchor));
   });
   let bound: string | null = null;
   const bindShortcut = async (accel: string) => {
     if (bound) await shortcut.unregister(bound).catch(() => undefined);
     bound = null;
     try {
-      await shortcut.register(accel, async (e) => {
-        if (e.state !== "Pressed") return;
-        const w = await Window.getByLabel("quickadd");
-        await w?.center();
-        await w?.show();
-        await w?.setFocus();
-        await emit("quickadd:focus");
+      await shortcut.register(accel, (e) => {
+        if (e.state === "Pressed") void showQuickAdd(null);
       });
       bound = accel;
     } catch (err) {

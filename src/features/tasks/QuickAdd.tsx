@@ -17,8 +17,14 @@ const CHIP_ICON: Record<ChipKind, typeof Flag> = {
 };
 
 export const QUICK_ADD_EVENT = "momentum:quick-add";
-/** Focus the quick-add bar of the current view (keyboard `N`, palette "New task"). */
-export const focusQuickAdd = () => window.dispatchEvent(new Event(QUICK_ADD_EVENT));
+export const QUICK_ADD_POPUP_EVENT = "momentum:quick-add-popup";
+/**
+ * Focus the quick-add bar of the current view (keyboard `N`, palette "New task"). A mounted bar
+ * cancels the event; if none did (boards, calendar, matrix...), the popup opens instead (D70).
+ */
+export const focusQuickAdd = () => {
+  if (window.dispatchEvent(new Event(QUICK_ADD_EVENT, { cancelable: true }))) window.dispatchEvent(new Event(QUICK_ADD_POPUP_EVENT));
+};
 
 /**
  * Always-visible add bar. Natural language is parsed live and shown as chips; Esc turns
@@ -40,7 +46,10 @@ export function QuickAdd(props: {
   const parsing = smartParse && !rawMode;
 
   useEffect(() => {
-    const focus = () => input.current?.focus();
+    const focus = (e: Event) => {
+      e.preventDefault();
+      input.current?.focus();
+    };
     window.addEventListener(QUICK_ADD_EVENT, focus);
     return () => window.removeEventListener(QUICK_ADD_EVENT, focus);
   }, []);
