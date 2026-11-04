@@ -136,6 +136,7 @@ momentum/
   - `updater` and `process` Tauri plugins: signed in-app updates and the restart after one (D59).
   - `canvas-confetti` (about 6 KB, offline) for the celebration confetti, so we don't maintain a particle system (D63).
   - `sherpa-onnx` (Rust) runs Parakeet on-device, and `cpal` captures the microphone in Rust (D81). The model download reuses the HTTP client the updater already pulls in and checks it with `sha2`.
+  - `tauri-plugin-window-state` (Rust) persists the main window's size, position and maximized state; the fit-to-work-area clamp runs after it restores (D76).
   - Tauri's `protocol-asset` feature serves attachments and backgrounds from app data (D78, D79). A zip library is still to be chosen for the `.zip` backups.
 - **Deliberately not added:**
   - Chart library: the stats charts and heatmaps are small hand-written SVGs.

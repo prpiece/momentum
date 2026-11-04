@@ -265,7 +265,10 @@ pub fn run() {
             backup_before_migrate(&app.path().app_config_dir()?, latest)?;
             build_tray(app)?;
             let first_run = !app.path().app_config_dir()?.join(".window-state.json").exists();
-            fit_main_to_work_area(app, first_run)?;
+            // The window starts hidden; a failed fit must not keep it that way (D76).
+            if let Err(e) = fit_main_to_work_area(app, first_run) {
+                eprintln!("could not fit the main window to the work area: {e}");
+            }
             // Launched at login: start in the tray so reminders run without a window popping up.
             if !std::env::args().any(|a| a == "--minimized") {
                 show_main(app.handle());
