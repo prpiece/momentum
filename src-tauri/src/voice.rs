@@ -25,6 +25,7 @@ const ARCHIVE_DIR: &str = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8";
 const MODEL_FILES: [&str; 4] = ["encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"];
 /// A stuck hotkey must not record forever.
 const MAX_SECONDS: usize = 120;
+const POST_ROLL: Duration = Duration::from_millis(300);
 
 /// What Settings → Voice shows. Mirrored by `ModelStatus` in src/domain/voice.ts.
 #[derive(Serialize, Clone, Debug, PartialEq)]
@@ -191,12 +192,49 @@ pub fn voice_remove(app: AppHandle, v: State<Voice>) -> Result<(), String> {
     Ok(())
 }
 
+/// Frame RMS over 20 ms windows.
+fn frame_rms(samples: &[f32], rate: u32) -> Vec<f32> {
+    let n = (rate as usize / 50).max(1);
+    samples.chunks(n).map(|c| (c.iter().map(|s| s * s).sum::<f32>() / c.len() as f32).sqrt()).collect()
+}
+
+/// Drops leading/trailing silence (frames under 5% of the loudest frame), keeping 0.15 s of margin
+/// so word edges survive. Returns the input unchanged when it is all near-silence.
+fn trim_silence(samples: &[f32], rate: u32) -> &[f32] {
+    let rms = frame_rms(samples, rate);
+    let peak = rms.iter().cloned().fold(0.0, f32::max);
+    if peak < 1e-4 {
+        return samples;
+    }
+    let loud = |r: &f32| *r >= peak * 0.05;
+    let (Some(first), Some(last)) = (rms.iter().position(loud), rms.iter().rposition(loud)) else { return samples };
+    let frame = (rate as usize / 50).max(1);
+    let margin = rate as usize * 15 / 100;
+    let start = (first * frame).saturating_sub(margin);
+    let end = ((last + 1) * frame + margin).min(samples.len());
+    &samples[start..end]
+}
+
+/// Boosts quiet audio so its peak reaches 0.7 (gain capped at 20x so a noise floor isn't blown up).
+fn normalise(samples: &mut [f32]) {
+    let peak = samples.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+    if peak > 1e-4 && peak < 0.3 {
+        let gain = (0.7 / peak).min(20.0);
+        samples.iter_mut().for_each(|s| *s *= gain);
+    }
+}
+
 fn load_recognizer(dir: &Path) -> Result<OfflineRecognizer, String> {
+    load_recognizer_with(dir, "greedy_search")
+}
+
+fn load_recognizer_with(dir: &Path, method: &str) -> Result<OfflineRecognizer, String> {
     let file = |f: &str| Some(dir.join(f).to_string_lossy().into_owned());
     let mut config = OfflineRecognizerConfig::default();
     config.model_config.transducer = OfflineTransducerModelConfig { encoder: file(MODEL_FILES[0]), decoder: file(MODEL_FILES[1]), joiner: file(MODEL_FILES[2]) };
     config.model_config.tokens = file(MODEL_FILES[3]);
     config.model_config.model_type = Some("nemo_transducer".into());
+    config.decoding_method = Some(method.into());
     config.model_config.num_threads = thread::available_parallelism().map_or(2, |n| n.get().clamp(1, 4) as i32);
     OfflineRecognizer::create(&config).ok_or_else(|| "Couldn't load the voice model. Try removing and downloading it again.".into())
 }
@@ -214,7 +252,13 @@ fn recognizer(app: &AppHandle) -> Result<Arc<OfflineRecognizer>, String> {
 }
 
 fn transcribe(r: &OfflineRecognizer, samples: &[f32], rate: u32) -> String {
-    let stream = r.create_stream();
+    let mut clean = trim_silence(samples, rate).to_vec();
+    normalise(&mut clean);
+    transcribe_raw(r, &clean, rate, None)
+}
+
+fn transcribe_raw(r: &OfflineRecognizer, samples: &[f32], rate: u32, hotwords: Option<&str>) -> String {
+    let stream = hotwords.map_or_else(|| r.create_stream(), |h| r.create_stream_with_hotwords(h));
     // sherpa-onnx resamples to the model's 16 kHz itself.
     stream.accept_waveform(rate as i32, samples);
     r.decode(&stream);
@@ -237,14 +281,17 @@ where
 
 /// Records the default input device on its own thread (cpal streams aren't `Send` everywhere)
 /// until `stop` fires, emitting `voice:level` (0..1) for the popup's meter.
-fn record(app: AppHandle, stop: mpsc::Receiver<()>, started: mpsc::Sender<Result<(), String>>) -> Result<(Vec<f32>, u32), String> {
+fn record(app: AppHandle, mic: Option<String>, stop: mpsc::Receiver<()>, started: mpsc::Sender<Result<Option<String>, String>>) -> Result<(Vec<f32>, u32), String> {
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
     use cpal::SampleFormat as F;
-    let fail = |started: &mpsc::Sender<Result<(), String>>, msg: String| {
+    let fail = |started: &mpsc::Sender<Result<Option<String>, String>>, msg: String| {
         let _ = started.send(Err(msg.clone()));
         Err(msg)
     };
-    let Some(device) = cpal::default_host().default_input_device() else {
+    let host = cpal::default_host();
+    let saved = mic.as_deref().and_then(|name| host.input_devices().ok()?.find(|d| d.description().is_ok_and(|x| x.name() == name)));
+    let notice = (mic.is_some() && saved.is_none()).then(|| "The selected microphone isn't available; using the system default.".to_string());
+    let Some(device) = saved.or_else(|| host.default_input_device()) else {
         return fail(&started, "No microphone found.".into());
     };
     let config = match device.default_input_config() {
@@ -283,7 +330,7 @@ fn record(app: AppHandle, stop: mpsc::Receiver<()>, started: mpsc::Sender<Result
         Ok(s) => s,
         Err(e) => return fail(&started, format!("Couldn't start the microphone: {e}")),
     };
-    let _ = started.send(Ok(()));
+    let _ = started.send(Ok(notice));
     while let Err(mpsc::RecvTimeoutError::Timeout) = stop.recv_timeout(Duration::from_millis(60)) {
         // RMS of speech sits around 0.01..0.3; stretch it so the meter moves.
         let _ = app.emit("voice:level", (f32::from_bits(level.load(Ordering::Relaxed)) * 6.0).min(1.0));
@@ -296,28 +343,37 @@ fn record(app: AppHandle, stop: mpsc::Receiver<()>, started: mpsc::Sender<Result
 /// Push-to-talk pressed (or the popup's mic clicked): start recording, and warm the model up
 /// meanwhile so the release only waits for decoding.
 #[tauri::command]
-pub async fn voice_start(app: AppHandle) -> Result<(), String> {
+pub async fn voice_start(app: AppHandle, mic: Option<String>) -> Result<Option<String>, String> {
     let v = app.state::<Voice>();
     if !is_ready(&voice_dir(&app)?) {
         return Err("The voice model isn't installed.".into());
     }
     if v.recording.lock().unwrap().is_some() {
-        return Ok(());
+        return Ok(None);
     }
     let (stop_tx, stop_rx) = mpsc::channel();
     let (started_tx, started_rx) = mpsc::channel();
     let rec_app = app.clone();
-    let done = thread::spawn(move || record(rec_app, stop_rx, started_tx));
+    let done = thread::spawn(move || record(rec_app, mic, stop_rx, started_tx));
     let started = tauri::async_runtime::spawn_blocking(move || started_rx.recv().unwrap_or_else(|_| Err("The microphone thread stopped.".into())))
         .await
         .map_err(|e| e.to_string())?;
-    started?;
+    let notice = started?;
     *v.recording.lock().unwrap() = Some(Recording { stop: stop_tx, done });
     let warm = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _ = recognizer(&warm);
     });
-    Ok(())
+    Ok(notice)
+}
+
+/// Names of the input devices, for Settings → Voice.
+#[tauri::command]
+pub fn voice_input_devices() -> Vec<String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    let mut names: Vec<String> = cpal::default_host().input_devices().map(|d| d.filter_map(|d| d.description().ok().map(|x| x.name().to_string())).collect()).unwrap_or_default();
+    names.dedup();
+    names
 }
 
 fn finish_recording(v: &Voice) -> Option<thread::JoinHandle<Result<(Vec<f32>, u32), String>>> {
@@ -329,8 +385,13 @@ fn finish_recording(v: &Voice) -> Option<thread::JoinHandle<Result<(Vec<f32>, u3
 /// Push-to-talk released: stop and return the transcript (empty if nothing was heard).
 #[tauri::command]
 pub async fn voice_stop(app: AppHandle) -> Result<String, String> {
-    let Some(done) = finish_recording(&app.state::<Voice>()) else { return Ok(String::new()) };
+    if app.state::<Voice>().recording.lock().unwrap().is_none() {
+        return Ok(String::new());
+    }
     tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+        // Post-roll: people release the key before the last syllable has left the buffer.
+        thread::sleep(POST_ROLL);
+        let Some(done) = finish_recording(&app.state::<Voice>()) else { return Ok(String::new()) };
         let (samples, rate) = done.join().map_err(|_| "The microphone thread crashed.".to_string())??;
         if samples.len() < rate as usize / 4 {
             return Ok(String::new());
@@ -418,6 +479,103 @@ mod tests {
         let mut out = Vec::new();
         push_mono(&[i16::MAX], 1, &mut out);
         assert!((out[0] - 1.0).abs() < 1e-3);
+    }
+
+    fn tone(n: usize, amp: f32) -> Vec<f32> {
+        (0..n).map(|i| amp * (i as f32 * 0.3).sin()).collect()
+    }
+
+    #[test]
+    fn trims_silence_but_keeps_a_margin() {
+        let mut v = vec![0.0; 16000];
+        v.extend(tone(8000, 0.5));
+        v.extend(vec![0.0; 16000]);
+        let t = trim_silence(&v, 16000);
+        assert!(t.len() < v.len() / 2 && t.len() >= 8000 + 2 * 2400 - 640, "len {}", t.len());
+        assert!(t.iter().any(|s| s.abs() > 0.4));
+        let silent = vec![0.0; 1000];
+        assert_eq!(trim_silence(&silent, 16000).len(), 1000);
+    }
+
+    #[test]
+    fn normalises_only_quiet_audio() {
+        let mut q = tone(100, 0.05);
+        normalise(&mut q);
+        assert!((q.iter().fold(0.0f32, |m, s| m.max(s.abs())) - 0.7).abs() < 0.02);
+        let mut loud = tone(100, 0.6);
+        normalise(&mut loud);
+        assert!((loud[5] - 0.6 * (1.5f32).sin()).abs() < 1e-6);
+        let mut hiss = tone(100, 0.0001);
+        normalise(&mut hiss);
+        assert!(hiss.iter().all(|s| s.abs() < 0.01));
+    }
+
+    fn wer(reference: &str, hyp: &str) -> (usize, usize) {
+        let norm = |s: &str| s.to_lowercase().replace(|c: char| !c.is_alphanumeric() && c != ' ', "").split_whitespace().map(String::from).collect::<Vec<_>>();
+        let (a, b) = (norm(reference), norm(hyp));
+        let mut d: Vec<usize> = (0..=b.len()).collect();
+        for i in 1..=a.len() {
+            let mut prev = d[0];
+            d[0] = i;
+            for j in 1..=b.len() {
+                let cur = d[j];
+                d[j] = (prev + (a[i - 1] != b[j - 1]) as usize).min(d[j] + 1).min(d[j - 1] + 1);
+                prev = cur;
+            }
+        }
+        (d[b.len()], a.len())
+    }
+
+    /// Greedy vs beam vs hotwords on `<dir>/*.wav` + `*.txt` (reference), in clean, -20 dB and
+    /// padded variants, each raw and cleaned. `MOMENTUM_VOICE_MODEL=<dir> MOMENTUM_VOICE_CLIPS=<dir>
+    /// cargo test --release --lib bench_decoding -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn bench_decoding() {
+        let model = std::env::var("MOMENTUM_VOICE_MODEL").expect("MOMENTUM_VOICE_MODEL");
+        let clips = std::env::var("MOMENTUM_VOICE_CLIPS").expect("MOMENTUM_VOICE_CLIPS");
+        let mut paths: Vec<_> = fs::read_dir(&clips).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().is_some_and(|e| e == "wav")).collect();
+        paths.sort();
+        let clips: Vec<(Vec<f32>, String)> = paths
+            .iter()
+            .map(|p| (sherpa_onnx::Wave::read(&p.to_string_lossy()).unwrap().samples().to_vec(), fs::read_to_string(p.with_extension("txt")).unwrap()))
+            .collect();
+        let hot = "Chem\nHistory essay\nWork";
+        let variants: [(&str, fn(&[f32]) -> Vec<f32>); 3] = [
+            ("clean", |s| s.to_vec()),
+            ("quiet-20dB", |s| s.iter().map(|x| x * 0.1).collect()),
+            ("padded", |s| {
+                let mut v: Vec<f32> = (0..24000).map(|i| ((i * 7919 % 200) as f32 - 100.0) * 1e-5).collect();
+                v.extend_from_slice(s);
+                v.extend((0..24000).map(|i| ((i * 104729 % 200) as f32 - 100.0) * 1e-5));
+                v
+            }),
+        ];
+        for method in ["greedy_search", "modified_beam_search"] {
+            let r = load_recognizer_with(Path::new(&model), method).unwrap();
+            for (name, make) in &variants {
+                for (mode, cleaned, hw) in [("raw", false, None), ("clean", true, None), ("clean+hot", true, Some(hot))] {
+                    let (mut errs, mut words) = (0, 0);
+                    for (s, reference) in &clips {
+                        let s = make(s);
+                        let text = if cleaned {
+                            let mut c = trim_silence(&s, 16000).to_vec();
+                            normalise(&mut c);
+                            transcribe_raw(&r, &c, 16000, hw)
+                        } else {
+                            transcribe_raw(&r, &s, 16000, hw)
+                        };
+                        let (e, w) = wer(reference, &text);
+                        errs += e;
+                        words += w;
+                        if method == "greedy_search" && name == &"clean" && mode == "raw" {
+                            println!("  ref: {}\n  hyp: {text}", reference.trim());
+                        }
+                    }
+                    println!("{method:22} {name:11} {mode:10} WER {:.1}% ({errs}/{words})", errs as f32 * 100.0 / words as f32);
+                }
+            }
+        }
     }
 
     /// Real transcription: `MOMENTUM_VOICE_MODEL=<unpacked model dir> MOMENTUM_VOICE_WAV=<file.wav>

@@ -1,8 +1,9 @@
 import { Download, Trash2, X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { isTauri } from "../../db/client";
 import type { ModelStatus } from "../../domain/voice";
-import { cancelVoiceModelDownload, downloadVoiceModel, MODEL_DISK_MB, MODEL_DOWNLOAD_MB, refreshVoiceModel, removeVoiceModel, useVoiceModel } from "../../lib/voice";
+import { useSettings } from "../../stores/settings";
+import { cancelVoiceModelDownload, downloadVoiceModel, MODEL_DISK_MB, MODEL_DOWNLOAD_MB, refreshVoiceModel, removeVoiceModel, useVoiceModel, voiceInputDevices } from "../../lib/voice";
 
 function statusLine(s: ModelStatus): string {
   switch (s.state) {
@@ -24,6 +25,12 @@ export function VoiceSection() {
   const status = useVoiceModel((s) => s.status);
   useEffect(() => {
     void refreshVoiceModel().catch((e) => console.error("Voice model status failed", e));
+  }, []);
+  const mic = useSettings((st) => st.settings.voiceMic);
+  const update = useSettings((st) => st.update);
+  const [devices, setDevices] = useState<string[]>([]);
+  useEffect(() => {
+    if (isTauri) void voiceInputDevices().then(setDevices, () => undefined);
   }, []);
   const btn = "flex h-9 items-center gap-2 rounded-sm border border-border px-3 text-sm hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent";
 
@@ -61,6 +68,22 @@ export function VoiceSection() {
           />
         </div>
       )}
+      <label className="flex flex-wrap items-center gap-3 text-sm">
+        <span className="min-w-0 flex-1 font-medium">Microphone</span>
+        <select
+          value={mic ?? ""}
+          onChange={(e) => update({ voiceMic: e.target.value || null })}
+          className="h-9 max-w-64 rounded-sm border border-border bg-surface px-2 text-sm focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <option value="">System default</option>
+          {mic && !devices.includes(mic) && <option value={mic}>{mic} (not connected)</option>}
+          {devices.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </label>
       {status.state !== "ready" && (
         <p className="text-xs text-muted">
           A one-time download of about {MODEL_DOWNLOAD_MB} MB ({MODEL_DISK_MB} MB on disk). After that, voice works offline and nothing you say leaves this computer.

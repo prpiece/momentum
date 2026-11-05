@@ -304,6 +304,7 @@ pub fn run() {
             voice::voice_cancel_download,
             voice::voice_remove,
             voice::voice_start,
+            voice::voice_input_devices,
             voice::voice_stop,
             voice::voice_cancel
         ])
