@@ -85,6 +85,7 @@ export const DEFAULT_SETTINGS: Settings = {
   quickAddShortcut: "CommandOrControl+Shift+A",
   miniShortcut: "CommandOrControl+Alt+M",
   voiceShortcut: "CommandOrControl+Alt+Space",
+  voiceMic: null,
   pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, cycles: { kind: "infinite" } },
 };
 
@@ -262,6 +263,7 @@ export function parseSettings(raw: unknown): Settings {
     onboarded: r.onboarded === true,
     quickAddShortcut: accelerator(r.quickAddShortcut, d.quickAddShortcut),
     voiceShortcut: ((v) => (v === accelerator(r.quickAddShortcut, d.quickAddShortcut) ? d.voiceShortcut : v))(accelerator(r.voiceShortcut, d.voiceShortcut)),
+    voiceMic: typeof r.voiceMic === "string" && r.voiceMic ? r.voiceMic : null,
     miniShortcut: accelerator(r.miniShortcut, d.miniShortcut),
     pomodoro: parsePomodoro(r.pomodoro),
   };

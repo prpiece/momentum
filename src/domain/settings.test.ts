@@ -33,13 +33,14 @@ describe("parseSettings", () => {
       matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["#0e8a85", null, null, "#2f6fed"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
       sounds: { enabled: false, volume: 0.3, picks: { task: "ding", habit: "none", streak: "pop", dayDone: "chime", focusEnd: "marimba", longBreak: "fanfare" } },
-      onboarded: true, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
+      onboarded: true, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
 
   it("keeps the voice shortcut apart from the quick-add one", () => {
     expect(parseSettings({ voiceShortcut: "Alt+V" }).voiceShortcut).toBe("Alt+V");
+    expect(parseSettings({ voiceMic: 5 }).voiceMic).toBeNull();
     expect(parseSettings({ quickAddShortcut: "Alt+V", voiceShortcut: "Alt+V" }).voiceShortcut).toBe("CommandOrControl+Alt+Space");
     expect(parseSettings({ voiceShortcut: "Alt V; rm" }).voiceShortcut).toBe("CommandOrControl+Alt+Space");
   });

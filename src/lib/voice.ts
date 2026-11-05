@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { isTauri } from "../db/client";
 import { parseModelStatus, type ModelStatus } from "../domain/voice";
-import { go } from "../stores/ui";
+import { useSettings } from "../stores/settings";
+import { go, toast } from "../stores/ui";
 
 /** The voice model download (D81); Rust does the work and reports through `voice:model`. */
 export const MODEL_DOWNLOAD_MB = 482;
@@ -38,7 +39,13 @@ export function openVoiceSettings() {
   setTimeout(() => document.getElementById(VOICE_SECTION_ID)?.scrollIntoView({ block: "start" }), 50);
 }
 
-export const voiceStart = () => invoke<void>("voice_start");
+/** Starts the mic (the saved one, else the system default) and tells the user if it fell back. */
+export async function voiceStart() {
+  const mic = useSettings.getState().settings.voiceMic;
+  const notice = await (await import("@tauri-apps/api/core")).invoke<string | null>("voice_start", { mic });
+  if (notice) toast(notice);
+}
+export const voiceInputDevices = () => invoke<string[]>("voice_input_devices");
 export const voiceStop = () => invoke<string>("voice_stop");
 export const voiceCancel = () => void invoke("voice_cancel");
 export { errorText as voiceErrorText };

@@ -247,5 +247,7 @@ export type Settings = {
   miniShortcut: string;
   /** Push-to-talk for voice quick-add (D81); same format, never equal to `quickAddShortcut`. */
   voiceShortcut: string;
+  /** Input device name for voice (D94); null = system default. */
+  voiceMic: string | null;
   pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number; cycles: Cycles };
 };
