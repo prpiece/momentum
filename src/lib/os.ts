@@ -267,14 +267,18 @@ export async function initOs() {
       openVoiceSettings();
       return;
     }
+    // Open the mic first and the popup alongside it, so the first word isn't lost to the popup
+    // opening (D94). Parakeet rejects hotwords, so spoken list names rely on fuzzy matching instead.
+    const recording = voiceStart().then(
+      () => null,
+      (err: unknown) => err,
+    );
     if (!fromPopup) await showQuickAdd(null);
     toPopup({ kind: "listening" });
-    try {
-      // Later: pass list names and tags as hotwords here (D94); the Rust command's signature stays as is for now.
-      await voiceStart();
-    } catch (err) {
+    const failed = await recording;
+    if (failed !== null) {
       voice = { kind: "idle" };
-      return toPopup({ kind: "error", message: voiceErrorText(err) });
+      return toPopup({ kind: "error", message: voiceErrorText(failed) });
     }
     const now = voiceNow();
     voice = { kind: "recording" };
