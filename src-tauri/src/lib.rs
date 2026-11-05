@@ -136,6 +136,27 @@ fn write_text_file(path: String, contents: String) -> Result<(), String> {
     fs::write(checked_path(&path)?, contents).map_err(|e| e.to_string())
 }
 
+const PNG_MAGIC: &[u8] = &[0x89, b'P', b'N', b'G'];
+const MAX_PNG_BYTES: usize = 8 * 1024 * 1024;
+
+/// Statistics share card: PNG bytes to a path the user picked, which must be a .png (D93).
+fn check_png(path: &str, bytes: &[u8]) -> Result<(), String> {
+    let png = Path::new(path).extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("png"));
+    if !png {
+        return Err("only .png files are supported".into());
+    }
+    if bytes.len() > MAX_PNG_BYTES || !bytes.starts_with(PNG_MAGIC) {
+        return Err("not a PNG image, or too large".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn write_png(path: String, bytes: Vec<u8>) -> Result<(), String> {
+    check_png(&path, &bytes)?;
+    fs::write(&path, bytes).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn read_text_file(path: String) -> Result<String, String> {
     fs::read_to_string(checked_path(&path)?).map_err(|e| e.to_string())
@@ -267,6 +288,7 @@ pub fn run() {
             set_close_to_tray,
             toggle_mini,
             write_text_file,
+            write_png,
             read_text_file,
             backups_dir,
             files::image_dir,
@@ -324,7 +346,16 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::fit_rect;
+    use super::{check_png, fit_rect};
+
+    #[test]
+    fn png_writes_are_validated() {
+        let png = [0x89, b'P', b'N', b'G', 1];
+        assert!(check_png("a/card.PNG", &png).is_ok());
+        assert!(check_png("a/card.json", &png).is_err());
+        assert!(check_png("a/card.png", b"nope").is_err());
+        assert!(check_png("a/card.png", &vec![0u8; 9 * 1024 * 1024]).is_err());
+    }
 
     const AREA: (i32, i32, u32, u32) = (0, 0, 1366, 728);
 
