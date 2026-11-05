@@ -8,7 +8,7 @@ import { parseQuickAdd } from "../../domain/quickAdd";
 import { PRIORITY_LABEL } from "../../domain/types";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { setImport, useUi } from "../../stores/ui";
+import { setImport, toast, useUi } from "../../stores/ui";
 import { withUndo } from "../../lib/undo";
 import { createFromText } from "./quickAddSubmit";
 
@@ -48,9 +48,11 @@ function ImportBody() {
 
   const run = () => {
     if (!items.length) return;
+    const missing = new Set<string>();
     withUndo(`Imported ${items.length} task${items.length === 1 ? "" : "s"}`, () => {
-      for (const line of items) createFromText(line, { listId }, parsing, () => false);
+      for (const line of items) createFromText(line, { listId }, parsing, () => false, "typed", (name) => missing.add(name));
     });
+    if (missing.size) toast(`No list named ${[...missing].map((n) => `“${n}”`).join(", ")}; those tasks went to the chosen list`);
     close();
   };
 

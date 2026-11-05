@@ -12,7 +12,15 @@ export const listNames = () => Object.values(useData.getState().lists).map((l) =
  * The one way quick-add text becomes a task (in-app bar and the global Ctrl+Shift+A window).
  * `announce` toasts where the task went when it won't be visible where the user is looking.
  */
-export function createFromText(text: string, defaults: Partial<NewTask>, parsing: boolean, announce: (t: Task) => boolean, origin: InputOrigin = "typed"): Task | null {
+export function createFromText(
+  text: string,
+  defaults: Partial<NewTask>,
+  parsing: boolean,
+  announce: (t: Task) => boolean,
+  origin: InputOrigin = "typed",
+  /** A `~List` that doesn't exist; bulk import collects these instead of one toast each (D92). */
+  onMissingList: (name: string, fellBackTo: string) => void = (name, to) => toast(`No list named “${name}”; added to ${to}`),
+): Task | null {
   if (!text.trim()) return null;
   const p = parseQuickAdd(text, new Date(), parsing, listNames(), origin);
   const lists = useData.getState().lists;
@@ -26,7 +34,7 @@ export function createFromText(text: string, defaults: Partial<NewTask>, parsing
     tags: [...new Set([...(defaults.tags ?? []), ...ensureTags(p.tags)])],
     recurrence: p.rule ? { rule: p.rule, exdates: [] } : null,
   });
-  if (p.listName && !listByName(p.listName)) toast(`No list named “${p.listName}”; added to ${lists[t.listId]?.name ?? "Inbox"}`);
+  if (p.listName && !listByName(p.listName)) onMissingList(p.listName, lists[t.listId]?.name ?? "Inbox");
   else if (announce(t)) {
     const s = t.schedule;
     const today = todayLocal();
