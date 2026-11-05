@@ -17,7 +17,11 @@ import { buildSnapshot, parseMiniAction } from "../domain/mini";
 import { toggleDone } from "../features/tasks/actions";
 import { derive } from "../features/tasks/selectors";
 import { pauseFocus, resumeFocus, setPhaseEndHandler, skipPhase, startFocus, stopFocus, tickFocus, useFocus } from "../stores/focus";
-import { matchVoiceCommand, type VoiceCommand, type VoicePopupEvent } from "../domain/voice";
+import { matchTasks } from "../domain/fuzzy";
+import { isRecord } from "../domain/settings";
+import { inSmartList } from "../domain/taskViews";
+import { INBOX_ID } from "../domain/types";
+import { matchVoiceCommand, normalizeTranscript, type CompleteCandidate, type VoiceCommand, type VoicePopupEvent } from "../domain/voice";
 import { openVoiceSettings, refreshVoiceModel, voiceCancel, voiceErrorText, voiceStart, voiceStop } from "./voice";
 import { useSettings } from "../stores/settings";
 import { go, openEvent, openTask, toast, useUi } from "../stores/ui";
@@ -206,17 +210,46 @@ export async function initOs() {
   let voice: VoiceState = { kind: "idle" };
   const voiceNow = (): VoiceState => voice; // read through a call: the state changes across awaits
   const toPopup = (e: VoicePopupEvent) => void emit("quickadd:voice", e);
-  const runVoiceCommand = (cmd: VoiceCommand) => {
+  const runVoiceCommand = async (cmd: Exclude<VoiceCommand, { kind: "complete" }>) => {
     const timer = useFocus.getState().timer;
-    if (cmd === "startFocus") {
-      if (timer.status === "idle" || timer.status === "done") startFocus("pomodoro", null);
-      if (notifySettings().enabled && notifySettings().focus) osNotify("Momentum focus", "Focus started");
-    } else if (cmd === "stopFocus") {
-      if (timer.status === "running" || timer.status === "paused") stopFocus();
-    } else {
-      void showMain();
-      go(cmd === "openToday" ? "today" : cmd === "openMatrix" ? "matrix" : "calendar");
+    const active = timer.status === "running" || timer.status === "paused";
+    switch (cmd.kind) {
+      case "view":
+        void showMain();
+        return go(cmd.view);
+      case "openList": {
+        const list = Object.values(useData.getState().lists).find((l) => l.name === cmd.name);
+        if (!list) return;
+        void showMain();
+        return go(list.id === INBOX_ID ? "inbox" : `list:${list.id}`);
+      }
+      case "mini": {
+        // Unlike the toggle_mini command, "open" and "close" are idempotent.
+        const w = await Window.getByLabel("mini");
+        return void (cmd.open ? w?.show() : w?.hide());
+      }
+      case "focus":
+        if (cmd.op === "start") {
+          if (timer.status === "idle" || timer.status === "done") startFocus("pomodoro", null);
+          if (notifySettings().enabled && notifySettings().focus) osNotify("Momentum focus", "Focus started");
+        } else if (cmd.op === "stop") {
+          if (active) stopFocus();
+        } else if (cmd.op === "pause") pauseFocus();
+        else if (cmd.op === "resume") resumeFocus();
+        else if (cmd.op === "skip") {
+          if (active) skipPhase();
+        } else if (active) {
+          // "Start a break": the pomodoro's next phase after a focus phase is the break.
+          if (timer.phase === "focus") skipPhase();
+        } else toast("Start a focus session first; breaks follow it.");
     }
+  };
+  /** Open tasks that fit a spoken description: Today first, then every open root task (D95). */
+  const completeCandidates = (query: string): CompleteCandidate[] => {
+    const { tasks, lists } = useData.getState();
+    const today = todayLocal();
+    const open = derive(tasks, lists).roots.filter((vm) => vm.task.status === "open").map((vm) => ({ id: vm.task.id, title: vm.task.title, today: inSmartList("today", vm, today) }));
+    return matchTasks(query, open).map(({ id, title }) => ({ id, title }));
   };
   const startVoice = async (fromPopup: boolean) => {
     if (voiceNow().kind !== "idle") return;
@@ -237,6 +270,7 @@ export async function initOs() {
     if (!fromPopup) await showQuickAdd(null);
     toPopup({ kind: "listening" });
     try {
+      // Later: pass list names and tags as hotwords here (D94); the Rust command's signature stays as is for now.
       await voiceStart();
     } catch (err) {
       voice = { kind: "idle" };
@@ -254,12 +288,14 @@ export async function initOs() {
     voice = { kind: "transcribing" };
     toPopup({ kind: "transcribing" });
     try {
-      const text = await voiceStop();
-      const cmd = matchVoiceCommand(text);
-      if (cmd) {
-        runVoiceCommand(cmd);
+      const text = normalizeTranscript(await voiceStop());
+      const cmd = matchVoiceCommand(text, Object.values(useData.getState().lists).map((l) => l.name));
+      const candidates = cmd?.kind === "complete" ? completeCandidates(cmd.query) : [];
+      if (cmd?.kind === "complete" && candidates.length) toPopup({ kind: "confirm", text, candidates });
+      else if (cmd && cmd.kind !== "complete") {
+        await runVoiceCommand(cmd);
         toPopup({ kind: "close" });
-      } else if (text) toPopup({ kind: "text", text });
+      } else if (text) toPopup({ kind: "text", text }); // includes "complete ..." with no match: it becomes a new task
       else toPopup({ kind: "error", message: "Didn't catch that. Keep holding the shortcut while you speak." });
     } catch (err) {
       toPopup({ kind: "error", message: voiceErrorText(err) });
@@ -274,6 +310,12 @@ export async function initOs() {
     voiceCancel();
     voice = { kind: "idle" };
   };
+  // The popup confirmed a spoken "complete ..." (D95); the main window owns the data, so it re-checks the id.
+  await listen<unknown>("quickadd:complete", (e) => {
+    const id = isRecord(e.payload) ? e.payload.id : null;
+    const vm = typeof id === "string" ? derive(useData.getState().tasks, useData.getState().lists).byId.get(id) : undefined;
+    if (vm?.task.status === "open") toggleDone(vm.task.id, vm.key);
+  });
   await listen("voice:toggle", () => void (voiceNow().kind === "idle" ? startVoice(true) : stopVoice()));
   await listen("voice:cancel", cancelVoice);
   const bindVoice = binder((state) => void (state === "Pressed" ? startVoice(false) : stopVoice()));

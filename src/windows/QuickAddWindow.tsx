@@ -6,7 +6,8 @@ import { contextLabel, type QuickAddContext } from "../domain/quickAddContext";
 import { describeRule } from "../domain/recurrence";
 import { PRIORITY_LABEL } from "../domain/types";
 import { apply, readAppearance } from "../lib/applySettings";
-import type { VoicePopupEvent } from "../domain/voice";
+import { parseVoicePopupEvent, type CompleteCandidate } from "../domain/voice";
+import { CompleteConfirm } from "./CompleteConfirm";
 import { TokenPicker } from "./TokenPicker";
 
 /** Voice quick-add as the popup sees it; the main window drives it with `quickadd:voice` (D81). */
@@ -30,6 +31,8 @@ export function QuickAddWindow() {
   const [lists, setLists] = useState<string[]>([]);
   const [appearance, setAppearance] = useState(readAppearance);
   const [voice, setVoice] = useState<VoicePhase>({ kind: "idle" });
+  /** A spoken "complete ..." waiting for a yes (D95); `text` is the transcript, restored if the user backs out. */
+  const [confirm, setConfirm] = useState<{ text: string; candidates: CompleteCandidate[]; picked: number } | null>(null);
   const [level, setLevel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const smart = appearance?.smartParse ?? true;
@@ -68,10 +71,14 @@ export function QuickAddWindow() {
           input.current?.focus();
           input.current?.select();
         }),
-        await listen<VoicePopupEvent>("quickadd:voice", (e) => {
-          const v = e.payload;
+        await listen<unknown>("quickadd:voice", (e) => {
+          const v = parseVoicePopupEvent(e.payload);
+          if (!v) return;
           if (v.kind === "close") return void close();
-          if (v.kind === "text") {
+          if (v.kind === "confirm") {
+            setConfirm({ text: v.text, candidates: v.candidates, picked: 0 });
+            setVoice({ kind: "idle" });
+          } else if (v.kind === "text") {
             setText((t) => (t.trim() ? `${t.trimEnd()} ${v.text}` : v.text));
             setSpoken(true);
             setVoice({ kind: "idle" });
@@ -98,6 +105,7 @@ export function QuickAddWindow() {
     setText("");
     setRaw(false);
     setContext(null);
+    setConfirm(null);
     setVoice({ kind: "idle" });
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     await getCurrentWindow().hide();
@@ -118,6 +126,19 @@ export function QuickAddWindow() {
     const { emit } = await import("@tauri-apps/api/event");
     await emit("quickadd:create", { text, raw, context, spoken });
     await hide();
+  };
+  /** The main window re-checks the id and completes the task (D33, D95). */
+  const complete = async (id: string) => {
+    const { emit } = await import("@tauri-apps/api/event");
+    await emit("quickadd:complete", { id });
+    await close();
+  };
+  /** Backing out of a confirmation keeps what was said as a new, spoken entry. */
+  const backOut = () => {
+    if (!confirm) return;
+    setText(confirm.text);
+    setSpoken(true);
+    setConfirm(null);
   };
 
   const today = todayLocal();
@@ -159,6 +180,16 @@ export function QuickAddWindow() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
+            if (confirm) {
+              const n = confirm.candidates.length;
+              if (e.key === "Enter") void complete(confirm.candidates[confirm.picked].id);
+              else if (e.key === "Escape") backOut();
+              else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                setConfirm({ ...confirm, picked: (confirm.picked + (e.key === "ArrowDown" ? 1 : n - 1)) % n });
+              }
+              return;
+            }
             if (e.key === "Enter" && !busy) void submit();
             if (e.key === "Escape") {
               if (parsed.chips.length && !raw && !busy) setRaw(true);
@@ -166,7 +197,7 @@ export function QuickAddWindow() {
             }
           }}
           placeholder={voice.kind === "listening" ? "Listening… release the shortcut or click the mic when done" : voice.kind === "transcribing" ? "Transcribing…" : "Add a task to Momentum…"}
-          readOnly={busy}
+          readOnly={busy || confirm !== null}
           aria-label="Quick add task"
           className="h-12 flex-1 bg-transparent text-lg outline-none placeholder:text-muted"
         />
@@ -182,7 +213,8 @@ export function QuickAddWindow() {
           <Mic size={18} className={voice.kind === "transcribing" ? "animate-pulse" : ""} />
         </button>
       </div>
-      <div className="flex min-h-7 flex-wrap items-center gap-1.5 pb-1">
+      {confirm && <CompleteConfirm candidates={confirm.candidates} picked={confirm.picked} onPick={(picked) => setConfirm({ ...confirm, picked })} onConfirm={(id) => void complete(id)} onCancel={backOut} />}
+      <div className={`min-h-7 flex-wrap items-center gap-1.5 pb-1 ${confirm ? "hidden" : "flex"}`}>
         {voice.kind === "error" && (
           <span role="alert" className="text-xs font-medium text-danger">
             {voice.message}
