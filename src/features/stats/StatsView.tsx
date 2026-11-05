@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { ArrowDownRight, ArrowUpRight, CalendarCheck2, CircleCheckBig, Flame, ListTodo, Trophy, TriangleAlert, type LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CalendarCheck2, CircleCheckBig, Flame, ListTodo, Share2, Trophy, TriangleAlert, type LucideIcon } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { AppIcon, ListGlyph } from "../../components/ui/AppIcon";
 import { BarChart } from "../../components/ui/BarChart";
@@ -13,7 +13,9 @@ import { useData } from "../../stores/data";
 import { useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { useDerived } from "../tasks/selectors";
+import { Button } from "../../components/ui/Dialog";
 import { Heatmap } from "./Heatmap";
+import { ShareDialog } from "./ShareDialog";
 import { TrophyShelf } from "../celebrate/TrophyShelf";
 
 /** Extra stat sections (focus time) contributed by later features. */
@@ -43,6 +45,7 @@ export function StatsView() {
   const ws = useSettings((s) => s.settings.weekStart);
   const today = todayLocal();
   const [range, setRange] = useState<"days" | "weeks">("days");
+  const [sharing, setSharing] = useState(false);
   const all = useMemo(() => Object.values(tasks), [tasks]);
 
   const year = useMemo(() => completedPerDay(all, today, 366), [all, today]);
@@ -72,6 +75,7 @@ export function StatsView() {
 
   return (
     <div className="h-full overflow-y-auto px-6 pb-10">
+      {sharing && <ShareDialog onClose={() => setSharing(false)} />}
       {/* Hero: the streak and a line of encouragement. */}
       <section
         className="anim-rise relative overflow-hidden rounded-lg border border-border p-6 shadow-sm"
@@ -92,6 +96,9 @@ export function StatsView() {
             <HeroStat icon={Trophy} label="Best streak" value={`${streak.best}d`} />
             <HeroStat icon={CircleCheckBig} label="Done this year" value={totalDone} />
           </div>
+          <Button onClick={() => setSharing(true)}>
+            <Share2 size={16} /> Share
+          </Button>
         </div>
       </section>
 

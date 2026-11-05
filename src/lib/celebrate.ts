@@ -129,6 +129,13 @@ export function currentTrophyCounts(): TrophyCounts {
   return trophyCounts(p, from, allTime(today));
 }
 
+/** Perfect-day lookup and trophy counts for the share card. */
+export function shareInputs() {
+  const today = todayLocal();
+  const { p, from } = prepared(today);
+  return { isPerfect: (d: LocalDate) => dayOf(p, d).kind === "perfect", counts: trophyCounts(p, from, allTime(today)) };
+}
+
 let lastTaskSound = 0;
 /** A task was completed (from anywhere: row, keyboard, reminder popup). */
 export function onTaskDone() {
