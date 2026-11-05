@@ -20,6 +20,8 @@ const ICON: Record<ChipKind, typeof Flag> = { date: CalendarDays, priority: Flag
 export function QuickAddWindow() {
   const [text, setText] = useState("");
   const [raw, setRaw] = useState(false);
+  /** D90: any voice text makes the entry spoken until the input is emptied or the popup closes. */
+  const [spoken, setSpoken] = useState(false);
   const [context, setContext] = useState<QuickAddContext | null>(null);
   const [lists, setLists] = useState<string[]>([]);
   const [appearance, setAppearance] = useState(readAppearance);
@@ -27,13 +29,17 @@ export function QuickAddWindow() {
   const [level, setLevel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const smart = appearance?.smartParse ?? true;
-  const parsed = useMemo(() => parseQuickAdd(text, new Date(), smart && !raw, lists), [text, smart, raw, lists]);
+  const parsed = useMemo(() => parseQuickAdd(text, new Date(), smart && !raw, lists, spoken ? "spoken" : "typed"), [text, smart, raw, lists, spoken]);
   const parsing = smart && !raw;
   /** Tap-to-set (D89): edits the text, so the main window still parses one source of truth. */
   const setToken = (kind: "priority" | "list", token: string) => {
-    setText((t) => withToken(t, parseQuickAdd(t, new Date(), true, lists).chips, kind, token));
+    setText((t) => withToken(t, parseQuickAdd(t, new Date(), true, lists, spoken ? "spoken" : "typed").chips, kind, token));
     input.current?.focus();
   };
+
+  useEffect(() => {
+    if (!text) setSpoken(false);
+  }, [text]);
 
   useEffect(() => {
     if (appearance) apply(appearance);
@@ -66,6 +72,7 @@ export function QuickAddWindow() {
           }
           if (v.kind === "text") {
             setText((t) => (t.trim() ? `${t.trimEnd()} ${v.text}` : v.text));
+            setSpoken(true);
             setVoice({ kind: "idle" });
           } else setVoice(v);
           if (v.kind === "listening") setLevel(0);
@@ -101,7 +108,7 @@ export function QuickAddWindow() {
   const submit = async () => {
     if (!text.trim()) return;
     const { emit } = await import("@tauri-apps/api/event");
-    await emit("quickadd:create", { text, raw, context });
+    await emit("quickadd:create", { text, raw, context, spoken });
     setText("");
     setRaw(false);
     setContext(null);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contextForView, contextLabel, patchForContext } from "./quickAddContext";
+import { contextForView, contextLabel, parseQuickAddCreate, patchForContext } from "./quickAddContext";
 import type { TaskList } from "./types";
 
 const lists = { inbox: { id: "inbox", name: "Inbox" }, w: { id: "w", name: "Work" } } as unknown as Record<string, TaskList>;
@@ -21,5 +21,23 @@ describe("quick-add context", () => {
   it("labels", () => {
     expect(contextLabel({ kind: "list", listId: "w", name: "Work" }, "2026-03-05")).toBe("Work");
     expect(contextLabel({ kind: "day", date: "2026-03-05" }, "2026-03-05")).toBe("Today");
+  });
+});
+
+describe("parseQuickAddCreate", () => {
+  it("reads a well-formed popup payload", () => {
+    expect(parseQuickAddCreate({ text: "a list b", raw: false, spoken: true, context: { kind: "day", date: "2026-03-05" } })).toEqual({
+      text: "a list b",
+      raw: false,
+      spoken: true,
+      context: { kind: "day", date: "2026-03-05" },
+    });
+  });
+  it("defaults missing flags and drops a bad context", () => {
+    expect(parseQuickAddCreate({ text: "x", context: { kind: "list", listId: 1 } })).toEqual({ text: "x", raw: false, spoken: false, context: null });
+  });
+  it("rejects payloads without text", () => {
+    expect(parseQuickAddCreate({ raw: true })).toBeNull();
+    expect(parseQuickAddCreate(null)).toBeNull();
   });
 });

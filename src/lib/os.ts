@@ -5,7 +5,7 @@
  */
 import { isTauri } from "../db/client";
 import { focusPhaseLabel } from "../features/focus/FocusView";
-import { contextForView, patchForContext, type QuickAddContext } from "../domain/quickAddContext";
+import { contextForView, parseQuickAddCreate, patchForContext, type QuickAddContext } from "../domain/quickAddContext";
 import { QUICK_ADD_POPUP_EVENT } from "../features/tasks/QuickAdd";
 import { createFromText } from "../features/tasks/quickAddSubmit";
 import { accentForeground } from "../domain/color";
@@ -160,8 +160,10 @@ export async function initOs() {
   void startReminders((dto) => deliver(dto));
 
   // --- global quick add ----------------------------------------------------
-  await listen<{ text: string; raw: boolean; context: QuickAddContext | null }>("quickadd:create", (e) => {
-    const t = createFromText(e.payload.text, patchForContext(e.payload.context, (id) => id in useData.getState().lists), settings().smartParse && !e.payload.raw, () => false);
+  await listen<unknown>("quickadd:create", (e) => {
+    const p = parseQuickAddCreate(e.payload);
+    if (!p) return;
+    const t = createFromText(p.text, patchForContext(p.context, (id) => id in useData.getState().lists), settings().smartParse && !p.raw, () => false, p.spoken ? "spoken" : "typed");
     if (t && notifySettings().enabled && notifySettings().quickAdd) osNotify("Added to Momentum", t.title);
   });
   const showQuickAdd = async (context: QuickAddContext | null) => {

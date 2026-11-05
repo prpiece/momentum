@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { durationMinutes, fromLocalDate, wallKey } from "./dates";
-import { parseQuickAdd, withToken } from "./quickAdd";
+import { parseQuickAdd, withoutToken, withToken } from "./quickAdd";
 
 // Sunday 25 Oct 2026, 10:00 local (TZ=America/New_York).
 const NOW = new Date(2026, 9, 25, 10, 0);
@@ -78,23 +78,42 @@ describe("parseQuickAdd", () => {
   });
 });
 
-describe("keyword tokens (D89)", () => {
-  const LISTS = ["School", "Home Chores", "Home"];
+describe("keyword tokens (D89, D90)", () => {
+  const LISTS = ["School", "Home Chores", "Home", "Family"];
+  const spoken = (t: string, lists = LISTS) => parseQuickAdd(t, NOW, true, lists, "spoken");
   it("reads spoken priority, tag and list phrases", () => {
-    const p = parseQuickAdd("Study chem tomorrow, priority high, tag chemistry, list School.", NOW, true, LISTS);
+    const p = spoken("Study chem tomorrow, priority high, tag chemistry, list School.");
     expect(p).toMatchObject({ title: "Study chem", priority: 3, tags: ["chemistry"], listName: "School" });
     expect(p.chips.map((c) => c.kind)).toEqual(["date", "priority", "tag", "list"]);
   });
   it("accepts 'high priority' word order", () => {
-    expect(parseQuickAdd("call mom low priority", NOW).priority).toBe(1);
+    expect(spoken("call mom low priority").priority).toBe(1);
   });
   it("prefers the longest existing list name", () => {
-    expect(parseQuickAdd("vacuum list home chores", NOW, true, LISTS)).toMatchObject({ title: "vacuum", listName: "Home Chores" });
+    expect(spoken("vacuum list home chores")).toMatchObject({ title: "vacuum", listName: "Home Chores" });
   });
-  it("falls back to one word for unknown lists but never to prose", () => {
-    expect(parseQuickAdd("buy milk list Errands", NOW, true, LISTS).listName).toBe("Errands");
-    expect(parseQuickAdd("make a list of groceries", NOW, true, LISTS)).toMatchObject({ title: "make a list of groceries", listName: null });
-    expect(parseQuickAdd("finish the list", NOW, true, LISTS).listName).toBeNull();
+  it("leaves keyword forms alone in typed entries, so 'Grocery list' stays a title", () => {
+    expect(parseQuickAdd("Grocery list", NOW, true, ["Grocery"])).toMatchObject({ title: "Grocery list", listName: null });
+    expect(parseQuickAdd("call mom list family priority high tag x", NOW, true, LISTS)).toMatchObject({
+      title: "call mom list family priority high tag x",
+      listName: null,
+      priority: null,
+      tags: [],
+    });
+    expect(parseQuickAdd("call mom ~Family !high #x", NOW, true, LISTS)).toMatchObject({ title: "call mom", listName: "Family", priority: 3, tags: ["x"] });
+  });
+  it("takes the same words as a list when spoken", () => {
+    expect(spoken("call mom list family")).toMatchObject({ title: "call mom", listName: "Family" });
+  });
+  it("fuzzy-matches a spoken list name to an existing list", () => {
+    expect(spoken("call mom list familly")).toMatchObject({ title: "call mom", listName: "Family" });
+    expect(spoken("do essay list skool, tomorrow")).toMatchObject({ title: "do essay", listName: "School" });
+  });
+  it("keeps the words in the title when no list is close enough or prose follows", () => {
+    expect(spoken("buy milk list Errands")).toMatchObject({ title: "buy milk list Errands", listName: null });
+    expect(spoken("make a list of groceries")).toMatchObject({ title: "make a list of groceries", listName: null });
+    expect(spoken("finish the list")).toMatchObject({ listName: null });
+    expect(spoken("buy milk list school", [])).toMatchObject({ listName: null });
   });
 });
 
@@ -105,5 +124,15 @@ describe("withToken", () => {
     expect(withToken(text, p.chips, "priority", "!high")).toBe("study !high");
     expect(withToken(text, p.chips, "list", "~School")).toBe("study !low ~School");
     expect(withToken("", [], "list", "~School")).toBe("~School");
+  });
+});
+
+describe("withoutToken", () => {
+  it("removes the chip's span and tidies the spaces", () => {
+    const text = "study !low tomorrow";
+    const p = parseQuickAdd(text, NOW);
+    expect(withoutToken(text, p.chips, "priority")).toBe("study tomorrow");
+    expect(withoutToken("!low", parseQuickAdd("!low", NOW).chips, "priority")).toBe("");
+    expect(withoutToken("study", [], "list")).toBe("study");
   });
 });

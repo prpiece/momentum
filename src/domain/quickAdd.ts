@@ -1,6 +1,7 @@
 import { casual } from "chrono-node/en";
 import { addMinutes } from "date-fns";
 import { toLocalDate } from "./dates";
+import { bestName } from "./fuzzy";
 import type { Priority, Schedule } from "./types";
 
 export type ChipKind = "date" | "priority" | "tag" | "list" | "repeat";
@@ -77,11 +78,7 @@ function repeatMatches(text: string): Match[] {
   return out;
 }
 
-/** Words that read as prose after "list" ("make a list of…"), so they never become a list name. */
-// ponytail: a fixed stopword set; widen it if other phrasings trip the fallback.
-const NOT_A_LIST = new Set(["of", "for", "to", "the", "a", "an", "and", "with", "from", "on", "in", "at", "is", "it", "that", "this", "my", "all"]);
-
-/** Keyword forms of the tokens (D89), so they can be spoken: "priority high", "high priority", "tag chem", "list School". */
+/** Keyword forms of the tokens (D89), so they can be spoken: "priority high", "high priority", "tag chem", "list School". A list must exist (fuzzily). */
 function keywordMatches(text: string, listNames: readonly string[]): Match[] {
   const out: Match[] = [];
   for (const m of text.matchAll(/(^|\s)(?:priority\s+(high|medium|med|low|none)|(high|medium|med|low)\s+priority)\b/gi)) {
@@ -94,16 +91,19 @@ function keywordMatches(text: string, listNames: readonly string[]): Match[] {
     const tag = m[2];
     out.push({ kind: "tag", start, end: (m.index ?? 0) + m[0].length, apply: (r) => void r.tags.push(tag) });
   }
-  const byLength = [...listNames].sort((a, b) => b.length - a.length);
   for (const m of text.matchAll(/(^|\s)list\s+/gi)) {
     const start = (m.index ?? 0) + m[1].length;
     const after = (m.index ?? 0) + m[0].length;
-    const rest = text.slice(after);
-    // The longest existing list name wins, so "list Home Chores" isn't cut to "Home".
-    const known = byLength.find((n) => rest.toLowerCase().startsWith(n.toLowerCase()) && !/[\p{L}\p{N}]/u.test(rest.charAt(n.length)));
-    const name = known ?? rest.match(/^[\p{L}\p{N}_\-]+/u)?.[0];
-    if (!name || (!known && NOT_A_LIST.has(name.toLowerCase()))) continue;
-    out.push({ kind: "list", start, end: after + name.length, apply: (r) => void (r.listName = name) });
+    const words = [...text.slice(after).matchAll(/[\p{L}\p{N}_-]+/gu)].slice(0, 4);
+    // Longest phrase first, so "list Home Chores" isn't cut to "Home"; spoken names may be misspelt (D94).
+    for (let k = words.length; k > 0; k--) {
+      const last = words[k - 1];
+      const end = after + (last.index ?? 0) + last[0].length;
+      const name = bestName(text.slice(after + (words[0].index ?? 0), end), listNames);
+      if (!name) continue;
+      out.push({ kind: "list", start, end, apply: (r) => void (r.listName = name) });
+      break;
+    }
   }
   return out;
 }
@@ -136,12 +136,15 @@ const overlaps = (a: { start: number; end: number }, b: { start: number; end: nu
 const mask = (text: string, spans: { start: number; end: number }[]) =>
   spans.reduce((t, s) => t.slice(0, s.start) + " ".repeat(s.end - s.start) + t.slice(s.end), text);
 
+/** Where an entry's text came from (D90): keyword tokens only count when spoken. */
+export type InputOrigin = "typed" | "spoken";
+
 /**
- * Quick-add grammar: free text plus `!high` / `!2` priority, `#tag`, `~List` (or their keyword forms,
- * matched against `listNames` for lists), repeat phrases ("every Mon and Wed", "daily", "every 2 weeks")
- * and any date/time chrono understands.
+ * Quick-add grammar: free text plus `!high` / `!2` priority, `#tag`, `~List` (spoken entries also take
+ * their keyword forms, matched against `listNames` for lists), repeat phrases ("every Mon and Wed",
+ * "daily", "every 2 weeks") and any date/time chrono understands.
  */
-export function parseQuickAdd(input: string, now: Date, enabled = true, listNames: readonly string[] = []): ParsedTask {
+export function parseQuickAdd(input: string, now: Date, enabled = true, listNames: readonly string[] = [], origin: InputOrigin = "typed"): ParsedTask {
   const result: ParsedTask = {
     title: input.trim(),
     schedule: { kind: "none" },
@@ -154,7 +157,7 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
   if (!enabled) return result;
 
   const matches: Match[] = [];
-  for (const m of [...tokenMatches(input), ...keywordMatches(input, listNames), ...repeatMatches(input)]) {
+  for (const m of [...tokenMatches(input), ...(origin === "spoken" ? keywordMatches(input, listNames) : []), ...repeatMatches(input)]) {
     if (!matches.some((x) => overlaps(x, m))) matches.push(m);
   }
 
@@ -205,4 +208,10 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
 export function withToken(text: string, chips: readonly Chip[], kind: "priority" | "list", token: string): string {
   const c = chips.find((x) => x.kind === kind);
   return c ? text.slice(0, c.start) + token + text.slice(c.end) : `${text.trimEnd()} ${token}`.trimStart();
+}
+
+/** Removes a priority or list token (D91's "None"), closing the gap it leaves. */
+export function withoutToken(text: string, chips: readonly Chip[], kind: "priority" | "list"): string {
+  const c = chips.find((x) => x.kind === kind);
+  return c ? `${text.slice(0, c.start)} ${text.slice(c.end)}`.replace(/\s+/g, " ").trim() : text;
 }

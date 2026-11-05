@@ -1,4 +1,5 @@
 import { relativeDayLabel } from "./dates";
+import { isRecord } from "./settings";
 import type { LocalDate, Task, TaskList, ViewId } from "./types";
 
 /**
@@ -23,3 +24,18 @@ export function patchForContext(ctx: QuickAddContext | null, exists: (listId: st
 }
 
 export const contextLabel = (ctx: QuickAddContext, today: LocalDate) => (ctx.kind === "list" ? ctx.name : relativeDayLabel(ctx.date, today));
+
+function parseContext(raw: unknown): QuickAddContext | null {
+  if (!isRecord(raw)) return null;
+  if (raw.kind === "list" && typeof raw.listId === "string" && typeof raw.name === "string") return { kind: "list", listId: raw.listId, name: raw.name };
+  if (raw.kind === "day" && typeof raw.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.date)) return { kind: "day", date: raw.date };
+  return null;
+}
+
+/** What the popup sends with quickadd:create; spoken is D90's input origin. Boundary check for the main window. */
+export type QuickAddCreate = { text: string; raw: boolean; spoken: boolean; context: QuickAddContext | null };
+
+export function parseQuickAddCreate(raw: unknown): QuickAddCreate | null {
+  if (!isRecord(raw) || typeof raw.text !== "string") return null;
+  return { text: raw.text, raw: raw.raw === true, spoken: raw.spoken === true, context: parseContext(raw.context) };
+}
