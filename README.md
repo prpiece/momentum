@@ -17,14 +17,17 @@
 
 **Tasks**
 - Quick-add bar with natural language: `Study chem tomorrow 5pm !high #school ~Uni every mon` sets the date, time, priority, tag, list and repeat, with each recognised piece shown as a chip. Press <kbd>Esc</kbd> to keep the text literal.
+- Bulk import: paste a whole list (split by line or your own separator) and each item becomes a task, read like quick add. One undo removes the lot.
 - Smart Lists are live queries, not copies: Inbox, Today (including overdue), Upcoming (grouped by day) and a Logbook of finished tasks.
 - Filter any view with the quick-add syntax (`#work !high ~Uni tomorrow`, plus `overdue`, `nodate`, `done`, `wontdo`), and pin a filter to the sidebar to keep it. Click a tag on a task to filter by it.
-- Lists with colours and icons, folders, tags, and subtasks up to 5 levels. Drag to reorder, or drag onto a list, Today or Upcoming in the sidebar.
+- Lists with colours and icons, folders nested up to three deep, tags, and subtasks up to 5 levels. Drag to reorder, or drag onto a list, Today or Upcoming in the sidebar.
 - Subtasks belong to their task: they nest under it in lists, while the Matrix, Calendar and Focus timer show the parent with its progress. Completing a task completes its open subtasks, and the Focus timer lists the subtasks so you can tick them off as you go.
 - A quiet sidebar: Calendar up top, the other tools (Matrix, Habits, Focus, Countdown, Statistics) under a collapsible More.
-- Each list can be shown as a list, a Kanban board (custom sections) or a timeline. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
+- Each list can be shown as a list, a Kanban board (sections you can drag to reorder) or a timeline. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
 - Task drawer:
-  - Markdown notes, date, time and duration, multiple reminders, repeat rules (presets or custom).
+  - A row of chips for priority, date, list and tags, each opening its editor.
+  - Markdown notes with images: paste, drop or add a picture.
+  - Date, time and duration, multiple reminders, repeat rules (presets or custom).
   - Priority, tags, subtasks, checklist, pin, duplicate, won't-do.
   - Activity history.
 - Recurring tasks ask whether a change applies to *this occurrence*, *this and following* or *all*.
@@ -43,23 +46,29 @@
 - Colour items by list, priority or tag. Show or hide completed tasks, habits and focus records.
 - One-time, read-only `.ics` import (e.g. a Google Calendar export). Re-importing the same file updates the events instead of duplicating them.
 
-**Eisenhower Matrix**: four quadrants derived from priority and due date, with adjustable rules (default: *important* = Medium/High priority, *urgent* = due within 2 days or overdue). Dragging a task to another quadrant changes its attributes to match.
+**Eisenhower Matrix**: four quadrants derived from priority and due date, with adjustable rules (default: *important* = Medium/High priority, *urgent* = due within 2 days or overdue) and colours you can change. Dragging a task to another quadrant changes its attributes to match.
 
 **Habits**:
 - Goal types: complete once, count up (e.g. 8 glasses), or enter an amount (e.g. 5 km).
 - Frequency: daily, specific weekdays, or X times a week. Streaks follow the frequency.
 - Notes and mood for each check-in, groups, current and best streak, a monthly grid, a yearly heatmap, and weekly/monthly reviews.
 
-**Focus & countdowns**: Pomodoro and stopwatch timers linked to a task, focus statistics, and countdowns that can repeat yearly or monthly.
+**Focus & countdowns**: Pomodoro and stopwatch timers linked to a task, with a set number of cycles or ∞, focus statistics, and countdowns that can repeat yearly or monthly.
+
+**Progress**: statistics, perfect days and weeks, streaks and trophy ladders, with optional sounds and celebrations. Statistics → Share turns your week or month into an image card (numbers only, never task names) to save or copy.
+
+**Voice (optional)**: hold <kbd>Ctrl Alt Space</kbd> (changeable) and speak a task, e.g. "call mom tomorrow at 5 priority high list family". Speech recognition runs on your computer with NVIDIA Parakeet after a one-time 482 MB download from Settings → Voice. Say commands too: "open inbox", "pause focus", "open mini window", or "finished <task>" (confirmed before it ticks anything).
 
 **System**:
 - Native notifications plus a reminder popup with *Done / Snooze / Open*.
 - Runs in the tray, so reminders still fire after you close the window.
 - Optional launch at login.
 - Global <kbd>Ctrl Shift A</kbd> opens quick add from anywhere.
-- Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click. This is its only network request, and you can turn it off in Settings → System.
+- A mini always-on-top window (<kbd>Ctrl Alt M</kbd>, the tray or the header) shows your current task, the focus timer or the matrix while you work in other apps.
+- Backups are a single `.zip` with your data and note images; restore from `.zip` or older `.json` backups.
+- Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click; you can turn this off in Settings → System. The only other network request is the optional voice model download, which happens only when you start it.
 
-**Design**: four layouts (Classic sidebar, Flat edge-to-edge, Top bar, or a floating Dock), light, dark and system themes, 9 accent presets with Ocean blue as the default (the taskbar and tray icons take the same colour), comfortable or compact density, adjustable font size and zoom, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
+**Design**: four layouts (Classic sidebar, Flat edge-to-edge, Top bar, or a labelled floating Dock), a custom background (8 gradients or your own image, with dim and blur), light, dark and system themes, 9 accent presets with Ocean blue as the default (the taskbar and tray icons take the same colour), comfortable or compact density, adjustable font size and zoom, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
 
 ## Screenshots
 
