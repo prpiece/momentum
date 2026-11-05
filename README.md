@@ -26,16 +26,17 @@
 - Each list can be shown as a list, a Kanban board (sections you can drag to reorder) or a timeline. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
 - Task drawer:
   - A row of chips for priority, date, list and tags, each opening its editor.
-  - Markdown notes with images: paste, drop or add a picture.
+  - Markdown notes with images: paste, drop or add a picture, hover one to copy it back out. Removing an image from the note deletes its file too.
   - Date, time and duration, multiple reminders, repeat rules (presets or custom).
-  - Priority, tags, subtasks, checklist, pin, duplicate, won't-do.
+  - Priority, tags, subtasks (delete one from its parent with the hover bin), checklist, pin, duplicate, won't-do.
   - Activity history.
 - Recurring tasks ask whether a change applies to *this occurrence*, *this and following* or *all*.
 - Multi-select with <kbd>Ctrl</kbd>/<kbd>Shift</kbd>-click opens a bulk toolbar (complete, date, priority, move, tag, delete). There's undo for everything: a toast button or <kbd>Ctrl Z</kbd>.
 - <kbd>Ctrl K</kbd> command palette to search tasks, lists, tags and habits, or run commands.
 - Keyboard-first: <kbd>G</kbd> then a letter jumps to a view, <kbd>J</kbd>/<kbd>K</kbd> move between tasks, <kbd>1</kbd>–<kbd>3</kbd> set priority, <kbd>T</kbd> schedules for today, <kbd>C</kbd> completes, <kbd>/</kbd> filters. <kbd>?</kbd> lists them all.
-- A guided tour on first launch spotlights each part of the app with tips. Replay it from Settings → System.
-- Calm motion throughout. Settings → Animations follows your system setting, or turn it on or off.
+- A guided tour on first launch spotlights each part of the app with tips. Replay it from Settings → System or search "tour" in <kbd>Ctrl K</kbd>.
+- After an update, What's new walks you through every release you missed, not just the latest.
+- Calm motion throughout: menus and dialogs ease in, and new rows rise into place. Settings → Animations follows your system setting, or turn it on or off.
 
 **Calendar**
 - Day, 3-Day, Week, Month and Agenda views, with an all-day row, a now-line, a mini month picker and keyboard shortcuts (<kbd>D</kbd> <kbd>X</kbd> <kbd>W</kbd> <kbd>M</kbd> <kbd>A</kbd> <kbd>T</kbd> <kbd>←</kbd> <kbd>→</kbd>).
@@ -60,7 +61,7 @@
 **Voice (optional)**: hold <kbd>Ctrl Alt Space</kbd> (changeable) and speak a task, e.g. "call mom tomorrow at 5 priority high list family". Speech recognition runs on your computer with NVIDIA Parakeet after a one-time 482 MB download from Settings → Voice. Say commands too: "open inbox", "pause focus", "open mini window", or "finished <task>" (confirmed before it ticks anything).
 
 **System**:
-- Native notifications plus a reminder popup with *Done / Snooze / Open*.
+- Native notifications plus a reminder popup with *Done / Snooze / Open*, sized exactly to its cards.
 - Runs in the tray, so reminders still fire after you close the window.
 - Optional launch at login.
 - Global <kbd>Ctrl Shift A</kbd> opens quick add from anywhere.
