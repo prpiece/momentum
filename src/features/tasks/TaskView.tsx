@@ -9,7 +9,7 @@ import { isEmptyFilter, matchesFilter, parseFilter } from "../../domain/filter";
 import { toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { go, useUi } from "../../stores/ui";
+import { go, setImport, useUi } from "../../stores/ui";
 import { TodayHabits } from "../habits/TodayHabits";
 import { TodayStreak } from "../celebrate/TodayStreak";
 import { BulkBar } from "./BulkBar";
@@ -113,6 +113,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
             ))}
             <MenuSeparator />
             <MenuItem onSelect={() => (go("logbook"), menu.close())}>Open Logbook</MenuItem>
+            <MenuItem onSelect={() => (setImport(true), menu.close())}>Import tasks…</MenuItem>
           </Popover>
         )}
         {list && list.id !== "inbox" && (

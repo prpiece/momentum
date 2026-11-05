@@ -20,6 +20,8 @@ type UiStore = {
   selection: string[];
   paletteOpen: boolean;
   shortcutsOpen: boolean;
+  /** Bulk-import dialog (D92). */
+  importOpen: boolean;
   toasts: Toast[];
   scopeAsk: ScopeAsk | null;
   confirmAsk: ConfirmAsk | null;
@@ -43,6 +45,7 @@ export const useUi = create<UiStore>(() => ({
   selection: [],
   paletteOpen: false,
   shortcutsOpen: false,
+  importOpen: false,
   toasts: [],
   scopeAsk: null,
   confirmAsk: null,
@@ -64,6 +67,7 @@ export const closeDrawer = () => set({ drawer: null });
 export const setSelection = (selection: string[]) => set({ selection });
 export const setPalette = (paletteOpen: boolean) => set({ paletteOpen });
 export const setShortcuts = (shortcutsOpen: boolean) => set({ shortcutsOpen });
+export const setImport = (importOpen: boolean) => set({ importOpen });
 export const setCalAnchor = (calAnchor: string) => set({ calAnchor });
 export const setCalSpan = (calSpan: number | null) => set({ calSpan });
 export function openContextMenu(e: { clientX: number; clientY: number; preventDefault: () => void; stopPropagation: () => void }, items: MenuEntry[]) {

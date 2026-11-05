@@ -1,12 +1,12 @@
 import { ListGlyph } from "../../components/ui/AppIcon";
-import { CornerDownLeft, Hash, Moon, PanelLeft, Plus, Search, Sun, SunMoon, Keyboard, ListPlus, ListFilter, CheckCircle2, Circle } from "lucide-react";
+import { CornerDownLeft, Hash, Moon, PanelLeft, Plus, Search, Sun, SunMoon, Keyboard, ListPlus, ListFilter, FileInput, CheckCircle2, Circle } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Dialog } from "../../components/ui/Dialog";
 import { matchScore } from "../../domain/taskViews";
 import type { ViewId } from "../../domain/types";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { go, openTask, setPalette, setShortcuts, useUi } from "../../stores/ui";
+import { go, openTask, setImport, setPalette, setShortcuts, useUi } from "../../stores/ui";
 import { ListDialog } from "../tasks/ListDialog";
 import { focusQuickAdd } from "../tasks/QuickAdd";
 import { useDerived } from "../tasks/selectors";
@@ -47,6 +47,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
     const commands: Omit<Item, "score">[] = [
       { id: "new-task", group: "Commands", label: "New task", hint: "N", icon: <Plus size={16} />, run: () => (close(), setTimeout(focusQuickAdd, 50)) },
       { id: "new-list", group: "Commands", label: "New list", icon: <ListPlus size={16} />, run: onNewList },
+      { id: "import", group: "Commands", label: "Import tasks…", icon: <FileInput size={16} />, run: () => (close(), setImport(true)) },
       ...[...SMART_LIST_NAV, ...MODULE_NAV, SETTINGS_NAV].map((n) => ({
         id: `go-${n.id}`,
         group: "Commands",

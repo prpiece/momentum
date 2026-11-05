@@ -19,6 +19,7 @@ import { SettingsView } from "./features/settings/SettingsView";
 import { BackgroundLayer } from "./features/shell/BackgroundLayer";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dialogs";
+import { ImportDialog } from "./features/tasks/ImportDialog";
 import { navFor } from "./features/shell/nav";
 import { NavBar } from "./features/shell/NavBar";
 import { Sidebar } from "./features/shell/Sidebar";
@@ -106,6 +107,7 @@ export default function App() {
       </div>
       <CommandPalette />
       <ShortcutSheet />
+      <ImportDialog />
       <ScopeDialog />
       <ConfirmDialog />
       <EventDialog />
