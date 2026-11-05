@@ -5,6 +5,17 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v0.9.0
+
+- **Import many tasks at once.** Paste a list, pick "New line" or your own separator, and Momentum adds each line as a task, reading dates, priorities and tags as usual. The whole import undoes in one step.
+  ![Importing pasted tasks](whats-new/0.9.0/import.png)
+- **A share card for your stats.** Turn your week or month into a card with tasks done, focus hours, streak and a trophy, then save or copy it. It shows numbers only, never task names.
+  ![The share card preview](whats-new/0.9.0/share-card.png)
+- **Quick add pickers become chips.** Choose a priority or list and it turns into a chip you can tap to change. The popup now starts fresh every time you open it.
+- **Spoken keywords stay spoken.** "List", "priority" and "tag" only work when you say them, so a typed title like "Grocery list" stays as it is. Spoken list names are matched even when they are misheard.
+- **Clearer voice.** Momentum trims the silence, lifts quiet recordings and opens the microphone a moment sooner. You can now choose your microphone in Settings.
+- **More things to say.** Open any view or list, pause, resume or skip focus, start a break, open or close the mini window, or say "finished" and a task name to tick it off after a quick confirmation.
+
 ## v0.8.1
 
 - **Trophies you can climb.** Every trophy now has levels that start small: 10 tasks, then 25, 50, 100 and on up to 2500. The same goes for focus hours, habit streaks, perfect days and perfect weeks. Each level has its own metal and badge shape, from bronze to prism, and every new level gets a celebration.
