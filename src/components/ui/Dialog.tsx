@@ -40,7 +40,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
         role="dialog"
         aria-modal="true"
         aria-label={props.label}
-        className={`anim-rise max-h-full w-full overflow-auto rounded-lg border border-border bg-surface-2 shadow-lg ${props.width ?? "max-w-md"}`}
+        className={`anim-dialog max-h-full w-full overflow-auto rounded-lg border border-border bg-surface-2 shadow-lg ${props.width ?? "max-w-md"}`}
       >
         {props.children}
       </div>

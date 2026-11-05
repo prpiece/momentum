@@ -97,6 +97,9 @@ const STEPS: Step[] = [
         <Tip>
           Press <Kbd>N</Kbd> anywhere in the app, or <Kbd>Ctrl Shift A</Kbd> from any other app for a quick-add popup.
         </Tip>
+        <Tip>
+          Hold <Kbd>Ctrl Alt Space</Kbd> and just say it: "study chem tomorrow 5pm priority high". Voice runs on this computer; turn it on in Settings → Voice. You can also say "open calendar" or "start focus".
+        </Tip>
       </>
     ),
   },
@@ -119,6 +122,7 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>Click a task to open its details: notes, subtasks, a checklist, reminders and repeats. Right-click anything for its actions, and drag to reorder or reschedule.</p>
+        <p>Notes take Markdown and images: paste, drop or pick one, and hover it to copy it back out. Reminders pop up in the corner with Done and Snooze.</p>
         <Tip>
           <Kbd>J</Kbd> <Kbd>K</Kbd> move, <Kbd>C</Kbd> completes, <Kbd>1</Kbd>–<Kbd>3</Kbd> set priority, <Kbd>T</Kbd> does it today, and <Kbd>Ctrl Z</Kbd> undoes anything.
         </Tip>
@@ -131,7 +135,7 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>Make a list for each part of your life (school, work, home) and group them into folders. Each list can show as a list, a board or a timeline, with its own color and icon.</p>
-        <Tip>Drop tasks onto a list to move them. Right-click a list to pin, archive or edit it.</Tip>
+        <Tip>Drop tasks onto a list to move them. Right-click a list to pin, archive, edit it or import many tasks at once from pasted text.</Tip>
       </>
     ),
   },
@@ -164,7 +168,7 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>Build routines with daily or weekly goals, counts like "8 glasses" and reminders. Check in with one click and watch the streak grow.</p>
-        <Tip>Streak milestones get a celebration. Today's habits also show at the top of Today.</Tip>
+        <Tip>Hover a habit for its note and mood: pick a face and jot how it went, and change it any time. Today's habits also show at the top of Today.</Tip>
       </>
     ),
   },
@@ -175,7 +179,9 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>A Pomodoro timer: focus rounds, short breaks and a long break after a set. Pick a task to log the time against it.</p>
-        <Tip>The timer keeps running while you work elsewhere, and its time shows in the navigation. A chime tells you when a round ends.</Tip>
+        <Tip>
+          The timer keeps running while you work elsewhere. <Kbd>Ctrl Alt M</Kbd> opens the mini window: your next tasks, the timer and the matrix, always on top.
+        </Tip>
       </>
     ),
   },
@@ -192,7 +198,7 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>See what you've finished, your focus time, a heatmap of your year and the trophies you've earned for perfect days, weeks and streaks.</p>
-        <Tip>Perfect weeks, months and years get bigger celebrations. Your history counts, so you may already have some.</Tip>
+        <Tip>Share turns your week or month into a card to save or copy: numbers only, never task names. Trophies climb in levels, so there's always a next one.</Tip>
       </>
     ),
   },
@@ -213,8 +219,8 @@ const STEPS: Step[] = [
     target: "settings",
     body: (
       <>
-        <p>Change the layout, theme, text size and zoom, the sounds, reminders and the focus timer, and back up your data.</p>
-        <Tip>You can take this tour again any time from Settings → System.</Tip>
+        <p>Change the layout, theme, background image, text size and zoom, the sounds, reminders, voice and the focus timer, and back up your data (images included).</p>
+        <Tip>Take this tour again any time from Settings → System or search for "tour". After each update, What's new walks you through everything you missed.</Tip>
       </>
     ),
   },

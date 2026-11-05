@@ -42,6 +42,8 @@ export function ReminderWindow() {
   const stack = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // The window is transparent and shadowless (tauri.conf.json), so only the cards show (D96).
+    document.documentElement.style.background = document.body.style.background = "transparent";
     const a = readAppearance();
     if (a) apply(a);
     let off: (() => void) | undefined;
@@ -74,7 +76,7 @@ export function ReminderWindow() {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-bg">
+    <div className="h-full overflow-y-auto">
       <div ref={stack} className="flex flex-col gap-2 p-2">
       {items.map((r) => {
         const Icon = ICON[r.target.kind];

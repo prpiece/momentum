@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { isTauri } from "../db/client";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { toast } from "../stores/ui";
-import { changelogSection } from "../domain/changelog";
+import { missedSections } from "../domain/changelog";
 import changelog from "../../CHANGELOG.md?raw";
 
 export type UpdateStatus =
@@ -113,17 +113,18 @@ export function useAppVersion(): string | null {
 }
 
 /**
- * The running version's CHANGELOG.md section, once, when it differs from the version seen last time.
+ * Once, when the version differs from the one seen last time: every CHANGELOG.md section since then (D98).
  * A fresh install just records its version.
  */
-export function takeWhatsNew(currentVersion: string): string | null {
+export function takeWhatsNew(currentVersion: string): { version: string; body: string }[] | null {
   try {
     const seen = localStorage.getItem(SEEN_KEY);
     const legacy = localStorage.getItem(LEGACY_WHATS_NEW_KEY);
     localStorage.setItem(SEEN_KEY, currentVersion);
     localStorage.removeItem(LEGACY_WHATS_NEW_KEY);
     const updated = (seen !== null && seen !== currentVersion) || legacy !== null;
-    return updated ? changelogSection(changelog, currentVersion) : null;
+    const missed = updated ? missedSections(changelog, seen !== currentVersion ? seen : null, currentVersion) : [];
+    return missed.length ? missed : null;
   } catch {
     return null;
   }

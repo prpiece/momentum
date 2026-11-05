@@ -58,7 +58,7 @@ export function Popover(props: {
     <div
       ref={ref}
       role="dialog"
-      className={`anim-rise fixed z-50 min-w-44 rounded-md border border-border bg-surface-2 p-1 shadow-lg ${props.className ?? ""}`}
+      className={`anim-pop-in fixed z-50 min-w-44 rounded-md border border-border bg-surface-2 p-1 shadow-lg ${props.className ?? ""}`}
       style={pos ?? { top: -9999, left: -9999 }}
     >
       {props.children}

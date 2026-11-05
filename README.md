@@ -75,7 +75,7 @@
 | | |
 |---|---|
 | ![Today](docs/screenshots/today.png) | ![Task drawer](docs/screenshots/list-drawer.png) |
-| ![Calendar, light](docs/screenshots/calendar-light.png) | ![Month view](docs/screenshots/calendar-month.png) |
+| ![Today, dark](docs/screenshots/today-dark.png) | ![Month view](docs/screenshots/calendar-month.png) |
 | ![Eisenhower Matrix](docs/screenshots/matrix.png) | ![Habits](docs/screenshots/habits.png) |
 | ![Focus](docs/screenshots/focus.png) | ![Statistics](docs/screenshots/stats.png) |
 | ![Top bar layout](docs/screenshots/layout-topbar.png) | ![Dock layout](docs/screenshots/layout-dock.png) |

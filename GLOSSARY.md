@@ -117,3 +117,7 @@ _Avoid_: Report, summary, stats image
 **Level**:
 One rung of a trophy's ladder, reached when its count passes a threshold; each level has its own look.
 _Avoid_: Tier, milestone, rank
+
+**Missed updates**:
+Every CHANGELOG section newer than the last version the app showed, walked through together in What's new after an update (PLAN D98).
+_Avoid_: Release notes, patch notes

@@ -79,7 +79,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         </IconButton>
       </header>
 
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4 anim-stagger [&>*]:shrink-0">
         <div className="flex items-start gap-3">
           <div className="pt-1.5">
             <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, key)} label="Complete" size={20} />
@@ -305,13 +305,13 @@ function Description({ task }: { task: Task }) {
         aria-label="Edit description"
         onClick={(e) => !(e.target instanceof HTMLAnchorElement) && setEditing(true)}
         onKeyDown={(e) => e.key === "Enter" && setEditing(true)}
-        className="prose-md min-h-32 flex-1 cursor-text rounded-md p-2 text-sm text-fg-2 hover:bg-hover"
+        className="prose-md min-h-32 grow cursor-text rounded-md p-2 text-sm text-fg-2 hover:bg-hover"
       >
         <NoteMarkdown>{task.description}</NoteMarkdown>
       </div>
     );
   return (
-    <div className="flex min-h-32 flex-1 flex-col">
+    <div className="flex min-h-32 grow flex-col">
       <textarea
         ref={ref}
         autoFocus={editing}
@@ -358,10 +358,13 @@ function Subtasks({ task }: { task: Task }) {
       <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Subtasks {kids.length > 0 && `· ${kids.filter((k) => k.task.status !== "open").length}/${kids.length}`}</h3>
       <ul className="space-y-0.5">
         {kids.map((k) => (
-          <li key={k.task.id} className="flex items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-hover">
+          <li key={k.task.id} className="anim-rise group flex items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-hover">
             <TaskCheckbox status={k.task.status} priority={k.task.priority} onToggle={() => toggleDone(k.task.id, k.key)} label={`Complete ${k.task.title}`} size={16} />
             <button type="button" onClick={() => openTask(k.task.id, k.key)} className={`flex-1 truncate text-left text-sm ${k.task.status !== "open" ? "text-muted line-through" : ""}`}>
               {k.task.title}
+            </button>
+            <button type="button" aria-label={`Delete ${k.task.title}`} title="Delete subtask" onClick={() => void deleteTasks([k.task.id], k.key)} className="grid size-6 place-items-center rounded-sm text-muted opacity-0 hover:text-danger focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover:opacity-100">
+              <Trash2 size={13} />
             </button>
           </li>
         ))}
@@ -398,7 +401,7 @@ function Checklist({ task }: { task: Task }) {
       </h3>
       <ul className="space-y-0.5">
         {items.map((it) => (
-          <li key={it.id} className="group flex items-center gap-2.5 rounded-sm px-1 py-0.5 hover:bg-hover">
+          <li key={it.id} className="anim-rise group flex items-center gap-2.5 rounded-sm px-1 py-0.5 hover:bg-hover">
             <input type="checkbox" checked={it.done} onChange={() => set(items.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))} className="size-4 accent-[var(--accent)]" aria-label={it.title} />
             <input
               defaultValue={it.title}

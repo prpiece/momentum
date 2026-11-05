@@ -1,5 +1,5 @@
 import { ListGlyph } from "../../components/ui/AppIcon";
-import { CornerDownLeft, Hash, Moon, PanelLeft, Plus, Search, Sun, SunMoon, Keyboard, ListPlus, ListFilter, FileInput, CheckCircle2, Circle } from "lucide-react";
+import { CornerDownLeft, Hash, Moon, PanelLeft, Plus, Search, Sun, SunMoon, Keyboard, ListPlus, ListFilter, FileInput, CheckCircle2, Circle, Compass } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Dialog } from "../../components/ui/Dialog";
 import { matchScore } from "../../domain/taskViews";
@@ -8,6 +8,7 @@ import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { go, openTask, setImport, setPalette, setShortcuts, useUi } from "../../stores/ui";
 import { ListDialog } from "../tasks/ListDialog";
+import { openTour } from "./Tour";
 import { focusQuickAdd } from "../tasks/QuickAdd";
 import { useDerived } from "../tasks/selectors";
 import { MODULE_NAV, SETTINGS_NAV, SMART_LIST_NAV } from "./nav";
@@ -59,6 +60,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       { id: "theme-dark", group: "Commands", label: "Switch theme: Dark", icon: <Moon size={16} />, run: () => (update({ theme: "dark" }), close()) },
       { id: "theme-system", group: "Commands", label: "Switch theme: System", icon: <SunMoon size={16} />, run: () => (update({ theme: "system" }), close()) },
       { id: "sidebar", group: "Commands", label: collapsed ? "Expand sidebar" : "Collapse sidebar", icon: <PanelLeft size={16} />, run: () => (update({ sidebarCollapsed: !collapsed }), close()) },
+      { id: "tour", group: "Commands", label: "Take the tour", icon: <Compass size={16} />, run: () => (close(), openTour()) },
       { id: "shortcuts", group: "Commands", label: "Keyboard shortcuts", hint: "?", icon: <Keyboard size={16} />, run: () => (close(), setShortcuts(true)) },
     ];
     const listItems = Object.values(lists).map((l) => ({

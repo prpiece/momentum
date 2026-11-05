@@ -25,7 +25,7 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
         ref={anchor}
         type="button"
         aria-label={`Note for ${habit.name}`}
-        title="Note & mood"
+        title={c?.mood || c?.note ? "Edit mood & note" : "Note & mood"}
         onClick={(e) => {
           e.stopPropagation();
           setNote(checkinOf(habit.id, date)?.note ?? "");

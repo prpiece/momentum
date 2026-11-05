@@ -201,6 +201,23 @@ html[data-bg] .glass {
 }
 .anim-step { animation: step-in 240ms var(--ease); }
 
+/* Popovers and menus scale in from their anchor; dialogs settle in (D102). */
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.95); }
+}
+.anim-pop-in { animation: pop-in var(--dur) var(--ease); transform-origin: top; }
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+.anim-dialog { animation: dialog-in 220ms var(--ease); }
+/* Children rise in one after another (the task drawer's sections). */
+.anim-stagger > * { animation: rise 260ms var(--ease) backwards; }
+.anim-stagger > :nth-child(2) { animation-delay: 30ms; }
+.anim-stagger > :nth-child(3) { animation-delay: 60ms; }
+.anim-stagger > :nth-child(4) { animation-delay: 90ms; }
+.anim-stagger > :nth-child(5) { animation-delay: 120ms; }
+.anim-stagger > :nth-child(n + 6) { animation-delay: 150ms; }
+
 /* Each view fades in when you switch to it (App keys the content by view). */
 .anim-view { animation: view-in 220ms var(--ease); }
 /* Chart marks grow from their baseline. */

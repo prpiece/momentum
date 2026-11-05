@@ -6,34 +6,36 @@ import { newsItems } from "../../domain/changelog";
 import { takeWhatsNew, useAppVersion } from "../../lib/updater";
 
 /**
- * Once, after an update: the new version's CHANGELOG.md section (D66, D67). A plain list, or a
- * step-by-step tour when the section has screenshots (bundled in public/whats-new/, so it works offline).
+ * Once, after an update: every CHANGELOG.md section since the version seen last (D66, D67, D98). A plain
+ * list, or a step-by-step tour when any item has a screenshot (bundled in public/whats-new/, so it works offline).
  */
 export function WhatsNew() {
   const version = useAppVersion();
-  const [notes, setNotes] = useState<string | null>(null);
+  const [notes, setNotes] = useState<{ version: string; body: string }[] | null>(null);
   const [step, setStep] = useState(0);
   useEffect(() => {
     if (version) setNotes(takeWhatsNew(version));
   }, [version]);
-  const items = useMemo(() => (notes ? newsItems(notes) : []), [notes]);
+  const items = useMemo(() => (notes ?? []).flatMap((s) => newsItems(s.body).map((i) => ({ ...i, version: s.version }))), [notes]);
   if (!notes || !version) return null;
 
   const close = () => setNotes(null);
   const tour = items.some((i) => i.image);
   const item = items[step];
   const last = step === items.length - 1;
+  const many = notes.length > 1;
+  const title = many ? `${notes.length} updates you missed` : `What's new in Momentum ${version}`;
 
   return (
-    <Dialog label={`What's new in Momentum ${version}`} onClose={close} width={tour ? "max-w-2xl" : "max-w-lg"}>
+    <Dialog label={title} onClose={close} width={tour ? "max-w-2xl" : "max-w-lg"}>
       <div className="p-6">
         <div className="mb-4 flex items-center gap-3">
           <span className="grid size-10 place-items-center rounded-full bg-accent-soft text-accent">
             <Sparkles size={20} />
           </span>
           <div>
-            <h2 className="text-lg font-bold tracking-tight">What's new in Momentum {version}</h2>
-            {tour && <p className="text-xs text-muted">{`${step + 1} of ${items.length}`}</p>}
+            <h2 className="text-lg font-bold tracking-tight">{title}</h2>
+            {(tour || many) && <p className="text-xs text-muted">{[tour && `${step + 1} of ${items.length}`, many && `v${tour && item ? item.version : version}`].filter(Boolean).join(" · ")}</p>}
           </div>
         </div>
 
@@ -47,9 +49,10 @@ export function WhatsNew() {
         ) : (
           <ul className="max-h-[55vh] space-y-2.5 overflow-y-auto">
             {items.map((i, n) => (
-              <li key={n} className="anim-rise flex gap-3 text-sm text-fg-2" style={{ animationDelay: `${n * 40}ms` }}>
+              <li key={n} data-version={i.version} className="anim-rise flex gap-3 text-sm text-fg-2" style={{ animationDelay: `${n * 40}ms` }}>
                 <span className="mt-[0.55em] size-1.5 shrink-0 rounded-full bg-accent" aria-hidden />
                 <div className="prose-md">
+                  {many && items[n - 1]?.version !== i.version && <p className="!mb-1 text-xs font-semibold text-muted">v{i.version}</p>}
                   <ReactMarkdown>{i.text}</ReactMarkdown>
                 </div>
               </li>

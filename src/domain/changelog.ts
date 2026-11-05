@@ -25,3 +25,23 @@ export function newsItems(section: string): NewsItem[] {
     return { text: raw.replace(IMAGE, "").trim(), image: m ? { alt: m[1], src: m[2] } : null };
   });
 }
+
+const parts = (v: string) => v.split(".").map((n) => parseInt(n, 10) || 0);
+/** Semver-ish compare of `X.Y.Z` strings: negative when a < b. */
+export const compareVersions = (a: string, b: string): number => {
+  const [x, y] = [parts(a), parts(b)];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
+  return 0;
+};
+
+/** Every section newer than `seen` up to `current`, newest first (D98). With no `seen`, just `current`. */
+export function missedSections(md: string, seen: string | null, current: string): { version: string; body: string }[] {
+  const versions = [...md.matchAll(/^## v(\d+\.\d+\.\d+)\s*$/gm)].map((m) => m[1]);
+  return versions
+    .filter((v) => compareVersions(v, current) <= 0 && (seen === null ? v === current : compareVersions(v, seen) > 0))
+    .sort((a, b) => compareVersions(b, a))
+    .flatMap((version) => {
+      const body = changelogSection(md, version);
+      return body ? [{ version, body }] : [];
+    });
+}

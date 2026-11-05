@@ -33,30 +33,31 @@ try {
   const view = (theme, v, extra = "") =>
     new Function(`return (async () => { ${app} set({ onboarded: true, theme: "${theme}" }); ui.go(${v}); ${extra} ui.useUi.setState({ toasts: [] }); })()`);
 
-  await shot("today", view("dark", '"today"'));
+  // Light by default: easier to read (D97). One dark shot shows dark mode exists.
+  await shot("today", view("light", '"today"'));
   await shot(
     "list-drawer",
     view(
-      "dark",
+      "light",
       '"list:" + Object.values(useData.getState().lists).find((l) => l.name === "Chemistry").id',
       'await new Promise((r) => setTimeout(r, 50)); ui.openTask(Object.values(useData.getState().tasks).find((t) => t.title === "Write up titration lab").id);',
     ),
   );
-  await shot("calendar", view("dark", '"calendar"', 'set({ calendar: { ...s().calendar, view: "week" } });'));
-  await shot("calendar-light", view("light", '"calendar"', 'set({ calendar: { ...s().calendar, view: "week" } });'));
-  await shot("calendar-month", view("dark", '"calendar"', 'set({ calendar: { ...s().calendar, view: "month" } });'));
-  await shot("matrix", view("dark", '"matrix"'));
-  await shot("matrix-light", view("light", '"matrix"'));
-  await shot("habits", view("dark", '"habits"'));
-  await shot("focus", view("dark", '"focus"'));
-  await shot("stats", view("dark", '"stats"'));
-  await shot("layout-topbar", view("dark", '"today"', 'set({ layout: "topbar" });'));
-  await shot("layout-dock", view("dark", '"calendar"', 'set({ layout: "dock", calendar: { ...s().calendar, view: "week" } });'));
+  await shot("calendar", view("light", '"calendar"', 'set({ calendar: { ...s().calendar, view: "week" } });'));
+  await shot("calendar-month", view("light", '"calendar"', 'set({ calendar: { ...s().calendar, view: "month" } });'));
+  await shot("matrix", view("light", '"matrix"'));
+  await shot("habits", view("light", '"habits"'));
+  await shot("focus", view("light", '"focus"'));
+  await shot("stats", view("light", '"stats"'));
+  await shot("layout-topbar", view("light", '"today"', 'set({ layout: "topbar" });'));
+  await shot("layout-dock", view("light", '"calendar"', 'set({ layout: "dock", calendar: { ...s().calendar, view: "week" } });'));
   // The guided tour on its quick-add step: restart it, then step forward.
-  await run(view("dark", '"today"', 'set({ layout: "classic", onboarded: false });'));
+  await run(view("light", '"today"', 'set({ layout: "classic", onboarded: false });'));
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   await shot("tour", () => {});
+  // Last, so the theme switch doesn't bleed into a light shot.
+  await shot("today-dark", view("dark", '"today"', 'useSettings.setState({}); ui.useUi.setState({ tourOpen: false });'));
 } finally {
   await browser.close();
   await server.close();

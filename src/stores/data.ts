@@ -5,6 +5,7 @@ import { after, before, reorder as reorderItems } from "../domain/order";
 import { detachOccurrence, effective, scheduleForKey, shiftAnchor, splitSeries } from "../domain/recurrence";
 import { scheduleDate } from "../domain/dates";
 import { notePush } from "./progress";
+import { dropAttachments } from "../lib/appFiles";
 import {
   INBOX_ID,
   type CalendarEvent,
@@ -177,6 +178,8 @@ export function updateTask(id: string, patch: Partial<Task>) {
     next.sectionId = patch.sectionId ?? null;
     for (const d of descendants(id)) changed.push({ ...d, listId: patch.listId, sectionId: null, updatedAt: now() });
   }
+  if (patch.description !== undefined && patch.description !== t.description)
+    dropAttachments(t.description, patch.description, Object.values(get().tasks).filter((o) => o.id !== id).map((o) => o.description));
   if (patch.title !== undefined && patch.title !== t.title) log(id, "renamed", patch.title);
   if (patch.priority !== undefined && patch.priority !== t.priority) log(id, "priority", PRIORITY_LABEL[patch.priority]);
   if (patch.schedule && JSON.stringify(patch.schedule) !== JSON.stringify(t.schedule)) {

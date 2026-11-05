@@ -5,6 +5,15 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v0.9.1
+
+- **Catch up on everything you missed.** Skipped a few updates? What's new now walks you through every one since your last, newest first. The guided tour covers every feature so far, and you can replay it from Settings or by searching "tour".
+- **Images in notes behave.** Several images no longer spill over the subtasks: the panel scrolls instead. Hover an image to copy it back out, and deleting it from the note deletes the file too.
+- **Delete subtasks from their parent.** Hover a subtask in the task panel and click the bin. Undo brings it back.
+- **Tidier reminder popups.** The popup is now exactly the size of its cards, with no box around them.
+- **Easier to change your mood.** A habit's face shows "Edit mood & note" on hover, so you can pick another face any time.
+- **A little more motion.** Menus and dialogs ease in, and the task panel's sections settle in one after another. Turn it off under Settings → Animations.
+
 ## v0.9.0
 
 - **Import many tasks at once.** Paste a list, pick "New line" or your own separator, and Momentum adds each line as a task, reading dates, priorities and tags as usual. The whole import undoes in one step.
