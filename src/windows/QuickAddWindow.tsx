@@ -1,15 +1,20 @@
 import { CalendarDays, Flag, Hash, List, Mic, Plus, Repeat } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTime, relativeDayLabel, todayLocal } from "../domain/dates";
-import { parseQuickAdd, withToken, type ChipKind } from "../domain/quickAdd";
+import { parseQuickAdd, withoutToken, withToken, type ChipKind } from "../domain/quickAdd";
 import { contextLabel, type QuickAddContext } from "../domain/quickAddContext";
 import { describeRule } from "../domain/recurrence";
 import { PRIORITY_LABEL } from "../domain/types";
 import { apply, readAppearance } from "../lib/applySettings";
-import type { VoicePopupEvent } from "../domain/voice";
+import { parseVoicePopupEvent, type CompleteCandidate } from "../domain/voice";
+import { CompleteConfirm } from "./CompleteConfirm";
+import { TokenPicker } from "./TokenPicker";
 
 /** Voice quick-add as the popup sees it; the main window drives it with `quickadd:voice` (D81). */
 type VoicePhase = { kind: "idle" } | { kind: "listening" } | { kind: "transcribing" } | { kind: "error"; message: string };
+
+const PRIORITY_OPTIONS = [{ value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" }];
+const nameKey = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 
 const ICON: Record<ChipKind, typeof Flag> = { date: CalendarDays, priority: Flag, tag: Hash, list: List, repeat: Repeat };
 
@@ -20,20 +25,28 @@ const ICON: Record<ChipKind, typeof Flag> = { date: CalendarDays, priority: Flag
 export function QuickAddWindow() {
   const [text, setText] = useState("");
   const [raw, setRaw] = useState(false);
+  /** D90: any voice text makes the entry spoken until the input is emptied or the popup closes. */
+  const [spoken, setSpoken] = useState(false);
   const [context, setContext] = useState<QuickAddContext | null>(null);
   const [lists, setLists] = useState<string[]>([]);
   const [appearance, setAppearance] = useState(readAppearance);
   const [voice, setVoice] = useState<VoicePhase>({ kind: "idle" });
+  /** A spoken "complete ..." waiting for a yes (D95); `text` is the transcript, restored if the user backs out. */
+  const [confirm, setConfirm] = useState<{ text: string; candidates: CompleteCandidate[]; picked: number } | null>(null);
   const [level, setLevel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const smart = appearance?.smartParse ?? true;
-  const parsed = useMemo(() => parseQuickAdd(text, new Date(), smart && !raw, lists), [text, smart, raw, lists]);
+  const parsed = useMemo(() => parseQuickAdd(text, new Date(), smart && !raw, lists, spoken ? "spoken" : "typed"), [text, smart, raw, lists, spoken]);
   const parsing = smart && !raw;
   /** Tap-to-set (D89): edits the text, so the main window still parses one source of truth. */
-  const setToken = (kind: "priority" | "list", token: string) => {
-    setText((t) => withToken(t, parseQuickAdd(t, new Date(), true, lists).chips, kind, token));
-    input.current?.focus();
-  };
+  const chipsOf = (t: string) => parseQuickAdd(t, new Date(), true, lists, spoken ? "spoken" : "typed").chips;
+  const setToken = (kind: "priority" | "list", token: string) => setText((t) => withToken(t, chipsOf(t), kind, token));
+  /** D91: "None" in a filled chip's picker removes the token. */
+  const clearToken = (kind: "priority" | "list") => setText((t) => withoutToken(t, chipsOf(t), kind));
+
+  useEffect(() => {
+    if (!text) setSpoken(false);
+  }, [text]);
 
   useEffect(() => {
     if (appearance) apply(appearance);
@@ -58,14 +71,16 @@ export function QuickAddWindow() {
           input.current?.focus();
           input.current?.select();
         }),
-        await listen<VoicePopupEvent>("quickadd:voice", (e) => {
-          const v = e.payload;
-          if (v.kind === "close") {
+        await listen<unknown>("quickadd:voice", (e) => {
+          const v = parseVoicePopupEvent(e.payload);
+          if (!v) return;
+          if (v.kind === "close") return void close();
+          if (v.kind === "confirm") {
+            setConfirm({ text: v.text, candidates: v.candidates, picked: 0 });
             setVoice({ kind: "idle" });
-            return void w.hide();
-          }
-          if (v.kind === "text") {
+          } else if (v.kind === "text") {
             setText((t) => (t.trim() ? `${t.trimEnd()} ${v.text}` : v.text));
+            setSpoken(true);
             setVoice({ kind: "idle" });
           } else setVoice(v);
           if (v.kind === "listening") setLevel(0);
@@ -85,13 +100,21 @@ export function QuickAddWindow() {
     };
   }, []);
 
+  /** D91: closing any way drops the text, chips and spoken flag, so the next open starts empty. */
+  const close = async () => {
+    setText("");
+    setRaw(false);
+    setContext(null);
+    setConfirm(null);
+    setVoice({ kind: "idle" });
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().hide();
+  };
   /** Closing also drops a recording in progress (the main window ignores it otherwise). */
   const hide = async () => {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const { emit } = await import("@tauri-apps/api/event");
     await emit("voice:cancel");
-    setVoice({ kind: "idle" });
-    await getCurrentWindow().hide();
+    await close();
   };
   const toggleVoice = async () => {
     const { emit } = await import("@tauri-apps/api/event");
@@ -101,11 +124,21 @@ export function QuickAddWindow() {
   const submit = async () => {
     if (!text.trim()) return;
     const { emit } = await import("@tauri-apps/api/event");
-    await emit("quickadd:create", { text, raw, context });
-    setText("");
-    setRaw(false);
-    setContext(null);
+    await emit("quickadd:create", { text, raw, context, spoken });
     await hide();
+  };
+  /** The main window re-checks the id and completes the task (D33, D95). */
+  const complete = async (id: string) => {
+    const { emit } = await import("@tauri-apps/api/event");
+    await emit("quickadd:complete", { id });
+    await close();
+  };
+  /** Backing out of a confirmation keeps what was said as a new, spoken entry. */
+  const backOut = () => {
+    if (!confirm) return;
+    setText(confirm.text);
+    setSpoken(true);
+    setConfirm(null);
   };
 
   const today = todayLocal();
@@ -115,9 +148,22 @@ export function QuickAddWindow() {
     if (kind === "date" && s.kind === "timed") return `${relativeDayLabel(todayLocal(new Date(s.start)), today)} ${formatTime(new Date(s.start), appearance?.timeFormat ?? "24h")}`;
     if (kind === "priority" && parsed.priority !== null) return PRIORITY_LABEL[parsed.priority];
     if (kind === "repeat" && parsed.rule) return describeRule(parsed.rule);
+    if (kind === "list" && parsed.listName) return lists.find((n) => nameKey(n) === nameKey(parsed.listName ?? "")) ?? parsed.listName;
     return chipText;
   };
-
+  const picker = (kind: "priority" | "list", filled: string | null) => (
+    <TokenPicker
+      key={kind}
+      icon={ICON[kind]}
+      ariaLabel={kind === "priority" ? "Priority" : "List"}
+      empty={kind === "priority" ? "+ Priority" : "+ List"}
+      options={kind === "priority" ? PRIORITY_OPTIONS : lists.map((n) => ({ value: n, label: n }))}
+      filled={filled}
+      onPick={(v) => setToken(kind, kind === "priority" ? `!${v}` : `~${v.replace(/\s+/g, "")}`)}
+      onClear={() => clearToken(kind)}
+      onDone={() => input.current?.focus()}
+    />
+  );
   return (
     <div className="flex h-full flex-col justify-center border border-border bg-surface-2 px-4">
       <div className="flex items-center gap-3">
@@ -134,6 +180,16 @@ export function QuickAddWindow() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
+            if (confirm) {
+              const n = confirm.candidates.length;
+              if (e.key === "Enter") void complete(confirm.candidates[confirm.picked].id);
+              else if (e.key === "Escape") backOut();
+              else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                setConfirm({ ...confirm, picked: (confirm.picked + (e.key === "ArrowDown" ? 1 : n - 1)) % n });
+              }
+              return;
+            }
             if (e.key === "Enter" && !busy) void submit();
             if (e.key === "Escape") {
               if (parsed.chips.length && !raw && !busy) setRaw(true);
@@ -141,7 +197,7 @@ export function QuickAddWindow() {
             }
           }}
           placeholder={voice.kind === "listening" ? "Listening… release the shortcut or click the mic when done" : voice.kind === "transcribing" ? "Transcribing…" : "Add a task to Momentum…"}
-          readOnly={busy}
+          readOnly={busy || confirm !== null}
           aria-label="Quick add task"
           className="h-12 flex-1 bg-transparent text-lg outline-none placeholder:text-muted"
         />
@@ -157,7 +213,8 @@ export function QuickAddWindow() {
           <Mic size={18} className={voice.kind === "transcribing" ? "animate-pulse" : ""} />
         </button>
       </div>
-      <div className="flex min-h-7 flex-wrap items-center gap-1.5 pb-1">
+      {confirm && <CompleteConfirm candidates={confirm.candidates} picked={confirm.picked} onPick={(picked) => setConfirm({ ...confirm, picked })} onConfirm={(id) => void complete(id)} onCancel={backOut} />}
+      <div className={`min-h-7 flex-wrap items-center gap-1.5 pb-1 ${confirm ? "hidden" : "flex"}`}>
         {voice.kind === "error" && (
           <span role="alert" className="text-xs font-medium text-danger">
             {voice.message}
@@ -170,6 +227,7 @@ export function QuickAddWindow() {
           </span>
         )}
         {parsed.chips.map((c) => {
+          if (c.kind === "priority" || (c.kind === "list" && lists.length > 0)) return picker(c.kind, label(c.kind, c.text));
           const Icon = ICON[c.kind];
           return (
             <span key={`${c.kind}-${c.start}`} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium">
@@ -180,33 +238,8 @@ export function QuickAddWindow() {
         })}
         {parsing && (
           <>
-            <select
-              aria-label="Set priority"
-              value=""
-              onChange={(e) => e.target.value && setToken("priority", `!${e.target.value}`)}
-              className="h-6 rounded-full border border-dashed border-border bg-transparent px-2 text-xs text-fg-2 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <option value="">{parsed.priority === null ? "+ Priority" : "Priority…"}</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-              <option value="none">None</option>
-            </select>
-            {lists.length > 0 && (
-              <select
-                aria-label="Set list"
-                value=""
-                onChange={(e) => e.target.value && setToken("list", `~${e.target.value.replace(/\s+/g, "")}`)}
-                className="h-6 max-w-32 rounded-full border border-dashed border-border bg-transparent px-2 text-xs text-fg-2 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <option value="">{parsed.listName === null ? "+ List" : "List…"}</option>
-                {lists.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            )}
+            {!parsed.chips.some((c) => c.kind === "priority") && picker("priority", null)}
+            {lists.length > 0 && !parsed.chips.some((c) => c.kind === "list") && picker("list", null)}
             <button
               type="button"
               onClick={() => {
