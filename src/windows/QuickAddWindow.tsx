@@ -1,15 +1,19 @@
 import { CalendarDays, Flag, Hash, List, Mic, Plus, Repeat } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatTime, relativeDayLabel, todayLocal } from "../domain/dates";
-import { parseQuickAdd, withToken, type ChipKind } from "../domain/quickAdd";
+import { parseQuickAdd, withoutToken, withToken, type ChipKind } from "../domain/quickAdd";
 import { contextLabel, type QuickAddContext } from "../domain/quickAddContext";
 import { describeRule } from "../domain/recurrence";
 import { PRIORITY_LABEL } from "../domain/types";
 import { apply, readAppearance } from "../lib/applySettings";
 import type { VoicePopupEvent } from "../domain/voice";
+import { TokenPicker } from "./TokenPicker";
 
 /** Voice quick-add as the popup sees it; the main window drives it with `quickadd:voice` (D81). */
 type VoicePhase = { kind: "idle" } | { kind: "listening" } | { kind: "transcribing" } | { kind: "error"; message: string };
+
+const PRIORITY_OPTIONS = [{ value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" }];
+const nameKey = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 
 const ICON: Record<ChipKind, typeof Flag> = { date: CalendarDays, priority: Flag, tag: Hash, list: List, repeat: Repeat };
 
@@ -32,10 +36,10 @@ export function QuickAddWindow() {
   const parsed = useMemo(() => parseQuickAdd(text, new Date(), smart && !raw, lists, spoken ? "spoken" : "typed"), [text, smart, raw, lists, spoken]);
   const parsing = smart && !raw;
   /** Tap-to-set (D89): edits the text, so the main window still parses one source of truth. */
-  const setToken = (kind: "priority" | "list", token: string) => {
-    setText((t) => withToken(t, parseQuickAdd(t, new Date(), true, lists, spoken ? "spoken" : "typed").chips, kind, token));
-    input.current?.focus();
-  };
+  const chipsOf = (t: string) => parseQuickAdd(t, new Date(), true, lists, spoken ? "spoken" : "typed").chips;
+  const setToken = (kind: "priority" | "list", token: string) => setText((t) => withToken(t, chipsOf(t), kind, token));
+  /** D91: "None" in a filled chip's picker removes the token. */
+  const clearToken = (kind: "priority" | "list") => setText((t) => withoutToken(t, chipsOf(t), kind));
 
   useEffect(() => {
     if (!text) setSpoken(false);
@@ -66,10 +70,7 @@ export function QuickAddWindow() {
         }),
         await listen<VoicePopupEvent>("quickadd:voice", (e) => {
           const v = e.payload;
-          if (v.kind === "close") {
-            setVoice({ kind: "idle" });
-            return void w.hide();
-          }
+          if (v.kind === "close") return void close();
           if (v.kind === "text") {
             setText((t) => (t.trim() ? `${t.trimEnd()} ${v.text}` : v.text));
             setSpoken(true);
@@ -92,13 +93,20 @@ export function QuickAddWindow() {
     };
   }, []);
 
+  /** D91: closing any way drops the text, chips and spoken flag, so the next open starts empty. */
+  const close = async () => {
+    setText("");
+    setRaw(false);
+    setContext(null);
+    setVoice({ kind: "idle" });
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().hide();
+  };
   /** Closing also drops a recording in progress (the main window ignores it otherwise). */
   const hide = async () => {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const { emit } = await import("@tauri-apps/api/event");
     await emit("voice:cancel");
-    setVoice({ kind: "idle" });
-    await getCurrentWindow().hide();
+    await close();
   };
   const toggleVoice = async () => {
     const { emit } = await import("@tauri-apps/api/event");
@@ -109,9 +117,6 @@ export function QuickAddWindow() {
     if (!text.trim()) return;
     const { emit } = await import("@tauri-apps/api/event");
     await emit("quickadd:create", { text, raw, context, spoken });
-    setText("");
-    setRaw(false);
-    setContext(null);
     await hide();
   };
 
@@ -122,9 +127,22 @@ export function QuickAddWindow() {
     if (kind === "date" && s.kind === "timed") return `${relativeDayLabel(todayLocal(new Date(s.start)), today)} ${formatTime(new Date(s.start), appearance?.timeFormat ?? "24h")}`;
     if (kind === "priority" && parsed.priority !== null) return PRIORITY_LABEL[parsed.priority];
     if (kind === "repeat" && parsed.rule) return describeRule(parsed.rule);
+    if (kind === "list" && parsed.listName) return lists.find((n) => nameKey(n) === nameKey(parsed.listName ?? "")) ?? parsed.listName;
     return chipText;
   };
-
+  const picker = (kind: "priority" | "list", filled: string | null) => (
+    <TokenPicker
+      key={kind}
+      icon={ICON[kind]}
+      ariaLabel={kind === "priority" ? "Priority" : "List"}
+      empty={kind === "priority" ? "+ Priority" : "+ List"}
+      options={kind === "priority" ? PRIORITY_OPTIONS : lists.map((n) => ({ value: n, label: n }))}
+      filled={filled}
+      onPick={(v) => setToken(kind, kind === "priority" ? `!${v}` : `~${v.replace(/\s+/g, "")}`)}
+      onClear={() => clearToken(kind)}
+      onDone={() => input.current?.focus()}
+    />
+  );
   return (
     <div className="flex h-full flex-col justify-center border border-border bg-surface-2 px-4">
       <div className="flex items-center gap-3">
@@ -177,6 +195,7 @@ export function QuickAddWindow() {
           </span>
         )}
         {parsed.chips.map((c) => {
+          if (c.kind === "priority" || (c.kind === "list" && lists.length > 0)) return picker(c.kind, label(c.kind, c.text));
           const Icon = ICON[c.kind];
           return (
             <span key={`${c.kind}-${c.start}`} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium">
@@ -187,33 +206,8 @@ export function QuickAddWindow() {
         })}
         {parsing && (
           <>
-            <select
-              aria-label="Set priority"
-              value=""
-              onChange={(e) => e.target.value && setToken("priority", `!${e.target.value}`)}
-              className="h-6 rounded-full border border-dashed border-border bg-transparent px-2 text-xs text-fg-2 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <option value="">{parsed.priority === null ? "+ Priority" : "Priority…"}</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-              <option value="none">None</option>
-            </select>
-            {lists.length > 0 && (
-              <select
-                aria-label="Set list"
-                value=""
-                onChange={(e) => e.target.value && setToken("list", `~${e.target.value.replace(/\s+/g, "")}`)}
-                className="h-6 max-w-32 rounded-full border border-dashed border-border bg-transparent px-2 text-xs text-fg-2 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <option value="">{parsed.listName === null ? "+ List" : "List…"}</option>
-                {lists.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            )}
+            {!parsed.chips.some((c) => c.kind === "priority") && picker("priority", null)}
+            {lists.length > 0 && !parsed.chips.some((c) => c.kind === "list") && picker("list", null)}
             <button
               type="button"
               onClick={() => {
