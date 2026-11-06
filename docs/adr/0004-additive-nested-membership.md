@@ -1,0 +1,3 @@
+# Share membership is additive down the folder tree
+
+A list inside a shared folder can have members of its own, so a person can join only the API list of a shared "Momentum" folder without seeing the folder's other lists. Access to a list is the union of its direct members and the members of every shared folder above it. Permissions only add up: a folder member can't be hidden from a list inside that folder. We considered a single membership source per share, which is simpler to reason about and to secure, but it forces people to see lists they don't need. Every access check, both row-level security and the client's own filtering, has to walk the folder chain (at most 3 levels).

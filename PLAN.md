@@ -348,3 +348,101 @@ D78–D81 are merged on `main` and tested (241 frontend tests, 12 Rust tests). I
 4. Bump to 0.7.0: package.json, package-lock.json (first 2 occurrences), src-tauri/tauri.conf.json, src-tauri/Cargo.toml; `cargo check` refreshes Cargo.lock.
 5. With the user's OK: `git push origin main`, then `git tag v0.7.0 && git push origin v0.7.0`. v0.6.0 stays untagged (D82).
 6. Watch the release workflow. macOS and Linux have never built `sherpa-onnx`/`cpal` (Linux needs `libasound2-dev`, already added). Fix and re-tag if needed. The user publishes the draft.
+
+## Online, simplification and UI redo (planning, 2026-11-06)
+
+Grilled in rounds; ADRs in `docs/adr/`.
+- **D104: Order of work.** (A) simplification + UI redo together, (B) accounts + sync, (C) list collaboration, (D) friends + leaderboards. Each ships as its own release. Mobile follows D.
+- **D105: Local-first, accounts optional** (ADR 0001). Replaces the "no network" rule; online means sync between installed apps, and the web client is deferred until after mobile.
+- **D106: Supabase hosted** (ADR 0002). **D107: Mobile is Tauri 2 mobile** (ADR 0003); the sync client is TypeScript.
+- **D108: Pricing follows competitor research** (pending); attachment storage is capped per user from day one.
+- **D109: Privacy is standard, not E2EE.** TLS, encryption at rest, a privacy policy, account deletion (removes all server data; local data stays) and data export. Leaderboards see aggregate numbers only, never task content.
+- **D110: 13+ minimum,** stated at sign-up with Terms and a privacy policy. No per-region logic.
+- **D111: Simplification.** Countdown becomes a calendar item and its page goes. Statistics and trophies merge into **Progress** (friends and leaderboards land there later). Matrix becomes a view mode, not a page. Logbook becomes a Completed filter. Of the layouts, Classic/Flat go and **the bar stays, placeable top or bottom**. List layouts stay. Habits, Focus, voice and the mini window stay.
+- **D112: Help instead of a longer tour.** A searchable Help section in Settings (commands, shortcuts, quick-add tokens), a dismissable Getting started checklist, teaching empty states, and a tour cut to 4–5 slides. No analytics; ask the users who complained instead.
+- **D113: UI redo is designed before it's coded.** A visual brief (2–3 reference apps, 3 adjectives), then mocks of Today, a list and Progress in Claude Design, approved before implementation. Background images get cut back or removed.
+- **D114: Two layouts: sidebar, and a bar placed top or bottom.** Classic, Flat and Dock fold into these.
+- **D115: Field-level merge, ordered by the server.** Clients push patches of changed fields; the server applies them in arrival order and assigns versions; clients pull changes since a cursor. Device clocks never order edits. Hand-rolled on Supabase (PowerSync/ElectricSQL have no Tauri SQLite client).
+- **D116: Detached occurrences have deterministic ids** derived from (series id, original start), so two devices completing the same occurrence write the same row.
+- **D117: Count-goal check-ins sync as summed increments.** Amount and once goals use last-writer-wins.
+- **D118: First sign-in always merges.** Inboxes merge, tags merge by case-insensitive name, same-named lists/folders/habits stay separate; a backup is taken first and a summary shown after.
+- **D119: Sign-out asks to keep a local copy or remove the data.** Deleting the account elsewhere triggers the same prompt on each device's next sync.
+- **D120: Synced vs per-device.** All user data, per-user settings and celebrations sync. Layout, bar position, density, font size, window bounds, hotkeys, mic, voice model, notification toggle and mini window stay per device. Reminders fire on every running device; dismiss/snooze syncs. A running focus timer doesn't sync, only the finished session.
+- **D121: Soft deletes everywhere synced.** Trash empties after 30 days; the server keeps tombstones 90 days; a device offline longer re-downloads fully and keeps its unsynced edits as new items.
+- **D122: Import adds, Restore replaces.** Import gives backup items fresh ids. Restore replaces the account on every device, behind a typed confirmation and a server snapshot.
+- **D123: Old clients stop syncing, not working.** The server records the minimum client schema; older clients prompt to update. Unknown fields are never dropped server-side.
+- **D124: One account at a time per install; switching is sign out + sign in.** A kept copy remembers which account it came from; signing in to a *different* account asks "Add this data to <account>" or "Remove it", with Remove as the default, so work data never silently lands in a personal account.
+- **D125: Free core plus an optional Supporter subscription** (~$4/mo, ~$30/yr: more storage, more collaborators, extra themes and trophy looks). Launch on Supabase Pro. AI features are coming, so pricing has to leave room for metered, per-use AI costs (AI can't be free and unlimited).
+- **D126: Free limits.** Images 10 MB each, 200 MB total; 3 members per share free, 25 with Supporter; enforced server-side from day one; payments ship after phase D.
+- **D127: Sign-in is email one-time code, Google or Apple.** No passwords. Desktop OAuth runs in the system browser and returns via a `momentum://` deep link or a loopback port.
+- **D128: Identity.** A unique @handle (3–20 of `a-z0-9_`, reserved and profane words blocked, changeable every 30 days), a display name, and initials or a preset avatar. No photo uploads. Email is never shown.
+- **D129: Lists and folders can be shared** (e.g. a "Momentum" folder holding UI, Backend and API lists). Habits, events and countdowns can't. Folder-sharing edge cases are being settled in round 4.
+- **D130: Roles are Owner, Editor and Viewer.**
+- **D131: Invites** go by @handle (must accept) or by a revocable link that expires in 7 days; they're rate-limited, and blocked users can't invite.
+- **D132: Shared vs personal on shared tasks.** Shared: title, note, status, priority, schedule, recurrence, section, checklist, subtasks, attachments, assignee. Personal: reminders, tags, pinned, focus time, sidebar placement.
+- **D133: Optional assignee.** Today/Upcoming show shared tasks assigned to me or unassigned.
+- **D134: Credit goes to whoever completed the task** (`completed_by`).
+- **D135: Moving into a share exposes the task and asks to confirm the first time; moving out removes it for everyone** (only the creator or the owner can); subtasks follow their parent.
+- **D136: Leaving and removal.** A member who leaves loses the share from their devices, with no copy, and their assignments clear. An owner must transfer ownership before leaving, or the share is deleted for everyone. When an owner deletes their account, ownership goes to the longest-standing member. A deleted member's completions show as "Deleted user".
+- **D137: Images count against the uploader's quota,** moving to the owner's when the uploader deletes their account.
+- **D138: Activity feed and an unread dot on shares;** no push for collaborator edits until mobile.
+- **D139: Lists inside a shared folder can have their own extra members** (an API dev joins only the API list). This supersedes the single-membership proposal. Access is additive: a list's members are its own direct members plus the members of every shared folder above it. Round 5 confirms the edge cases.
+- **D140: Shared folders sit at the top level of each member's sidebar.** Shared lists can go in personal folders.
+- **D141: Moving into or out of shared folders.** Moving a personal list in shares it, with a confirmation. Only the owner can move a list out. Personal folders can't be moved into a shared folder.
+- **D142: Viewers** can't edit, complete or be assigned. They do get the personal layer (reminders, tags, pins, focus), and they count toward the member cap.
+- **D143: AI is opt-in and only acts on what the user triggers.** The "nothing leaves your device" claim is retired (privacy copy changes with phase B).
+- **D144: AI runs through a Supabase Edge Function** that holds the key and meters usage per account. Nothing AI-specific is built yet beyond room in the schema for usage counts.
+- **D145: Friendship is mutual,** by @handle or invite link, and rate-limited. **D146: Leaderboards are friends only.**
+- **D147: Weekly score** resets Monday in the viewer's timezone: +1 per task completed (≤20/day, task ≥10 min old), +1 per 5 focus minutes (≤8 h/day), +2 per habit check-in, +10 per perfect day. Lifetime totals stay on trophies.
+- **D148: The server computes scores** from synced rows: completions count at server-receipt time, focus sessions can't overlap or exceed 24 h, and the caps are applied server-side.
+- **D149: Friends see** handle, display name, avatar, weekly score, streak, trophy levels and perfect days, never task/list/habit names. Two switches: hide from leaderboards, hide profile stats.
+- **D150: Block and report.** Block ends the friendship, cancels requests, stops invites and hides you; shared memberships are unaffected. Reports go to an admin table.
+- **D151: Social notifications.** An in-app badge on Progress; native notifications only for friend requests and invites; "overtaken" is off by default.
+- **D152: Local-only users** see "Sign in to add friends" on Progress; everything else is unchanged.
+- **D153: Nested membership rules.** Roles add up and the highest one wins, so a folder member can't be hidden from a list inside it. List-only members see the list on its own ("in Momentum · @owner"). The folder owner owns everything inside it and alone manages membership and moves lists out. The member cap counts distinct people across the whole tree. Losing access clears that person's assignments and their personal layer. A list that already has direct members can move into a shared folder only if the same person owns both, and the confirmation names everyone who gains access (this amends D141).
+- **D154: RLS is the only gate.** It's on for every table, through one `can_access(list, role)` function. The client ships only the anon key; the service key lives only in Edge Functions. A CI suite runs as owner, editor, viewer, list-only member, stranger and blocked user against a local Supabase.
+- **D155: Postgres mirrors the domain rules** with constraints and triggers: field limits (title ≤500 characters, note ≤100 KB), enums, subtask depth 5, folder depth 3, immutable owner/created_by/completed_by, and no writes from viewers.
+- **D156: Collaborator content is untrusted.** No raw HTML; links open in the system browser; notes render only `attachment:` images (no remote images); SVG is refused; image type is checked from the file's bytes; photo metadata is stripped before upload.
+- **D157: Attachments live in a private bucket** under `share/<id>/` or `user/<id>/`, served by signed URLs that expire after 1 hour, with the same RLS function as the tables.
+- **D158: Sign-in security.** Refresh tokens are kept in the OS keychain. OAuth uses PKCE. There's "Sign out everywhere" and a list of devices. The local SQLite stays unencrypted (protected by the OS account), and the privacy policy says so.
+- **D159: Rate and size limits.** Invites and friend requests ≤20/day; a sync push ≤500 rows and ≤1 MB; Edge Functions are limited per account. Hitting a limit pauses sync and never drops data.
+- **D160: Account deletion** signs out every device at once, then permanently deletes after a 7-day grace period; signing in during the grace period cancels it. Export reuses the zip backup.
+- **D161: Server backups** are Supabase Pro's daily backups (7 days). Point-in-time recovery waits for paying users.
+- **D162: Sync is proven by a simulation test.** 2–4 clients against a local Supabase do randomized offline edits, deletes, moves, membership changes and reconnects. The test asserts convergence and the permission rules. Failing seeds become fixed regression cases.
+- **D163: Countdowns become calendar items.** "Until" countdowns become all-day events with a Show countdown switch; repeats become recurrence rules. "Since" countdowns become past all-day events shown as "since". Pinned ones are chips on Today. Migrated automatically and explained in What's new.
+- **D164: One view-mode switch, List | Board | Matrix | Timeline,** on every task view, scoped to that view. The mini window keeps its global Matrix tab. No "All tasks" page.
+- **D165: Logbook becomes a Show completed toggle** plus an `is:done` search filter.
+- **D166: Progress, top to bottom:** weekly score, streaks/perfect days, trophies, charts, then friends and leaderboard (phase D). Share card sits in the header.
+- **D167: Help is generated** from the command/shortcut/token registry; a test fails when a command has no help text.
+- **D168: Getting started** is a dismissable card on Today whose items tick themselves when done and sync. It must also show the AI and other features (round 7 settles how).
+- **D169: The tour is 4 slides** (quick-add, views/matrix, habits/focus, Progress + palette + Help). Upgraders get What's new only. Linked to D168.
+- **D170: Settings sections:** Account, General, Appearance, Notifications & sounds, Voice, Data, Help, About & updates. The tag manager moves to the sidebar's tag menu.
+- **D171: Background images are removed** (D79/D84 reversed); affected users are told in What's new.
+- **D172: Visual brief.** References: Things 3, Linear, TickTick. Calm, precise, warm. A curated accent palette (~10, no free picker), emoji only from user content, one radius scale, one shadow level, motion only on state change, short celebrations, 44px touch targets and one narrow breakpoint.
+- **D173: The redesign ships all at once.** Tokens and primitives come first, then screens one by one on a branch, released together with refreshed screenshots and What's new.
+- **D174: Versions.** Phase A ships as v1.0.0, B as v1.1, C as v1.2, D as v1.3.
+- **D175: Old voice commands map to the new places.** Stats → Progress, matrix → Matrix mode, countdown → Calendar, logbook → Show completed.
+- **D176: One feature registry drives Help, Getting started and the tour.** Each entry has a title, a how-to line, a done-detector, the version it shipped in, and its requirements (signed in, AI on).
+- **D177: Getting started has 6 core items plus a collapsible "More to try"** (voice, mini window, bulk import, .ics, Share card, Board/Timeline, habit goals, countdowns, and later sharing, friends and AI).
+- **D178: Features added later appear as "New:" items** at the top of Getting started next to What's new. The tour gets at most one slide per major phase, 6 slides in all.
+- **D179: Before opt-in, AI shows only as "Turn on AI features",** which explains what is sent and to whom and is the opt-in switch itself.
+
+
+- **D180: Positioning.** Headline: "the planner you do with friends". Supporting line: "capture anything instantly, even offline". README, store copy, the tour and the Supporter pitch lead with these.
+- **D181: Social ships before sharing** (amends D104 and D174). v1.1 is accounts and sync, v1.2 is friends and leaderboards, v1.3 is sharing.
+- **D182: v1.0's Progress design already has a place for friends and the leaderboard,** shown as "Sign in to add friends" until v1.2.
+- **D183: Not competing on** team project management or time-blocking calendars. Sharing stays small-group, with no workspaces, admins or per-seat billing.
+- **D184: Inviting friends is effortless.** An invite link turns into a friendship at sign-up; the Share card carries the @handle and the link; new users' Getting started includes "Add a friend".
+
+
+- **D185: The app gets a new name,** because the Momentum domain is too expensive. The name is still to be chosen (round 8).
+- **D186: Terms and Privacy are hosted on GitHub** (Pages, from this repo) and linked from sign-up, Settings → About and the store listings.
+- **D187: (superseded by D190)** The Supporter tier is paid through Stripe.
+
+
+- **D188: The rename includes the bundle identifier.** Only testers use the app so far, so a new identifier (and data folder) is acceptable. On first launch, if the new data folder is empty and `%APPDATA%\com.momentum.planner` exists, its database, attachments and backups are copied over. Testers uninstall the old app by hand, because a new identifier installs side by side. The name is picked during the build; the domain will be `get<name>.app` or `.com`.
+- **D189: Invite links use GitHub Pages until the domain exists:** `<user>.github.io/<repo>/i/#<code>`, opening `<name>://`. The code stays in the fragment, so it never reaches server logs. Once the domain exists, the old page redirects to it.
+- **D190: Supporter is sold through a merchant of record** (Paddle or Lemon Squeezy, ~5% + fee), which handles VAT and sales tax. Stripe was dropped because it leaves tax with us. Flow: hosted checkout in the system browser → signed webhook to a Supabase Edge Function → `profiles.supporter_until`. Managing and cancelling use the provider's customer portal. The app never sees card details and unlocks only on the server's word.
+- **D191: Mobile billing.** The store's in-app billing is used where required and a link out where allowed. Every source sets the same `supporter_until`. The merchant of record doesn't change the app-store rules.
+
+Planning frontier closed 2026-11-06. Open until build: the product name (D185/D188).

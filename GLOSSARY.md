@@ -28,6 +28,10 @@ _Avoid_: Description, body, comment
 An image file owned by exactly one task and referenced from that task's note.
 _Avoid_: Upload, media, embed
 
+**Countdown**:
+An all-day calendar event shown as the number of days until it, or since it.
+_Avoid_: Timer, deadline
+
 ## Prioritising
 
 **Quadrant**:
@@ -93,16 +97,30 @@ _Avoid_: Engine, Parakeet (in UI copy)
 ## Appearance
 
 **Layout**:
-The arrangement of the navigation around the content: Classic, Flat, Top bar or Dock.
+The arrangement of the navigation around the content: the sidebar or the bar.
 _Avoid_: Theme, mode
 
-**Dock**:
-The layout whose navigation is a floating bar at the bottom of the window.
-_Avoid_: Bottom bar, taskbar
+**Bar**:
+The layout whose navigation is one horizontal strip, placed at the top or the bottom of the window.
+_Avoid_: Dock, taskbar, top bar
 
-**Background**:
-A user-chosen image or preset gradient shown behind the content area.
-_Avoid_: Wallpaper, theme
+**View mode**:
+How one task view presents its tasks: list, board, matrix or timeline.
+_Avoid_: Layout, view type
+
+## Learning the app
+
+**Getting started**:
+The dismissable set of first things to try, each of which ticks itself when the user actually does it.
+_Avoid_: Checklist (that is part of a task), onboarding, tutorial
+
+**Tour**:
+The few slides shown once to a new user that introduce the main ideas.
+_Avoid_: Walkthrough, tutorial
+
+**Help**:
+The searchable reference of every command, shortcut and token, inside Settings.
+_Avoid_: Docs, manual, cheat sheet
 
 ## Progress
 
@@ -111,12 +129,76 @@ A kind of achievement measured by one count (tasks done, focus hours, habit stre
 _Avoid_: Badge, award
 
 **Share card**:
-An image summarising the user's progress over a week or a month, made of numbers and charts only, never task or list names.
+An image summarising the user's progress over a week or a month, made of numbers and charts only, never task or list names; when signed in it carries the user's handle and invite link.
 _Avoid_: Report, summary, stats image
 
 **Level**:
 One rung of a trophy's ladder, reached when its count passes a threshold; each level has its own look.
 _Avoid_: Tier, milestone, rank
+
+**Weekly score**:
+The points an account earns from Monday to Sunday by completing tasks, focusing, checking in habits and having perfect days, which is what the leaderboard ranks.
+_Avoid_: XP, points total, rank
+
+**Friend**:
+Another account that has accepted a mutual friend request and so can see your profile stats and weekly score.
+_Avoid_: Follower, contact, buddy
+
+**Invite link**:
+A link that makes whoever opens it and signs in a friend of its sender, or a member of a share, depending on what it was made for.
+_Avoid_: Referral link, share link
+
+**Leaderboard**:
+Your friends and you, ordered by weekly score.
+_Avoid_: Ranking, global board
+
+**Progress**:
+The one place that shows the user's statistics, trophies and, once social exists, friends and leaderboards.
+_Avoid_: Stats page, achievements page
+
+## Accounts
+
+**Account**:
+A person's identity on the Momentum server, which their devices sync through; using the app without one is fully supported.
+_Avoid_: User (in UI copy), profile, login
+
+**Sign-in**:
+The state of a device being connected to an account; signing out disconnects it.
+_Avoid_: Session (that is a focus-timer run), login
+
+**Sync**:
+Keeping an account's data the same across its signed-in devices.
+_Avoid_: Backup, cloud save
+
+**Handle**:
+An account's unique public name, written with a leading @, which friends and collaborators use to find it.
+_Avoid_: Username, user id, tag
+
+## Sharing
+
+**Share**:
+A list or folder that more than one account can see, together with its members; a list inside a shared folder is seen by the folder's members and may also have members of its own.
+_Avoid_: Workspace, project, team
+
+**Member**:
+An account that belongs to a share, in exactly one role: owner, editor or viewer.
+_Avoid_: Collaborator (in UI copy), participant, guest
+
+**Owner**:
+The one member who can invite and remove members, change roles, and rename or delete the share.
+_Avoid_: Admin, creator
+
+**Editor**:
+A member who can change everything inside a share but not its membership.
+_Avoid_: Collaborator, contributor
+
+**Viewer**:
+A member who can see a share but not change it.
+_Avoid_: Read-only member, guest
+
+**Assignee**:
+The one member, if any, responsible for a task in a share.
+_Avoid_: Owner (of a task), responsible
 
 **Missed updates**:
 Every CHANGELOG section newer than the last version the app showed, walked through together in What's new after an update (PLAN D98).
