@@ -10,7 +10,7 @@ One spec per release, built from the decisions in `PLAN.md` (D104–D184) and th
 | v1.3 | [Sharing](v1.3-sharing.md) | v1.1, v1.2 |
 
 Open items:
-- The product name and the `get<name>.app/.com` domain (D185, D188), chosen during the v1.0 build. The new identifier and the one-time data copy from `com.momentum.planner` ship in v1.0.
+- The product name and the `get<name>.app/.com` domain (D185, D188), chosen during the v1.0 build. Testers move their data by zip export and import.
 - Paddle or Lemon Squeezy (D190), chosen when payments are built, after v1.2.
 - Apple developer enrolment for Sign in with Apple.
 - AI features (D143–D144, D179).
