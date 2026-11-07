@@ -61,7 +61,7 @@ export const SHORTCUTS: [section: string, keys: string, what: string][] = [
   ["Go to", "G I / G T / G U", "Inbox / Today / Upcoming"],
   ["Go to", "G C / G M", "Calendar / Matrix"],
   ["Go to", "G H / G F", "Habits / Focus"],
-  ["Go to", "G D / G S", "Countdown / Statistics"],
+  ["Go to", "G S", "Statistics"],
   ["Go to", "G L", "Logbook"],
   ["Tasks", "↑ ↓  or  J K", "Move between tasks"],
   ["Tasks", "Enter", "Open focused task"],

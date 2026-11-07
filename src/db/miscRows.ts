@@ -1,26 +1,38 @@
-/* Countdown and focus-session row mapping (pure; shared by the stores and backup import). */
-import { COUNTDOWN_REPEATS, type Countdown } from "../domain/countdown";
+/* Legacy countdown and focus-session row mapping (pure; shared by the stores and backup import). */
 import { isInstant, isLocalDate } from "../domain/dates";
 import type { FocusSession } from "../domain/focus";
-import { oneOf } from "../domain/settings";
+import type { CalendarEvent } from "../domain/types";
 import type { Row } from "./rows";
 
-export const parseCountdown = (r: Row): Countdown | null =>
-  typeof r.id === "string" && typeof r.title === "string" && isLocalDate(r.date)
-    ? {
-        id: r.id,
-        title: r.title,
-        date: r.date,
-        direction: r.direction === "since" ? "since" : "until",
-        repeat: oneOf(COUNTDOWN_REPEATS, r.repeat) ? r.repeat : "none",
-        icon: typeof r.emoji === "string" && r.emoji ? r.emoji : "hourglass",
-        color: typeof r.color === "string" && /^#[0-9a-f]{6}$/i.test(r.color) ? r.color : "#5b5bd6",
-        pinned: r.pinned === 1,
-        createdAt: isInstant(r.created_at) ? r.created_at : new Date().toISOString(),
-      }
-    : null;
+const EMOJI_DEFAULT = "⏳";
 
-export const countdownRow = (c: Countdown): Row => ({ id: c.id, title: c.title, date: c.date, direction: c.direction, repeat: c.repeat, emoji: c.icon, color: c.color, pinned: c.pinned ? 1 : 0, created_at: c.createdAt });
+/**
+ * A row of the pre-v1.0 `countdowns` table (still found in old backups) as the all-day event it
+ * became (D163). Same rules as migration 0008: a picked emoji prefixes the title, icon keys are dropped.
+ */
+export function parseLegacyCountdown(r: Row): CalendarEvent | null {
+  if (typeof r.id !== "string" || typeof r.title !== "string" || !isLocalDate(r.date)) return null;
+  const icon = typeof r.emoji === "string" ? r.emoji : "";
+  const emoji = icon && icon !== EMOJI_DEFAULT && /[^a-z0-9-]/.test(icon);
+  const at = isInstant(r.created_at) ? r.created_at : new Date().toISOString();
+  const rule = r.repeat === "monthly" ? "FREQ=MONTHLY" : r.repeat === "yearly" ? "FREQ=YEARLY" : null;
+  return {
+    id: r.id,
+    title: emoji ? `${icon} ${r.title}` : r.title,
+    notes: "",
+    schedule: { kind: "day", date: r.date },
+    spanDays: 1,
+    color: typeof r.color === "string" && /^#[0-9a-f]{6}$/i.test(r.color) ? r.color : null,
+    recurrence: rule ? { rule, exdates: [] } : null,
+    recurrenceParentId: null,
+    source: "local",
+    countdown: r.direction === "since" ? "since" : "until",
+    pinned: r.pinned === 1,
+    createdAt: at,
+    updatedAt: at,
+    deletedAt: null,
+  };
+}
 
 export const parseSession = (r: Row): FocusSession | null =>
   typeof r.id === "string" && (r.mode === "pomodoro" || r.mode === "stopwatch") && isInstant(r.start_at) && isInstant(r.end_at) && typeof r.seconds === "number"

@@ -64,6 +64,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0007_folder_parent.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 8,
+            description: "countdowns become calendar events",
+            sql: include_str!("../migrations/0008_countdowns_to_events.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

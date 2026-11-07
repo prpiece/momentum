@@ -186,12 +186,6 @@ const STEPS: Step[] = [
     ),
   },
   {
-    title: "Countdowns",
-    target: "main",
-    view: "countdown",
-    body: <p>Count down to exams, trips and deadlines, so you always know how many days are left.</p>,
-  },
-  {
     title: "Statistics and trophies",
     target: "main",
     view: "stats",

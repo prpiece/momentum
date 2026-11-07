@@ -68,6 +68,8 @@ describe("event rows", () => {
     schedule: { kind: "day", date: "2026-11-02" },
     spanDays: 3,
     color: "#2f6fed",
+    countdown: "until",
+    pinned: true,
     recurrence: null,
     recurrenceParentId: null,
     source: "ics",

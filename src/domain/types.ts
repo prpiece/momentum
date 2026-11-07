@@ -7,7 +7,7 @@ export type Instant = string;
 export const SMART_LISTS = ["inbox", "today", "upcoming", "logbook"] as const;
 export type SmartListId = (typeof SMART_LISTS)[number];
 
-export const MODULE_VIEWS = ["calendar", "matrix", "habits", "focus", "countdown", "stats", "settings"] as const;
+export const MODULE_VIEWS = ["calendar", "matrix", "habits", "focus", "stats", "settings"] as const;
 export type ModuleView = (typeof MODULE_VIEWS)[number];
 
 /** Every top-level screen. */
@@ -104,6 +104,9 @@ export type Activity = { id: number; taskId: string; at: Instant; kind: Activity
 
 // ---------- Calendar ----------
 
+export const COUNTDOWN_MODES = ["until", "since"] as const;
+export type CountdownMode = (typeof COUNTDOWN_MODES)[number];
+
 /** A standalone calendar entry. Not a task: no status, list or priority. */
 export type CalendarEvent = {
   id: string;
@@ -117,6 +120,10 @@ export type CalendarEvent = {
   recurrenceParentId: string | null;
   /** `ics` events came from a one-time .ics import and are read-only. */
   source: "local" | "ics";
+  /** All-day events only: shown as days until or since the date (D163). */
+  countdown: CountdownMode | null;
+  /** A pinned countdown shows as a chip at the top of Today. */
+  pinned: boolean;
   createdAt: Instant;
   updatedAt: Instant;
   deletedAt: Instant | null;

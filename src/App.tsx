@@ -10,7 +10,6 @@ import { onWriteError } from "./db/client";
 import type { ViewId } from "./domain/types";
 import { CalendarView } from "./features/calendar/CalendarView";
 import { EventDialog } from "./features/calendar/EventDialog";
-import { CountdownView } from "./features/countdown/CountdownView";
 import { FocusView } from "./features/focus/FocusView";
 import { HabitsView } from "./features/habits/HabitsView";
 import { MatrixView } from "./features/matrix/MatrixView";
@@ -42,7 +41,6 @@ function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "habits") return <HabitsView />;
   if (view === "stats") return <StatsView />;
   if (view === "focus") return <FocusView />;
-  if (view === "countdown") return <CountdownView />;
   if (spec) return <TaskView spec={spec} />;
   const nav = navFor(view);
   return (

@@ -67,6 +67,8 @@ export function parseIcs(text: string, color: string, now = new Date().toISOStri
       byId.set(id, {
         id,
         title: e.summary || "Untitled event",
+        countdown: null,
+        pinned: false,
         notes: [e.location, e.description].filter(Boolean).join("\n\n"),
         schedule,
         spanDays,

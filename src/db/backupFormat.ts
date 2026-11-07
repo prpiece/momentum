@@ -3,7 +3,6 @@
  * the same row parsers as loading from SQLite (one boundary, one set of rules), then repairs
  * dangling references so foreign keys can't fail halfway through a restore. Pure; unit-tested.
  */
-import type { Countdown } from "../domain/countdown";
 import type { FocusSession } from "../domain/focus";
 import type { Habit, HabitCheckin, HabitGroup } from "../domain/habits";
 import { isRecord, parseSettings } from "../domain/settings";
@@ -11,7 +10,7 @@ import { INBOX_ID, type Activity, type CalendarEvent, type Folder, type Section,
 import { parseCheckin, parseGroup, parseHabit } from "./habitRows";
 import { repairFolderParents } from "../domain/folders";
 import { parseActivity, parseAll, parseEvent, parseFolder, parseList, parseSection, parseTag, parseTask, type Row } from "./rows";
-import { parseCountdown, parseSession } from "./miscRows";
+import { parseLegacyCountdown, parseSession } from "./miscRows";
 
 export const BACKUP_FORMAT = 1;
 
@@ -28,7 +27,6 @@ export const BACKUP_TABLES = [
   "habit_groups",
   "habits",
   "habit_checkins",
-  "countdowns",
   "focus_sessions",
 ] as const;
 export type BackupTable = (typeof BACKUP_TABLES)[number];
@@ -47,13 +45,12 @@ export type Restored = {
   groups: HabitGroup[];
   habits: Habit[];
   checkins: HabitCheckin[];
-  countdowns: Countdown[];
   sessions: FocusSession[];
 };
 
 export type Validation = { ok: true; data: Restored; dropped: number } | { ok: false; error: string };
 
-const rowsOf = (tables: Record<string, unknown>, name: BackupTable): Row[] => {
+const rowsOf = (tables: Record<string, unknown>, name: BackupTable | "countdowns"): Row[] => {
   const v = tables[name];
   return Array.isArray(v) ? v.filter(isRecord) : [];
 };
@@ -64,7 +61,7 @@ export function validateBackup(raw: unknown): Validation {
   if (!isRecord(raw.tables)) return { ok: false, error: "The backup has no data." };
   const t = raw.tables;
   let total = 0;
-  const parse = <T,>(name: BackupTable, fn: (r: Row) => T | null): T[] => {
+  const parse = <T,>(name: BackupTable | "countdowns", fn: (r: Row) => T | null): T[] => {
     const rows = rowsOf(t, name);
     total += rows.length;
     return parseAll(rows, fn);
@@ -89,15 +86,15 @@ export function validateBackup(raw: unknown): Validation {
     tags: parse("tags", parseTag),
     tasks: parse("tasks", parseTask),
     activity: parse("task_activity", parseActivity),
-    events: parse("calendar_events", parseEvent),
+    // Backups from before v1.0 have a `countdowns` table; its rows become events (D163).
+    events: [...parse("calendar_events", parseEvent), ...parse("countdowns", parseLegacyCountdown)],
     groups: parse("habit_groups", parseGroup),
     habits: parse("habits", parseHabit),
     checkins: parse("habit_checkins", parseCheckin),
-    countdowns: parse("countdowns", parseCountdown),
     sessions: parse("focus_sessions", parseSession),
   };
   const repaired = repairReferences(data);
-  const count = (r: Restored) => (r.settings ? 1 : 0) + [r.folders, r.lists, r.sections, r.tags, r.tasks, r.activity, r.events, r.groups, r.habits, r.checkins, r.countdowns, r.sessions].reduce((n, a) => n + a.length, 0);
+  const count = (r: Restored) => (r.settings ? 1 : 0) + [r.folders, r.lists, r.sections, r.tags, r.tasks, r.activity, r.events, r.groups, r.habits, r.checkins, r.sessions].reduce((n, a) => n + a.length, 0);
   // Rows lost to validation or orphan cleanup (a re-created Inbox isn't counted as kept).
   const inboxAdded = repaired.lists.length - data.lists.length;
   return { ok: true, data: repaired, dropped: total - (count(repaired) - inboxAdded) };

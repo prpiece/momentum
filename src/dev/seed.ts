@@ -4,7 +4,6 @@
  * Never bundled into a code path that runs in release builds (gated on import.meta.env.DEV).
  */
 import { addDaysLocal, atLocalTime, fromLocalDate, timed, todayLocal } from "../domain/dates";
-import type { Countdown } from "../domain/countdown";
 import type { FocusSession } from "../domain/focus";
 import type { Habit, HabitCheckin, HabitGroup } from "../domain/habits";
 import type { HabitData } from "../stores/habits";
@@ -126,6 +125,8 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     recurrence: null,
     recurrenceParentId: null,
     source: "local",
+    countdown: null,
+    pinned: false,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -137,6 +138,10 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     event("Dentist", at(3, "15:00", 45), { color: "#0e8a85" }),
     event("Design review", at(2, "14:30", 60), { color: "#2f6fed" }),
     event("Long weekend", day(5), { spanDays: 3, color: "#d18a14" }),
+    event("Chem final exam", day(23), { color: "#8a4fd8", countdown: "until", pinned: true }),
+    event("Trip to Japan", day(74), { color: "#2f6fed", countdown: "until", pinned: true }),
+    event("Mum's birthday", { kind: "day", date: "1968" + d(65).slice(4) }, { color: "#d6457a", countdown: "until", recurrence: { rule: "FREQ=YEARLY", exdates: [] } }),
+    event("Started running", day(-45), { color: "#e1583f", countdown: "since" }),
   ];
   return { tasks, events, lists, folders, sections, tags };
 }
@@ -188,17 +193,6 @@ export function sampleHabits(today = todayLocal()): HabitData {
   }
   checkins.push({ habitId: habits[0].id, date: today, value: 3, note: "", mood: null });
   return { habits, groups, checkins };
-}
-
-export function sampleCountdowns(today = todayLocal()): Countdown[] {
-  const now = new Date().toISOString();
-  const c = (title: string, date: string, p: Partial<Countdown> = {}): Countdown => ({ id: id(), title, date, direction: "until", repeat: "none", icon: "hourglass", color: "#5b5bd6", pinned: false, createdAt: now, ...p });
-  return [
-    c("Chem final exam", addDaysLocal(today, 23), { icon: "school", color: "#8a4fd8", pinned: true }),
-    c("Trip to Japan", addDaysLocal(today, 74), { icon: "plane", color: "#2f6fed" }),
-    c("Mum's birthday", "1968" + addDaysLocal(today, 65).slice(4), { icon: "cake", color: "#d6457a", repeat: "yearly" }),
-    c("Days since starting to run", addDaysLocal(today, -45), { icon: "run", color: "#e1583f", direction: "since" }),
-  ];
 }
 
 /** A week of focus sessions, some linked to sample tasks. */

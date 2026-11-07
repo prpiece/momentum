@@ -96,7 +96,7 @@ export function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /** Smart lists merged in D49; old ids in saved settings carry over. */
-const RENAMED_VIEWS: Record<string, ViewId> = { tomorrow: "upcoming", next7: "upcoming", completed: "logbook", wontdo: "logbook" };
+const RENAMED_VIEWS: Record<string, ViewId> = { tomorrow: "upcoming", next7: "upcoming", completed: "logbook", wontdo: "logbook", countdown: "calendar" };
 const renamed = (v: unknown): unknown => (typeof v === "string" && RENAMED_VIEWS[v]) || v;
 
 export function isViewId(v: unknown): v is ViewId {

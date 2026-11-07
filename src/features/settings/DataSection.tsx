@@ -36,7 +36,7 @@ export function DataSection() {
     const r = await readBackup(path);
     if (!r.ok) return toast(r.error);
     const d = r.data;
-    const summary = `${d.tasks.length} tasks, ${d.lists.length - 1} lists, ${d.events.length} events, ${d.habits.length} habits, ${d.countdowns.length} countdowns${r.dropped ? ` (${r.dropped} unreadable rows skipped)` : ""}.`;
+    const summary = `${d.tasks.length} tasks, ${d.lists.length - 1} lists, ${d.events.length} events, ${d.habits.length} habits${r.dropped ? ` (${r.dropped} unreadable rows skipped)` : ""}.`;
     if (!(await confirm("Replace all data with this backup?", `${summary} Everything currently in Momentum is replaced. A copy of the current database is saved first.`, "Replace"))) return;
     const snapshot = await restoreBackup(d, path);
     toast(`Backup restored. Previous data saved to ${snapshot}`);

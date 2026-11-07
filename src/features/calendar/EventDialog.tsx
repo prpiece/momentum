@@ -1,10 +1,11 @@
-import { Check, Trash2 } from "lucide-react";
+import { Check, Pin, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button, Dialog } from "../../components/ui/Dialog";
+import { Segmented } from "../../components/ui/Segmented";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, hhmm, scheduleDate, timed, todayLocal } from "../../domain/dates";
 import { REPEAT_PRESETS, describeRule, scheduleForKey } from "../../domain/recurrence";
-import type { CalendarEvent, Recurrence, Schedule } from "../../domain/types";
+import type { CalendarEvent, CountdownMode, Recurrence, Schedule } from "../../domain/types";
 import { editEventOccurrence, updateEvent, useData } from "../../stores/data";
 import { deleteEvent } from "./calendarActions";
 import { askScope, closeEvent, useUi } from "../../stores/ui";
@@ -30,6 +31,8 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
   const [start, setStart] = useState(shown.kind === "timed" ? hhmm(new Date(shown.start)) : "09:00");
   const [minutes, setMinutes] = useState(durationMinutes(shown) ?? 60);
   const [rule, setRule] = useState(event.recurrence?.rule ?? "");
+  const [countdown, setCountdown] = useState<CountdownMode | "off">(event.countdown ?? "off");
+  const [pinned, setPinned] = useState(event.pinned);
 
   const save = async () => {
     const schedule: Schedule = allDay ? { kind: "day", date } : timed(atLocalTime(date, start), minutes);
@@ -39,6 +42,9 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
       notes,
       color,
       spanDays: allDay ? Math.max(1, daysBetween(date, endDate) + 1) : 1,
+      // Countdowns are all-day only (D163).
+      countdown: allDay && countdown !== "off" ? countdown : null,
+      pinned: allDay && countdown !== "off" && pinned,
     };
     const timingChanged = JSON.stringify(schedule) !== JSON.stringify(shown);
     if (event.recurrence && occurrenceKey && timingChanged && rule === event.recurrence.rule) {
@@ -105,6 +111,29 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
           ))}
           {rule && !REPEAT_PRESETS.some((p) => p.rule === rule) && <option value={rule}>{describeRule(rule)}</option>}
         </select>
+
+        {allDay && (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-fg-2">Show countdown</span>
+            <Segmented
+              name="countdown"
+              label="Show countdown"
+              value={countdown}
+              onChange={setCountdown}
+              options={[
+                { value: "off", label: "Off" },
+                { value: "until", label: "Days until" },
+                { value: "since", label: "Days since" },
+              ]}
+            />
+            {countdown !== "off" && (
+              <label className="flex items-center gap-1.5 text-sm">
+                <input type="checkbox" checked={pinned} disabled={ro} onChange={(e) => setPinned(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+                <Pin size={14} /> Pin to Today
+              </label>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2" role="group" aria-label="Color">
           {ACCENT_PRESETS.map((p) => (

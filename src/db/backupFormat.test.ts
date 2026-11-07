@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { sampleCountdowns, sampleFocus, sampleHabits, sampleWorkspace } from "../dev/seed";
+import { sampleFocus, sampleHabits, sampleWorkspace } from "../dev/seed";
 import { DEFAULT_SETTINGS } from "../domain/settings";
 import { BACKUP_FORMAT, validateBackup, type BackupFile } from "./backupFormat";
 import { habitToRow } from "./habitRows";
-import { countdownRow, sessionRow } from "./miscRows";
+import { sessionRow } from "./miscRows";
 import { eventToRow, folderToRow, listToRow, sectionToRow, tagToRow, taskToRow } from "./rows";
 
 function file(): BackupFile {
@@ -26,7 +26,6 @@ function file(): BackupFile {
       habit_groups: h.groups.map((g) => ({ id: g.id, name: g.name, sort_order: g.sortOrder })),
       habits: h.habits.map(habitToRow),
       habit_checkins: h.checkins.map((c) => ({ habit_id: c.habitId, date: c.date, value: c.value, note: c.note, mood: c.mood })),
-      countdowns: sampleCountdowns("2026-10-25").map(countdownRow),
       focus_sessions: sampleFocus(ws.tasks, "2026-10-25").map(sessionRow),
     },
   };
@@ -68,5 +67,16 @@ describe("validateBackup", () => {
     expect(r.data.lists.some((l) => l.id === "inbox")).toBe(true);
     expect(r.data.checkins.some((c) => c.habitId === "ghost")).toBe(false);
     expect(r.dropped).toBe(2); // the id-less task and the orphan check-in
+  });
+});
+
+describe("pre-v1.0 backups", () => {
+  it("turn countdowns into all-day events (D163)", () => {
+    const f = file();
+    const tables = { ...f.tables, countdowns: [{ id: "c1", title: "Trip", date: "2026-12-25", direction: "until", repeat: "yearly", emoji: "✈️", color: "#2f6fed", pinned: 1, created_at: "2026-01-01T00:00:00.000Z" }] };
+    const r = validateBackup(JSON.parse(JSON.stringify({ ...f, tables })));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.dropped).toBe(0);
+    expect(r.data.events.find((e) => e.id === "c1")).toMatchObject({ title: "✈️ Trip", schedule: { kind: "day", date: "2026-12-25" }, countdown: "until", pinned: true, recurrence: { rule: "FREQ=YEARLY" } });
   });
 });

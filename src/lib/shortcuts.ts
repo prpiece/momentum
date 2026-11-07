@@ -34,7 +34,6 @@ export const GO: Record<string, ViewId> = {
   m: "matrix",
   h: "habits",
   f: "focus",
-  d: "countdown",
   s: "stats",
   ",": "settings",
 };

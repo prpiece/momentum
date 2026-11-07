@@ -12,6 +12,7 @@ import { useSettings } from "../../stores/settings";
 import { go, setImport, useUi } from "../../stores/ui";
 import { TodayHabits } from "../habits/TodayHabits";
 import { TodayStreak } from "../celebrate/TodayStreak";
+import { CountdownChips } from "../calendar/CountdownChips";
 import { BulkBar } from "./BulkBar";
 import { FilterBar } from "./FilterBar";
 import { KanbanView } from "./KanbanView";
@@ -122,6 +123,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
           </ListDialogButton>
         )}
       </div>
+      {spec.id === "today" && <CountdownChips />}
 
       {spec.canAdd && layout !== "kanban" && (
         <div data-tour="quickadd" className="px-4 pb-2">

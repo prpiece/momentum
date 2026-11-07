@@ -336,6 +336,8 @@ export function addEvent(input: NewEvent): CalendarEvent {
     recurrence: null,
     recurrenceParentId: null,
     source: "local",
+    countdown: null,
+    pinned: false,
     deletedAt: null,
     ...input,
     id: uid(),

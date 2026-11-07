@@ -5,7 +5,6 @@ import {
   CalendarRange,
   CircleCheckBig,
   Grid2x2,
-  Hourglass,
   Inbox,
   type LucideIcon,
   Settings,
@@ -30,7 +29,6 @@ export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
   { id: "matrix", label: "Matrix", icon: Grid2x2 },
   { id: "habits", label: "Habits", icon: Target },
   { id: "focus", label: "Focus", icon: AlarmClock },
-  { id: "countdown", label: "Countdown", icon: Hourglass },
   { id: "stats", label: "Statistics", icon: ChartColumn },
 ];
 

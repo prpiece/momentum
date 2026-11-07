@@ -14,7 +14,6 @@ import { ACCENT_PRESETS } from "../../domain/color";
 import { ZOOMS, type Settings, type ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
 import { hydrate } from "../../stores/data";
-import { hydrateCountdowns, saveCountdowns } from "../../stores/countdowns";
 import { hydrateFocus, saveSessions } from "../../stores/focus";
 import { hydrateHabits, saveHabitData } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
@@ -304,9 +303,8 @@ export function SettingsView() {
                 const ws = seed.sampleWorkspace();
                 await saveWorkspace(ws);
                 await saveHabitData(seed.sampleHabits());
-                await saveCountdowns(seed.sampleCountdowns());
                 await saveSessions(seed.sampleFocus(ws.tasks));
-                await Promise.all([hydrate(), hydrateHabits(), hydrateCountdowns(), hydrateFocus()]);
+                await Promise.all([hydrate(), hydrateHabits(), hydrateFocus()]);
                 toast("Sample data loaded");
               }}
               className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover"

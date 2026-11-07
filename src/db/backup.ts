@@ -1,4 +1,3 @@
-import { hydrateCountdowns, saveCountdowns } from "../stores/countdowns";
 import { hydrate } from "../stores/data";
 import { hydrateFocus, saveSessions } from "../stores/focus";
 import { hydrateHabits, saveHabitData } from "../stores/habits";
@@ -9,7 +8,7 @@ import type { Row } from "./rows";
 import { parseIcs } from "../domain/ics";
 import { saveEvents, saveWorkspace } from "./repo";
 
-const LATEST_SCHEMA = 5;
+const LATEST_SCHEMA = 8;
 
 async function invoke<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
   const { invoke: inv } = await import("@tauri-apps/api/core");
@@ -69,10 +68,9 @@ export async function restoreBackup(d: Restored, path: string): Promise<string> 
   await saveWorkspace({ tasks: d.tasks, events: d.events, lists: d.lists, folders: d.folders, sections: d.sections, tags: d.tags });
   await write(...d.activity.map((a): [string, unknown[]] => ["INSERT INTO task_activity (task_id, at, kind, detail) VALUES ($1, $2, $3, $4)", [a.taskId, a.at, a.kind, a.detail]]));
   await saveHabitData({ habits: d.habits, groups: d.groups, checkins: d.checkins });
-  await saveCountdowns(d.countdowns);
   await saveSessions(d.sessions);
   if (d.settings) useSettings.getState().update(d.settings);
-  await Promise.all([hydrate(), hydrateHabits(), hydrateCountdowns(), hydrateFocus(), useSettings.getState().hydrate()]);
+  await Promise.all([hydrate(), hydrateHabits(), hydrateFocus(), useSettings.getState().hydrate()]);
   return snapshot;
 }
 
