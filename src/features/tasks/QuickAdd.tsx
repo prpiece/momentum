@@ -88,9 +88,9 @@ export function QuickAdd(props: {
   };
 
   return (
-    <div className="rounded-card border border-border bg-raised transition-shadow duration-[var(--dur)] focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
-      <div className="flex items-center gap-2.5 px-3">
-        <Plus size={18} className="shrink-0 text-accent" />
+    <div className="qa">
+      <div className="flex items-center gap-2.5 pl-3 pr-2">
+        <Plus size={18} strokeWidth={1.75} className="shrink-0 text-muted" />
         <input
           ref={input}
           value={text}
@@ -113,7 +113,7 @@ export function QuickAdd(props: {
           }}
           placeholder={props.placeholder ?? "Add a task, e.g. “Study chem tomorrow 5pm !high #school”"}
           aria-label="Add a task"
-          className="h-11 min-w-0 flex-1 bg-transparent text-[0.95rem] outline-none placeholder:text-muted"
+          className="h-[calc(var(--control-lg)-2px)] min-w-0 flex-1 bg-transparent text-[length:var(--fs-base)] outline-none placeholder:text-muted focus-visible:outline-none"
         />
         {smartParse && (
           <button
@@ -121,27 +121,27 @@ export function QuickAdd(props: {
             title={parsing ? "Smart parsing on (Esc to ignore for this task)" : "Smart parsing off for this task"}
             aria-pressed={parsing}
             onClick={() => setRawMode((r) => !r)}
-            className={`grid size-7 place-items-center rounded-control ${parsing ? "text-accent" : "text-muted"} hover:bg-surface-2`}
+            className={`btn btn-ghost btn-sm icon-btn ${parsing ? "text-accent-text" : "text-muted"}`}
           >
             <Sparkles size={15} />
           </button>
         )}
       </div>
       {complete.open ? (
-        <div className="border-t border-border px-3 py-2">{complete.row}</div>
+        <div className="border-t border-border py-2 pl-10 pr-3">{complete.row}</div>
       ) : parsing && parsed.chips.length > 0 && (
-        <div className="anim-fade flex flex-wrap items-center gap-1.5 border-t border-border px-3 py-2">
+        <div className="anim-fade flex flex-wrap items-center gap-1.5 border-t border-border py-2 pl-10 pr-3">
           {parsed.chips.map((c) => {
             const Icon = CHIP_ICON[c.kind];
             return (
-              <span key={`${c.kind}-${c.start}`} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-fg">
-                <Icon size={12} className="text-accent" />
+              <span key={`${c.kind}-${c.start}`} className="pchip">
+                <Icon size={14} strokeWidth={1.75} />
                 {chipLabel(c.kind, c.text)}
               </span>
             );
           })}
           <span className="ml-auto text-xs text-muted">
-            <kbd className="tabular-nums">Esc</kbd> to keep as plain text
+            <kbd className="kbd">Esc</kbd> to keep as plain text
           </span>
         </div>
       )}

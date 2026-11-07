@@ -90,7 +90,7 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
   const virtual = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scroller.current,
-    estimateSize: (i) => (rows[i].kind === "header" ? 36 : 44),
+    estimateSize: (i) => (rows[i].kind === "header" ? 48 : 36),
     overscan: 12,
     getItemKey: (i) => rows[i].key,
   });
@@ -120,17 +120,24 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
 function GroupHeader(props: { label: string; count: number; toggleKey?: string; expanded: boolean }) {
   const content = (
     <>
-      {props.toggleKey && <ChevronRight size={14} className={`transition-transform duration-[var(--dur)] ${props.expanded ? "rotate-90" : ""}`} />}
-      <span>{props.label}</span>
-      <span className="tabular-nums font-normal text-muted">{props.count}</span>
+      {props.toggleKey && <ChevronRight size={16} strokeWidth={1.75} className={`transition-transform duration-[var(--dur)] ${props.expanded ? "rotate-90" : ""}`} />}
+      <span className="t-label">{props.label}</span>
+      <span className="text-[length:var(--fs-xs)] tabular-nums">{props.count}</span>
     </>
   );
-  const cls = "flex items-center gap-1.5 px-2 pb-1.5 pt-4 text-xs font-semibold uppercase tracking-wider text-fg-2";
-  return props.toggleKey ? (
-    <button type="button" aria-expanded={props.expanded} onClick={() => toggleCollapsed(props.toggleKey ?? "")} className={`${cls} hover:text-fg`}>
-      {content}
-    </button>
-  ) : (
-    <div className={cls}>{content}</div>
+  // A ruled 28px header (the mock's .sec-sys); padding, not margin, so the virtualizer measures the gap.
+  const cls = "flex h-7 items-center gap-1.5 rounded-xs text-muted";
+  return (
+    <div className="pt-4 pb-1">
+      <div className="flex items-center border-b border-border px-1">
+        {props.toggleKey ? (
+          <button type="button" aria-expanded={props.expanded} onClick={() => toggleCollapsed(props.toggleKey ?? "")} className={`${cls} hover:text-fg`}>
+            {content}
+          </button>
+        ) : (
+          <div className={cls}>{content}</div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -121,3 +121,23 @@
   .nav-item.is-drop { background: var(--accent); color: var(--accent-fg); }
   .nav-item.is-drop > .ni-icon, .nav-item.is-drop > .ni-n { color: inherit; }
 }
+
+/* Quick add: the inline field (.qa) and the parsed-token chips under it (.pchip). */
+@layer components {
+  .qa { border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); }
+  .qa:hover { border-color: var(--control-border); }
+  .qa:focus-within { border-color: var(--accent-text); box-shadow: var(--focus-ring-input); }
+  .pchip { height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--surface); display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 500; color: var(--fg); white-space: nowrap; }
+  .pchip > svg { color: var(--fg-2); }
+  .pchip.is-on { border-color: var(--accent-text); background: var(--accent-soft); }
+}
+
+/* Task drawer: a property rail of label/value rows, each opening its editor. */
+@layer components {
+  .prop { display: flex; align-items: center; min-height: 32px; gap: 8px; font-size: var(--fs-sm); border-radius: var(--r-control); padding: 0 6px; text-align: left; }
+  .prop:hover { background: var(--surface-2); }
+  .prop > .prop-k { width: 72px; color: var(--muted); flex: none; }
+  .prop > .prop-v { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .prop > .prop-v > svg { color: var(--fg-2); flex: none; }
+  .prop > .prop-v.is-empty { color: var(--muted); }
+}

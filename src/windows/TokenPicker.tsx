@@ -18,7 +18,7 @@ type Props = {
   onDone: () => void;
 };
 
-const BASE = "h-6 rounded-full text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent";
+const BASE = "pchip";
 
 /** D91: a dashed picker while empty, a filled chip once set; the chip reopens the picker and "None" clears it. */
 export function TokenPicker({ icon: Icon, ariaLabel, empty, options, filled, onPick, onClear, onDone }: Props) {
@@ -36,8 +36,8 @@ export function TokenPicker({ icon: Icon, ariaLabel, empty, options, filled, onP
 
   if (filled !== null && !open)
     return (
-      <button type="button" onClick={() => setOpen(true)} aria-label={`${ariaLabel}: ${filled}. Change`} className={`${BASE} inline-flex items-center gap-1 bg-accent-soft px-2 hover:bg-surface-2`}>
-        <Icon size={12} className="text-accent" />
+      <button type="button" onClick={() => setOpen(true)} aria-label={`${ariaLabel}: ${filled}. Change`} className={`${BASE} hover:bg-surface-2`}>
+        <Icon size={14} strokeWidth={1.75} />
         {filled}
       </button>
     );
@@ -62,7 +62,7 @@ export function TokenPicker({ icon: Icon, ariaLabel, empty, options, filled, onP
           onDone();
         }
       }}
-      className={`${BASE} max-w-32 border border-dashed border-border bg-transparent px-2 text-fg-2 hover:bg-surface-2`}
+      className={`${BASE} max-w-32 border-dashed text-fg-2 hover:bg-surface-2`}
     >
       <option value="">{filled === null ? empty : `${ariaLabel}…`}</option>
       {options.map((o) => (

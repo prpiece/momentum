@@ -1,7 +1,8 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { format } from "date-fns";
-import { Ban, CalendarDays, ChevronLeft, Copy, Flag, GripVertical, Hash, ImagePlus, ListChecks, ListTodo, Pin, Trash2, X } from "lucide-react";
+import { Ban, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, ImagePlus, Pin, Trash2, X } from "lucide-react";
+import { ListGlyph } from "../../components/ui/AppIcon";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { IconButton } from "../../components/ui/Dialog";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
@@ -34,7 +35,7 @@ export function TaskDrawer() {
     <aside
       key={task.id}
       aria-label="Task details"
-      className={`${side === "right" ? "anim-slide-right right-2 border-l" : "anim-slide-left left-2 border-r"} absolute inset-y-2 z-40 flex w-[26rem] max-w-[calc(100%-1rem)] flex-col rounded-panel border border-border bg-raised shadow-float`}
+      className={`layer layer-raised ${side === "right" ? "anim-slide-right right-0 border-y-0 border-r-0" : "anim-slide-left left-0 border-y-0 border-l-0"} absolute inset-y-0 z-40 flex w-[var(--drawer)] max-w-full flex-col`}
       onKeyDown={(e) => {
         if (e.key === "Escape" && !(e.target instanceof HTMLTextAreaElement)) closeDrawer();
       }}
@@ -54,82 +55,59 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
   const shown = t.recurrence && key ? scheduleForKey(t.schedule, key) : (vm?.schedule ?? t.schedule);
   const set = (patch: Partial<Task>) => updateTask(t.id, patch);
 
+  const list = lists[t.listId];
+  const icon = (I: typeof Pin) => <I size={16} strokeWidth={1.75} />;
   return (
     <>
-      <header className="flex items-center gap-1 border-b border-border px-3 py-2">
-        {parent && (
-          <button type="button" onClick={() => openTask(parent.id)} className="flex min-w-0 items-center gap-1 rounded-control px-1.5 py-1 text-xs text-muted hover:bg-surface-2 hover:text-fg">
-            <ChevronLeft size={14} />
-            <span className="truncate">{parent.title}</span>
-          </button>
-        )}
+      <header className="flex h-12 shrink-0 items-center gap-0.5 border-b border-border pl-5 pr-2">
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-[length:var(--fs-sm)] text-muted">
+          <span className="truncate">{list?.name}</span>
+          {parent && (
+            <>
+              <ChevronRight size={14} className="shrink-0" aria-hidden />
+              <button type="button" onClick={() => openTask(parent.id)} className="min-w-0 truncate rounded-xs hover:text-fg">
+                {parent.title}
+              </button>
+            </>
+          )}
+        </nav>
         <div className="flex-1" />
-        <IconButton label={t.pinned ? "Unpin" : "Pin"} active={t.pinned} onClick={() => set({ pinned: !t.pinned })}>
-          <Pin size={16} />
+        <IconButton className="btn-sm" label={t.pinned ? "Unpin" : "Pin"} active={t.pinned} onClick={() => set({ pinned: !t.pinned })}>
+          {icon(Pin)}
         </IconButton>
-        <IconButton label="Duplicate" onClick={() => duplicateTask(t.id)}>
-          <Copy size={16} />
+        <IconButton className="btn-sm" label="Duplicate" onClick={() => duplicateTask(t.id)}>
+          {icon(Copy)}
         </IconButton>
-        <IconButton label={t.status === "wont_do" ? "Reopen" : "Won't do"} active={t.status === "wont_do"} onClick={() => setWontDo(t.id, key)}>
-          <Ban size={16} />
+        <IconButton className="btn-sm" label={t.status === "wont_do" ? "Reopen" : "Won't do"} active={t.status === "wont_do"} onClick={() => setWontDo(t.id, key)}>
+          {icon(Ban)}
         </IconButton>
-        <IconButton label="Delete" onClick={() => void deleteTasks([t.id], key)}>
-          <Trash2 size={16} />
+        <IconButton className="btn-sm" label="Delete" onClick={() => void deleteTasks([t.id], key)}>
+          {icon(Trash2)}
         </IconButton>
-        <IconButton label="Close" onClick={closeDrawer}>
-          <X size={17} />
+        <IconButton className="btn-sm" label="Close" onClick={closeDrawer}>
+          {icon(X)}
         </IconButton>
       </header>
 
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4 anim-stagger [&>*]:shrink-0">
+      <div className="flex min-h-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto px-6 py-5 anim-stagger [&>*]:shrink-0">
         <div className="flex items-start gap-3">
           <div className="pt-1.5">
-            <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, key)} label="Complete" size={20} />
+            <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, key)} label="Complete" />
           </div>
           <TitleInput task={t} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Chip
-            label="Priority"
-            icon={<Flag size={13} style={{ color: t.priority ? PRIORITY_VAR[t.priority] : "var(--muted)" }} fill={t.priority ? PRIORITY_VAR[t.priority] : "none"} />}
-            text={t.priority ? PRIORITY_LABEL[t.priority] : "Priority"}
-            set={t.priority !== 0}
-          >
-            {(close) => (
-              <div className="flex items-center gap-1 p-1.5" role="radiogroup" aria-label="Priority">
-                {[...PRIORITIES].reverse().map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    role="radio"
-                    aria-checked={t.priority === p}
-                    onClick={() => (set({ priority: p }), close())}
-                    className={`flex h-7 items-center gap-1 rounded-full px-2.5 text-xs transition-colors ${t.priority === p ? "bg-accent-soft font-semibold text-fg ring-1 ring-accent" : "text-fg-2 hover:bg-surface-2"}`}
-                  >
-                    <Flag size={12} style={{ color: p ? PRIORITY_VAR[p] : "var(--muted)" }} fill={p ? PRIORITY_VAR[p] : "none"} />
-                    {PRIORITY_LABEL[p]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </Chip>
-          <Chip label="Schedule" icon={<CalendarDays size={13} />} text={summarizeSchedule(shown, t.recurrence?.rule ?? null)} set={shown.kind !== "none"}>
-            {() => (
-              <div className="w-80 max-w-full p-3">
-                <ScheduleEditor
-                  schedule={shown}
-                  recurrence={t.recurrence}
-                  reminders={t.reminders}
-                  onSchedule={(schedule) => void editTask(t.id, { schedule }, key)}
-                  onRecurrence={(recurrence) => void editTask(t.id, { recurrence, ...(recurrence && t.schedule.kind === "none" ? { schedule: shown } : {}) }, key)}
-                  onReminders={(reminders) => set({ reminders })}
-                />
-              </div>
-            )}
-          </Chip>
+        <Description task={t} />
+        <Subtasks task={t} />
+        <Checklist task={t} />
+        <ActivityLog task={t} />
+      </div>
+
+      {/* The property rail (D198): one row per property, each opening its editor. */}
+      <div className="flex w-[212px] shrink-0 flex-col gap-px overflow-y-auto border-l border-border p-3">
           {!parent && (
-            <Chip label="List" icon={<ListTodo size={13} />} text={lists[t.listId]?.name ?? "List"} set>
+            <Prop label="List" text={list?.name ?? "None"} value={list ? <><ListGlyph icon={list.icon} color={list.color} size={14} />{list.name}</> : null}>
               {(close) => (
                 <div role="menu" className="max-h-64 min-w-44 overflow-y-auto">
                   {Object.values(lists)
@@ -142,48 +120,63 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
                     ))}
                 </div>
               )}
-            </Chip>
+            </Prop>
           )}
-          <Chip
+          <Prop label="Due" text={summarizeSchedule(shown, t.recurrence?.rule ?? null)} value={shown.kind !== "none" ? <>{icon(CalendarDays)}{summarizeSchedule(shown, t.recurrence?.rule ?? null)}</> : null}>
+            {() => (
+              <div className="w-80 max-w-full p-3">
+                <ScheduleEditor
+                  schedule={shown}
+                  recurrence={t.recurrence}
+                  reminders={t.reminders}
+                  onSchedule={(schedule) => void editTask(t.id, { schedule }, key)}
+                  onRecurrence={(recurrence) => void editTask(t.id, { recurrence, ...(recurrence && t.schedule.kind === "none" ? { schedule: shown } : {}) }, key)}
+                  onReminders={(reminders) => set({ reminders })}
+                />
+              </div>
+            )}
+          </Prop>
+          <Prop
+            label="Priority"
+            text={PRIORITY_LABEL[t.priority]}
+            value={t.priority ? <><Flag size={16} strokeWidth={1.75} style={{ color: PRIORITY_VAR[t.priority] }} fill={PRIORITY_VAR[t.priority]} />{PRIORITY_LABEL[t.priority]}</> : null}
+          >
+            {(close) => (
+              <div role="menu" aria-label="Priority">
+                {[...PRIORITIES].reverse().map((p) => (
+                  <MenuItem key={p} active={t.priority === p} icon={<Flag size={16} strokeWidth={1.75} style={{ color: PRIORITY_VAR[p] }} fill={p ? PRIORITY_VAR[p] : "none"} />} onSelect={() => (set({ priority: p }), close())}>
+                    {PRIORITY_LABEL[p]}
+                  </MenuItem>
+                ))}
+              </div>
+            )}
+          </Prop>
+          <Prop
             label="Tags"
-            icon={<Hash size={13} />}
-            text={t.tags.length ? t.tags.map((id) => tags[id]?.name).filter(Boolean).map((n) => `#${n}`).join(" ") : "Tags"}
-            set={t.tags.length > 0}
+            text={t.tags.length ? t.tags.map((id) => tags[id]?.name).filter(Boolean).map((n) => `#${n}`).join(" ") : "None"}
+            value={t.tags.length ? t.tags.map((id) => tags[id] && <span key={id} className="chip">{tags[id].name}</span>) : null}
           >
             {() => (
               <div className="w-72 max-w-full p-3">
                 <TagEditor task={t} tags={tags} />
               </div>
             )}
-          </Chip>
-        </div>
-
-        <Description task={t} />
-        <Subtasks task={t} />
-        <Checklist task={t} />
-        <ActivityLog task={t} />
+          </Prop>
+      </div>
       </div>
     </>
   );
 }
 
-/** Compact summary button that opens its editor in a popover; focus returns to the chip on close. */
-function Chip({ label, icon, text, set, children }: { label: string; icon: ReactNode; text: string; set: boolean; children: (close: () => void) => ReactNode }) {
+/** One property row in the rail: label and value; opens its editor in a popover, and focus returns to the row on close. */
+function Prop({ label, text, value, children }: { label: string; text: string; value: ReactNode; children: (close: () => void) => ReactNode }) {
   const m = useMenu();
   const close = () => (m.close(), m.anchor.current?.focus());
   return (
     <>
-      <button
-        ref={m.anchor}
-        type="button"
-        aria-label={`${label}: ${text}`}
-        aria-haspopup="dialog"
-        aria-expanded={m.open}
-        onClick={m.toggle}
-        className={`flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors ${set ? "bg-accent-soft text-fg" : "bg-surface-2 text-muted hover:text-fg"}`}
-      >
-        <span className="shrink-0">{icon}</span>
-        <span className="truncate">{text}</span>
+      <button ref={m.anchor} type="button" aria-label={`${label}: ${text}`} aria-haspopup="dialog" aria-expanded={m.open} onClick={m.toggle} className="prop w-full">
+        <span className="prop-k">{label}</span>
+        <span className={`prop-v ${value ? "" : "is-empty"}`}>{value ?? "None"}</span>
       </button>
       {m.open && (
         <Popover anchor={m.anchor} onClose={close}>
@@ -211,7 +204,7 @@ function TitleInput({ task }: { task: Task }) {
           e.currentTarget.blur();
         }
       }}
-      className={`field-sizing-content min-h-8 flex-1 resize-none bg-transparent text-lg font-semibold leading-7 outline-none ${task.status !== "open" ? "text-muted line-through" : ""}`}
+      className={`field-sizing-content min-h-8 flex-1 resize-none bg-transparent font-[family-name:var(--font-head)] text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] outline-none focus-visible:outline-none ${task.status !== "open" ? "text-muted line-through" : ""}`}
     />
   );
 }
@@ -229,9 +222,9 @@ function TagEditor({ task, tags }: { task: Task; tags: Record<string, { id: stri
       <Hash size={16} className="mr-1.5 text-muted" />
       {task.tags.map((id) =>
         tags[id] ? (
-          <span key={id} className="inline-flex items-center gap-1 rounded-full bg-surface-2 py-0.5 pl-2.5 pr-1 text-xs">
+          <span key={id} className="chip">
             #{tags[id].name}
-            <button type="button" aria-label={`Remove tag ${tags[id].name}`} onClick={() => updateTask(task.id, { tags: task.tags.filter((x) => x !== id) })} className="rounded-full p-0.5 hover:bg-surface-2">
+            <button type="button" aria-label={`Remove tag ${tags[id].name}`} onClick={() => updateTask(task.id, { tags: task.tags.filter((x) => x !== id) })} className="chip-x">
               <X size={11} />
             </button>
           </span>
@@ -307,13 +300,13 @@ function Description({ task }: { task: Task }) {
         aria-label="Edit description"
         onClick={(e) => !(e.target instanceof HTMLAnchorElement) && setEditing(true)}
         onKeyDown={(e) => e.key === "Enter" && setEditing(true)}
-        className="prose-md min-h-32 grow cursor-text rounded-card p-2 text-sm text-fg-2 hover:bg-surface-2"
+        className="prose-md min-h-24 cursor-text rounded-control py-1 pl-[30px] pr-1 text-fg-2 hover:bg-surface-2"
       >
         <NoteMarkdown>{task.description}</NoteMarkdown>
       </div>
     );
   return (
-    <div className="flex min-h-32 grow flex-col">
+    <div className="flex min-h-24 flex-col">
       <textarea
         ref={ref}
         autoFocus={editing}
@@ -338,12 +331,12 @@ function Description({ task }: { task: Task }) {
         }}
         placeholder="Write a note… (Markdown supported; paste or drop images)"
         aria-label="Description"
-        className="min-h-32 w-full flex-1 resize-none rounded-card border border-transparent bg-transparent p-2 text-sm outline-none placeholder:text-muted hover:border-border focus:border-accent"
+        className="field-sizing-content min-h-24 w-full resize-none rounded-control bg-transparent py-1 pl-[30px] pr-1 text-fg-2 outline-none placeholder:text-muted focus-visible:outline-none"
       />
       {editing && (
         // mouseDown is prevented so the textarea keeps focus (a blur would save and leave edit mode).
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void pickImage()} className="mt-1 flex items-center gap-1 self-start rounded-control px-1.5 py-1 text-xs text-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent">
-          <ImagePlus size={14} /> Add image
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void pickImage()} className="btn btn-ghost btn-sm ml-[22px] mt-1 self-start">
+          <ImagePlus size={16} strokeWidth={1.75} /> Add image
         </button>
       )}
     </div>
@@ -357,16 +350,18 @@ function Subtasks({ task }: { task: Task }) {
   const canNest = depthOf(task.id) < MAX_SUBTASK_DEPTH;
   return (
     <section>
-      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Subtasks {kids.length > 0 && `· ${kids.filter((k) => k.task.status !== "open").length}/${kids.length}`}</h3>
+      <h3 className="t-label mb-1 mt-3 pl-0.5 text-muted">
+        Subtasks {kids.length > 0 && <span className="tabular-nums">{kids.filter((k) => k.task.status !== "open").length}/{kids.length}</span>}
+      </h3>
       <Reorderable ids={kids.map((k) => k.task.id)} onMove={(id, to) => reorderTask(id, to, kids.map((k) => k.task.id))}>
         {kids.map((k) => (
-          <SortableItem key={k.task.id} id={k.task.id} label={k.task.title} className="py-1">
+          <SortableItem key={k.task.id} id={k.task.id} label={k.task.title}>
             <TaskCheckbox status={k.task.status} priority={k.task.priority} onToggle={() => toggleDone(k.task.id, k.key)} label={`Complete ${k.task.title}`} size={16} />
-            <button type="button" onClick={() => openTask(k.task.id, k.key)} className={`flex-1 truncate text-left text-sm ${k.task.status !== "open" ? "text-muted line-through" : ""}`}>
+            <button type="button" onClick={() => openTask(k.task.id, k.key)} className={`flex-1 truncate text-left text-[length:var(--fs-sm)] ${k.task.status !== "open" ? "text-muted line-through" : ""}`}>
               {k.task.title}
             </button>
-            <button type="button" aria-label={`Delete ${k.task.title}`} title="Delete subtask" onClick={() => void deleteTasks([k.task.id], k.key)} className="grid size-6 place-items-center rounded-control text-muted opacity-0 hover:text-danger focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover:opacity-100">
-              <Trash2 size={13} />
+            <button type="button" aria-label={`Delete ${k.task.title}`} title="Delete subtask" onClick={() => void deleteTasks([k.task.id], k.key)} className="btn btn-ghost icon-btn size-6 text-muted opacity-0 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100">
+              <Trash2 size={14} strokeWidth={1.75} />
             </button>
           </SortableItem>
         ))}
@@ -383,10 +378,10 @@ function Subtasks({ task }: { task: Task }) {
           }}
           placeholder="+ Add subtask"
           aria-label="Add subtask"
-          className="mt-1 h-8 w-full rounded-control bg-transparent px-1 text-sm outline-none placeholder:text-muted"
+          className={addField}
         />
       ) : (
-        <p className="mt-1 text-xs text-muted">Subtasks can nest up to {MAX_SUBTASK_DEPTH} levels.</p>
+        <p className="mt-1 pl-0.5 text-[length:var(--fs-xs)] text-muted">Subtasks can nest up to {MAX_SUBTASK_DEPTH} levels.</p>
       )}
     </section>
   );
@@ -398,21 +393,30 @@ function Checklist({ task }: { task: Task }) {
   const set = (checklist: Task["checklist"]) => updateTask(task.id, { checklist });
   return (
     <section>
-      <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
-        <ListChecks size={14} /> Checklist {items.length > 0 && `· ${items.filter((i) => i.done).length}/${items.length}`}
+      <h3 className="t-label mb-1 mt-3 pl-0.5 text-muted">
+        Checklist {items.length > 0 && <span className="tabular-nums">{items.filter((i) => i.done).length}/{items.length}</span>}
       </h3>
       <Reorderable ids={items.map((i) => i.id)} onMove={(id, to) => set(arrayMove(items, items.findIndex((i) => i.id === id), to))}>
         {items.map((it) => (
-          <SortableItem key={it.id} id={it.id} label={it.title} className="py-0.5">
-            <input type="checkbox" checked={it.done} onChange={() => set(items.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))} className="size-4 accent-[var(--accent)]" aria-label={it.title} />
+          <SortableItem key={it.id} id={it.id} label={it.title}>
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={it.done}
+              aria-label={it.title}
+              onClick={() => set(items.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))}
+              className="check sm"
+            >
+              <Check strokeWidth={2.75} />
+            </button>
             <input
               defaultValue={it.title}
               onBlur={(e) => e.target.value !== it.title && set(items.map((x) => (x.id === it.id ? { ...x, title: e.target.value } : x)))}
-              className={`h-7 flex-1 bg-transparent text-sm outline-none ${it.done ? "text-muted line-through" : ""}`}
+              className={`h-7 flex-1 bg-transparent text-[length:var(--fs-sm)] outline-none focus-visible:outline-none ${it.done ? "text-muted line-through" : ""}`}
               aria-label="Checklist item"
             />
-            <button type="button" aria-label="Remove item" onClick={() => set(items.filter((x) => x.id !== it.id))} className="opacity-0 group-hover:opacity-100">
-              <X size={13} className="text-muted" />
+            <button type="button" aria-label="Remove item" onClick={() => set(items.filter((x) => x.id !== it.id))} className="btn btn-ghost icon-btn size-6 text-muted opacity-0 focus-visible:opacity-100 group-hover:opacity-100">
+              <X size={14} strokeWidth={1.75} />
             </button>
           </SortableItem>
         ))}
@@ -428,7 +432,7 @@ function Checklist({ task }: { task: Task }) {
         }}
         placeholder="+ Add item"
         aria-label="Add checklist item"
-        className="mt-1 h-8 w-full rounded-control bg-transparent px-1 text-sm outline-none placeholder:text-muted"
+        className={addField}
       />
     </section>
   );
@@ -456,13 +460,16 @@ function Reorderable({ ids, onMove, children }: { ids: string[]; onMove: (id: st
 }
 
 /** A row with a grip handle (pointer or Space + arrows); the rest of the row stays clickable and editable. */
-function SortableItem({ id, label, className, children }: { id: string; label: string; className: string; children: ReactNode }) {
+/** The "+ Add subtask" / "+ Add item" field: a quiet row that shows the input focus ring once focused. */
+const addField = "mt-1 h-8 w-full rounded-control border border-transparent bg-transparent px-2 text-[length:var(--fs-sm)] outline-none placeholder:text-muted hover:bg-surface-2 focus-visible:border-accent-text focus-visible:bg-surface focus-visible:shadow-[var(--focus-ring-input)] focus-visible:outline-none";
+
+function SortableItem({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
   return (
     <li
       ref={setNodeRef}
       style={{ transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined, transition }}
-      className={`anim-rise group flex items-center gap-1.5 rounded-control pr-1 hover:bg-surface-2 ${className} ${isDragging ? "relative z-10 bg-surface shadow-float" : ""}`}
+      className={`anim-rise group flex h-[var(--row-compact)] items-center gap-2 rounded-control pr-1 hover:bg-surface-2 ${isDragging ? "relative z-10 bg-surface shadow-float" : ""}`}
     >
       <button
         ref={setActivatorNodeRef}
@@ -499,9 +506,9 @@ function ActivityLog({ task }: { task: Task }) {
     return () => void (live = false);
   }, [task.id, task.updatedAt]);
   return (
-    <details className="border-t border-border pt-3">
-      <summary className="cursor-pointer rounded-control text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg">Activity</summary>
-      <ul className="mt-2 space-y-1 text-xs text-muted">
+    <details className="mt-3">
+      <summary className="t-label cursor-pointer rounded-xs pl-0.5 text-muted hover:text-fg">Activity</summary>
+      <ul className="mt-2 space-y-1 pl-0.5 text-[length:var(--fs-sm)] text-muted">
         {items.filter((a) => a.kind !== "created").map((a) => (
           <li key={a.id}>
             <span className="tabular-nums">{format(new Date(a.at), "MMM d, HH:mm")}</span> · {ACTIVITY_TEXT[a.kind]} {a.detail}

@@ -170,14 +170,14 @@ export function QuickAddWindow() {
     />
   );
   return (
-    <div className="flex h-full flex-col justify-center border border-border bg-raised px-4">
-      <div className="flex items-center gap-3">
+    <div className="flex h-full flex-col border border-border-strong bg-raised">
+      <div className="flex h-14 shrink-0 items-center gap-3 pl-4 pr-2.5">
         {voice.kind === "listening" ? (
           <span className="grid size-5 place-items-center" aria-hidden>
             <span className="size-2.5 rounded-full bg-danger transition-transform duration-75" style={{ transform: `scale(${1 + level * 1.2})` }} />
           </span>
         ) : (
-          <Plus size={20} className="text-accent" />
+          <Plus size={18} strokeWidth={1.75} className="text-muted" />
         )}
         <input
           ref={input}
@@ -206,7 +206,7 @@ export function QuickAddWindow() {
           placeholder={voice.kind === "listening" ? "Listening… release the shortcut or click the mic when done" : voice.kind === "transcribing" ? "Transcribing…" : "Add a task to Momentum…"}
           readOnly={busy || confirm !== null}
           aria-label="Quick add task"
-          className="h-12 flex-1 bg-transparent text-lg outline-none placeholder:text-muted"
+          className="h-full min-w-0 flex-1 bg-transparent text-[length:var(--fs-lg)] outline-none placeholder:text-muted focus-visible:outline-none"
         />
         <button
           type="button"
@@ -215,22 +215,23 @@ export function QuickAddWindow() {
           aria-pressed={voice.kind === "listening"}
           aria-label={voice.kind === "listening" ? "Stop listening" : "Speak a task"}
           title={voice.kind === "listening" ? "Stop listening" : "Speak a task (or hold the push-to-talk shortcut)"}
-          className={`grid size-9 place-items-center rounded-control outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${voice.kind === "listening" ? "bg-accent text-accent-fg" : "text-muted hover:bg-surface-2 hover:text-fg"}`}
+          className={`btn icon-btn ${voice.kind === "listening" ? "btn-primary" : "btn-ghost text-muted"}`}
         >
-          <Mic size={18} className={voice.kind === "transcribing" ? "animate-pulse" : ""} />
+          <Mic size={18} strokeWidth={1.75} className={voice.kind === "transcribing" ? "animate-pulse" : ""} />
         </button>
       </div>
+      <div className="min-h-0 flex-1 overflow-hidden pb-3 pl-[46px] pr-4">
       {confirm && <CompleteConfirm candidates={confirm.candidates} picked={confirm.picked} onPick={(picked) => setConfirm({ ...confirm, picked })} onConfirm={(id) => void complete(id)} onCancel={backOut} />}
-      {!confirm && ac.open && <div className="min-h-7 pb-1">{ac.row}</div>}
-      <div className={`min-h-7 flex-wrap items-center gap-1.5 pb-1 ${confirm || ac.open ? "hidden" : "flex"}`}>
+      {!confirm && ac.open && <div className="min-h-7">{ac.row}</div>}
+      <div className={`min-h-7 flex-wrap items-center gap-1.5 ${confirm || ac.open ? "hidden" : "flex"}`}>
         {voice.kind === "error" && (
           <span role="alert" className="text-xs font-medium text-danger">
             {voice.message}
           </span>
         )}
         {context && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium">
-            {context.kind === "list" ? <List size={12} className="text-accent" /> : <CalendarDays size={12} className="text-accent" />}
+          <span className="pchip">
+            {context.kind === "list" ? <List size={14} strokeWidth={1.75} /> : <CalendarDays size={14} strokeWidth={1.75} />}
             {contextLabel(context, today)}
           </span>
         )}
@@ -238,8 +239,8 @@ export function QuickAddWindow() {
           if (c.kind === "priority" || (c.kind === "list" && lists.length > 0)) return picker(c.kind, label(c.kind, c.text));
           const Icon = ICON[c.kind];
           return (
-            <span key={`${c.kind}-${c.start}`} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium">
-              <Icon size={12} className="text-accent" />
+            <span key={`${c.kind}-${c.start}`} className="pchip">
+              <Icon size={14} strokeWidth={1.75} />
               {label(c.kind, c.text)}
             </span>
           );
@@ -254,14 +255,21 @@ export function QuickAddWindow() {
                 setText((t) => `${t.trimEnd()} #`.trimStart());
                 input.current?.focus();
               }}
-              className="h-6 rounded-full border border-dashed border-border px-2 text-xs text-fg-2 hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent"
+              className="pchip border-dashed text-fg-2 hover:bg-surface-2"
             >
               + Tag
             </button>
           </>
         )}
-        <span className="ml-auto text-xs text-muted">
-          <kbd className="tabular-nums">Enter</kbd> add · <kbd className="tabular-nums">Esc</kbd> {parsed.chips.length && !raw ? "plain text" : "close"}
+      </div>
+      </div>
+      <div className="flex h-10 shrink-0 items-center gap-3 border-t border-border pl-4 pr-3 text-[length:var(--fs-xs)] text-muted">
+        <span className="flex-1" />
+        <span className="inline-flex items-center gap-1.5">
+          <kbd className="kbd">Enter</kbd> add
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <kbd className="kbd">Esc</kbd> {parsed.chips.length && !raw ? "plain text" : "close"}
         </span>
       </div>
     </div>

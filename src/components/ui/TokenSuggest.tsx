@@ -70,14 +70,14 @@ export function useTokenSuggest(o: { text: string; setText: (t: string) => void;
           tabIndex={-1}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => accept(n)}
-          className={`inline-flex h-6 items-center gap-1 rounded-full px-2 text-xs ${i === current ? "bg-accent-soft font-medium text-fg ring-1 ring-accent" : "text-fg-2 hover:bg-surface-2"}`}
+          className={`pchip ${i === current ? "is-on" : "hover:bg-surface-2"}`}
         >
-          <Icon size={12} className="text-accent" />
+          <Icon size={14} strokeWidth={1.75} />
           {n}
         </button>
       ))}
       <span className="ml-auto text-xs text-muted">
-        <kbd className="tabular-nums">Tab</kbd> to complete
+        <kbd className="kbd">Tab</kbd> to complete
       </span>
     </div>
   ) : null;

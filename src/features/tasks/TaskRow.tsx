@@ -71,12 +71,12 @@ export const TaskRow = memo(function TaskRow(props: {
           toggleDone(t.id, vm.key);
         }
       }}
-      className={`group relative flex min-h-[var(--row)] cursor-default items-start gap-2.5 rounded-control py-[calc(var(--space-3)*0.6)] pr-3 outline-none transition-[color,background-color,opacity] duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
+      className={`group relative flex h-[var(--row)] cursor-default items-center gap-3 rounded-control pr-2 text-[length:var(--fs-base)] outline-none transition-opacity duration-[var(--dur)] focus-visible:shadow-[inset_0_0_0_2px_var(--accent-text)] focus-visible:outline-none ${
         isDragging ? "opacity-40" : ""
       } ${selected || open ? "bg-accent-soft" : "hover:bg-surface-2"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
     >
       {/* A fixed toggle gutter keeps every checkbox in a column, with or without subtasks. */}
-      <div style={{ width: 16 + depth * 20 }} className="flex h-6 shrink-0 items-center justify-end">
+      <div style={{ width: 12 + depth * 20 }} className="-mr-1 flex shrink-0 items-center justify-end">
         {shownKids > 0 && (
           <button
             type="button"
@@ -92,76 +92,61 @@ export const TaskRow = memo(function TaskRow(props: {
           </button>
         )}
       </div>
-      <div className="flex h-6 items-center">
-        <TaskCheckbox status={leaving ? "done" : t.status} priority={t.priority} onToggle={complete} label={`Complete ${t.title}`} />
+      <TaskCheckbox status={leaving ? "done" : t.status} priority={t.priority} onToggle={complete} label={`Complete ${t.title}`} />
+      <div className={`min-w-0 flex-1 truncate ${done || leaving ? "font-normal text-muted line-through decoration-1" : "font-medium"}`}>
+        {t.title || <span className="text-muted">Untitled</span>}
       </div>
-      <div className="min-w-0 flex-1">
-        <div className={`truncate text-[0.9rem] leading-6 transition-colors duration-[var(--dur)] ${done || leaving ? "text-muted line-through decoration-1" : ""}`}>
-          {t.title || <span className="text-muted">Untitled</span>}
-        </div>
-        <Meta>
-          {props.parent && (
-            <span className="inline-flex min-w-0 max-w-48 items-center gap-1" title={`Subtask of ${props.parent}`}>
-              <CornerDownRight size={12} className="shrink-0" />
-              <span className="truncate">{props.parent}</span>
-            </span>
-          )}
-          {vm.date && (
-            <span className={overdue ? "font-medium text-danger" : vm.date === today ? "text-accent" : ""}>
-              {relativeDayLabel(vm.date, today)}
-              {time && ` ${time}`}
-            </span>
-          )}
-          {t.recurrence && <Repeat size={12} aria-label="Repeats" />}
-          {t.reminders.length > 0 && <Bell size={12} aria-label="Has reminders" />}
-          {t.description && <FileText size={12} aria-label="Has notes" />}
-          {childCount > 0 && (
-            <span className="inline-flex items-center gap-1" aria-label="Subtasks done">
-              <ListTree size={12} />
-              {doneChildCount}/{childCount}
-            </span>
-          )}
-          {t.checklist.length > 0 && (
-            <span className="inline-flex items-center gap-1">
-              <ListChecks size={12} />
-              {checklistDone}/{t.checklist.length}
-            </span>
-          )}
-          {t.tags.map((id) =>
-            tags[id] ? (
-              <button
-                key={id}
-                type="button"
-                title={`Filter by #${tags[id].name}`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilter(useUi.getState().view, `#${tags[id].name}`);
-                }}
-                className="rounded-full bg-surface-2 px-1.5 text-[0.7rem] text-fg-2 hover:bg-accent-soft hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                #{tags[id].name}
-              </button>
-            ) : null,
-          )}
-        </Meta>
-      </div>
-      <div className="flex h-6 shrink-0 items-center gap-2 text-xs text-muted">
-        {t.pinned && <Pin size={13} className="text-accent" aria-label="Pinned" />}
+      {/* Meta, right of the title (D198): markers, counts, tags, the parent and the list. */}
+      <div className={`flex min-w-0 shrink items-center gap-2.5 overflow-hidden text-[length:var(--fs-sm)] text-muted ${done ? "opacity-70" : ""}`}>
+        {t.pinned && <Pin size={14} className="shrink-0 text-accent-text" aria-label="Pinned" />}
+        {t.reminders.length > 0 && <Bell size={16} strokeWidth={1.75} className="shrink-0" aria-label="Has reminders" />}
+        {t.description && <FileText size={16} strokeWidth={1.75} className="shrink-0" aria-label="Has notes" />}
+        {t.recurrence && <Repeat size={16} strokeWidth={1.75} className="shrink-0" aria-label="Repeats" />}
+        {childCount > 0 && (
+          <span className="inline-flex shrink-0 items-center gap-[3px] tabular-nums" aria-label={`Subtasks ${doneChildCount} of ${childCount} done`}>
+            <ListTree size={16} strokeWidth={1.75} />
+            {doneChildCount}/{childCount}
+          </span>
+        )}
+        {t.checklist.length > 0 && (
+          <span className="inline-flex shrink-0 items-center gap-[3px] tabular-nums" aria-label={`Checklist ${checklistDone} of ${t.checklist.length} done`}>
+            <ListChecks size={16} strokeWidth={1.75} />
+            {checklistDone}/{t.checklist.length}
+          </span>
+        )}
+        {t.tags.map((id) =>
+          tags[id] ? (
+            <button
+              key={id}
+              type="button"
+              title={`Filter by #${tags[id].name}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setFilter(useUi.getState().view, `#${tags[id].name}`);
+              }}
+              className="shrink-0 rounded-xs hover:text-fg"
+            >
+              #{tags[id].name}
+            </button>
+          ) : null,
+        )}
+        {props.parent && (
+          <span className="inline-flex min-w-0 max-w-40 items-center gap-1" title={`Subtask of ${props.parent}`}>
+            <CornerDownRight size={14} className="shrink-0" />
+            <span className="truncate">{props.parent}</span>
+          </span>
+        )}
         {list && (
-          <span className="flex max-w-32 items-center gap-1 truncate">
-            <ListGlyph icon={list.icon} color={list.color} size={13} />
-            {list.name}
+          <span className="inline-flex min-w-0 max-w-36 items-center gap-1.5">
+            <ListGlyph icon={list.icon} color={list.color} size={14} />
+            <span className="truncate">{list.name}</span>
           </span>
         )}
       </div>
+      <span className={`min-w-16 shrink-0 whitespace-nowrap text-right text-[length:var(--fs-sm)] tabular-nums ${overdue ? "text-danger" : "text-fg-2"} ${done ? "opacity-70" : ""}`}>
+        {vm.date && (vm.date === today ? (time ?? "Today") : `${relativeDayLabel(vm.date, today)}${time ? ` ${time}` : ""}`)}
+      </span>
     </div>
   );
 });
-
-/** The secondary line under a title; renders nothing when it has no visible children. */
-function Meta({ children }: { children: React.ReactNode }) {
-  const items = (Array.isArray(children) ? children.flat() : [children]).filter((c) => c !== false && c != null && !(Array.isArray(c) && !c.length));
-  if (!items.length) return null;
-  return <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">{children}</div>;
-}
