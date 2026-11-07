@@ -4,7 +4,7 @@ import { type MouseEvent, type ReactNode, useLayoutEffect, useRef, useState } fr
 import { Logo } from "../../components/Logo";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { fitModules } from "../../domain/dockFit";
-import type { ViewId } from "../../domain/types";
+import type { BarPosition, ViewId } from "../../domain/types";
 import type { DropData } from "../../lib/dnd";
 import { GO } from "../../lib/shortcuts";
 import { useData } from "../../stores/data";
@@ -87,16 +87,18 @@ function BarItem(props: { id: ViewId; label: string; icon: ReactNode; variant: V
 }
 
 /**
- * Navigation for the "topbar" and "dock" layouts (D68): the sidebar's destinations in one row.
+ * Navigation for the bar layout at the top or bottom (D114): the sidebar's destinations in one row.
  * Lists and pinned filters sit behind a menu button.
  */
-export function NavBar({ variant }: { variant: Variant }) {
+export function NavBar({ position }: { position: BarPosition }) {
+  // ponytail: the bottom bar still renders as the old dock until the v1.0 visual pass merges the two variants.
+  const variant: Variant = position === "top" ? "top" : "dock";
   const counts = useCounts();
   const lists = useData((s) => s.lists);
   const savedFilters = useSettings((s) => s.settings.savedFilters);
   const view = useUi((s) => s.view);
   const [newList, setNewList] = useState(false);
-  const dockLabels = useSettings((s) => s.settings.dockLabels);
+  const dockLabels = true;
   const dock = variant === "dock";
   const size = 18;
 
@@ -181,7 +183,7 @@ export function NavBar({ variant }: { variant: Variant }) {
     <>
       {dock ? (
         <div ref={outerRef} className="flex shrink-0 justify-center pb-2">
-          <nav aria-label="Navigation" data-tour="nav" className="glass flex max-w-[calc(100%-1rem)] items-center rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
+          <nav aria-label="Navigation" data-tour="nav" className="flex max-w-[calc(100%-1rem)] items-center rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
             <div ref={smartRef} className="flex items-center gap-0.5">
               {smartItems}
             </div>

@@ -1,5 +1,3 @@
-import type { GradientId } from "./backgrounds";
-
 /** Local calendar date, `YYYY-MM-DD`. Never converted to an instant. */
 export type LocalDate = string;
 /** UTC instant, ISO 8601 (`Date.prototype.toISOString`). */
@@ -155,9 +153,11 @@ export const FONT_SIZES = ["sm", "md", "lg", "xl", "xxl"] as const;
 /** Whole-window zoom, as a webview zoom factor. */
 export const ZOOMS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75] as const;
 export const SIDES = ["left", "right"] as const;
-/** Window layouts (D68): floating sidebar card, edge-to-edge, navigation across the top, or a floating dock at the bottom. */
-export const LAYOUTS = ["classic", "flat", "topbar", "dock"] as const;
+/** Window layouts (D114): a sidebar, or one navigation bar across the top or bottom. */
+export const LAYOUTS = ["sidebar", "bar"] as const;
 export type Layout = (typeof LAYOUTS)[number];
+export const BAR_POSITIONS = ["top", "bottom"] as const;
+export type BarPosition = (typeof BAR_POSITIONS)[number];
 export const TIME_FORMATS = ["12h", "24h"] as const;
 /** date-fns weekStartsOn: Sunday, Monday, Saturday. */
 export const WEEK_STARTS = [0, 1, 6] as const;
@@ -196,9 +196,6 @@ export type SoundSettings = {
 /** How many focus phases a pomodoro session runs: until stopped, or exactly `count` (D75). */
 export type Cycles = { kind: "infinite" } | { kind: "finite"; count: number };
 
-/** Image/gradient shown behind the content area (D79). `name` is a file in the backgrounds folder. */
-export type Background = { kind: "none" } | { kind: "gradient"; id: GradientId } | { kind: "image"; name: string };
-
 export type QuadrantColors = [string | null, string | null, string | null, string | null];
 
 export type Settings = {
@@ -210,13 +207,7 @@ export type Settings = {
   fontSize: (typeof FONT_SIZES)[number];
   zoom: (typeof ZOOMS)[number];
   layout: Layout;
-  background: Background;
-  /** Background dim, 0..80 (%). */
-  backgroundDim: number;
-  /** Background image blur, 0..20 (px). */
-  backgroundBlur: number;
-  /** Dock layout: small text labels under the icons (D77). */
-  dockLabels: boolean;
+  barPosition: BarPosition;
   sidebarSide: (typeof SIDES)[number];
   sidebarCollapsed: boolean;
   /** The sidebar's "More" module group is expanded. */

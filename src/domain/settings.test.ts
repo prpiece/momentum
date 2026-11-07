@@ -26,7 +26,7 @@ describe("parseSettings", () => {
 
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
-      theme: "dark", accent: "#0e8a85", density: "compact", motion: "on", fontSize: "xxl", zoom: 1.25, layout: "dock", background: { kind: "gradient", id: "ember" }, backgroundDim: 55, backgroundBlur: 12, dockLabels: false, sidebarSide: "right",
+      theme: "dark", accent: "#0e8a85", density: "compact", motion: "on", fontSize: "xxl", zoom: 1.25, layout: "bar", barPosition: "bottom", sidebarSide: "right",
       sidebarCollapsed: true, sidebarMoreOpen: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
@@ -116,20 +116,18 @@ describe("parseSettings migrations", () => {
   });
 });
 
-describe("parseSettings background", () => {
-  const img = "123e4567-e89b-12d3-a456-426614174000.png";
-  it("accepts known gradients and generated image names", () => {
-    expect(parseSettings({ background: { kind: "gradient", id: "ocean" } }).background).toEqual({ kind: "gradient", id: "ocean" });
-    expect(parseSettings({ background: { kind: "image", name: img } }).background).toEqual({ kind: "image", name: img });
+describe("parseSettings layout", () => {
+  it("maps the four pre-D114 layouts onto sidebar and bar", () => {
+    const l = (layout: string) => ((s) => [s.layout, s.barPosition])(parseSettings({ layout, barPosition: "bottom" }));
+    expect(l("classic")).toEqual(["sidebar", "top"]);
+    expect(l("flat")).toEqual(["sidebar", "top"]);
+    expect(l("topbar")).toEqual(["bar", "top"]);
+    expect(l("dock")).toEqual(["bar", "bottom"]);
+    expect(l("bar")).toEqual(["bar", "bottom"]);
+    expect(l("nope")).toEqual(["sidebar", "bottom"]);
   });
-  it("falls back to none for unknown gradients and path-like names", () => {
-    for (const background of [{ kind: "gradient", id: "nope" }, { kind: "image", name: "../x.png" }, { kind: "image", name: "a.svg" }, "x", null]) {
-      expect(parseSettings({ background }).background).toEqual({ kind: "none" });
-    }
-  });
-  it("clamps dim and blur", () => {
-    const s = parseSettings({ backgroundDim: 500, backgroundBlur: -3 });
-    expect([s.backgroundDim, s.backgroundBlur]).toEqual([80, 0]);
-    expect(parseSettings({ backgroundDim: "x" }).backgroundDim).toBe(40);
+  it("drops the retired background keys", () => {
+    const s = parseSettings({ background: { kind: "gradient", id: "ocean" }, backgroundDim: 50, dockLabels: false });
+    expect(s).toEqual(DEFAULT_SETTINGS);
   });
 });

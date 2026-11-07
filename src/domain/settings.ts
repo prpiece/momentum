@@ -1,7 +1,6 @@
-import { BLUR_MAX, DIM_MAX, GRADIENTS } from "./backgrounds";
 import { ACCENT_PRESETS } from "./color";
 import {
-  type Background,
+  BAR_POSITIONS,
   CAL_VIEWS,
   type Cycles,
   COLOR_BYS,
@@ -35,11 +34,8 @@ export const DEFAULT_SETTINGS: Settings = {
   motion: "system",
   fontSize: "md",
   zoom: 1,
-  layout: "classic",
-  background: { kind: "none" },
-  backgroundDim: 40,
-  backgroundBlur: 8,
-  dockLabels: true,
+  layout: "sidebar",
+  barPosition: "top",
   sidebarSide: "left",
   sidebarCollapsed: false,
   sidebarMoreOpen: false,
@@ -212,17 +208,16 @@ function parsePomodoro(raw: unknown): Settings["pomodoro"] {
   return { focusMin: int(r.focusMin, 1, 180, d.focusMin), shortMin: int(r.shortMin, 1, 60, d.shortMin), longMin: int(r.longMin, 1, 90, d.longMin), longEvery: int(r.longEvery, 2, 12, d.longEvery), cycles: parseCycles(r.cycles) };
 }
 
-/** Image files are `<uuid>.<ext>` (src/lib/appFiles.ts); anything else could point outside the backgrounds folder. */
-const IMAGE_NAME = /^[0-9a-f-]{36}\.(png|jpg|gif|webp)$/;
-
-function parseBackground(raw: unknown): Background {
-  if (!isRecord(raw)) return DEFAULT_SETTINGS.background;
-  if (raw.kind === "image" && typeof raw.name === "string" && IMAGE_NAME.test(raw.name)) return { kind: "image", name: raw.name };
-  const g = raw.kind === "gradient" ? GRADIENTS.find((x) => x.id === raw.id) : undefined;
-  return g ? { kind: "gradient", id: g.id } : DEFAULT_SETTINGS.background;
+/** Before D114 there were four layouts: classic and flat had a sidebar, topbar and dock a bar. */
+function parseLayout(layout: unknown, barPosition: unknown): Pick<Settings, "layout" | "barPosition"> {
+  if (layout === "classic" || layout === "flat") return { layout: "sidebar", barPosition: DEFAULT_SETTINGS.barPosition };
+  if (layout === "topbar") return { layout: "bar", barPosition: "top" };
+  if (layout === "dock") return { layout: "bar", barPosition: "bottom" };
+  return {
+    layout: oneOf(LAYOUTS, layout) ? layout : DEFAULT_SETTINGS.layout,
+    barPosition: oneOf(BAR_POSITIONS, barPosition) ? barPosition : DEFAULT_SETTINGS.barPosition,
+  };
 }
-
-const clampInt = (v: unknown, max: number, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(0, Math.round(v))) : fallback);
 
 const accelerator = (v: unknown, fallback: string) => (typeof v === "string" && /^[\w+]+$/.test(v) ? v : fallback);
 
@@ -238,11 +233,7 @@ export function parseSettings(raw: unknown): Settings {
     motion: oneOf(MOTIONS, r.motion) ? r.motion : d.motion,
     fontSize: oneOf(FONT_SIZES, r.fontSize) ? r.fontSize : d.fontSize,
     zoom: oneOf(ZOOMS, r.zoom) ? r.zoom : d.zoom,
-    layout: oneOf(LAYOUTS, r.layout) ? r.layout : d.layout,
-    background: parseBackground(r.background),
-    backgroundDim: clampInt(r.backgroundDim, DIM_MAX, d.backgroundDim),
-    backgroundBlur: clampInt(r.backgroundBlur, BLUR_MAX, d.backgroundBlur),
-    dockLabels: typeof r.dockLabels === "boolean" ? r.dockLabels : d.dockLabels,
+    ...parseLayout(r.layout, r.barPosition),
     sidebarSide: oneOf(SIDES, r.sidebarSide) ? r.sidebarSide : d.sidebarSide,
     sidebarCollapsed: typeof r.sidebarCollapsed === "boolean" ? r.sidebarCollapsed : d.sidebarCollapsed,
     sidebarMoreOpen: r.sidebarMoreOpen === true,

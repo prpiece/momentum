@@ -1,98 +1,70 @@
-import { LAYOUTS, type Layout } from "../../domain/types";
+import type { BarPosition, Layout } from "../../domain/types";
 import { useSettings } from "../../stores/settings";
 
-const NAMES: Record<Layout, [string, string]> = {
-  classic: ["Classic", "Sidebar and a floating card"],
-  flat: ["Flat", "Edge to edge, no card"],
-  topbar: ["Top bar", "Navigation across the top"],
-  dock: ["Dock", "A floating dock at the bottom"],
-};
+type Choice = { id: string; layout: Layout; barPosition?: BarPosition; name: string; hint: string };
 
-/** A tiny drawing of each layout: sidebar/bar in muted bars, the content area in accent-soft. */
-function Thumb({ layout }: { layout: Layout }) {
+const CHOICES: Choice[] = [
+  { id: "sidebar", layout: "sidebar", name: "Sidebar", hint: "Navigation down the side" },
+  { id: "top", layout: "bar", barPosition: "top", name: "Bar at the top", hint: "One strip across the top" },
+  { id: "bottom", layout: "bar", barPosition: "bottom", name: "Bar at the bottom", hint: "One strip across the bottom, like a phone" },
+];
+
+/** A tiny drawing of each layout: navigation in muted bars, the content area in accent-soft. */
+function Thumb({ choice }: { choice: Choice }) {
   const bar = "rounded-[2px] bg-fg-2/25";
-  const card = "rounded-[3px] bg-accent-soft";
+  const strip = (
+    <div className="flex h-2 items-center gap-1 px-0.5">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className={`h-1 w-3 ${bar}`} />
+      ))}
+    </div>
+  );
   return (
-    <div
-      className="flex h-14 w-full gap-1 overflow-hidden rounded-sm border border-border bg-bg p-1"
-      aria-hidden
-    >
-      {layout === "classic" && (
+    <div className="flex h-14 w-full gap-1 overflow-hidden rounded-sm border border-border bg-bg p-1" aria-hidden>
+      {choice.layout === "sidebar" ? (
         <>
           <div className="flex w-1/4 flex-col gap-1 p-0.5">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className={`h-1 ${bar}`} />
             ))}
           </div>
-          <div className={`flex-1 border border-border shadow-sm ${card}`} />
+          <div className="flex-1 rounded-[3px] border border-border bg-accent-soft" />
         </>
-      )}
-      {layout === "flat" && (
-        <div className="-m-1 flex flex-1">
-          <div className="flex w-1/4 flex-col gap-1 p-1.5">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className={`h-1 ${bar}`} />
-            ))}
-          </div>
-          <div className="flex-1 border-l border-border bg-accent-soft" />
-        </div>
-      )}
-      {layout === "topbar" && (
+      ) : (
         <div className="flex flex-1 flex-col gap-1">
-          <div className="flex h-2 items-center gap-1 px-0.5">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className={`h-1 w-3 ${bar}`} />
-            ))}
-          </div>
-          <div className={`flex-1 border border-border ${card}`} />
-        </div>
-      )}
-      {layout === "dock" && (
-        <div className="flex flex-1 flex-col items-center gap-1">
-          <div className={`w-full flex-1 border border-border ${card}`} />
-          <div className="flex h-2.5 items-center gap-0.5 rounded-[3px] border border-border bg-surface-2 px-1">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="size-1 rounded-full bg-fg-2/40" />
-            ))}
-          </div>
+          {choice.barPosition === "top" && strip}
+          <div className="flex-1 rounded-[3px] border border-border bg-accent-soft" />
+          {choice.barPosition === "bottom" && strip}
         </div>
       )}
     </div>
   );
 }
 
-/** Settings → Layout and the tour's first step (D68). Changes apply as you click. */
+/** Settings → Appearance (D114). Changes apply as you click. */
 export function LayoutPicker() {
   const layout = useSettings((s) => s.settings.layout);
+  const barPosition = useSettings((s) => s.settings.barPosition);
   const update = useSettings((s) => s.update);
+  const current = layout === "sidebar" ? "sidebar" : barPosition;
   return (
-    <div className="@container">
-      <div
-        role="radiogroup"
-        aria-label="Layout"
-        className="grid grid-cols-2 gap-2 @lg:grid-cols-4"
-      >
-        {LAYOUTS.map((l) => (
-          <button
-            key={l}
-            type="button"
-            role="radio"
-            aria-checked={layout === l}
-            onClick={() => update({ layout: l })}
-            className={`flex flex-col gap-1.5 rounded-md border p-2 text-left transition-colors duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
-              layout === l
-                ? "border-accent bg-accent-soft/40"
-                : "border-border hover:bg-hover"
-            }`}
-          >
-            <Thumb layout={l} />
-            <span className="text-xs font-semibold">{NAMES[l][0]}</span>
-            <span className="-mt-1 text-[0.68rem] leading-tight text-muted">
-              {NAMES[l][1]}
-            </span>
-          </button>
-        ))}
-      </div>
+    <div role="radiogroup" aria-label="Layout" className="grid grid-cols-3 gap-2">
+      {CHOICES.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          role="radio"
+          aria-checked={current === c.id}
+          onClick={() => update(c.barPosition ? { layout: c.layout, barPosition: c.barPosition } : { layout: c.layout })}
+          className={`flex flex-col gap-1.5 rounded-md border p-2 text-left transition-colors duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
+            current === c.id ? "border-accent bg-accent-soft/40" : "border-border hover:bg-hover"
+          }`}
+        >
+          <Thumb choice={c} />
+          <span className="text-xs font-semibold">{c.name}</span>
+          <span className="-mt-1 text-[0.68rem] leading-tight text-muted">{c.hint}</span>
+        </button>
+      ))}
     </div>
   );
 }

@@ -9,7 +9,6 @@ import { VoiceSection } from "./VoiceSection";
 import { VOICE_SECTION_ID } from "../../lib/voice";
 import { TagsSection } from "./TagsSection";
 import { openTour } from "../shell/Tour";
-import { BackgroundPicker } from "./BackgroundPicker";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { ZOOMS, type Settings, type ViewId } from "../../domain/types";
@@ -123,9 +122,6 @@ export function SettingsView() {
         <Row label="Accent">
           <AccentPicker value={s.accent} onChange={set("accent")} />
         </Row>
-        <Row label="Background">
-          <BackgroundPicker />
-        </Row>
         <Row label="Animations">
           <Segmented
             name="motion"
@@ -176,12 +172,7 @@ export function SettingsView() {
 
       <Section title="Layout">
         <LayoutPicker />
-        {s.layout === "dock" && (
-          <Row label="Dock labels">
-            <Toggle checked={s.dockLabels} onChange={(v) => update({ dockLabels: v })} text="Show text under the icons" />
-          </Row>
-        )}
-        {(s.layout === "classic" || s.layout === "flat") && (
+        {s.layout === "sidebar" && (
           <Row label="Sidebar position">
             <Segmented
               name="sidebarSide"

@@ -100,26 +100,6 @@
   color-scheme: dark;
 }
 
-/* Custom background (D79): `html[data-bg]` makes the content card, sidebar and dock translucent. Dialogs and menus (--surface-2) stay opaque. */
-:root {
-  --dim-rgb: 255 255 255;
-  --glass: rgb(255 255 255 / 0.78);
-}
-:root[data-theme="dark"] {
-  --dim-rgb: 0 0 0;
-  --glass: rgb(27 29 34 / 0.78);
-}
-html[data-bg] {
-  --surface: rgb(255 255 255 / 0.86);
-}
-html[data-bg][data-theme="dark"] {
-  --surface: rgb(27 29 34 / 0.84);
-}
-html[data-bg] .glass {
-  background: var(--glass);
-  backdrop-filter: blur(12px);
-}
-
 :root[data-density="compact"] {
   --row-h: 1.875rem;
   --pad: 0.5rem;

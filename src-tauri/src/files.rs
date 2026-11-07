@@ -1,5 +1,5 @@
-//! Image files the app keeps in its config dir: note attachments (D78) and backgrounds (D79).
-//! The webview reads them through the asset protocol (scoped to these two folders); every
+//! Image files the app keeps in its config dir: note attachments (D78).
+//! The webview reads them through the asset protocol (scoped to that folder); every
 //! write goes through these commands, which validate the folder, the name and the size.
 
 use std::{
@@ -19,7 +19,7 @@ fn image_path(app: &AppHandle, kind: &str, name: &str) -> Result<PathBuf, String
 }
 
 fn dir(app: &AppHandle, kind: &str) -> Result<PathBuf, String> {
-    if kind != "attachments" && kind != "backgrounds" {
+    if kind != "attachments" {
         return Err(format!("unknown file folder: {kind}"));
     }
     let d = app.path().app_config_dir().map_err(|e| e.to_string())?.join(kind);
@@ -37,13 +37,16 @@ fn valid_name(name: &str) -> Result<&str, String> {
     }
 }
 
-/// Lets the webview read both folders over the asset protocol. Granted at startup with the exact
-/// paths the commands write to; the static `$APPCONFIG/...` glob in tauri.conf.json returned 403 on Windows.
+/// Lets the webview read the attachments folder over the asset protocol. Granted at startup with the exact
+/// path the commands write to; the static `$APPCONFIG/...` glob in tauri.conf.json returned 403 on Windows.
+/// Also deletes the `backgrounds/` folder left by v0.9 (backgrounds were removed in v1.0, D171).
 pub fn allow_asset_dirs(app: &AppHandle) -> Result<(), String> {
-    for kind in ["attachments", "backgrounds"] {
-        app.asset_protocol_scope().allow_directory(dir(app, kind)?, true).map_err(|e| e.to_string())?;
+    let config = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    match fs::remove_dir_all(config.join("backgrounds")) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => eprintln!("could not remove the old backgrounds folder: {e}"),
+        _ => {}
     }
-    Ok(())
+    app.asset_protocol_scope().allow_directory(dir(app, "attachments")?, true).map_err(|e| e.to_string())
 }
 
 /// Folder path, so the frontend can build asset URLs (`convertFileSrc`).

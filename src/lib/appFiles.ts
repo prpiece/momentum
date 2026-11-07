@@ -3,10 +3,10 @@ import { isTauri } from "../db/client";
 import { attachmentRefs, droppedAttachments, staleAttachments } from "../domain/attachments";
 
 /**
- * Images kept in the app's config dir (D78 attachments, D79 backgrounds). Rust validates every
+ * Images kept in the app's config dir (D78 attachments). Rust validates every
  * folder/name/size (src-tauri/src/files.rs); the webview reads them through the asset protocol.
  */
-export type ImageFolder = "attachments" | "backgrounds";
+export type ImageFolder = "attachments";
 export type StoredImage = { name: string; modified: number };
 
 export const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"] as const;

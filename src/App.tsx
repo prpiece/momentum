@@ -7,7 +7,7 @@ import { CelebrationOverlay } from "./features/celebrate/CelebrationOverlay";
 import { UpdatePrompt } from "./features/shell/UpdatePrompt";
 import { WhatsNew } from "./features/shell/WhatsNew";
 import { onWriteError } from "./db/client";
-import type { Layout, ViewId } from "./domain/types";
+import type { ViewId } from "./domain/types";
 import { CalendarView } from "./features/calendar/CalendarView";
 import { EventDialog } from "./features/calendar/EventDialog";
 import { CountdownView } from "./features/countdown/CountdownView";
@@ -16,7 +16,6 @@ import { HabitsView } from "./features/habits/HabitsView";
 import { MatrixView } from "./features/matrix/MatrixView";
 import { StatsView } from "./features/stats/StatsView";
 import { SettingsView } from "./features/settings/SettingsView";
-import { BackgroundLayer } from "./features/shell/BackgroundLayer";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dialogs";
 import { ImportDialog } from "./features/tasks/ImportDialog";
@@ -35,14 +34,6 @@ import { useData } from "./stores/data";
 import { useSettings } from "./stores/settings";
 import { toast, useUi } from "./stores/ui";
 
-
-/** The content card's frame per layout (D68). Flat runs edge to edge with one divider. */
-const MAIN: Record<Layout, string> = {
-  classic: "my-2 rounded-lg border border-border shadow-sm",
-  flat: "border-border",
-  topbar: "mx-2 mb-2 rounded-lg border border-border shadow-sm",
-  dock: "m-2 rounded-lg border border-border shadow-sm",
-};
 
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
@@ -85,6 +76,8 @@ export default function App() {
   useEffect(() => onWriteError(() => toast("Couldn't save a change. It will be lost if you close the app.")), []);
   const side = useSettings((s) => s.settings.sidebarSide);
   const layout = useSettings((s) => s.settings.layout);
+  const barPosition = useSettings((s) => s.settings.barPosition);
+  const topBar = layout === "bar" && barPosition === "top";
   const view = useUi((s) => s.view);
   const lists = useData((s) => s.lists);
   const tags = useData((s) => s.tags);
@@ -93,16 +86,15 @@ export default function App() {
 
   return (
     <DndRoot>
-      <div className={`relative isolate flex h-full ${layout === "topbar" || layout === "dock" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
-        <BackgroundLayer />
-        {layout === "topbar" ? <NavBar variant="top" /> : layout !== "dock" && <Sidebar />}
-        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface ${MAIN[layout]} ${layout === "classic" ? (side === "left" ? "mr-2" : "ml-2") : layout === "flat" ? (side === "left" ? "border-l" : "border-r") : ""}`}>
-          <Header view={view} spec={spec} controls={layout !== "topbar"} />
+      <div className={`relative isolate flex h-full ${layout === "bar" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
+        {layout === "sidebar" ? <Sidebar /> : topBar && <NavBar position="top" />}
+        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface border-border ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : topBar ? "border-t" : "border-b"}`}>
+          <Header view={view} spec={spec} controls={!topBar} />
           <div key={view} className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
             <View view={view} spec={spec} />
           </div>
         </main>
-        {layout === "dock" && <NavBar variant="dock" />}
+        {layout === "bar" && !topBar && <NavBar position="bottom" />}
         <TaskDrawer />
       </div>
       <CommandPalette />
