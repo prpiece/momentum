@@ -10,9 +10,10 @@ One spec per release, built from the decisions in `PLAN.md` (D104–D184) and th
 | v1.3 | [Sharing](v1.3-sharing.md) | v1.1, v1.2 |
 
 Open items:
-- The product name and the `get<name>.app/.com` domain (D185, D188), chosen during the v1.0 build. Testers move their data by zip export and import.
+- Which `usemomentum` domain to buy (D192). `.co`, `.org` and `.net` looked free on 2026-11-07; `.app`, `.com` and `.io` were taken.
+- A USPTO/EUIPO trademark check on "Momentum" for software before v1.2's public launch (D192).
 - Paddle or Lemon Squeezy (D190), chosen when payments are built, after v1.2.
 - Apple developer enrolment for Sign in with Apple.
 - AI features (D143–D144, D179).
 
-Settled: Terms and Privacy and, until the domain exists, invite links live on GitHub Pages (D186, D189).
+Settled: the name stays Momentum (D192). Terms and Privacy and, until the domain exists, invite links live on GitHub Pages (D186, D189).

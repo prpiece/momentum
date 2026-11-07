@@ -435,14 +435,17 @@ Grilled in rounds; ADRs in `docs/adr/`.
 - **D184: Inviting friends is effortless.** An invite link turns into a friendship at sign-up; the Share card carries the @handle and the link; new users' Getting started includes "Add a friend".
 
 
-- **D185: The app gets a new name,** because the Momentum domain is too expensive. The name is still to be chosen (round 8).
+- **D185: (superseded by D192)** The app gets a new name, because the Momentum domain is too expensive. The name is still to be chosen (round 8).
 - **D186: Terms and Privacy are hosted on GitHub** (Pages, from this repo) and linked from sign-up, Settings → About and the store listings.
 - **D187: (superseded by D190)** The Supporter tier is paid through Stripe.
 
 
-- **D188: The rename includes the bundle identifier; testers move their data by zip export and import.** Only testers use the app, so there is no migration code, no installer hook and no updater redirect. The renamed build is shared as a download link, not through the old updater. The name is picked during the build; the domain will be `get<name>.app` or `.com`.
+- **D188: (superseded by D192)** The rename includes the bundle identifier; testers move their data by zip export and import. Only testers use the app, so there is no migration code, no installer hook and no updater redirect. The renamed build is shared as a download link, not through the old updater. The name is picked during the build; the domain will be `get<name>.app` or `.com`.
 - **D189: Invite links use GitHub Pages until the domain exists:** `<user>.github.io/<repo>/i/#<code>`, opening `<name>://`. The code stays in the fragment, so it never reaches server logs. Once the domain exists, the old page redirects to it.
 - **D190: Supporter is sold through a merchant of record** (Paddle or Lemon Squeezy, ~5% + fee), which handles VAT and sales tax. Stripe was dropped because it leaves tax with us. Flow: hosted checkout in the system browser → signed webhook to a Supabase Edge Function → `profiles.supporter_until`. Managing and cancelling use the provider's customer portal. The app never sees card details and unlocks only on the server's word.
 - **D191: Mobile billing.** The store's in-app billing is used where required and a link out where allowed. Every source sets the same `supporter_until`. The merchant of record doesn't change the app-store rules.
 
-Planning frontier closed 2026-11-06. Open until build: the product name (D185/D188).
+
+- **D192: The name stays Momentum** (supersedes D185, D188). The identifier, data folder and updater are unchanged, so there's no rename work or tester data move. The domain will be `usemomentum.<tld>`, bought later. On 2026-11-07, `usemomentum.app`, `.com` and `.io` already had active nameservers, while `.co`, `.org` and `.net` looked unregistered. Until the domain exists, invite links stay on GitHub Pages (D189), and the deep-link scheme is `momentum://`. Accepted risk: other productivity apps are called Momentum (Momentum Dash, Momentum Habit Tracker, Momentum AI), which hurts store search and could raise a trademark claim. Run a USPTO/EUIPO search before v1.2's public launch.
+
+Planning frontier closed 2026-11-07.
