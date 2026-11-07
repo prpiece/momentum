@@ -3,7 +3,7 @@ import { calendarItems, hashColor, type CalItem } from "../../domain/calendar";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { addDaysLocal, toLocalDate } from "../../domain/dates";
 import { isDone, isScheduled } from "../../domain/habits";
-import type { LocalDate, Task } from "../../domain/types";
+import { PRIORITY_VAR, type LocalDate, type Task } from "../../domain/types";
 import { useData } from "../../stores/data";
 import { useFocus } from "../../stores/focus";
 import { useHabits } from "../../stores/habits";
@@ -11,7 +11,6 @@ import { useSettings } from "../../stores/settings";
 import { useDerived } from "../tasks/selectors";
 
 const PALETTE = ACCENT_PRESETS.map((p) => p.hex);
-const PRIORITY_COLOR = ["var(--fg-muted)", "var(--p1)", "var(--p2)", "var(--p3)"];
 
 /** Calendar items for [from, to], memoized on the data they derive from. */
 export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
@@ -26,10 +25,10 @@ export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
 
   return useMemo(() => {
     const colorOf = (t: Task): string => {
-      if (cal.colorBy === "priority") return PRIORITY_COLOR[t.priority];
+      if (cal.colorBy === "priority") return PRIORITY_VAR[t.priority];
       if (cal.colorBy === "tag") {
         const tag = t.tags.map((id) => tags[id]).find(Boolean);
-        return tag ? (tag.color ?? hashColor(tag.name, PALETTE)) : "var(--fg-muted)";
+        return tag ? (tag.color ?? hashColor(tag.name, PALETTE)) : "var(--muted)";
       }
       return lists[t.listId]?.color ?? "var(--accent)";
     };
@@ -54,7 +53,7 @@ export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
         const endDate = toLocalDate(new Date(end.getTime() - 1));
         if (endDate < from || startDate > to) continue;
         const task = s.taskId ? derived.byId.get(s.taskId)?.task : undefined;
-        items.push({ uid: `focus:${s.id}`, source: "focus", id: s.id, key: null, title: task ? `Focus: ${task.title}` : "Focus", allDay: false, startDate, endDate, start, end, color: "var(--p3)", done: false, recurring: false, readOnly: true, priority: 0 });
+        items.push({ uid: `focus:${s.id}`, source: "focus", id: s.id, key: null, title: task ? `Focus: ${task.title}` : "Focus", allDay: false, startDate, endDate, start, end, color: "var(--prio-high)", done: false, recurring: false, readOnly: true, priority: 0 });
       }
     }
     return items;

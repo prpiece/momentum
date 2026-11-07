@@ -170,7 +170,7 @@ export function QuickAddWindow() {
     />
   );
   return (
-    <div className="flex h-full flex-col justify-center border border-border bg-surface-2 px-4">
+    <div className="flex h-full flex-col justify-center border border-border bg-raised px-4">
       <div className="flex items-center gap-3">
         {voice.kind === "listening" ? (
           <span className="grid size-5 place-items-center" aria-hidden>
@@ -215,7 +215,7 @@ export function QuickAddWindow() {
           aria-pressed={voice.kind === "listening"}
           aria-label={voice.kind === "listening" ? "Stop listening" : "Speak a task"}
           title={voice.kind === "listening" ? "Stop listening" : "Speak a task (or hold the push-to-talk shortcut)"}
-          className={`grid size-9 place-items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${voice.kind === "listening" ? "bg-accent text-accent-fg" : "text-muted hover:bg-hover hover:text-fg"}`}
+          className={`grid size-9 place-items-center rounded-control outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 ${voice.kind === "listening" ? "bg-accent text-accent-fg" : "text-muted hover:bg-surface-2 hover:text-fg"}`}
         >
           <Mic size={18} className={voice.kind === "transcribing" ? "animate-pulse" : ""} />
         </button>
@@ -229,7 +229,7 @@ export function QuickAddWindow() {
           </span>
         )}
         {context && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs font-medium">
+          <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium">
             {context.kind === "list" ? <List size={12} className="text-accent" /> : <CalendarDays size={12} className="text-accent" />}
             {contextLabel(context, today)}
           </span>
@@ -254,14 +254,14 @@ export function QuickAddWindow() {
                 setText((t) => `${t.trimEnd()} #`.trimStart());
                 input.current?.focus();
               }}
-              className="h-6 rounded-full border border-dashed border-border px-2 text-xs text-fg-2 hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
+              className="h-6 rounded-full border border-dashed border-border px-2 text-xs text-fg-2 hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent"
             >
               + Tag
             </button>
           </>
         )}
         <span className="ml-auto text-xs text-muted">
-          <kbd className="font-mono">Enter</kbd> add · <kbd className="font-mono">Esc</kbd> {parsed.chips.length && !raw ? "plain text" : "close"}
+          <kbd className="tabular-nums">Enter</kbd> add · <kbd className="tabular-nums">Esc</kbd> {parsed.chips.length && !raw ? "plain text" : "close"}
         </span>
       </div>
     </div>

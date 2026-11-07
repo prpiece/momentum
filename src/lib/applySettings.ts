@@ -1,10 +1,12 @@
 import { useEffect } from "react";
-import { accentForeground } from "../domain/color";
+import { accentHex } from "../domain/color";
 import { parseSettings } from "../domain/settings";
 import type { Settings } from "../domain/types";
 import { useSettings } from "../stores/settings";
 
-const FONT_PX: Record<Settings["fontSize"], string> = { sm: "14px", md: "15px", lg: "16.5px", xl: "18px", xxl: "20px" };
+// The design tokens are rem at a 16px root, so the default size is 16px (D198).
+const FONT_PX: Record<Settings["fontSize"], string> = { sm: "15px", md: "16px", lg: "17.5px", xl: "19px", xxl: "21px" };
+const QUADRANT_PROPS = ["--q-do", "--q-schedule", "--q-delegate", "--q-drop"] as const;
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "fontSize" | "timeFormat" | "smartParse" | "matrixColors">;
@@ -13,15 +15,14 @@ export function apply(s: Appearance) {
   const root = document.documentElement;
   const theme = s.theme === "system" ? (darkQuery.matches ? "dark" : "light") : s.theme;
   root.dataset.theme = theme;
-  // A picked quadrant colour replaces the theme default; dark mode lifts it toward white for contrast (D85).
+  // A picked quadrant colour replaces the theme default with that preset's colour for this theme (D85, D198).
   s.matrixColors.forEach((c, i) => {
-    if (c) root.style.setProperty(`--q${i + 1}`, theme === "dark" ? `color-mix(in oklch, ${c} 72%, white)` : c);
-    else root.style.removeProperty(`--q${i + 1}`);
+    if (c) root.style.setProperty(QUADRANT_PROPS[i], accentHex(c, theme));
+    else root.style.removeProperty(QUADRANT_PROPS[i]);
   });
   root.dataset.density = s.density;
   root.dataset.motion = s.motion;
-  root.style.setProperty("--accent", s.accent);
-  root.style.setProperty("--accent-fg", accentForeground(s.accent));
+  root.dataset.accent = s.accent;
   root.style.fontSize = FONT_PX[s.fontSize];
 }
 

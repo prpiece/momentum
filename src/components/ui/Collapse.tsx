@@ -25,7 +25,7 @@ export function Collapse({ open, children }: { open: boolean; children: ReactNod
     <div
       inert={!open}
       onTransitionEnd={(e) => e.target === e.currentTarget && !open && setMounted(false)}
-      className={`grid transition-[grid-template-rows] duration-[var(--dur)] ease-[var(--ease)] ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+      className={`grid transition-[grid-template-rows] duration-[var(--dur)] ease-[var(--ease-out)] ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
     >
       <div className="min-h-0 overflow-hidden">{mounted && children}</div>
     </div>

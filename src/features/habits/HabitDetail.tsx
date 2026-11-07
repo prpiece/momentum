@@ -13,9 +13,9 @@ import { IconTile } from "../../components/ui/AppIcon";
 
 /** Sequential single-hue fill: none → partial → done (habit color mixed into the surface). */
 export function cellFill(h: Habit, value: number | undefined, scheduled: boolean): string {
-  if (!value) return scheduled ? "var(--hover)" : "transparent";
+  if (!value) return scheduled ? "var(--surface-2)" : "transparent";
   const ratio = Math.min(1, value / targetOf(h));
-  return ratio >= 1 ? h.color : `color-mix(in oklch, ${h.color} ${Math.round(25 + ratio * 40)}%, var(--surface-2))`;
+  return ratio >= 1 ? h.color : `color-mix(in oklch, ${h.color} ${Math.round(25 + ratio * 40)}%, var(--raised))`;
 }
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -54,14 +54,14 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
             {habit.goal.kind !== "once" && ` · ${fmt(habit.goal.target)} ${habit.goal.unit} a day`}
           </p>
         </div>
-        <button type="button" onClick={onEdit} aria-label="Edit habit" className="grid size-9 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg">
+        <button type="button" onClick={onEdit} aria-label="Edit habit" className="grid size-9 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg">
           <Pencil size={16} />
         </button>
       </header>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<Flame size={15} className="text-p3" />} label="Current streak" value={cur.count} unit={`${cur.unit}${cur.count === 1 ? "" : "s"}`} />
-        <Stat icon={<Trophy size={15} className="text-p2" />} label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
+        <Stat icon={<Flame size={15} className="text-prio-high" />} label="Current streak" value={cur.count} unit={`${cur.unit}${cur.count === 1 ? "" : "s"}`} />
+        <Stat icon={<Trophy size={15} className="text-prio-med" />} label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
         <Stat label="Last 30 days" value={rate30 === null ? "–" : Math.round(rate30 * 100)} unit={rate30 === null ? "" : "%"} />
         <Stat label="Check-ins" value={total} unit="total" />
       </div>
@@ -75,7 +75,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
           <ul className="space-y-2">
             {notes.map((n) => (
               <li key={n.date} className="flex gap-3 text-sm">
-                <span className="w-16 shrink-0 font-mono text-xs text-muted">{format(fromLocalDate(n.date), "MMM d")}</span>
+                <span className="w-16 shrink-0 tabular-nums text-xs text-muted">{format(fromLocalDate(n.date), "MMM d")}</span>
                 {n.mood && <MoodFace mood={n.mood} size={15} />}
                 <span className="text-fg-2">{n.note}</span>
               </li>
@@ -89,12 +89,12 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
 
 function Stat({ icon, label, value, unit }: { icon?: React.ReactNode; label: string; value: number | string; unit: string }) {
   return (
-    <div className="rounded-md border border-border bg-surface-2 p-3 shadow-sm">
+    <div className="rounded-card border border-border bg-raised p-3">
       <div className="flex items-center gap-1.5 text-xs text-muted">
         {icon}
         {label}
       </div>
-      <div className="mt-1 font-mono text-2xl font-semibold tabular-nums">
+      <div className="mt-1 tabular-nums text-2xl font-semibold">
         {value}
         <span className="ml-1 font-sans text-xs font-normal text-muted">{unit}</span>
       </div>
@@ -112,12 +112,12 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
     <section>
       <div className="mb-2 flex items-center gap-1">
         <h3 className="flex-1 text-xs font-semibold uppercase tracking-wider text-muted">
-          {format(fromLocalDate(month), "MMMM yyyy")} {rate !== null && <span className="ml-1 font-mono normal-case">· {Math.round(rate * 100)}%</span>}
+          {format(fromLocalDate(month), "MMMM yyyy")} {rate !== null && <span className="ml-1 tabular-nums normal-case">· {Math.round(rate * 100)}%</span>}
         </h3>
-        <button type="button" aria-label="Previous month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), -1)))} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+        <button type="button" aria-label="Previous month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), -1)))} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
           <ChevronLeft size={15} />
         </button>
-        <button type="button" aria-label="Next month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), 1)))} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+        <button type="button" aria-label="Next month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), 1)))} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
           <ChevronRight size={15} />
         </button>
       </div>
@@ -135,7 +135,7 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
             <div
               key={d}
               title={cellTitle(habit, d, v)}
-              className={`grid aspect-square place-items-center rounded-sm font-mono text-xs ${inMonth ? "" : "opacity-30"} ${d === today ? "ring-2 ring-accent" : ""}`}
+              className={`grid aspect-square place-items-center rounded-control tabular-nums text-xs ${inMonth ? "" : "opacity-30"} ${d === today ? "ring-2 ring-accent" : ""}`}
               style={{ background: d > today ? "transparent" : cellFill(habit, v, isScheduled(habit, d)), color: done ? accentForeground(habit.color) : "var(--fg-2)" }}
             >
               {format(fromLocalDate(d), "d")}
@@ -168,7 +168,7 @@ function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; 
             return (
               <g key={w} transform={`translate(${wi * (CELL + GAP)}, 0)`}>
                 {showMonth && (
-                  <text y={9} className="fill-[var(--fg-muted)] text-[9px]">
+                  <text y={9} className="fill-[var(--muted)] text-[9px]">
                     {format(d0, "MMM")}
                   </text>
                 )}

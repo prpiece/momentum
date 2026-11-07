@@ -10,7 +10,7 @@ import { isTauri } from "../../db/client";
 import { loadActivity } from "../../db/repo";
 import { importImage, MAX_IMAGE_BYTES, newImageName, writeImage } from "../../lib/appFiles";
 import { scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
-import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, type Activity, type Task } from "../../domain/types";
+import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type Activity, type Task } from "../../domain/types";
 import { addTask, depthOf, duplicateTask, ensureTags, reorderTask, uid, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { closeDrawer, openTask, toast, useUi } from "../../stores/ui";
@@ -34,7 +34,7 @@ export function TaskDrawer() {
     <aside
       key={task.id}
       aria-label="Task details"
-      className={`${side === "right" ? "anim-slide-right right-2 border-l" : "anim-slide-left left-2 border-r"} absolute inset-y-2 z-40 flex w-[26rem] max-w-[calc(100%-1rem)] flex-col rounded-lg border border-border bg-surface-2 shadow-lg`}
+      className={`${side === "right" ? "anim-slide-right right-2 border-l" : "anim-slide-left left-2 border-r"} absolute inset-y-2 z-40 flex w-[26rem] max-w-[calc(100%-1rem)] flex-col rounded-panel border border-border bg-raised shadow-float`}
       onKeyDown={(e) => {
         if (e.key === "Escape" && !(e.target instanceof HTMLTextAreaElement)) closeDrawer();
       }}
@@ -58,7 +58,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
     <>
       <header className="flex items-center gap-1 border-b border-border px-3 py-2">
         {parent && (
-          <button type="button" onClick={() => openTask(parent.id)} className="flex min-w-0 items-center gap-1 rounded-sm px-1.5 py-1 text-xs text-muted hover:bg-hover hover:text-fg">
+          <button type="button" onClick={() => openTask(parent.id)} className="flex min-w-0 items-center gap-1 rounded-control px-1.5 py-1 text-xs text-muted hover:bg-surface-2 hover:text-fg">
             <ChevronLeft size={14} />
             <span className="truncate">{parent.title}</span>
           </button>
@@ -92,7 +92,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         <div className="flex flex-wrap items-center gap-2">
           <Chip
             label="Priority"
-            icon={<Flag size={13} style={{ color: t.priority ? `var(--p${t.priority})` : "var(--fg-muted)" }} fill={t.priority ? `var(--p${t.priority})` : "none"} />}
+            icon={<Flag size={13} style={{ color: t.priority ? PRIORITY_VAR[t.priority] : "var(--muted)" }} fill={t.priority ? PRIORITY_VAR[t.priority] : "none"} />}
             text={t.priority ? PRIORITY_LABEL[t.priority] : "Priority"}
             set={t.priority !== 0}
           >
@@ -105,9 +105,9 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
                     role="radio"
                     aria-checked={t.priority === p}
                     onClick={() => (set({ priority: p }), close())}
-                    className={`flex h-7 items-center gap-1 rounded-full px-2.5 text-xs transition-colors ${t.priority === p ? "bg-accent-soft font-semibold text-fg ring-1 ring-accent" : "text-fg-2 hover:bg-hover"}`}
+                    className={`flex h-7 items-center gap-1 rounded-full px-2.5 text-xs transition-colors ${t.priority === p ? "bg-accent-soft font-semibold text-fg ring-1 ring-accent" : "text-fg-2 hover:bg-surface-2"}`}
                   >
-                    <Flag size={12} style={{ color: p ? `var(--p${p})` : "var(--fg-muted)" }} fill={p ? `var(--p${p})` : "none"} />
+                    <Flag size={12} style={{ color: p ? PRIORITY_VAR[p] : "var(--muted)" }} fill={p ? PRIORITY_VAR[p] : "none"} />
                     {PRIORITY_LABEL[p]}
                   </button>
                 ))}
@@ -180,7 +180,7 @@ function Chip({ label, icon, text, set, children }: { label: string; icon: React
         aria-haspopup="dialog"
         aria-expanded={m.open}
         onClick={m.toggle}
-        className={`flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors ${set ? "bg-accent-soft text-fg" : "bg-hover text-muted hover:text-fg"}`}
+        className={`flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors ${set ? "bg-accent-soft text-fg" : "bg-surface-2 text-muted hover:text-fg"}`}
       >
         <span className="shrink-0">{icon}</span>
         <span className="truncate">{text}</span>
@@ -229,9 +229,9 @@ function TagEditor({ task, tags }: { task: Task; tags: Record<string, { id: stri
       <Hash size={16} className="mr-1.5 text-muted" />
       {task.tags.map((id) =>
         tags[id] ? (
-          <span key={id} className="inline-flex items-center gap-1 rounded-full bg-hover py-0.5 pl-2.5 pr-1 text-xs">
+          <span key={id} className="inline-flex items-center gap-1 rounded-full bg-surface-2 py-0.5 pl-2.5 pr-1 text-xs">
             #{tags[id].name}
-            <button type="button" aria-label={`Remove tag ${tags[id].name}`} onClick={() => updateTask(task.id, { tags: task.tags.filter((x) => x !== id) })} className="rounded-full p-0.5 hover:bg-hover">
+            <button type="button" aria-label={`Remove tag ${tags[id].name}`} onClick={() => updateTask(task.id, { tags: task.tags.filter((x) => x !== id) })} className="rounded-full p-0.5 hover:bg-surface-2">
               <X size={11} />
             </button>
           </span>
@@ -307,7 +307,7 @@ function Description({ task }: { task: Task }) {
         aria-label="Edit description"
         onClick={(e) => !(e.target instanceof HTMLAnchorElement) && setEditing(true)}
         onKeyDown={(e) => e.key === "Enter" && setEditing(true)}
-        className="prose-md min-h-32 grow cursor-text rounded-md p-2 text-sm text-fg-2 hover:bg-hover"
+        className="prose-md min-h-32 grow cursor-text rounded-card p-2 text-sm text-fg-2 hover:bg-surface-2"
       >
         <NoteMarkdown>{task.description}</NoteMarkdown>
       </div>
@@ -338,11 +338,11 @@ function Description({ task }: { task: Task }) {
         }}
         placeholder="Write a note… (Markdown supported; paste or drop images)"
         aria-label="Description"
-        className="min-h-32 w-full flex-1 resize-none rounded-md border border-transparent bg-transparent p-2 text-sm outline-none placeholder:text-muted hover:border-border focus:border-accent"
+        className="min-h-32 w-full flex-1 resize-none rounded-card border border-transparent bg-transparent p-2 text-sm outline-none placeholder:text-muted hover:border-border focus:border-accent"
       />
       {editing && (
         // mouseDown is prevented so the textarea keeps focus (a blur would save and leave edit mode).
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void pickImage()} className="mt-1 flex items-center gap-1 self-start rounded-sm px-1.5 py-1 text-xs text-muted hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-accent">
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void pickImage()} className="mt-1 flex items-center gap-1 self-start rounded-control px-1.5 py-1 text-xs text-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent">
           <ImagePlus size={14} /> Add image
         </button>
       )}
@@ -365,7 +365,7 @@ function Subtasks({ task }: { task: Task }) {
             <button type="button" onClick={() => openTask(k.task.id, k.key)} className={`flex-1 truncate text-left text-sm ${k.task.status !== "open" ? "text-muted line-through" : ""}`}>
               {k.task.title}
             </button>
-            <button type="button" aria-label={`Delete ${k.task.title}`} title="Delete subtask" onClick={() => void deleteTasks([k.task.id], k.key)} className="grid size-6 place-items-center rounded-sm text-muted opacity-0 hover:text-danger focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover:opacity-100">
+            <button type="button" aria-label={`Delete ${k.task.title}`} title="Delete subtask" onClick={() => void deleteTasks([k.task.id], k.key)} className="grid size-6 place-items-center rounded-control text-muted opacity-0 hover:text-danger focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover:opacity-100">
               <Trash2 size={13} />
             </button>
           </SortableItem>
@@ -383,7 +383,7 @@ function Subtasks({ task }: { task: Task }) {
           }}
           placeholder="+ Add subtask"
           aria-label="Add subtask"
-          className="mt-1 h-8 w-full rounded-sm bg-transparent px-1 text-sm outline-none placeholder:text-muted"
+          className="mt-1 h-8 w-full rounded-control bg-transparent px-1 text-sm outline-none placeholder:text-muted"
         />
       ) : (
         <p className="mt-1 text-xs text-muted">Subtasks can nest up to {MAX_SUBTASK_DEPTH} levels.</p>
@@ -428,7 +428,7 @@ function Checklist({ task }: { task: Task }) {
         }}
         placeholder="+ Add item"
         aria-label="Add checklist item"
-        className="mt-1 h-8 w-full rounded-sm bg-transparent px-1 text-sm outline-none placeholder:text-muted"
+        className="mt-1 h-8 w-full rounded-control bg-transparent px-1 text-sm outline-none placeholder:text-muted"
       />
     </section>
   );
@@ -462,7 +462,7 @@ function SortableItem({ id, label, className, children }: { id: string; label: s
     <li
       ref={setNodeRef}
       style={{ transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined, transition }}
-      className={`anim-rise group flex items-center gap-1.5 rounded-sm pr-1 hover:bg-hover ${className} ${isDragging ? "relative z-10 bg-surface shadow-md" : ""}`}
+      className={`anim-rise group flex items-center gap-1.5 rounded-control pr-1 hover:bg-surface-2 ${className} ${isDragging ? "relative z-10 bg-surface shadow-float" : ""}`}
     >
       <button
         ref={setActivatorNodeRef}
@@ -471,7 +471,7 @@ function SortableItem({ id, label, className, children }: { id: string; label: s
         {...listeners}
         aria-label={`Reorder ${label}`}
         title="Drag to reorder"
-        className="grid h-6 w-4 shrink-0 cursor-grab touch-none place-items-center rounded text-muted opacity-0 hover:text-fg focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100"
+        className="grid h-6 w-4 shrink-0 cursor-grab touch-none place-items-center rounded-xs text-muted opacity-0 hover:text-fg focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100"
       >
         <GripVertical size={13} />
       </button>
@@ -500,15 +500,15 @@ function ActivityLog({ task }: { task: Task }) {
   }, [task.id, task.updatedAt]);
   return (
     <details className="border-t border-border pt-3">
-      <summary className="cursor-pointer rounded-sm text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg">Activity</summary>
+      <summary className="cursor-pointer rounded-control text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg">Activity</summary>
       <ul className="mt-2 space-y-1 text-xs text-muted">
         {items.filter((a) => a.kind !== "created").map((a) => (
           <li key={a.id}>
-            <span className="font-mono">{format(new Date(a.at), "MMM d, HH:mm")}</span> · {ACTIVITY_TEXT[a.kind]} {a.detail}
+            <span className="tabular-nums">{format(new Date(a.at), "MMM d, HH:mm")}</span> · {ACTIVITY_TEXT[a.kind]} {a.detail}
           </li>
         ))}
         <li>
-          <span className="font-mono">{format(new Date(task.createdAt), "MMM d, HH:mm")}</span> · Created
+          <span className="tabular-nums">{format(new Date(task.createdAt), "MMM d, HH:mm")}</span> · Created
         </li>
       </ul>
     </details>

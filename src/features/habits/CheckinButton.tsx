@@ -55,14 +55,14 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
         <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden="true">
           <circle cx={size / 2} cy={size / 2} r={r} fill={done ? habit.color : "transparent"} stroke="var(--border)" strokeWidth={done ? 0 : 2.5} />
           {!done && progress > 0 && (
-            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={habit.color} strokeWidth={3} strokeLinecap="round" strokeDasharray={`${circ * progress} ${circ}`} className="transition-[stroke-dasharray] duration-[400ms] ease-[var(--ease)]" />
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={habit.color} strokeWidth={3} strokeLinecap="round" strokeDasharray={`${circ * progress} ${circ}`} className="transition-[stroke-dasharray] duration-[400ms] ease-[var(--ease-out)]" />
           )}
         </svg>
         <span className="relative">
           {done ? (
             <Check key="d" size={size * 0.45} strokeWidth={3.25} className="anim-pop" style={{ color: accentForeground(habit.color) }} />
           ) : habit.goal.kind === "once" ? null : value > 0 ? (
-            <span className="font-mono text-[0.65rem] font-semibold">{fmt(value)}</span>
+            <span className="tabular-nums text-[0.65rem] font-semibold">{fmt(value)}</span>
           ) : (
             <Plus size={size * 0.4} className="text-muted" />
           )}
@@ -86,11 +86,11 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
             <label className="text-xs font-semibold text-muted">
               {habit.name} · goal {fmt(target)} {habit.goal.unit}
               <div className="mt-1.5 flex items-center gap-2">
-                <input autoFocus type="number" min={0} step="any" value={draft} onChange={(e) => setDraft(e.target.value)} className="h-9 w-full rounded-sm border border-border bg-surface px-2 text-sm text-fg outline-none focus:border-accent" />
+                <input autoFocus type="number" min={0} step="any" value={draft} onChange={(e) => setDraft(e.target.value)} className="h-9 w-full rounded-control border border-border bg-surface px-2 text-sm text-fg outline-none focus:border-accent" />
                 <span className="text-sm text-fg-2">{habit.goal.unit}</span>
               </div>
             </label>
-            <button type="submit" className="mt-2 h-8 w-full rounded-sm bg-accent text-xs font-medium text-accent-fg">
+            <button type="submit" className="mt-2 h-8 w-full rounded-control bg-accent text-xs font-medium text-accent-fg">
               Save
             </button>
           </form>

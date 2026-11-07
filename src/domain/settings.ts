@@ -1,4 +1,4 @@
-import { ACCENT_PRESETS } from "./color";
+import { parseAccent } from "./color";
 import { FEATURES, type GettingStarted } from "./features";
 import {
   BAR_POSITIONS,
@@ -31,7 +31,7 @@ import {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
-  accent: "#2f6fed",
+  accent: "indigo",
   density: "comfortable",
   motion: "system",
   fontSize: "md",
@@ -186,10 +186,7 @@ function parseMatrix(raw: unknown): Settings["matrix"] {
 
 /** Anything but an accent preset (or null) falls back to the theme default for that quadrant. */
 function parseMatrixColors(raw: unknown): Settings["matrixColors"] {
-  const at = (i: number): string | null => {
-    const v = Array.isArray(raw) ? raw[i] : null;
-    return typeof v === "string" ? (ACCENT_PRESETS.find((p) => p.hex === v.toLowerCase())?.hex ?? null) : null;
-  };
+  const at = (i: number) => parseAccent(Array.isArray(raw) ? raw[i] : null);
   return [at(0), at(1), at(2), at(3)];
 }
 
@@ -267,7 +264,7 @@ export function parseSettings(raw: unknown): Settings {
   return {
     theme: oneOf(THEMES, r.theme) ? r.theme : d.theme,
     // Only the presets: each has a matching app icon (D55). Custom colors from before fall back.
-    accent: ((v) => ACCENT_PRESETS.find((p) => p.hex === v)?.hex ?? d.accent)(typeof r.accent === "string" ? r.accent.toLowerCase() : null),
+    accent: parseAccent(r.accent) ?? d.accent,
     density: oneOf(DENSITIES, r.density) ? r.density : d.density,
     motion: oneOf(MOTIONS, r.motion) ? r.motion : d.motion,
     fontSize: oneOf(FONT_SIZES, r.fontSize) ? r.fontSize : d.fontSize,

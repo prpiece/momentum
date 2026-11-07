@@ -58,7 +58,7 @@ export function Popover(props: {
     <div
       ref={ref}
       role="dialog"
-      className={`anim-pop-in fixed z-50 min-w-44 rounded-md border border-border bg-surface-2 p-1 shadow-lg ${props.className ?? ""}`}
+      className={`anim-pop-in fixed z-50 min-w-44 rounded-card border border-border bg-raised p-1 shadow-float ${props.className ?? ""}`}
       style={pos ?? { top: -9999, left: -9999 }}
     >
       {props.children}
@@ -82,7 +82,7 @@ export function MenuItem(props: {
       role="menuitem"
       disabled={props.disabled}
       onClick={props.onSelect}
-      className={`flex w-full items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-hover disabled:pointer-events-none disabled:opacity-40 ${
+      className={`flex w-full items-center gap-2.5 rounded-control px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-40 ${
         props.danger ? "text-danger" : "text-fg"
       } ${props.active ? "bg-accent-soft" : ""}`}
     >

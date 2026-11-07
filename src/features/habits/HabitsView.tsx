@@ -64,7 +64,7 @@ export function HabitsView() {
       <>
         <EmptyState icon={Target} title="Build a habit">
           <p>Track daily routines, counts like glasses of water, or amounts like km run.</p>
-          <button type="button" onClick={() => setDialog({})} className="mt-4 h-9 rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent-hover">
+          <button type="button" onClick={() => setDialog({})} className="mt-4 h-9 rounded-control bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent-hover">
             New habit
           </button>
         </EmptyState>
@@ -76,15 +76,15 @@ export function HabitsView() {
     <div className="flex h-full min-h-0">
       <div className="flex w-[26rem] shrink-0 flex-col border-r border-border">
         <div className="flex items-center gap-2 px-4 pb-3">
-          <div role="tablist" className="flex rounded-sm border border-border bg-bg p-0.5">
+          <div role="tablist" className="flex rounded-control border border-border bg-bg p-0.5">
             {(["habits", "review"] as const).map((t) => (
-              <button key={t} role="tab" type="button" aria-selected={tab === t} onClick={() => setTab(t)} className={`h-7 rounded-[6px] px-3 text-xs capitalize ${tab === t ? "bg-surface-2 font-semibold shadow-sm" : "text-muted"}`}>
+              <button key={t} role="tab" type="button" aria-selected={tab === t} onClick={() => setTab(t)} className={`h-7 rounded-[6px] px-3 text-xs capitalize ${tab === t ? "bg-raised font-semibold" : "text-muted"}`}>
                 {t}
               </button>
             ))}
           </div>
           <div className="flex-1" />
-          <button type="button" onClick={() => setDialog({})} className="flex h-8 items-center gap-1.5 rounded-sm bg-accent px-3 text-xs font-medium text-accent-fg hover:bg-accent-hover">
+          <button type="button" onClick={() => setDialog({})} className="flex h-8 items-center gap-1.5 rounded-control bg-accent px-3 text-xs font-medium text-accent-fg hover:bg-accent-hover">
             <Plus size={14} /> New habit
           </button>
         </div>
@@ -97,10 +97,10 @@ export function HabitsView() {
               role="radio"
               aria-checked={date === d}
               onClick={() => setDate(d)}
-              className={`flex flex-col items-center rounded-sm py-1 text-xs ${date === d ? "bg-accent text-accent-fg" : "text-fg-2 hover:bg-hover"}`}
+              className={`flex flex-col items-center rounded-control py-1 text-xs ${date === d ? "bg-accent text-accent-fg" : "text-fg-2 hover:bg-surface-2"}`}
             >
               <span className="text-[0.65rem] uppercase">{format(fromLocalDate(d), "EEE")}</span>
-              <span className="font-mono font-semibold">{format(fromLocalDate(d), "d")}</span>
+              <span className="tabular-nums font-semibold">{format(fromLocalDate(d), "d")}</span>
             </button>
           ))}
         </div>
@@ -128,13 +128,13 @@ export function HabitsView() {
               {showArchived && (
                 <ul className="mt-1 space-y-0.5 opacity-70">
                   {archived.map((h) => (
-                    <li key={h.id} onContextMenu={(e) => openContextMenu(e, habitMenu(h, date))} className="group flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-hover">
+                    <li key={h.id} onContextMenu={(e) => openContextMenu(e, habitMenu(h, date))} className="group flex items-center gap-2 rounded-control px-2 py-1.5 text-sm hover:bg-surface-2">
                       <AppIcon name={h.icon} size={15} color={h.color} />
                       <span className="flex-1 truncate">{h.name}</span>
-                      <button type="button" aria-label="Unarchive" onClick={() => updateHabit(h.id, { archived: false })} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+                      <button type="button" aria-label="Unarchive" onClick={() => updateHabit(h.id, { archived: false })} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
                         <ArchiveRestore size={14} />
                       </button>
-                      <button type="button" aria-label={`Delete ${h.name}`} onClick={() => void confirmRemoveHabit(h)} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover hover:text-danger">
+                      <button type="button" aria-label={`Delete ${h.name}`} onClick={() => void confirmRemoveHabit(h)} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-danger">
                         <Trash2 size={14} />
                       </button>
                     </li>
@@ -186,7 +186,7 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
       {...listeners}
       onClick={props.onSelect}
       onContextMenu={(e) => openContextMenu(e, habitMenu(h, props.date, props.onEdit))}
-      className={`group flex items-center gap-3 rounded-md px-2 py-2 transition-colors ${props.selected ? "bg-accent-soft" : "hover:bg-hover"} ${isDragging ? "opacity-50" : ""} ${scheduled ? "" : "opacity-60"}`}
+      className={`group flex items-center gap-3 rounded-card px-2 py-2 transition-colors ${props.selected ? "bg-accent-soft" : "hover:bg-surface-2"} ${isDragging ? "opacity-50" : ""} ${scheduled ? "" : "opacity-60"}`}
     >
       <IconTile name={h.icon} color={h.color} />
       <div className="min-w-0 flex-1">
@@ -194,8 +194,8 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
         <div className="flex items-center gap-2 text-xs text-muted">
           <span>{frequencyLabel(h.frequency)}</span>
           {streak.count > 0 && (
-            <span className="inline-flex items-center gap-0.5 font-mono">
-              <Flame size={11} className="text-p3" />
+            <span className="inline-flex items-center gap-0.5 tabular-nums">
+              <Flame size={11} className="text-prio-high" />
               {streak.count}
               {streak.unit === "week" ? "w" : "d"}
             </span>
@@ -211,7 +211,7 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
       <div onPointerDown={(e) => e.stopPropagation()}>
         {scheduled ? <CheckinButton habit={h} date={props.date} /> : <span className="grid size-9 place-items-center text-[0.65rem] text-muted">Rest</span>}
       </div>
-      <button type="button" aria-label={`${h.name} options`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), openMenuAt(e.currentTarget, habitMenu(h, props.date, props.onEdit)))} className="grid size-7 shrink-0 place-items-center rounded-sm text-muted opacity-40 transition-opacity hover:bg-hover focus:opacity-100 group-hover:opacity-100">
+      <button type="button" aria-label={`${h.name} options`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), openMenuAt(e.currentTarget, habitMenu(h, props.date, props.onEdit)))} className="grid size-7 shrink-0 place-items-center rounded-control text-muted opacity-40 transition-opacity hover:bg-surface-2 focus:opacity-100 group-hover:opacity-100">
         <MoreHorizontal size={15} />
       </button>
     </li>

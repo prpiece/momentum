@@ -54,7 +54,7 @@ function MonthCell(props: { day: string; inMonth: boolean; items: CalItem[]; onV
       <button
         type="button"
         onClick={() => props.onViewDay(props.day)}
-        className={`mb-0.5 grid size-6 place-items-center self-start rounded-full font-mono text-xs ${isToday ? "bg-accent font-semibold text-accent-fg" : props.inMonth ? "text-fg hover:bg-hover" : "text-muted hover:bg-hover"}`}
+        className={`mb-0.5 grid size-6 place-items-center self-start rounded-full tabular-nums text-xs ${isToday ? "bg-accent font-semibold text-accent-fg" : props.inMonth ? "text-fg hover:bg-surface-2" : "text-muted hover:bg-surface-2"}`}
       >
         {format(fromLocalDate(props.day), "d")}
       </button>

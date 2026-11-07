@@ -27,8 +27,8 @@ const DOCK_PAD_REM = 1.5; // nav padding, both sides
 const DOCK_INSET_REM = 1; // breathing room to the window edge
 
 const dockBtn = (labels: boolean) =>
-  `relative flex shrink-0 items-center justify-center rounded-sm text-sm transition-colors duration-[var(--dur)] ${labels ? "h-12 w-[4.25rem] flex-col gap-0.5 text-[0.65rem] font-medium leading-none" : "size-10"}`;
-const dockState = (active: boolean) => (active ? "bg-accent-soft font-semibold text-fg" : "text-fg-2 hover:bg-hover hover:text-fg");
+  `relative flex shrink-0 items-center justify-center rounded-control text-sm transition-colors duration-[var(--dur)] ${labels ? "h-12 w-[4.25rem] flex-col gap-0.5 text-[0.65rem] font-medium leading-none" : "size-10"}`;
+const dockState = (active: boolean) => (active ? "bg-accent-soft font-semibold text-fg" : "text-fg-2 hover:bg-surface-2 hover:text-fg");
 
 /** Styled tooltip for dock items: label plus shortcut, on hover and keyboard focus. Motion is zeroed globally under reduced motion. */
 function Tip({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -37,10 +37,10 @@ function Tip({ label, hint, children }: { label: string; hint?: string; children
       {children}
       <span
         role="presentation"
-        className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-sm border border-border bg-surface-2 px-2 py-1 text-xs text-fg opacity-0 shadow-lg transition-opacity duration-[var(--dur)] group-hover:opacity-100 group-has-[:focus-visible]:opacity-100"
+        className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-control border border-border bg-raised px-2 py-1 text-xs text-fg opacity-0 shadow-float transition-opacity duration-[var(--dur)] group-hover:opacity-100 group-has-[:focus-visible]:opacity-100"
       >
         {label}
-        {hint && <kbd className="rounded border border-border px-1 font-mono text-[0.65rem] text-muted">{hint}</kbd>}
+        {hint && <kbd className="rounded-xs border border-border px-1 tabular-nums text-[0.65rem] text-muted">{hint}</kbd>}
       </span>
     </span>
   );
@@ -64,7 +64,7 @@ function BarItem(props: { id: ViewId; label: string; icon: ReactNode; variant: V
       aria-current={active ? "page" : undefined}
       aria-label={dock ? props.label : undefined}
       title={dock && !props.tooltip ? props.label : undefined}
-      className={`${dock ? dockBtn(labels) : "relative flex h-8 shrink-0 items-center gap-2 rounded-sm px-3 text-sm transition-colors duration-[var(--dur)]"} focus-visible:ring-2 focus-visible:ring-accent ${
+      className={`${dock ? dockBtn(labels) : "relative flex h-8 shrink-0 items-center gap-2 rounded-control px-3 text-sm transition-colors duration-[var(--dur)]"} focus-visible:ring-2 focus-visible:ring-accent ${
         isOver ? "bg-accent text-accent-fg" : dockState(active)
       }`}
     >
@@ -73,7 +73,7 @@ function BarItem(props: { id: ViewId; label: string; icon: ReactNode; variant: V
       {!dock && props.label}
       {!dock && props.badge}
       {props.count ? (
-        <span className={dock ? "absolute right-0.5 top-0.5 min-w-4 rounded-full bg-accent px-1 font-mono text-[0.6rem] leading-4 text-accent-fg" : "font-mono text-xs text-muted"}>{props.count}</span>
+        <span className={dock ? "absolute right-0.5 top-0.5 min-w-4 rounded-full bg-accent px-1 tabular-nums text-[0.6rem] leading-4 text-accent-fg" : "tabular-nums text-xs text-muted"}>{props.count}</span>
       ) : null}
     </button>
   );
@@ -115,7 +115,7 @@ export function NavBar({ position }: { position: BarPosition }) {
     ];
   };
   const onList = view.startsWith("list:") || view.startsWith("filter:");
-  const btn = "flex h-8 shrink-0 items-center gap-1.5 rounded-sm px-3 text-sm transition-colors duration-[var(--dur)] hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent";
+  const btn = "flex h-8 shrink-0 items-center gap-1.5 rounded-control px-3 text-sm transition-colors duration-[var(--dur)] hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent";
   const sep = <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />;
   const smartItems = SIDEBAR_SMART_NAV.map((n) => (
     <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} labels={dockLabels} tooltip={dock} count={counts.smart[n.id] || undefined} drop={{ type: "smart", id: n.id }} />
@@ -176,7 +176,7 @@ export function NavBar({ position }: { position: BarPosition }) {
     <>
       {dock ? (
         <div ref={outerRef} className="flex shrink-0 justify-center pb-2">
-          <nav aria-label="Navigation" data-tour="nav" className="flex max-w-[calc(100%-1rem)] items-center rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
+          <nav aria-label="Navigation" data-tour="nav" className="flex max-w-[calc(100%-1rem)] items-center rounded-panel border border-border bg-raised p-1.5 shadow-float">
             <div ref={smartRef} className="flex items-center gap-0.5">
               {smartItems}
             </div>
@@ -209,8 +209,8 @@ export function NavBar({ position }: { position: BarPosition }) {
           <nav aria-label="Navigation" data-tour="nav" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
             {items}
           </nav>
-          <button type="button" data-tour="search" onClick={() => setPalette(true)} className="flex h-8 shrink-0 items-center gap-2 rounded-sm border border-border bg-surface px-3 text-sm text-muted transition-colors hover:border-accent hover:text-fg">
-            <Search size={15} /> Search <kbd className="rounded border border-border px-1.5 font-mono text-[0.65rem]">Ctrl K</kbd>
+          <button type="button" data-tour="search" onClick={() => setPalette(true)} className="flex h-8 shrink-0 items-center gap-2 rounded-control border border-border bg-surface px-3 text-sm text-muted transition-colors hover:border-accent hover:text-fg">
+            <Search size={15} /> Search <kbd className="rounded-xs border border-border px-1.5 tabular-nums text-[0.65rem]">Ctrl K</kbd>
           </button>
           <span data-tour="settings" className="contents">
             <BarItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={<SETTINGS_NAV.icon size={size} />} variant="dock" />

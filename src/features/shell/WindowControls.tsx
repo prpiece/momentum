@@ -32,7 +32,7 @@ export function WindowControls() {
   }, []);
 
   if (!win) return null;
-  const btn = "grid h-8 w-10 place-items-center rounded-sm text-muted transition-colors duration-[var(--dur)] hover:bg-hover hover:text-fg";
+  const btn = "grid h-8 w-10 place-items-center rounded-control text-muted transition-colors duration-[var(--dur)] hover:bg-surface-2 hover:text-fg";
   return (
     <div className="ml-auto flex shrink-0 items-center gap-0.5">
       <button type="button" aria-label="Mini window" title="Mini window" onClick={() => void invoke("toggle_mini")} className={btn}>

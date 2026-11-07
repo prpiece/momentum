@@ -26,7 +26,7 @@ function Badge({ level, icon: Icon, size }: { level: number; icon: LucideIcon; s
             </linearGradient>
           </defs>
         )}
-        <path d={look?.path ?? LEVEL_LOOKS[0].path} fill={look ? `url(#${id})` : "var(--hover)"} stroke={look ? "rgb(255 255 255 / 0.55)" : "var(--border)"} strokeWidth="1.5" strokeLinejoin="round" />
+        <path d={look?.path ?? LEVEL_LOOKS[0].path} fill={look ? `url(#${id})` : "var(--surface-2)"} stroke={look ? "rgb(255 255 255 / 0.55)" : "var(--border)"} strokeWidth="1.5" strokeLinejoin="round" />
       </svg>
       {size >= 28 && (look ? <Icon size={size * 0.38} className="absolute" style={{ color: look.ink }} strokeWidth={2.5} /> : <Lock size={size * 0.34} className="absolute text-muted" />)}
     </span>
@@ -52,7 +52,7 @@ export function TrophyShelf() {
         const pct = top ? 100 : Math.min(100, ((count - prev) / (next - prev)) * 100);
         const shown = Math.floor(count);
         return (
-          <li key={t.id} className="flex flex-col gap-2.5 rounded-md border border-border p-3">
+          <li key={t.id} className="flex flex-col gap-2.5 rounded-card border border-border p-3">
             <div className="flex items-center gap-3">
               <Badge level={level} icon={ICON[t.id]} size={44} />
               <div className="min-w-0">
@@ -61,10 +61,10 @@ export function TrophyShelf() {
               </div>
             </div>
             <div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-hover" role="progressbar" aria-label={`${t.name} progress`} aria-valuenow={shown} aria-valuemin={prev} aria-valuemax={next}>
+              <div className="h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-label={`${t.name} progress`} aria-valuenow={shown} aria-valuemin={prev} aria-valuemax={next}>
                 <div className="h-full rounded-full bg-accent transition-[width] duration-[var(--dur)]" style={{ width: `${pct}%` }} />
               </div>
-              <p className="mt-1 font-mono text-[0.7rem] tabular-nums text-muted">{top ? `${shown} ${t.unit} · top level` : `${shown} / ${next} ${t.unit}`}</p>
+              <p className="mt-1 tabular-nums text-[0.7rem] text-muted">{top ? `${shown} ${t.unit} · top level` : `${shown} / ${next} ${t.unit}`}</p>
             </div>
             <div className="flex flex-wrap gap-1" aria-label="Levels">
               {t.levels.map((l, i) => (

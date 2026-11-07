@@ -5,10 +5,10 @@ import { Logo } from "../Logo";
 import type { Priority, TaskStatus } from "../../domain/types";
 
 const RING: Record<Priority, string> = {
-  0: "var(--fg-muted)",
-  1: "var(--p1)",
-  2: "var(--p2)",
-  3: "var(--p3)",
+  0: "var(--muted)",
+  1: "var(--prio-low)",
+  2: "var(--prio-med)",
+  3: "var(--prio-high)",
 };
 
 /** Round check, ringed in the priority color; pops when completed and sends a logo badge up (D63). */

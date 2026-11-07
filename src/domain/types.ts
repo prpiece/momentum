@@ -1,3 +1,4 @@
+import type { AccentId } from "./color";
 import type { GettingStarted } from "./features";
 
 /** Local calendar date, `YYYY-MM-DD`. Never converted to an instant. */
@@ -24,6 +25,8 @@ export const PRIORITIES = [0, 1, 2, 3] as const;
 /** 0 none, 1 low, 2 medium, 3 high */
 export type Priority = (typeof PRIORITIES)[number];
 export const PRIORITY_LABEL: Record<Priority, string> = { 0: "None", 1: "Low", 2: "Medium", 3: "High" };
+/** Priority mark colour (design tokens --prio-*); none is muted. */
+export const PRIORITY_VAR: Record<Priority, string> = { 0: "var(--muted)", 1: "var(--prio-low)", 2: "var(--prio-med)", 3: "var(--prio-high)" };
 
 export const TASK_STATUSES = ["open", "done", "wont_do"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
@@ -214,12 +217,13 @@ export type SoundSettings = {
 /** How many focus phases a pomodoro session runs: until stopped, or exactly `count` (D75). */
 export type Cycles = { kind: "infinite" } | { kind: "finite"; count: number };
 
-export type QuadrantColors = [string | null, string | null, string | null, string | null];
+export type QuadrantColors = [AccentId | null, AccentId | null, AccentId | null, AccentId | null];
 
 export type Settings = {
   theme: (typeof THEMES)[number];
   /** #rrggbb */
-  accent: string;
+  /** Theme accent preset (D198); tokens.css styles it per theme. */
+  accent: AccentId;
   density: (typeof DENSITIES)[number];
   motion: (typeof MOTIONS)[number];
   fontSize: (typeof FONT_SIZES)[number];
@@ -237,7 +241,7 @@ export type Settings = {
   savedFilters: SavedFilter[];
   calendar: CalendarSettings;
   matrix: { importantPriorities: Priority[]; urgentDays: number };
-  /** Quadrant colours (D85), indexed by quadrant - 1: an accent preset hex, or null for the theme default. */
+  /** Quadrant colours (D85), indexed by quadrant - 1: an accent preset, or null for the theme default. */
   matrixColors: QuadrantColors;
   /** Closing the window hides to the tray (reminders keep firing). */
   closeToTray: boolean;

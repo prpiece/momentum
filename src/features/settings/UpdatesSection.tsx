@@ -29,7 +29,7 @@ export function UpdatesSection() {
   const checkUpdates = useSettings((s) => s.settings.checkUpdates);
   const update = useSettings((s) => s.update);
   const busy = status.kind === "checking" || status.kind === "downloading";
-  const btn = "flex h-9 items-center gap-2 rounded-sm border border-border px-3 text-sm hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50";
+  const btn = "flex h-9 items-center gap-2 rounded-control border border-border px-3 text-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50";
 
   return (
     <div className="space-y-4">
@@ -52,12 +52,12 @@ export function UpdatesSection() {
         )}
       </div>
       {status.kind === "downloading" && (
-        <div className="h-1.5 overflow-hidden rounded-full bg-hover" role="progressbar" aria-label="Download progress" aria-valuenow={status.progress === null ? undefined : Math.round(status.progress * 100)}>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-label="Download progress" aria-valuenow={status.progress === null ? undefined : Math.round(status.progress * 100)}>
           <div className={`h-full rounded-full bg-accent transition-[width] duration-[var(--dur)] ${status.progress === null ? "w-1/3 animate-pulse" : ""}`} style={status.progress === null ? undefined : { width: `${status.progress * 100}%` }} />
         </div>
       )}
       {status.kind === "available" && status.notes && (
-        <div className="prose-md max-h-64 overflow-y-auto rounded-md border border-border bg-surface p-3 text-sm text-fg-2">
+        <div className="prose-md max-h-64 overflow-y-auto rounded-card border border-border bg-surface p-3 text-sm text-fg-2">
           <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">What's new in {status.version}</div>
           <ReactMarkdown>{status.notes}</ReactMarkdown>
         </div>

@@ -41,7 +41,7 @@ export function WhatsNew() {
 
         {tour && item ? (
           <div key={step} className="anim-rise space-y-4">
-            {item.image && <img src={item.image.src} alt={item.image.alt} className="max-h-[45vh] w-full rounded-md border border-border object-contain" />}
+            {item.image && <img src={item.image.src} alt={item.image.alt} className="max-h-[45vh] w-full rounded-card border border-border object-contain" />}
             <div className="prose-md text-sm text-fg-2">
               <ReactMarkdown>{item.text}</ReactMarkdown>
             </div>

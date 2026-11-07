@@ -16,16 +16,16 @@ function NoteImage({ src, alt }: { src: string; alt: string }) {
       live = false;
     };
   }, [src]);
-  if (!url || failed) return <span className="rounded-sm bg-hover px-1.5 py-0.5 text-xs text-muted">{alt || "Image"} (unavailable)</span>;
+  if (!url || failed) return <span className="rounded-control bg-surface-2 px-1.5 py-0.5 text-xs text-muted">{alt || "Image"} (unavailable)</span>;
   return (
     <span className="group/img relative my-2 block w-fit">
-      <img src={url} alt={alt} onError={() => setFailed(true)} className="max-h-64 max-w-full rounded-md object-contain" />
+      <img src={url} alt={alt} onError={() => setFailed(true)} className="max-h-64 max-w-full rounded-card object-contain" />
       <button
         type="button"
         aria-label="Copy image"
         title="Copy image"
         onClick={(e) => (e.stopPropagation(), void copyImage(url))}
-        className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-sm bg-surface-2/90 text-fg-2 opacity-0 shadow transition-opacity hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover/img:opacity-100"
+        className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-control bg-raised/90 text-fg-2 opacity-0 shadow-float transition-opacity hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover/img:opacity-100"
       >
         <Copy size={14} />
       </button>

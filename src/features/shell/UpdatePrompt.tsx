@@ -22,14 +22,14 @@ export function UpdatePrompt() {
           </div>
         </div>
         {status.kind === "available" && status.notes && (
-          <div className="prose-md max-h-[45vh] overflow-y-auto rounded-md border border-border bg-surface p-3 text-sm text-fg-2">
+          <div className="prose-md max-h-[45vh] overflow-y-auto rounded-card border border-border bg-surface p-3 text-sm text-fg-2">
             <ReactMarkdown>{status.notes}</ReactMarkdown>
           </div>
         )}
         {downloading && (
           <div className="space-y-2" role="status">
             <div className="text-sm text-fg-2">{pct === null ? "Downloading…" : `Downloading… ${pct}%`} Momentum restarts when it's done.</div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-hover" role="progressbar" aria-label="Download progress" aria-valuenow={pct ?? undefined}>
+            <div className="h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-label="Download progress" aria-valuenow={pct ?? undefined}>
               <div className={`h-full rounded-full bg-accent transition-[width] duration-[var(--dur)] ${pct === null ? "w-1/3 animate-pulse" : ""}`} style={pct === null ? undefined : { width: `${pct}%` }} />
             </div>
           </div>

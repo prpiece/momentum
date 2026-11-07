@@ -20,7 +20,7 @@ function Thumb({ choice }: { choice: Choice }) {
     </div>
   );
   return (
-    <div className="flex h-14 w-full gap-1 overflow-hidden rounded-sm border border-border bg-bg p-1" aria-hidden>
+    <div className="flex h-14 w-full gap-1 overflow-hidden rounded-control border border-border bg-bg p-1" aria-hidden>
       {choice.layout === "sidebar" ? (
         <>
           <div className="flex w-1/4 flex-col gap-1 p-0.5">
@@ -56,8 +56,8 @@ export function LayoutPicker() {
           role="radio"
           aria-checked={current === c.id}
           onClick={() => update(c.barPosition ? { layout: c.layout, barPosition: c.barPosition } : { layout: c.layout })}
-          className={`flex flex-col gap-1.5 rounded-md border p-2 text-left transition-colors duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
-            current === c.id ? "border-accent bg-accent-soft/40" : "border-border hover:bg-hover"
+          className={`flex flex-col gap-1.5 rounded-card border p-2 text-left transition-colors duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
+            current === c.id ? "border-accent bg-accent-soft/40" : "border-border hover:bg-surface-2"
           }`}
         >
           <Thumb choice={c} />

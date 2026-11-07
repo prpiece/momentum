@@ -3,10 +3,10 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { addDaysLocal, daysBetween, fromLocalDate, todayLocal } from "../../domain/dates";
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
+import { PRIORITY_VAR } from "../../domain/types";
 import { openTask } from "../../stores/ui";
 
 const DAYS = 14;
-const PRIORITY_BAR = ["var(--fg-muted)", "var(--p1)", "var(--p2)", "var(--p3)"];
 
 /** Two-week strip: each dated task is a bar on its day; undated tasks are listed below. */
 export function TimelineView({ vms }: { vms: TaskVM[] }) {
@@ -23,13 +23,13 @@ export function TimelineView({ vms }: { vms: TaskVM[] }) {
   return (
     <div className="min-h-0 flex-1 overflow-auto px-4 pb-10">
       <div className="mb-3 flex items-center gap-2">
-        <button type="button" aria-label="Previous week" onClick={() => setStart(addDaysLocal(start, -7))} className="grid size-8 place-items-center rounded-sm text-muted hover:bg-hover">
+        <button type="button" aria-label="Previous week" onClick={() => setStart(addDaysLocal(start, -7))} className="grid size-8 place-items-center rounded-control text-muted hover:bg-surface-2">
           <ChevronLeft size={18} />
         </button>
-        <button type="button" onClick={() => setStart(addDaysLocal(today, -2))} className="h-8 rounded-sm px-3 text-sm text-fg-2 hover:bg-hover">
+        <button type="button" onClick={() => setStart(addDaysLocal(today, -2))} className="h-8 rounded-control px-3 text-sm text-fg-2 hover:bg-surface-2">
           Today
         </button>
-        <button type="button" aria-label="Next week" onClick={() => setStart(addDaysLocal(start, 7))} className="grid size-8 place-items-center rounded-sm text-muted hover:bg-hover">
+        <button type="button" aria-label="Next week" onClick={() => setStart(addDaysLocal(start, 7))} className="grid size-8 place-items-center rounded-control text-muted hover:bg-surface-2">
           <ChevronRight size={18} />
         </button>
         <span className="text-sm text-muted">
@@ -37,12 +37,12 @@ export function TimelineView({ vms }: { vms: TaskVM[] }) {
           {outside > 0 && ` · ${outside} outside this range`}
         </span>
       </div>
-      <div className="min-w-[56rem] rounded-md border border-border">
+      <div className="min-w-[56rem] rounded-card border border-border">
         <div className="grid border-b border-border" style={{ gridTemplateColumns: `repeat(${DAYS}, 1fr)` }}>
           {days.map((d) => (
             <div key={d} className={`px-1 py-2 text-center text-xs ${d === today ? "font-semibold text-accent" : "text-muted"}`}>
               <div>{format(fromLocalDate(d), "EEE")}</div>
-              <div className="font-mono text-sm">{format(fromLocalDate(d), "d")}</div>
+              <div className="tabular-nums text-sm">{format(fromLocalDate(d), "d")}</div>
             </div>
           ))}
         </div>
@@ -57,8 +57,8 @@ export function TimelineView({ vms }: { vms: TaskVM[] }) {
                 key={vm.task.id}
                 type="button"
                 onClick={() => openTask(vm.task.id, vm.key)}
-                className="relative mx-0.5 truncate rounded-sm border-l-[3px] bg-surface-2 px-2 py-1 text-left text-xs shadow-sm hover:shadow-lg"
-                style={{ gridColumn: `${col} / span 1`, borderLeftColor: PRIORITY_BAR[vm.task.priority] }}
+                className="relative mx-0.5 truncate rounded-control border-l-[3px] bg-raised px-2 py-1 text-left text-xs hover:shadow-float"
+                style={{ gridColumn: `${col} / span 1`, borderLeftColor: PRIORITY_VAR[vm.task.priority] }}
               >
                 {vm.task.title}
               </button>
@@ -72,7 +72,7 @@ export function TimelineView({ vms }: { vms: TaskVM[] }) {
           <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-fg-2">No date · {undated.length}</h3>
           <div className="flex flex-wrap gap-2">
             {undated.map((vm) => (
-              <button key={vm.task.id} type="button" onClick={() => openTask(vm.task.id, vm.key)} className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs hover:border-accent">
+              <button key={vm.task.id} type="button" onClick={() => openTask(vm.task.id, vm.key)} className="rounded-full border border-border bg-raised px-3 py-1 text-xs hover:border-accent">
                 {vm.task.title}
               </button>
             ))}

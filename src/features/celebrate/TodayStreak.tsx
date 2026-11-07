@@ -25,9 +25,9 @@ export function TodayStreak() {
   return (
     <div className="flex shrink-0 items-center gap-1">
       {run > 0 && (
-        <span title={`${run} perfect ${run === 1 ? "day" : "days"} in a row`} className="flex items-center gap-1 rounded-sm px-2 py-1 text-sm font-semibold text-[#e8590c]">
+        <span title={`${run} perfect ${run === 1 ? "day" : "days"} in a row`} className="flex items-center gap-1 rounded-control px-2 py-1 text-sm font-semibold text-[#e8590c]">
           <Flame size={16} className="anim-flicker" fill="currentColor" fillOpacity={0.25} />
-          <span key={run} className="anim-pop font-mono tabular-nums">
+          <span key={run} className="anim-pop tabular-nums tabular-nums">
             {run}
           </span>
         </span>
@@ -37,7 +37,7 @@ export function TodayStreak() {
         disabled={!resting && usedThisWeek}
         onClick={() => setRestDay(today, !resting)}
         title={!resting && usedThisWeek ? "You've had this week's rest day" : "A rest day doesn't count and doesn't break your run. One per week."}
-        className={`flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-xs disabled:opacity-40 ${resting ? "bg-accent-soft text-fg" : "text-fg-2 hover:bg-hover"} focus-visible:ring-2 focus-visible:ring-accent`}
+        className={`flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs disabled:opacity-40 ${resting ? "bg-accent-soft text-fg" : "text-fg-2 hover:bg-surface-2"} focus-visible:ring-2 focus-visible:ring-accent`}
       >
         <BedDouble size={15} />
         {resting ? "Resting today" : "Rest day"}

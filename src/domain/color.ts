@@ -10,6 +10,39 @@ export const ACCENT_PRESETS = [
   { name: "Slate", hex: "#56607a" },
 ] as const;
 
+/**
+ * The theme accent (D198): a preset id that tokens.css styles per theme through html[data-accent].
+ * light/dark repeat each preset's --accent there (tokens.test.ts keeps them equal) for swatches,
+ * the app icon and quadrant colours. The first nine follow ACCENT_PRESETS' order, which v0.9 stored as hexes.
+ */
+export const ACCENTS = [
+  { id: "indigo", name: "Indigo", light: "#5151cc", dark: "#9c9cf2" },
+  { id: "ocean", name: "Ocean", light: "#2563d9", dark: "#7aa8f7" },
+  { id: "teal", name: "Teal", light: "#0b7a75", dark: "#4fc4bc" },
+  { id: "fern", name: "Fern", light: "#277f4b", dark: "#62c48a" },
+  { id: "amber", name: "Amber", light: "#e0a021", dark: "#e8b04a" },
+  { id: "coral", name: "Coral", light: "#c8432b", dark: "#f28b74" },
+  { id: "rose", name: "Rose", light: "#c23668", dark: "#f084ab" },
+  { id: "violet", name: "Violet", light: "#7a45c8", dark: "#b892f0" },
+  { id: "slate", name: "Slate", light: "#525b73", dark: "#a3abbf" },
+  { id: "graphite", name: "Graphite", light: "#3a3733", dark: "#d6d2cb" },
+] as const;
+
+export type AccentId = (typeof ACCENTS)[number]["id"];
+export type Theme = "light" | "dark";
+
+/** An accent id, or a v0.9 preset hex mapped to its preset; anything else is null. */
+export function parseAccent(v: unknown): AccentId | null {
+  if (typeof v !== "string") return null;
+  const s = v.toLowerCase();
+  const legacy = ACCENT_PRESETS.findIndex((p) => p.hex === s);
+  return ACCENTS.find((a) => a.id === s)?.id ?? (legacy >= 0 ? ACCENTS[legacy].id : null);
+}
+
+export function accentHex(id: AccentId, theme: Theme): string {
+  return (ACCENTS.find((a) => a.id === id) ?? ACCENTS[0])[theme];
+}
+
 const HEX = /^#([0-9a-f]{6})$/i;
 
 export function isHex(v: unknown): v is string {

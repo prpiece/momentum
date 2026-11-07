@@ -66,14 +66,14 @@ export function CalendarView() {
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-2 px-6 pb-3">
-          <button type="button" onClick={() => setCalAnchor(todayLocal())} className="h-8 rounded-sm border border-border px-3 text-sm font-medium hover:bg-hover" title="Today (T)">
+          <button type="button" onClick={() => setCalAnchor(todayLocal())} className="h-8 rounded-control border border-border px-3 text-sm font-medium hover:bg-surface-2" title="Today (T)">
             Today
           </button>
           <div className="flex">
-            <button type="button" aria-label="Previous" title="Previous (←)" onClick={() => setCalAnchor(step(anchor, -1))} className="grid size-8 place-items-center rounded-sm text-fg-2 hover:bg-hover">
+            <button type="button" aria-label="Previous" title="Previous (←)" onClick={() => setCalAnchor(step(anchor, -1))} className="grid size-8 place-items-center rounded-control text-fg-2 hover:bg-surface-2">
               <ChevronLeft size={18} />
             </button>
-            <button type="button" aria-label="Next" title="Next (→)" onClick={() => setCalAnchor(step(anchor, 1))} className="grid size-8 place-items-center rounded-sm text-fg-2 hover:bg-hover">
+            <button type="button" aria-label="Next" title="Next (→)" onClick={() => setCalAnchor(step(anchor, 1))} className="grid size-8 place-items-center rounded-control text-fg-2 hover:bg-surface-2">
               <ChevronRight size={18} />
             </button>
           </div>
@@ -83,7 +83,7 @@ export function CalendarView() {
               {span} days <X size={12} />
             </button>
           )}
-          <div role="radiogroup" aria-label="Calendar view" className="flex rounded-sm border border-border bg-bg p-0.5">
+          <div role="radiogroup" aria-label="Calendar view" className="flex rounded-control border border-border bg-bg p-0.5">
             {CAL_VIEWS.map((v) => (
               <button
                 key={v}
@@ -92,16 +92,16 @@ export function CalendarView() {
                 aria-checked={!span && view === v}
                 title={`${LABEL[v][0]} (${LABEL[v][1]})`}
                 onClick={() => setCal({ view: v })}
-                className={`h-7 rounded-[6px] px-2.5 text-xs ${!span && view === v ? "bg-surface-2 font-semibold text-fg shadow-sm" : "text-muted hover:text-fg"}`}
+                className={`h-7 rounded-[6px] px-2.5 text-xs ${!span && view === v ? "bg-raised font-semibold text-fg" : "text-muted hover:text-fg"}`}
               >
                 {LABEL[v][0]}
               </button>
             ))}
           </div>
-          <button ref={options.anchor} type="button" aria-label="View options" title="View options" onClick={options.toggle} className="grid size-8 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg">
+          <button ref={options.anchor} type="button" aria-label="View options" title="View options" onClick={options.toggle} className="grid size-8 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg">
             <SlidersHorizontal size={16} />
           </button>
-          <button type="button" aria-label="Toggle side panel" aria-pressed={cal.arrangeOpen} title="Arrange tasks" onClick={() => setCal({ arrangeOpen: !cal.arrangeOpen })} className={`grid size-8 place-items-center rounded-sm hover:bg-hover ${cal.arrangeOpen ? "text-accent" : "text-muted"}`}>
+          <button type="button" aria-label="Toggle side panel" aria-pressed={cal.arrangeOpen} title="Arrange tasks" onClick={() => setCal({ arrangeOpen: !cal.arrangeOpen })} className={`grid size-8 place-items-center rounded-control hover:bg-surface-2 ${cal.arrangeOpen ? "text-accent" : "text-muted"}`}>
             <PanelRight size={16} />
           </button>
           {options.open && (
@@ -109,7 +109,7 @@ export function CalendarView() {
               <MenuLabel>Color by</MenuLabel>
               <div className="flex gap-1 px-1.5 pb-1">
                 {(["list", "priority", "tag"] as const).map((c) => (
-                  <button key={c} type="button" onClick={() => setCal({ colorBy: c })} className={`h-7 flex-1 rounded-sm text-xs capitalize ${cal.colorBy === c ? "bg-accent text-accent-fg" : "bg-hover text-fg-2"}`}>
+                  <button key={c} type="button" onClick={() => setCal({ colorBy: c })} className={`h-7 flex-1 rounded-control text-xs capitalize ${cal.colorBy === c ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}>
                     {c}
                   </button>
                 ))}
@@ -123,7 +123,7 @@ export function CalendarView() {
                   ["showFocus", "Focus records"],
                 ] as const
               ).map(([k, label]) => (
-                <label key={k} className="flex cursor-pointer items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-sm hover:bg-hover">
+                <label key={k} className="flex cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-1.5 text-sm hover:bg-surface-2">
                   <input type="checkbox" checked={cal[k]} onChange={(e) => setCal({ [k]: e.target.checked })} className="size-4 accent-[var(--accent)]" />
                   {label}
                 </label>
@@ -132,7 +132,7 @@ export function CalendarView() {
               <MenuLabel>Density</MenuLabel>
               <div className="flex gap-1 px-1.5 pb-1">
                 {(["comfortable", "compact"] as const).map((d) => (
-                  <button key={d} type="button" onClick={() => setCal({ density: d })} className={`h-7 flex-1 rounded-sm text-xs capitalize ${cal.density === d ? "bg-accent text-accent-fg" : "bg-hover text-fg-2"}`}>
+                  <button key={d} type="button" onClick={() => setCal({ density: d })} className={`h-7 flex-1 rounded-control text-xs capitalize ${cal.density === d ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}>
                     {d}
                   </button>
                 ))}

@@ -136,10 +136,10 @@ export function ProgressView() {
                       <AppIcon name={h.icon} size={14} color={h.color} />
                       <span className="truncate">{h.name}</span>
                     </span>
-                    <span className="h-2 overflow-hidden rounded-full bg-hover">
+                    <span className="h-2 overflow-hidden rounded-full bg-surface-2">
                       <span className="block h-full rounded-full" style={{ width: `${Math.round((r ?? 0) * 100)}%`, background: h.color }} />
                     </span>
-                    <span className="text-right font-mono text-xs text-fg-2">{pct(r)}</span>
+                    <span className="text-right tabular-nums text-xs text-fg-2">{pct(r)}</span>
                   </li>
                 ))}
             </ul>
@@ -173,14 +173,14 @@ function Stat({ label, value, icon }: { label: string; value: ReactNode; icon?: 
         {icon}
         {label}
       </dt>
-      <dd className="mt-1 font-mono text-2xl font-semibold tabular-nums">{value}</dd>
+      <dd className="t-display mt-1">{value}</dd>
     </div>
   );
 }
 
 function Card({ title, hint, action, className = "", children }: { title: string; hint?: string; action?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <section className={`rounded-md border border-border bg-surface-2 p-5 ${className}`}>
+    <section className={`rounded-card border border-border bg-raised p-5 ${className}`}>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h2 className="text-sm font-semibold">{title}</h2>
         {hint && <span className="text-xs text-muted">{hint}</span>}

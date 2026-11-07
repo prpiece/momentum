@@ -1,11 +1,11 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Check, ListTree, Settings2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 import { Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
-import { accentForeground, ACCENT_PRESETS } from "../../domain/color";
+import { accentForeground, ACCENTS, ON_LIGHT, type AccentId } from "../../domain/color";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
-import { patchForQuadrant, QUADRANT_INFO, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
+import { patchForQuadrant, QUADRANT_INFO, QUADRANT_VAR, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
 import { justDragged, onDrop } from "../../lib/dnd";
@@ -17,7 +17,6 @@ import { editTask, toggleDone } from "../tasks/actions";
 import { taskMenu } from "../tasks/taskMenu";
 import { derive, useDerived } from "../tasks/selectors";
 
-const TONE: Record<Quadrant, string> = { 1: "var(--q1)", 2: "var(--q2)", 3: "var(--q3)", 4: "var(--q4)" };
 
 onDrop("quadrant", (drag, drop) => {
   if (drag.type !== "task") return;
@@ -77,16 +76,16 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
     <section
       ref={setNodeRef}
       aria-label={info.title}
-      className={`flex min-h-0 flex-col rounded-lg border bg-surface-2 shadow-sm transition-colors duration-[var(--dur)] ${isOver ? "border-accent bg-accent-soft" : "border-border"}`}
-      style={{ borderTopColor: TONE[q], borderTopWidth: 3, ...(isOver ? {} : { backgroundColor: `color-mix(in srgb, ${TONE[q]} 7%, var(--surface-2))` }) }}
+      className={`flex min-h-0 flex-col rounded-panel border bg-raised transition-colors duration-[var(--dur)] ${isOver ? "border-accent bg-accent-soft" : "border-border"}`}
+      style={{ borderTopColor: QUADRANT_VAR[q], borderTopWidth: 3, ...(isOver ? {} : { backgroundColor: `color-mix(in srgb, ${QUADRANT_VAR[q]} 7%, var(--raised))` }) }}
     >
       <header className="flex items-baseline gap-2 px-4 pb-2 pt-3">
-        <span className="grid size-5 place-items-center rounded-full font-mono text-[0.7rem] font-bold" style={{ background: TONE[q], color: "var(--q-on)" }}>
+        <span className="grid size-5 place-items-center rounded-full tabular-nums text-[0.7rem] font-bold" style={{ background: QUADRANT_VAR[q], color: "var(--on-strong)" }}>
           {q}
         </span>
         <h2 className="text-sm font-semibold">{info.title}</h2>
         <span className="text-xs text-muted">{info.hint}</span>
-        <span className="ml-auto font-mono text-xs text-muted">{items.length}</span>
+        <span className="ml-auto tabular-nums text-xs text-muted">{items.length}</span>
       </header>
       <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
         {items.map((vm) => (
@@ -100,7 +99,7 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
         onKeyDown={(e) => e.key === "Enter" && add()}
         placeholder={`+ Add to ${info.title}`}
         aria-label={`Add task to ${info.title}`}
-        className="m-2 h-9 rounded-sm bg-transparent px-2 text-sm outline-none placeholder:text-muted focus:bg-surface"
+        className="m-2 h-9 rounded-control bg-transparent px-2 text-sm outline-none placeholder:text-muted focus:bg-surface"
       />
     </section>
   );
@@ -121,7 +120,7 @@ function MatrixItem({ vm }: { vm: TaskVM }) {
       onClick={() => !justDragged() && openTask(t.id, vm.key)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => e.key === "Enter" && openTask(t.id, vm.key)}
-      className={`flex cursor-grab items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm transition-colors ${selected ? "bg-accent-soft" : "hover:bg-hover"} ${isDragging ? "opacity-40" : ""}`}
+      className={`flex cursor-grab items-center gap-2.5 rounded-control px-2 py-1.5 text-sm transition-colors ${selected ? "bg-accent-soft" : "hover:bg-surface-2"} ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} size={16} />
       <span className="min-w-0 flex-1 truncate">{t.title}</span>
@@ -142,12 +141,12 @@ function QuadrantColorPicker() {
   const colors = useSettings((s) => s.settings.matrixColors);
   const accent = useSettings((s) => s.settings.accent);
   const update = useSettings((s) => s.update);
-  const pick = (q: Quadrant, hex: string | null) => {
+  const pick = (q: Quadrant, id: AccentId | null) => {
     const next: QuadrantColors = [...colors];
-    next[q - 1] = hex;
+    next[q - 1] = id;
     update({ matrixColors: next });
   };
-  const link = "rounded-sm px-1.5 py-0.5 text-xs text-fg-2 hover:bg-hover hover:text-fg";
+  const link = "rounded-control px-1.5 py-0.5 text-xs text-fg-2 hover:bg-surface-2 hover:text-fg";
   return (
     <>
       <div className="mt-4 flex items-center justify-between gap-2">
@@ -160,22 +159,22 @@ function QuadrantColorPicker() {
       {QUADRANTS.map((q) => (
         <div key={q} className="mt-2" role="group" aria-label={`${QUADRANT_INFO[q].title} colour`}>
           <p className="flex items-center gap-1.5 text-xs text-fg-2">
-            <span className="size-2.5 rounded-full" style={{ background: TONE[q] }} />
+            <span className="size-2.5 rounded-full" style={{ background: QUADRANT_VAR[q] }} />
             {QUADRANT_INFO[q].title}
           </p>
           <div className="mt-1 flex flex-wrap gap-1">
-            {ACCENT_PRESETS.map((p) => (
+            {ACCENTS.map((p) => (
               <button
-                key={p.hex}
+                key={p.id}
                 type="button"
                 title={p.name}
                 aria-label={p.name}
-                aria-pressed={colors[q - 1] === p.hex}
-                onClick={() => pick(q, colors[q - 1] === p.hex ? null : p.hex)}
-                className="grid size-5 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110"
-                style={{ background: p.hex }}
+                aria-pressed={colors[q - 1] === p.id}
+                onClick={() => pick(q, colors[q - 1] === p.id ? null : p.id)}
+                className={`grid size-5 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110 swatch`}
+                style={{ "--sw": p.light, "--sw-d": p.dark, "--sw-fg": accentForeground(p.light), "--sw-fg-d": ON_LIGHT } as CSSProperties}
               >
-                {colors[q - 1] === p.hex && <Check size={11} strokeWidth={3.5} style={{ color: accentForeground(p.hex) }} />}
+                {colors[q - 1] === p.id && <Check size={11} strokeWidth={3.5} />}
               </button>
             ))}
           </div>
@@ -196,7 +195,7 @@ function RulesEditor() {
   };
   return (
     <>
-      <button ref={menu.anchor} type="button" onClick={menu.toggle} className="flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-xs text-fg-2 hover:bg-hover">
+      <button ref={menu.anchor} type="button" onClick={menu.toggle} className="flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs text-fg-2 hover:bg-surface-2">
         <Settings2 size={15} /> Rules
       </button>
       {menu.open && (
@@ -209,7 +208,7 @@ function RulesEditor() {
                 type="button"
                 aria-pressed={rules.importantPriorities.includes(p)}
                 onClick={() => toggle(p)}
-                className={`h-7 rounded-full px-3 text-xs ${rules.importantPriorities.includes(p) ? "bg-accent text-accent-fg" : "bg-hover text-fg-2"}`}
+                className={`h-7 rounded-full px-3 text-xs ${rules.importantPriorities.includes(p) ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
               >
                 {PRIORITY_LABEL[p]}
               </button>
@@ -227,7 +226,7 @@ function RulesEditor() {
                 if (Number.isFinite(n) && n >= 0 && n <= 30) update({ matrix: { ...rules, urgentDays: n } });
               }}
               aria-label="Urgent within days"
-              className="h-8 w-16 rounded-sm border border-border bg-surface px-2 outline-none focus:border-accent"
+              className="h-8 w-16 rounded-control border border-border bg-surface px-2 outline-none focus:border-accent"
             />
             days (or overdue)
           </div>

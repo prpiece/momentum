@@ -40,7 +40,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
         role="dialog"
         aria-modal="true"
         aria-label={props.label}
-        className={`anim-dialog max-h-full w-full overflow-auto rounded-lg border border-border bg-surface-2 shadow-lg ${props.width ?? "max-w-md"}`}
+        className={`anim-dialog max-h-full w-full overflow-auto rounded-panel border border-border bg-raised shadow-float ${props.width ?? "max-w-md"}`}
       >
         {props.children}
       </div>
@@ -60,8 +60,8 @@ export function Button(props: {
 }) {
   const v = props.variant ?? "ghost";
   const cls = {
-    primary: "bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-press shadow-sm",
-    ghost: "text-fg-2 hover:bg-hover hover:text-fg",
+    primary: "bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-press",
+    ghost: "text-fg-2 hover:bg-surface-2 hover:text-fg",
     danger: "bg-danger text-white hover:opacity-90",
   }[v];
   return (
@@ -70,7 +70,7 @@ export function Button(props: {
       onClick={props.onClick}
       disabled={props.disabled}
       title={props.title}
-      className={`inline-flex h-9 items-center justify-center gap-2 rounded-sm px-3.5 text-sm font-medium transition-colors duration-[var(--dur)] disabled:opacity-50 ${cls} ${props.className ?? ""}`}
+      className={`inline-flex h-9 items-center justify-center gap-2 rounded-control px-3.5 text-sm font-medium transition-colors duration-[var(--dur)] disabled:opacity-50 ${cls} ${props.className ?? ""}`}
     >
       {props.children}
     </button>
@@ -92,7 +92,7 @@ export function IconButton(props: {
       aria-label={props.label}
       title={props.label}
       onClick={props.onClick}
-      className={`grid size-8 shrink-0 place-items-center rounded-sm transition-colors duration-[var(--dur)] hover:bg-hover hover:text-fg ${
+      className={`grid size-8 shrink-0 place-items-center rounded-control transition-colors duration-[var(--dur)] hover:bg-surface-2 hover:text-fg ${
         props.active ? "bg-accent-soft text-accent" : "text-muted"
       } ${props.className ?? ""}`}
     >

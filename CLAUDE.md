@@ -35,26 +35,27 @@ Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/C
 - **Subtasks:** a view shows a subtask inside its parent when both are in it, otherwise on its own with the parent's name: lists via `flattenTree`, cards via `topLevelIn` (PLAN D196). Date grids show dated subtasks; only the Arrange panel and focus picker read `Derived.roots`.
 - **New dependencies** need a one-line reason in PLAN.md §4.
 
-## Design tokens (`src/styles/tokens.css`)
-Tailwind v4 is configured in CSS: `@theme inline` maps the tokens to utilities, and there's no `tailwind.config.ts`.
+## Design tokens (`src/styles/tokens.css`, PLAN D198)
+The source is `docs/design/momentum-tokens.css`. The screen mocks are `docs/mocks/momentum.html`, one `<section id>` per screen: read it a section at a time. Tailwind v4 is configured in CSS: `@theme inline` maps the tokens to utilities, and there's no `tailwind.config.ts`. `tokens.test.ts` checks WCAG AA and that `ACCENTS` matches the CSS.
 - **Colors:** every color is a CSS variable, consumed through utilities.
-  - Variables and their utilities:
-    - `--bg`, `--surface`, `--surface-2` (elevated), `--border`, `--hover` → `bg-bg`, `bg-surface`, `bg-surface-2`, `border-border`, `bg-hover`.
-    - `--fg`, `--fg-2`, `--fg-muted` → `text-fg`, `text-fg-2`, `text-muted`.
-    - `--accent`, `--accent-fg`, `--accent-hover`, `--accent-press`, `--accent-soft` → `bg-accent`, `text-accent-fg`, `bg-accent-soft` and so on.
-    - `--danger`, `--success` → `text-danger`, `text-success`.
-  - `--accent` and `--accent-fg` are set at runtime by `src/lib/applySettings.ts`, with the foreground picked by WCAG contrast in `src/domain/color.ts`.
-  - Accent variants are derived in CSS, never hand-picked: `--accent-hover`, `--accent-press` and `--accent-soft` come from `color-mix(in oklch, var(--accent) …)`.
-  - Dark mode uses layered surfaces (around `#15161a` → `#1d1f24` → `#26282e`) instead of pure black. Text must meet WCAG AA in both themes.
-- **Radii:** `--r-sm: 8px` (controls), `--r-md: 12px` (cards, inputs), `--r-lg: 18px` (modals, panels).
-- **Motion:** `--dur: 180ms` (150 to 220ms range) with `--ease: cubic-bezier(.2,.8,.2,1)`. Turn motion off under `prefers-reduced-motion`.
+  - Surfaces: `--bg` (window, sidebar), `--surface` (content), `--surface-2` (hover, chips, input tracks) and `--raised` (menus, dialogs, popovers, toasts) → `bg-bg`, `bg-surface`, `bg-surface-2`, `bg-raised`. Borders: `border-border`, `border-border-strong`, `border-control-border` (checkbox ring, toggle off).
+  - Text: `text-fg`, `text-fg-2`, `text-muted`. Weight does the hierarchy, not colour.
+  - Accent: `bg-accent`/`text-accent-fg` for the primary action, `bg-accent-hover`/`-press`, `bg-accent-soft` for selection (text on it stays `fg`), `text-accent-text` for links, icons and the focus ring. Never for large areas.
+  - Status: `danger` (with `-hover`, `-press`, `-soft`, `-fg`), `success`, `success-soft`. Fixed marks: `prio-high/med/low` and `prio-high-tint` (`PRIORITY_VAR` in `domain/types.ts`), `q-do/schedule/delegate/drop` (`QUADRANT_VAR` in `domain/matrix.ts`), `streak`, `on-strong` (text on those fills), trophy metals `m-*`, list colours `l-*`, habit colours `h-*`.
+  - The accent is a preset id on `html[data-accent]`, set by `src/lib/applySettings.ts`, and each preset is hand-tuned per theme in `tokens.css`. Never set `--accent` inline. `ACCENTS` in `src/domain/color.ts` repeats the values for swatches (`.swatch` with `--sw`/`--sw-d`) and the app icon.
+  - Dark mode (`html[data-theme=dark]`) uses layered surfaces (`#141519` → `#1b1d22` → `#24262c`), never pure black. Inside a raised layer in dark, `.layer-raised` steps the fills up one level.
+- **Radii:** `rounded-xs` 4px (keycaps, inline tokens), `rounded-control` 6px (buttons, inputs, chips, rows), `rounded-card` 10px (cards, menus, quadrants), `rounded-panel` 14px (dialogs, palette, sheets), `rounded-full` (checkboxes, toggles, pills).
+- **Shadow:** one, `shadow-float`, for floating layers only. Cards sit on borders or a surface step.
+- **Spacing and sizes:** a 4px grid (`--space-*`). `--row` is 36px (32px compact), `--control` 32px, `--touch` 44px below 720px. Panel widths are in the Sizes block.
+- **Motion:** `--dur-fast` 150ms (fades, menus), `--dur` 180ms, `--dur-slow` 220ms (panels); `--ease-out` entering, `--ease-in` leaving, `--ease-move` moving. Hover and press are instant. Nothing moves under reduced motion.
 - **Type:**
-  - UI font: Plus Jakarta Sans.
-  - Times, timers and counters use JetBrains Mono or `font-variant-numeric: tabular-nums`.
-  - Density: `html[data-density=compact]` changes `--row-h` and `--pad`. Font size sets the root `font-size`, so every rem value scales with it.
+  - UI font: Inter Variable with `cv05`, `cv08`. Scale: `--fs-xs` 12, `--fs-sm` 13, `--fs-base` 14, `--fs-lg` 16, `--fs-xl` 24, `--fs-display` 44 (rem at a 16px root, one step larger below 720px).
+  - Bricolage Grotesque only through `.t-title` (page titles) and `.t-display` (big numbers): 24px and up, at most two per screen. `.t-label` is the 12px uppercase label.
+  - JetBrains Mono (`font-mono`, `.t-timer`) only for the focus timer digits. Every other count, date, time or stat uses `tabular-nums` (`.t-count`).
+  - Density: `html[data-density=compact]` sets `--row` to `--row-compact`. The text-size setting sets the root `font-size` (16px by default), so every rem value scales with it.
 
 ## Conventions
 - **Zustand selectors return stable references.** Select the raw map (`useData((s) => s.lists)`) and derive arrays with `useMemo`. A selector that builds a new array/object on every call loops React ("getSnapshot should be cached"). `npm run lint:selectors` greps for it.
 - Small components, one per file, under `src/features/<area>/`. Shared primitives go in `src/components/ui/`.
-- Every interactive element gets a visible focus ring (`--accent`) and a keyboard path.
+- Every interactive element gets a visible focus ring (`--accent-text`) and a keyboard path.
 - Commit once per phase. Stage files by explicit path.

@@ -150,7 +150,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
               type="button"
               onMouseMove={() => setCursor(i)}
               onClick={() => pick(i)}
-              className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm ${i === cursor ? "bg-accent-soft text-fg" : "text-fg-2"}`}
+              className={`flex w-full items-center gap-3 rounded-control px-3 py-2 text-left text-sm ${i === cursor ? "bg-accent-soft text-fg" : "text-fg-2"}`}
             >
               <span className="text-muted">{it.icon}</span>
               <span className="flex-1 truncate">{it.label}</span>

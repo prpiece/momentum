@@ -36,7 +36,7 @@ export function TokenPicker({ icon: Icon, ariaLabel, empty, options, filled, onP
 
   if (filled !== null && !open)
     return (
-      <button type="button" onClick={() => setOpen(true)} aria-label={`${ariaLabel}: ${filled}. Change`} className={`${BASE} inline-flex items-center gap-1 bg-accent-soft px-2 hover:bg-hover`}>
+      <button type="button" onClick={() => setOpen(true)} aria-label={`${ariaLabel}: ${filled}. Change`} className={`${BASE} inline-flex items-center gap-1 bg-accent-soft px-2 hover:bg-surface-2`}>
         <Icon size={12} className="text-accent" />
         {filled}
       </button>
@@ -62,7 +62,7 @@ export function TokenPicker({ icon: Icon, ariaLabel, empty, options, filled, onP
           onDone();
         }
       }}
-      className={`${BASE} max-w-32 border border-dashed border-border bg-transparent px-2 text-fg-2 hover:bg-hover`}
+      className={`${BASE} max-w-32 border border-dashed border-border bg-transparent px-2 text-fg-2 hover:bg-surface-2`}
     >
       <option value="">{filled === null ? empty : `${ariaLabel}…`}</option>
       {options.map((o) => (

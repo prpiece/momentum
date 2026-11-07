@@ -94,7 +94,7 @@ export function CelebrationOverlay() {
             <Logo size={c.tier === "year" ? 112 : 92} draw className="anim-hero drop-shadow-xl" />
           </div>
         </div>
-        <div className="anim-card rounded-lg border border-border bg-surface-2 px-7 py-4 text-center shadow-xl">
+        <div className="anim-card rounded-panel border border-border bg-raised px-7 py-4 text-center shadow-float">
           <div className={`text-2xl font-extrabold tracking-tight ${gold ? "bg-gradient-to-r from-[#e8a317] via-[#f5c542] to-[#e8a317] bg-clip-text text-transparent" : ""}`}>{c.title}</div>
           {c.detail && <div className="mt-1 whitespace-pre-line text-sm text-fg-2">{c.detail}</div>}
         </div>

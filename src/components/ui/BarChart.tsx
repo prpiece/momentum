@@ -38,7 +38,7 @@ export function BarChart(props: {
         {ticks.map((t) => (
           <g key={t}>
             <line x1={padL} x2={W} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeDasharray={t === 0 ? undefined : "2 4"} />
-            <text x={padL - 6} y={y(t) + 3} textAnchor="end" className="fill-[var(--fg-muted)] font-mono text-[10px]">
+            <text x={padL - 6} y={y(t) + 3} textAnchor="end" className="fill-[var(--muted)] tabular-nums text-[10px]">
               {format(t)}
             </text>
           </g>
@@ -60,7 +60,7 @@ export function BarChart(props: {
                   style={{ animationDelay: `${i * 25}ms` }}
                 />
               )}
-              <text x={padL + i * slot + slot / 2} y={H - 6} textAnchor="middle" className="fill-[var(--fg-muted)] text-[10px]">
+              <text x={padL + i * slot + slot / 2} y={H - 6} textAnchor="middle" className="fill-[var(--muted)] text-[10px]">
                 {props.tick(d, i)}
               </text>
             </g>
@@ -70,7 +70,7 @@ export function BarChart(props: {
       {hover !== null && data[hover] && (
         <div
           role="tooltip"
-          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-sm bg-fg px-2 py-1 text-xs text-bg shadow-lg"
+          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-control bg-fg px-2 py-1 text-xs text-bg shadow-float"
           style={{ left: `${((padL + hover * slot + slot / 2) / W) * 100}%`, top: `${(y(data[hover].value) / H) * 100}%` }}
         >
           <span className="font-semibold">{format(data[hover].value)}</span> · {props.label(data[hover])}

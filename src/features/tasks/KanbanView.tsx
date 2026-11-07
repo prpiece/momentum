@@ -56,7 +56,7 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
           <input
             autoFocus
             placeholder="Section name"
-            className="h-10 w-full rounded-md border border-border bg-surface-2 px-3 text-sm outline-none focus:border-accent"
+            className="h-10 w-full rounded-card border border-border bg-raised px-3 text-sm outline-none focus:border-accent"
             onBlur={() => setAdding(false)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && e.currentTarget.value.trim()) {
@@ -67,7 +67,7 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
             }}
           />
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className="flex h-10 w-full items-center gap-2 rounded-md border border-dashed border-border px-3 text-sm text-muted hover:border-accent hover:text-fg">
+          <button type="button" onClick={() => setAdding(true)} className="flex h-10 w-full items-center gap-2 rounded-card border border-dashed border-border px-3 text-sm text-muted hover:border-accent hover:text-fg">
             <Plus size={16} /> Add section
           </button>
         )}
@@ -100,8 +100,8 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
       ref={setNodeRef}
       style={{ transform: sort.transform ? `translate3d(${sort.transform.x}px, 0, 0)` : undefined, transition: sort.transition }}
       aria-label={section?.name ?? "Unsectioned"}
-      className={`flex w-72 shrink-0 flex-col rounded-lg border p-2 transition-colors duration-[var(--dur)] ${
-        sort.isDragging ? "z-10 opacity-80 shadow-lg " : ""
+      className={`flex w-72 shrink-0 flex-col rounded-panel border p-2 transition-colors duration-[var(--dur)] ${
+        sort.isDragging ? "z-10 opacity-80 shadow-float " : ""
       }${
         isOver ? "border-accent bg-accent-soft" : "border-transparent bg-bg"
       }`}
@@ -115,7 +115,7 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
           <input
             autoFocus
             defaultValue={section.name}
-            className="h-7 min-w-0 flex-1 rounded-sm border border-accent bg-surface px-2 text-sm outline-none"
+            className="h-7 min-w-0 flex-1 rounded-control border border-accent bg-surface px-2 text-sm outline-none"
             onBlur={(e) => {
               if (e.target.value.trim()) updateSection(section.id, { name: e.target.value.trim() });
               setRenaming(false);
@@ -125,9 +125,9 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
         ) : (
           <h3 className="flex-1 truncate text-sm font-semibold">{section?.name ?? "Unsectioned"}</h3>
         )}
-        <span className="font-mono text-xs text-muted">{items.length}</span>
+        <span className="tabular-nums text-xs text-muted">{items.length}</span>
         {section && (
-          <button ref={menu.anchor} type="button" aria-label="Section options" onClick={menu.toggle} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+          <button ref={menu.anchor} type="button" aria-label="Section options" onClick={menu.toggle} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
             <MoreHorizontal size={16} />
           </button>
         )}
@@ -164,7 +164,7 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
         }}
         placeholder="+ Add task"
         aria-label={`Add task to ${section?.name ?? "Unsectioned"}`}
-        className="mt-1 h-9 rounded-sm bg-transparent px-2 text-sm outline-none placeholder:text-muted focus:bg-surface"
+        className="mt-1 h-9 rounded-control bg-transparent px-2 text-sm outline-none placeholder:text-muted focus:bg-surface"
       />
     </section>
   );
@@ -182,7 +182,7 @@ function Card({ vm }: { vm: TaskVM }) {
       onClick={() => openTask(t.id, vm.key)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => e.key === "Enter" && openTask(t.id, vm.key)}
-      className={`flex cursor-grab items-start gap-2.5 rounded-md border border-border bg-surface-2 p-3 shadow-sm transition-shadow hover:shadow-lg ${isDragging ? "opacity-40" : ""}`}
+      className={`flex cursor-grab items-start gap-2.5 rounded-card border border-border bg-raised p-3 transition-shadow hover:shadow-float ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} />
       <div className="min-w-0 flex-1">

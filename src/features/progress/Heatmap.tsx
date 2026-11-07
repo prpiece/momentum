@@ -6,7 +6,7 @@ import type { LocalDate, WeekStart } from "../../domain/types";
 
 /** Accent steps for heat levels 1–4 (0 is the empty-cell gray). One hue, light to dark. */
 const STEP = [0, 30, 55, 78, 100];
-const fill = (level: number) => (level === 0 ? "var(--hover)" : `color-mix(in oklch, var(--accent) ${STEP[level]}%, var(--surface-2))`);
+const fill = (level: number) => (level === 0 ? "var(--surface-2)" : `color-mix(in oklch, var(--accent) ${STEP[level]}%, var(--raised))`);
 
 /** GitHub-style calendar of completions: one column per week, one row per weekday. */
 export function Heatmap({ values, today, weeks, weekStart }: { values: Map<LocalDate, number>; today: LocalDate; weeks: number; weekStart: WeekStart }) {

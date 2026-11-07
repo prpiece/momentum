@@ -71,9 +71,9 @@ export const TaskRow = memo(function TaskRow(props: {
           toggleDone(t.id, vm.key);
         }
       }}
-      className={`group relative flex min-h-[var(--row-h)] cursor-default items-start gap-2.5 rounded-sm py-[calc(var(--pad)*0.6)] pr-3 outline-none transition-[color,background-color,opacity] duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
+      className={`group relative flex min-h-[var(--row)] cursor-default items-start gap-2.5 rounded-control py-[calc(var(--space-3)*0.6)] pr-3 outline-none transition-[color,background-color,opacity] duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
         isDragging ? "opacity-40" : ""
-      } ${selected || open ? "bg-accent-soft" : "hover:bg-hover"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
+      } ${selected || open ? "bg-accent-soft" : "hover:bg-surface-2"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
     >
       {/* A fixed toggle gutter keeps every checkbox in a column, with or without subtasks. */}
       <div style={{ width: 16 + depth * 20 }} className="flex h-6 shrink-0 items-center justify-end">
@@ -86,7 +86,7 @@ export const TaskRow = memo(function TaskRow(props: {
               e.stopPropagation();
               toggleCollapsed(t.id);
             }}
-            className="grid size-4 place-items-center rounded text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+            className="grid size-4 place-items-center rounded-xs text-muted hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
           >
             <ChevronRight size={14} className={`transition-transform duration-[var(--dur)] ${collapsed ? "" : "rotate-90"}`} />
           </button>
@@ -138,7 +138,7 @@ export const TaskRow = memo(function TaskRow(props: {
                   e.stopPropagation();
                   setFilter(useUi.getState().view, `#${tags[id].name}`);
                 }}
-                className="rounded-full bg-hover px-1.5 text-[0.7rem] text-fg-2 hover:bg-accent-soft hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+                className="rounded-full bg-surface-2 px-1.5 text-[0.7rem] text-fg-2 hover:bg-accent-soft hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
               >
                 #{tags[id].name}
               </button>

@@ -17,7 +17,7 @@ export function EventDialog() {
   return <EventForm key={`${event.id}:${open.key}`} event={event} occurrenceKey={open.key} />;
 }
 
-const field = "h-9 rounded-sm border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent disabled:opacity-60";
+const field = "h-9 rounded-control border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent disabled:opacity-60";
 
 function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceKey: string | null }) {
   const shown = occurrenceKey && event.recurrence ? scheduleForKey(event.schedule, occurrenceKey) : event.schedule;
@@ -75,7 +75,7 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
           <span className="size-3.5 rounded-[4px]" style={{ background: color }} />
           <input autoFocus value={title} disabled={ro} onChange={(e) => setTitle(e.target.value)} aria-label="Title" className="h-10 flex-1 bg-transparent text-lg font-semibold outline-none" />
         </div>
-        {ro && <p className="rounded-sm bg-hover px-3 py-2 text-xs text-fg-2">Imported from an .ics file: read-only.</p>}
+        {ro && <p className="rounded-control bg-surface-2 px-3 py-2 text-xs text-fg-2">Imported from an .ics file: read-only.</p>}
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={allDay} disabled={ro} onChange={(e) => setAllDay(e.target.checked)} className="size-4 accent-[var(--accent)]" />
@@ -143,7 +143,7 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
           ))}
         </div>
 
-        <textarea value={notes} disabled={ro} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" aria-label="Notes" className="min-h-20 w-full resize-y rounded-md border border-border bg-surface p-2.5 text-sm outline-none focus:border-accent" />
+        <textarea value={notes} disabled={ro} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" aria-label="Notes" className="min-h-20 w-full resize-y rounded-card border border-border bg-surface p-2.5 text-sm outline-none focus:border-accent" />
 
         <div className="flex items-center gap-2 border-t border-border pt-4">
           <Button variant="ghost" className="text-danger" onClick={() => void remove()}>

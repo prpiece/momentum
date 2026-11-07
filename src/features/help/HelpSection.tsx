@@ -15,7 +15,7 @@ export function HelpSection() {
   const found = useMemo(() => searchFeatures(q).filter((f) => !f.requires), [q]);
   return (
     <div className="space-y-4">
-      <label className="flex h-9 items-center gap-2 rounded-sm border border-border bg-surface px-3 focus-within:border-accent">
+      <label className="flex h-9 items-center gap-2 rounded-control border border-border bg-surface px-3 focus-within:border-accent">
         <Search size={15} className="text-muted" />
         <input
           value={q}
@@ -57,11 +57,11 @@ export function HelpSection() {
             update({ gettingStarted: { ...gs, dismissed: false } });
             go("today");
           }}
-          className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent"
+          className="h-9 rounded-control border border-border px-3 text-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent"
         >
           Show Getting started
         </button>
-        <button type="button" onClick={openTour} className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent">
+        <button type="button" onClick={openTour} className="h-9 rounded-control border border-border px-3 text-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent">
           Take the tour
         </button>
       </div>

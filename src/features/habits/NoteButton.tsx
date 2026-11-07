@@ -31,7 +31,7 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
           setNote(checkinOf(habit.id, date)?.note ?? "");
           setOpen(true);
         }}
-        className={`grid size-7 shrink-0 place-items-center rounded-sm hover:bg-hover ${c?.note || c?.mood ? "text-accent" : "text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
+        className={`grid size-7 shrink-0 place-items-center rounded-control hover:bg-surface-2 ${c?.note || c?.mood ? "text-accent" : "text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
       >
         {c?.mood ? <MoodFace mood={c.mood} size={16} /> : <MessageSquareText size={15} />}
       </button>
@@ -52,7 +52,7 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
               </button>
             ))}
           </div>
-          <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="How did it go?" aria-label="Note" className="min-h-20 w-full resize-none rounded-sm border border-border bg-surface p-2 text-sm outline-none focus:border-accent" />
+          <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="How did it go?" aria-label="Note" className="min-h-20 w-full resize-none rounded-control border border-border bg-surface p-2 text-sm outline-none focus:border-accent" />
           <p className="mt-1 text-[0.65rem] text-muted">Saved when you close this.</p>
         </Popover>
       )}

@@ -15,9 +15,9 @@ export function drawShareCard(canvas: HTMLCanvasElement, s: ShareSummary) {
   canvas.height = CARD_H;
   const css = getComputedStyle(document.documentElement);
   const c = (name: string) => css.getPropertyValue(name).trim();
-  const sans = c("--font-sans");
-  const mono = c("--font-mono");
-  const [bg, surface, fg, fg2, muted, border, accent] = ["--bg", "--surface-2", "--fg", "--fg-2", "--fg-muted", "--border", "--accent"].map(c);
+  const sans = c("--font-ui");
+  const head = c("--font-head");
+  const [bg, surface, fg, fg2, muted, border, accent] = ["--bg", "--raised", "--fg", "--fg-2", "--muted", "--border", "--accent"].map(c);
 
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
@@ -57,7 +57,7 @@ export function drawShareCard(canvas: HTMLCanvasElement, s: ShareSummary) {
   stats.forEach(([value, label], i) => {
     const x = 76 + (i % 2) * 300;
     const y = 190 + Math.floor(i / 2) * 120;
-    text(value, x, y, `600 64px ${mono}`, i === 0 ? accent : fg);
+    text(value, x, y, `600 64px ${head}`, i === 0 ? accent : fg);
     text(label, x, y + 36, `500 22px ${sans}`, muted);
   });
 
@@ -109,7 +109,7 @@ export function drawShareCard(canvas: HTMLCanvasElement, s: ShareSummary) {
 /** The card as a PNG, after making sure the bundled fonts are loaded into the canvas. */
 export async function renderShareCard(canvas: HTMLCanvasElement, s: ShareSummary): Promise<Blob | null> {
   const css = getComputedStyle(document.documentElement);
-  await Promise.all([css.getPropertyValue("--font-sans"), css.getPropertyValue("--font-mono")].flatMap((f) => [400, 600, 700].map((w) => document.fonts.load(`${w} 24px ${f}`).catch(() => []))));
+  await Promise.all([css.getPropertyValue("--font-ui"), css.getPropertyValue("--font-head")].flatMap((f) => [400, 600, 700].map((w) => document.fonts.load(`${w} 24px ${f}`).catch(() => []))));
   drawShareCard(canvas, s);
   return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
 }

@@ -48,7 +48,7 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
             role="radio"
             aria-checked={kind === k}
             onClick={() => setKind(k)}
-            className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs ${kind === k ? "bg-accent text-accent-fg" : "bg-hover text-fg-2"}`}
+            className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs ${kind === k ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
           >
             {k === "task" ? <CheckCircle2 size={13} /> : <CalendarDays size={13} />}
             {k === "task" ? "Task" : "Event"}
@@ -62,14 +62,14 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
         onKeyDown={(e) => e.key === "Enter" && create(false)}
         placeholder={kind === "task" ? "Task title" : "Event title"}
         aria-label="Title"
-        className="h-9 w-full rounded-sm border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent"
+        className="h-9 w-full rounded-control border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent"
       />
-      <div className="mt-1.5 font-mono text-[0.7rem] text-muted">{when}</div>
+      <div className="mt-1.5 tabular-nums text-[0.7rem] text-muted">{when}</div>
       <div className="mt-3 flex justify-between">
-        <button type="button" onClick={() => create(true)} className="h-8 rounded-sm px-2 text-xs text-fg-2 hover:bg-hover">
+        <button type="button" onClick={() => create(true)} className="h-8 rounded-control px-2 text-xs text-fg-2 hover:bg-surface-2">
           More options
         </button>
-        <button type="button" onClick={() => create(false)} className="h-8 rounded-sm bg-accent px-3 text-xs font-medium text-accent-fg hover:bg-accent-hover">
+        <button type="button" onClick={() => create(false)} className="h-8 rounded-control bg-accent px-3 text-xs font-medium text-accent-fg hover:bg-accent-hover">
           Save
         </button>
       </div>

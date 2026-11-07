@@ -24,8 +24,8 @@ export function AgendaView({ days, items }: { days: string[]; items: CalItem[] }
           <ul className="min-w-0 flex-1 space-y-1">
             {g.items.map((i) => (
               <li key={i.uid}>
-                <div role="button" tabIndex={0} onClick={() => openItem(i)} onContextMenu={onItemMenu(i)} onKeyDown={(e) => e.key === "Enter" && openItem(i)} className="flex items-center gap-3 rounded-sm px-2 py-1.5 hover:bg-hover">
-                  <span className="w-28 shrink-0 font-mono text-xs text-muted">
+                <div role="button" tabIndex={0} onClick={() => openItem(i)} onContextMenu={onItemMenu(i)} onKeyDown={(e) => e.key === "Enter" && openItem(i)} className="flex items-center gap-3 rounded-control px-2 py-1.5 hover:bg-surface-2">
+                  <span className="w-28 shrink-0 tabular-nums text-xs text-muted">
                     {i.allDay || !i.start || !i.end ? "All day" : `${formatTime(i.start, timeFormat)} – ${formatTime(i.end, timeFormat)}`}
                   </span>
                   {i.source === "task" ? (

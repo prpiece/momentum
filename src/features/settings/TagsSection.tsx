@@ -11,7 +11,7 @@ export function TagsSection() {
   return (
     <ul className="grid gap-1 sm:grid-cols-2">
       {sorted.map((t) => (
-        <li key={t.id} className="group flex items-center gap-2 rounded-sm px-2 py-1 hover:bg-hover">
+        <li key={t.id} className="group flex items-center gap-2 rounded-control px-2 py-1 hover:bg-surface-2">
           <Hash size={14} className="shrink-0 text-muted" />
           <input
             key={t.name}
@@ -29,7 +29,7 @@ export function TagsSection() {
                 e.currentTarget.blur();
               }
             }}
-            className="min-w-0 flex-1 rounded-sm bg-transparent px-1 text-sm outline-none focus:ring-2 focus:ring-accent"
+            className="min-w-0 flex-1 rounded-control bg-transparent px-1 text-sm outline-none focus:ring-2 focus:ring-accent"
           />
           <button
             type="button"
@@ -37,7 +37,7 @@ export function TagsSection() {
             onClick={async () => {
               if (await confirm(`Delete tag “${t.name}”?`, "It is removed from every task.")) removeTag(t.id);
             }}
-            className="grid size-6 place-items-center rounded-sm text-muted opacity-0 hover:text-danger focus:opacity-100 group-hover:opacity-100"
+            className="grid size-6 place-items-center rounded-control text-muted opacity-0 hover:text-danger focus:opacity-100 group-hover:opacity-100"
           >
             <Trash2 size={14} />
           </button>

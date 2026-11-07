@@ -76,7 +76,7 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
             <Segmented name="share-period" label="Period" value={period} options={OPTIONS} onChange={setPeriod} />
           </div>
         </div>
-        <canvas ref={canvas} width={CARD_W} height={CARD_H} role="img" aria-label="Preview of your stats card" className="w-full rounded-md border border-border" style={{ aspectRatio: `${CARD_W} / ${CARD_H}` }} />
+        <canvas ref={canvas} width={CARD_W} height={CARD_H} role="img" aria-label="Preview of your stats card" className="w-full rounded-card border border-border" style={{ aspectRatio: `${CARD_W} / ${CARD_H}` }} />
         <p className="text-xs text-muted">Only numbers and charts. No task or list names.</p>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Close</Button>

@@ -1,7 +1,7 @@
 import { Check, Pause, Play, SkipForward, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatClock } from "../domain/focus";
-import { QUADRANT_INFO, QUADRANTS } from "../domain/matrix";
+import { QUADRANT_INFO, QUADRANT_VAR, QUADRANTS } from "../domain/matrix";
 import { miniClockMs, parseMiniSnapshot, type MiniAction, type MiniSnapshot, type MiniTask } from "../domain/mini";
 import { apply, readAppearance } from "../lib/applySettings";
 
@@ -21,7 +21,7 @@ function savedTab(): Tab {
 }
 
 const send = async (action: MiniAction) => (await import("@tauri-apps/api/event")).emit("mini:action", action);
-const btn = "inline-flex h-9 items-center justify-center gap-1.5 rounded-sm border border-border px-3 text-sm font-medium transition-colors duration-[var(--dur)] hover:bg-hover disabled:opacity-40";
+const btn = "inline-flex h-9 items-center justify-center gap-1.5 rounded-control border border-border px-3 text-sm font-medium transition-colors duration-[var(--dur)] hover:bg-surface-2 disabled:opacity-40";
 
 /**
  * The small always-on-top window (D80). No database access: it renders the snapshot the main
@@ -82,12 +82,12 @@ export function MiniWindow() {
   const close = async () => (await import("@tauri-apps/api/window")).getCurrentWindow().hide();
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border bg-surface text-fg">
+    <div className="flex h-full flex-col overflow-hidden rounded-panel border border-border bg-surface text-fg">
       <div className="flex h-8 shrink-0 items-center">
         <div data-tauri-drag-region className="h-full flex-1 select-none px-3 text-xs font-medium leading-8 text-muted">
           Momentum
         </div>
-        <button type="button" aria-label="Close mini window" title="Close" onClick={() => void close()} className="mr-1 grid size-6 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg">
+        <button type="button" aria-label="Close mini window" title="Close" onClick={() => void close()} className="mr-1 grid size-6 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg">
           <X size={14} />
         </button>
       </div>
@@ -112,7 +112,7 @@ export function MiniWindow() {
             aria-selected={tab === t}
             tabIndex={tab === t ? 0 : -1}
             onClick={() => pick(t)}
-            className={`h-8 flex-1 rounded-sm text-sm font-medium transition-colors duration-[var(--dur)] ${tab === t ? "bg-accent-soft text-fg" : "text-muted hover:bg-hover"}`}
+            className={`h-8 flex-1 rounded-control text-sm font-medium transition-colors duration-[var(--dur)] ${tab === t ? "bg-accent-soft text-fg" : "text-muted hover:bg-surface-2"}`}
           >
             {LABEL[t]}
           </button>
@@ -148,7 +148,7 @@ function TaskTab({ snap }: { snap: MiniSnapshot }) {
       <p className="px-2 pb-1 text-xs font-medium uppercase tracking-wide text-muted">{snap.focusing ? "Focusing on" : "Today"}</p>
       <ul className="space-y-0.5">
         {snap.tasks.map((t) => (
-          <li key={t.id} className="flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-hover">
+          <li key={t.id} className="flex items-center gap-2 rounded-control px-2 py-1.5 hover:bg-surface-2">
             <DoneBox t={t} />
             <button type="button" onClick={() => void send({ type: "open", id: t.id, key: t.key })} title="Open in Momentum" className="min-w-0 flex-1 truncate text-left text-sm">
               {t.title}
@@ -167,7 +167,7 @@ function FocusTab({ snap, now }: { snap: MiniSnapshot; now: number }) {
   return (
     <div className="flex flex-col items-center gap-3 px-2 py-4">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">{active ? (t.mode === "stopwatch" ? "Stopwatch" : PHASE[t.phase]) : t.status === "done" ? "Session done" : "Ready"}</p>
-      <p className="font-mono text-5xl tabular-nums" aria-live="off">
+      <p className="font-mono font-medium tabular-nums text-5xl tracking-[var(--tracking-timer)]" aria-live="off">
         {formatClock(active ? miniClockMs(t, snap.at, now) : 0)}
       </p>
       <p className="max-w-full truncate text-sm text-fg-2">{snap.focusing ? snap.tasks[0].title : !active && startTask ? `On: ${startTask.title}` : " "}</p>
@@ -200,14 +200,14 @@ function MatrixTab({ snap }: { snap: MiniSnapshot }) {
       {QUADRANTS.map((q) => {
         const { count, top } = snap.matrix[q - 1];
         return (
-          <section key={q} aria-label={QUADRANT_INFO[q].title} className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-border p-1.5" style={{ borderTopColor: `var(--q${q})`, borderTopWidth: 3 }}>
+          <section key={q} aria-label={QUADRANT_INFO[q].title} className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-card border border-border p-1.5" style={{ borderTopColor: QUADRANT_VAR[q], borderTopWidth: 3 }}>
             <h3 className="flex items-baseline justify-between gap-1 px-0.5 text-xs font-semibold">
               <span className="truncate">{QUADRANT_INFO[q].title}</span>
-              <span className="font-mono tabular-nums text-muted">{count}</span>
+              <span className="tabular-nums tabular-nums text-muted">{count}</span>
             </h3>
             <ul className="mt-0.5 min-h-0 space-y-0.5">
               {top.map((t: MiniTask) => (
-                <li key={t.id} className="flex items-center gap-1 rounded-sm px-0.5 hover:bg-hover">
+                <li key={t.id} className="flex items-center gap-1 rounded-control px-0.5 hover:bg-surface-2">
                   <DoneBox t={t} small />
                   <button type="button" onClick={() => void send({ type: "open", id: t.id, key: t.key })} title={t.title} className="min-w-0 flex-1 truncate text-left text-xs text-fg-2 hover:text-fg">
                     {t.title}

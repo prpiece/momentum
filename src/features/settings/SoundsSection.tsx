@@ -49,7 +49,7 @@ export function SoundsSection() {
                   set({ picks: { ...s.picks, [e]: v } });
                   playSound(v, s.volume);
                 }}
-                className="h-8 rounded-sm border border-border bg-surface px-2 text-sm outline-none focus:border-accent"
+                className="h-8 rounded-control border border-border bg-surface px-2 text-sm outline-none focus:border-accent"
               >
                 {SOUNDS.map((x) => (
                   <option key={x} value={x}>
@@ -62,7 +62,7 @@ export function SoundsSection() {
                 aria-label={`Play the ${title.toLowerCase()} sound`}
                 disabled={s.picks[e] === "none"}
                 onClick={() => playSound(s.picks[e], s.volume)}
-                className="grid size-8 place-items-center rounded-sm border border-border text-fg-2 hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
+                className="grid size-8 place-items-center rounded-control border border-border text-fg-2 hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
               >
                 <Play size={14} />
               </button>

@@ -7,7 +7,7 @@ import { ACCENT_PRESETS } from "../../domain/color";
 import { useAppVersion } from "../../lib/updater";
 import { confirm, toast } from "../../stores/ui";
 
-const btn = "flex h-9 items-center gap-2 rounded-sm border border-border px-3 text-sm hover:bg-hover disabled:opacity-50";
+const btn = "flex h-9 items-center gap-2 rounded-control border border-border px-3 text-sm hover:bg-surface-2 disabled:opacity-50";
 
 /** Backup export / restore and one-time .ics import. */
 export function DataSection() {
@@ -64,7 +64,7 @@ export function DataSection() {
         </button>
       </div>
       <p className="text-xs text-muted">
-        Everything lives on this computer in <span className="font-mono">%APPDATA%\com.momentum.planner</span>. The database is copied to its <span className="font-mono">backups</span> folder automatically before every upgrade.
+        Everything lives on this computer in <span className="tabular-nums">%APPDATA%\com.momentum.planner</span>. The database is copied to its <span className="tabular-nums">backups</span> folder automatically before every upgrade.
       </p>
     </div>
   );
@@ -77,7 +77,7 @@ export function AboutSection() {
       <Logo size={48} />
       <div>
         <div className="text-base font-semibold">Momentum</div>
-        <div className="font-mono text-xs text-muted">Version {version}</div>
+        <div className="tabular-nums text-xs text-muted">Version {version}</div>
         <div className="mt-1 text-xs text-fg-2">An offline planner for tasks, calendar, habits and focus. Your data never leaves this device. MIT licensed.</div>
         <div className="mt-1 text-xs text-muted">Created by prpiece and d1.</div>
       </div>

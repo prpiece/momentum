@@ -122,7 +122,7 @@ function GroupHeader(props: { label: string; count: number; toggleKey?: string; 
     <>
       {props.toggleKey && <ChevronRight size={14} className={`transition-transform duration-[var(--dur)] ${props.expanded ? "rotate-90" : ""}`} />}
       <span>{props.label}</span>
-      <span className="font-mono font-normal text-muted">{props.count}</span>
+      <span className="tabular-nums font-normal text-muted">{props.count}</span>
     </>
   );
   const cls = "flex items-center gap-1.5 px-2 pb-1.5 pt-4 text-xs font-semibold uppercase tracking-wider text-fg-2";

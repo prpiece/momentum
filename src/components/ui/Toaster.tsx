@@ -9,7 +9,7 @@ export function Toaster() {
         <div
           key={t.id}
           role="status"
-          className="anim-rise pointer-events-auto flex items-center gap-3 rounded-md bg-fg py-2 pl-4 pr-2 text-sm text-bg shadow-lg"
+          className="anim-rise pointer-events-auto flex items-center gap-3 rounded-card bg-fg py-2 pl-4 pr-2 text-sm text-bg shadow-float"
         >
           <span>{t.message}</span>
           {t.action && (
@@ -19,12 +19,12 @@ export function Toaster() {
                 t.action?.run();
                 dismissToast(t.id);
               }}
-              className="rounded-sm px-2 py-1 font-semibold text-bg underline-offset-2 hover:underline"
+              className="rounded-control px-2 py-1 font-semibold text-bg underline-offset-2 hover:underline"
             >
               {t.action.label}
             </button>
           )}
-          <button type="button" aria-label="Dismiss" onClick={() => dismissToast(t.id)} className="rounded-sm p-1 opacity-60 hover:opacity-100">
+          <button type="button" aria-label="Dismiss" onClick={() => dismissToast(t.id)} className="rounded-control p-1 opacity-60 hover:opacity-100">
             <X size={14} />
           </button>
         </div>

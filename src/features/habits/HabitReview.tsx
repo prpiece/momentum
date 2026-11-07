@@ -56,7 +56,7 @@ export function HabitReview({ habits }: { habits: Habit[] }) {
                       </td>
                     );
                   })}
-                  <td className="py-2 text-right font-mono text-xs text-fg-2">{rate === null ? "–" : `${Math.round(rate * 100)}%`}</td>
+                  <td className="py-2 text-right tabular-nums text-xs text-fg-2">{rate === null ? "–" : `${Math.round(rate * 100)}%`}</td>
                 </tr>
               );
             })}
@@ -76,10 +76,10 @@ export function HabitReview({ habits }: { habits: Habit[] }) {
                   <AppIcon name={h.icon} size={14} color={h.color} className="mr-2 inline align-[-2px]" />
                   {h.name}
                 </span>
-                <span className="h-2 overflow-hidden rounded-full bg-hover">
+                <span className="h-2 overflow-hidden rounded-full bg-surface-2">
                   <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: h.color }} />
                 </span>
-                <span className="text-right font-mono text-xs text-fg-2">{rate === null ? "–" : `${pct}%`}</span>
+                <span className="text-right tabular-nums text-xs text-fg-2">{rate === null ? "–" : `${pct}%`}</span>
               </li>
             );
           })}
@@ -93,10 +93,10 @@ function Nav({ title, onPrev, onNext }: { title: string; onPrev: () => void; onN
   return (
     <div className="mb-3 flex items-center gap-1">
       <h3 className="flex-1 text-sm font-semibold">{title}</h3>
-      <button type="button" aria-label="Previous" onClick={onPrev} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+      <button type="button" aria-label="Previous" onClick={onPrev} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
         <ChevronLeft size={15} />
       </button>
-      <button type="button" aria-label="Next" onClick={onNext} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+      <button type="button" aria-label="Next" onClick={onNext} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
         <ChevronRight size={15} />
       </button>
     </div>

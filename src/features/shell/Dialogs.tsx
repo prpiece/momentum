@@ -8,7 +8,7 @@ export function ScopeDialog() {
   if (!ask) return null;
   const verb = ask.verb === "edit" ? "Change" : "Delete";
   const opt = (label: string, desc: string, run: () => void, danger = false) => (
-    <button type="button" onClick={run} className={`w-full rounded-md border border-border px-4 py-3 text-left transition-colors hover:border-accent hover:bg-accent-soft ${danger ? "hover:border-danger" : ""}`}>
+    <button type="button" onClick={run} className={`w-full rounded-card border border-border px-4 py-3 text-left transition-colors hover:border-accent hover:bg-accent-soft ${danger ? "hover:border-danger" : ""}`}>
       <div className="text-sm font-semibold">{label}</div>
       <div className="text-xs text-muted">{desc}</div>
     </button>
@@ -68,7 +68,7 @@ export function ShortcutSheet() {
                   <div key={keys + what} className="flex items-center justify-between gap-4 text-sm">
                     <dt className="text-fg-2">{what}</dt>
                     <dd>
-                      <kbd className="whitespace-nowrap rounded-sm border border-border bg-surface px-1.5 py-0.5 font-mono text-xs">{keys}</kbd>
+                      <kbd className="whitespace-nowrap rounded-control border border-border bg-surface px-1.5 py-0.5 tabular-nums text-xs">{keys}</kbd>
                     </dd>
                   </div>
                 ))}

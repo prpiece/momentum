@@ -88,7 +88,7 @@ export function QuickAdd(props: {
   };
 
   return (
-    <div className="rounded-md border border-border bg-surface-2 shadow-sm transition-shadow duration-[var(--dur)] focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
+    <div className="rounded-card border border-border bg-raised transition-shadow duration-[var(--dur)] focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
       <div className="flex items-center gap-2.5 px-3">
         <Plus size={18} className="shrink-0 text-accent" />
         <input
@@ -121,7 +121,7 @@ export function QuickAdd(props: {
             title={parsing ? "Smart parsing on (Esc to ignore for this task)" : "Smart parsing off for this task"}
             aria-pressed={parsing}
             onClick={() => setRawMode((r) => !r)}
-            className={`grid size-7 place-items-center rounded-sm ${parsing ? "text-accent" : "text-muted"} hover:bg-hover`}
+            className={`grid size-7 place-items-center rounded-control ${parsing ? "text-accent" : "text-muted"} hover:bg-surface-2`}
           >
             <Sparkles size={15} />
           </button>
@@ -141,7 +141,7 @@ export function QuickAdd(props: {
             );
           })}
           <span className="ml-auto text-xs text-muted">
-            <kbd className="font-mono">Esc</kbd> to keep as plain text
+            <kbd className="tabular-nums">Esc</kbd> to keep as plain text
           </span>
         </div>
       )}

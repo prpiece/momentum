@@ -49,7 +49,7 @@ export function ContextMenu() {
                     closeContextMenu();
                     c.run();
                   }}
-                  className={`grid size-7 place-items-center rounded-sm text-fg-2 transition-colors hover:bg-hover hover:text-fg ${c.active ? "bg-accent-soft text-accent" : ""}`}
+                  className={`grid size-7 place-items-center rounded-control text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg ${c.active ? "bg-accent-soft text-accent" : ""}`}
                 >
                   {c.icon}
                 </button>

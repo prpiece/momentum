@@ -82,7 +82,7 @@ export function ReminderWindow() {
         const Icon = ICON[r.target.kind];
         const doable = r.target.kind === "task" || r.target.kind === "habit";
         return (
-        <article key={r.key} className="anim-rise rounded-md border border-border bg-surface-2 p-3 shadow-lg" aria-live="assertive">
+        <article key={r.key} className="anim-rise rounded-card border border-border bg-raised p-3 shadow-float" aria-live="assertive">
           <div className="flex items-start gap-2.5">
             <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
               <Icon size={15} />
@@ -93,22 +93,22 @@ export function ReminderWindow() {
                 {r.body}
               </p>
             </div>
-            <button type="button" aria-label="Dismiss" onClick={() => void act({ dto: r, action: "dismiss" })} className="grid size-6 place-items-center rounded-sm text-muted hover:bg-hover">
+            <button type="button" aria-label="Dismiss" onClick={() => void act({ dto: r, action: "dismiss" })} className="grid size-6 place-items-center rounded-control text-muted hover:bg-surface-2">
               <X size={14} />
             </button>
           </div>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {doable && (
-              <button type="button" onClick={() => void act({ dto: r, action: "done" })} className="flex h-7 items-center gap-1 rounded-sm bg-accent px-2.5 text-xs font-medium text-accent-fg hover:bg-accent-hover">
+              <button type="button" onClick={() => void act({ dto: r, action: "done" })} className="flex h-7 items-center gap-1 rounded-control bg-accent px-2.5 text-xs font-medium text-accent-fg hover:bg-accent-hover">
                 <Check size={13} /> Done
               </button>
             )}
             {r.target.kind !== "digest" && snoozeOptions().map((o) => (
-              <button key={o.label} type="button" onClick={() => void act({ dto: r, action: "snooze", minutes: o.minutes })} className="h-7 rounded-sm bg-hover px-2.5 text-xs text-fg-2 hover:text-fg">
+              <button key={o.label} type="button" onClick={() => void act({ dto: r, action: "snooze", minutes: o.minutes })} className="h-7 rounded-control bg-surface-2 px-2.5 text-xs text-fg-2 hover:text-fg">
                 {o.label}
               </button>
             ))}
-            <button type="button" onClick={() => void act({ dto: r, action: "open" })} className="ml-auto flex h-7 items-center gap-1 rounded-sm px-2 text-xs text-fg-2 hover:bg-hover">
+            <button type="button" onClick={() => void act({ dto: r, action: "open" })} className="ml-auto flex h-7 items-center gap-1 rounded-control px-2 text-xs text-fg-2 hover:bg-surface-2">
               <ExternalLink size={13} /> Open
             </button>
           </div>

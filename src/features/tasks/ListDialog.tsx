@@ -42,7 +42,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
         <h2 className="text-lg font-semibold">{list ? "Edit list" : "New list"}</h2>
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">Name</span>
-          <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 focus-within:border-accent">
+          <div className="flex items-center gap-2 rounded-card border border-border bg-surface px-3 focus-within:border-accent">
             <ListGlyph icon={icon} color={color} size={18} />
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className="h-10 flex-1 bg-transparent outline-none" placeholder="e.g. School" />
           </div>
@@ -68,7 +68,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-sm">
             Folder
-            <select value={folder ?? ""} onChange={(e) => setFolder(e.target.value || null)} className="h-9 rounded-sm border border-border bg-surface px-2 text-sm">
+            <select value={folder ?? ""} onChange={(e) => setFolder(e.target.value || null)} className="h-9 rounded-control border border-border bg-surface px-2 text-sm">
               <option value="">None</option>
               {folders.map((f) => (
                 <option key={f.id} value={f.id}>
@@ -122,7 +122,7 @@ export function ListDialogButton({ list, children, folderId, className = "size-8
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" aria-label={list ? "List settings" : "New list"} title={list ? "List settings" : "New list"} onClick={() => setOpen(true)} className={`grid place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent ${className}`}>
+      <button type="button" aria-label={list ? "List settings" : "New list"} title={list ? "List settings" : "New list"} onClick={() => setOpen(true)} className={`grid place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent ${className}`}>
         {children}
       </button>
       {open && <ListDialog list={list} folderId={folderId} onClose={() => setOpen(false)} />}

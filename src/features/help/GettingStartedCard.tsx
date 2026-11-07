@@ -40,10 +40,10 @@ export function GettingStartedCard() {
   const doneCount = items.core.filter((f) => gs.done.includes(f.id)).length;
   const dismiss = () => update({ gettingStarted: { ...gs, dismissed: true, seenVersion: version === "0.0.0" ? gs.seenVersion : version } });
   return (
-    <section aria-label="Getting started" className="mx-6 mb-3 rounded-md border border-border bg-surface-2 p-4">
+    <section aria-label="Getting started" className="mx-6 mb-3 rounded-card border border-border bg-raised p-4">
       <div className="mb-1 flex items-center gap-2">
         <h2 className="text-sm font-semibold">Getting started</h2>
-        <span className="font-mono text-xs text-muted">
+        <span className="tabular-nums text-xs text-muted">
           {doneCount} of {items.core.length}
         </span>
         <div className="flex-1" />
@@ -51,7 +51,7 @@ export function GettingStartedCard() {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss Getting started"
-          className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+          className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
         >
           <X size={15} />
         </button>
@@ -60,7 +60,7 @@ export function GettingStartedCard() {
         <ul aria-label="New" className="mb-2 border-b border-border pb-2">
           {items.fresh.map((f) => (
             <li key={f.id} className="flex items-start gap-2.5 py-1.5">
-              <span className="mt-0.5 rounded-sm bg-accent-soft px-1.5 text-[0.65rem] font-semibold uppercase leading-4 text-fg">New</span>
+              <span className="mt-0.5 rounded-control bg-accent-soft px-1.5 text-[0.65rem] font-semibold uppercase leading-4 text-fg">New</span>
               <div className="min-w-0">
                 <div className="text-sm font-medium">{f.title}</div>
                 <p className="text-xs text-fg-2">{f.howTo}</p>

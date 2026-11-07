@@ -8,7 +8,7 @@ import { focusPhaseLabel } from "../features/focus/FocusView";
 import { contextForView, parseQuickAddCreate, patchForContext, type QuickAddContext } from "../domain/quickAddContext";
 import { QUICK_ADD_POPUP_EVENT } from "../features/tasks/QuickAdd";
 import { createFromText } from "../features/tasks/quickAddSubmit";
-import { accentForeground } from "../domain/color";
+import { accentForeground, accentHex, type AccentId } from "../domain/color";
 import { todayLocal } from "../domain/dates";
 import type { NotifySettings } from "../domain/types";
 import { isDone, targetOf } from "../domain/habits";
@@ -376,9 +376,9 @@ export async function initOs() {
   publishMini();
   // --- app icon --------------------------------------------------------------
   // The taskbar and tray icons take the accent color (D55).
-  const syncIcon = async (accent: string) => {
+  const syncIcon = async (accent: AccentId) => {
     try {
-      const png = await appIconPng(accent);
+      const png = await appIconPng(accentHex(accent, "light"));
       await getCurrentWindow().setIcon(png);
       await (await TrayIcon.getById("momentum"))?.setIcon(png);
     } catch (err) {

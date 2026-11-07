@@ -54,9 +54,9 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         {days.map((d) => {
           const date = fromLocalDate(d);
           return (
-            <button key={d} type="button" onClick={() => onViewDay(d)} className="flex flex-col items-center py-2 hover:bg-hover">
+            <button key={d} type="button" onClick={() => onViewDay(d)} className="flex flex-col items-center py-2 hover:bg-surface-2">
               <span className={`text-[0.7rem] font-semibold uppercase tracking-wider ${d === today ? "text-accent" : "text-muted"}`}>{format(date, "EEE")}</span>
-              <span className={`mt-0.5 grid size-8 place-items-center rounded-full font-mono text-lg ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
+              <span className={`mt-0.5 grid size-8 place-items-center rounded-full tabular-nums text-lg ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
             </button>
           );
         })}
@@ -73,7 +73,7 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         <div className="relative grid" style={{ gridTemplateColumns: cols, height: 24 * hourPx }}>
           <div className="relative">
             {Array.from({ length: 23 }, (_, i) => i + 1).map((h) => (
-              <span key={h} className="absolute right-2 -translate-y-1/2 font-mono text-[0.65rem] text-muted" style={{ top: h * hourPx }}>
+              <span key={h} className="absolute right-2 -translate-y-1/2 tabular-nums text-[0.65rem] text-muted" style={{ top: h * hourPx }}>
                 {formatTime(new Date(2000, 0, 1, h), timeFormat)}
               </span>
             ))}
@@ -182,12 +182,12 @@ function DayColumn(props: {
     >
       {props.children}
       {sel && (
-        <div className="pointer-events-none absolute inset-x-1 z-20 rounded-sm border-2 border-accent bg-accent-soft px-1.5 py-0.5 text-[0.7rem] font-medium" style={{ top: sel.from * px, height: (sel.to - sel.from) * px }}>
+        <div className="pointer-events-none absolute inset-x-1 z-20 rounded-control border-2 border-accent bg-accent-soft px-1.5 py-0.5 text-[0.7rem] font-medium" style={{ top: sel.from * px, height: (sel.to - sel.from) * px }}>
           {formatTime(new Date(2000, 0, 1, 0, sel.from), timeFormat)} – {formatTime(new Date(2000, 0, 1, 0, sel.to), timeFormat)}
         </div>
       )}
       {props.ghost && (
-        <div className="pointer-events-none absolute inset-x-1 z-30 rounded-sm border-2 border-dashed border-accent bg-accent-soft px-1.5 text-[0.7rem] font-semibold" style={{ top: props.ghost.top * px, height: Math.max(props.ghost.minutes, SNAP) * px }}>
+        <div className="pointer-events-none absolute inset-x-1 z-30 rounded-control border-2 border-dashed border-accent bg-accent-soft px-1.5 text-[0.7rem] font-semibold" style={{ top: props.ghost.top * px, height: Math.max(props.ghost.minutes, SNAP) * px }}>
           {formatTime(new Date(2000, 0, 1, 0, props.ghost.top), timeFormat)}
         </div>
       )}

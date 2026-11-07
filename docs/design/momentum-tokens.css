@@ -1,0 +1,234 @@
+/* ==========================================================================
+   Momentum v1.0 design tokens (final)
+   Light is the default. Dark: [data-theme="dark"] on <html>.
+   Accent: [data-accent="ocean" | …] on <html>. Indigo is the default.
+   All colour pairs listed as "text" meet WCAG AA (4.5:1) on their surfaces;
+   rings, borders and icons meet 3:1.
+   ========================================================================== */
+
+:root {
+  /* ---------- Type: families ---------- */
+  --font-ui: 'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-head: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;   /* 24px+ only, max 2 per screen */
+  --font-timer: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace; /* focus timer digits only */
+  --font-features-ui: "cv05", "cv08";   /* distinct l, I and 1 */
+  --numeric-counts: tabular-nums;       /* counts, dates, times, stats */
+
+  /* ---------- Type: scale (desktop, ≥720px). rem so text size scales ---------- */
+  --fs-xs: 0.75rem;      --lh-xs: 1rem;        /* 12/16 · 500 · uppercase labels +0.04em */
+  --fs-sm: 0.8125rem;    --lh-sm: 1.125rem;    /* 13/18 · 400 */
+  --fs-base: 0.875rem;   --lh-base: 1.25rem;   /* 14/20 · 400, 500 task titles */
+  --fs-lg: 1rem;         --lh-lg: 1.375rem;    /* 16/22 · 600 card titles */
+  --fs-xl: 1.5rem;       --lh-xl: 1.875rem;    /* 24/30 · head 600 page titles */
+  --fs-display: 2.75rem; --lh-display: 3rem;   /* 44/48 · head 600 −0.01em big numbers */
+  --fs-timer: 4rem;      --lh-timer: 1;        /* 64 · timer 500 */
+  --fs-timer-sm: 2rem;   --lh-timer-sm: 2.25rem; /* 32/36 · mini window timer */
+  --tracking-label: 0.04em;
+  --tracking-display: -0.01em;
+  --tracking-timer: -0.02em;
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600; --weight-bold: 700;
+
+  /* ---------- Spacing (4px grid) ---------- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+
+  /* ---------- Sizes ---------- */
+  --row: 36px;            --row-compact: 32px;   --row-touch: 52px;   /* phone two-line task row */
+  --control: 32px;        --control-sm: 28px;    --control-lg: 40px;  /* quick-add, search */
+  --chip: 24px;           --keycap: 22px;
+  --touch: 44px;          --checkbox: 18px;      --checkbox-sm: 16px;
+  --icon-sm: 16px;        --icon-md: 18px;       --icon-stroke: 1.75;
+  --sidebar: 240px;       --content-max: 880px;
+  --drawer: 560px;        --detail-panel: 380px; --side-panel: 216px;
+  --dialog: 480px;        --palette: 640px;
+  --mini-window-w: 320px; --mini-window-h: 240px;
+  --bottom-bar: 56px;     /* plus safe-area inset */
+  --breakpoint-narrow: 720px;
+
+  /* ---------- Radius ---------- */
+  --r-xs: 4px;        /* keycaps, inline token highlight, tabs inside a 24px track */
+  --r-control: 6px;   /* buttons, inputs, chips, rows, segments */
+  --r-card: 10px;     /* cards, menus, list groups, quadrants */
+  --r-panel: 14px;    /* dialogs, palette, sheets, mini window, tour card */
+  --r-full: 999px;    /* checkboxes, toggles, pills, progress */
+
+  /* ---------- Motion ---------- */
+  --dur-fast: 150ms;  /* fades, menus */
+  --dur: 180ms;       /* ticks, counters, segment pill */
+  --dur-slow: 220ms;  /* panels, sheets, rows closing, bars growing */
+  --dur-hold: 600ms;  /* completed row lingers before closing */
+  --ease-out:  cubic-bezier(.2, 0, 0, 1);   /* things entering */
+  --ease-in:   cubic-bezier(.4, 0, 1, 1);   /* things leaving */
+  --ease-move: cubic-bezier(.4, 0, .2, 1);  /* moving between positions */
+  --toast-info: 4s;
+  --toast-undo: 10s;
+  /* Hover and press are instant (no transition). */
+
+  /* ---------- Colour: light ---------- */
+  --bg: #F6F5F2;              /* window, sidebar */
+  --surface: #FDFCFA;         /* content */
+  --surface-2: #F0EEEA;       /* hover, input tracks, chips */
+  --raised: #FDFCFA;          /* menus, dialogs, palette, toasts */
+  --border: #E5E2DC;
+  --border-strong: #D4D0C8;
+  --control-border: #8A857C;  /* checkbox ring, toggle off (3:1) */
+  --fg: #1F1D1A;
+  --fg-2: #4A4640;
+  --muted: #6B665E;
+
+  --accent: #5151CC;
+  --accent-hover: #4949B8;
+  --accent-press: #4141A3;
+  --accent-soft: #EFEEF6;     /* selection; text on it stays --fg */
+  --accent-fg: #FFFFFF;
+  --accent-text: #5151CC;     /* icons, links, focus ring */
+
+  --danger: #C8352A;
+  --danger-hover: #B42F25;
+  --danger-press: #A42A21;
+  --danger-soft: #FAEBE8;
+  --danger-fg: #FFFFFF;
+  --success: #2B7D47;
+  --success-soft: #EDF5EF;
+
+  --prio-high: #C8352A;
+  --prio-high-tint: #FAEBE8;  /* fill inside the high-priority ring */
+  --prio-med: #A86400;
+  --prio-low: #3470C2;
+
+  --q-do: #C8352A;
+  --q-schedule: #3470C2;
+  --q-delegate: #A86400;
+  --q-drop: #6B665E;
+
+  --streak: #A86400;          /* flame, perfect-day dots */
+  --on-strong: #FFFFFF;       /* text/icons on streak, metal, quadrant, habit fills */
+
+  --m-bronze: #9A5B2E; --m-silver: #6F757F; --m-gold: #8C6600; --m-platinum: #46747B; --m-diamond: #3F6FB0;
+
+  /* User-picked colours (lists, habits, events). Fixed per theme. */
+  --l-violet: #7A45C8; --l-amber: #A86400; --l-blue: #3470C2; --l-green: #2B7D47; --l-coral: #C8432B; --l-teal: #0B7A75;
+  --h-blue: #3470C2;   --h-violet: #7A45C8; --h-coral: #C8432B; --h-amber: #A86400; --h-teal: #0B7A75;
+
+  --scrim: rgba(31, 29, 26, .32);
+  --shadow: 0 1px 2px rgba(31, 29, 26, .06), 0 8px 24px rgba(31, 29, 26, .10);
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent-text);
+  --focus-ring-input: 0 0 0 3px var(--accent-soft);  /* with border-color: var(--accent-text) */
+}
+
+/* ---------- Colour: dark ---------- */
+[data-theme="dark"] {
+  --bg: #141519;
+  --surface: #1B1D22;
+  --surface-2: #24262C;
+  --raised: #24262C;
+  --border: #2E3037;
+  --border-strong: #3B3E46;
+  --control-border: #6E7079;
+  --fg: #ECEAE5;
+  --fg-2: #BEBBB5;
+  --muted: #8F8D88;
+
+  --accent: #9C9CF2;
+  --accent-hover: #AAAAF4;
+  --accent-press: #8989D5;
+  --accent-soft: #323447;
+  --accent-fg: #141519;
+  --accent-text: #9C9CF2;
+
+  --danger: #EF6C5C;
+  --danger-hover: #F2826F;
+  --danger-press: #D85F50;
+  --danger-soft: #362624;
+  --danger-fg: #141519;
+  --success: #5CC283;
+  --success-soft: #243A2E;
+
+  --prio-high: #EF6C5C;
+  --prio-high-tint: #362624;
+  --prio-med: #E9A23B;
+  --prio-low: #76A5EC;
+
+  --q-do: #EF6C5C;
+  --q-schedule: #76A5EC;
+  --q-delegate: #E9A23B;
+  --q-drop: #9A9791;
+
+  --streak: #E9A23B;
+  --on-strong: #141519;
+
+  --m-bronze: #D08A5A; --m-silver: #B4BAC4; --m-gold: #E2B33C; --m-platinum: #8DC0C6; --m-diamond: #8FB4EA;
+
+  --l-violet: #B892F0; --l-amber: #E9A23B; --l-blue: #76A5EC; --l-green: #5CC283; --l-coral: #F28B74; --l-teal: #4FC4BC;
+  --h-blue: #76A5EC;   --h-violet: #B892F0; --h-coral: #F28B74; --h-amber: #E9A23B; --h-teal: #4FC4BC;
+
+  --scrim: rgba(0, 0, 0, .50);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .40), 0 8px 24px rgba(0, 0, 0, .36);
+}
+/* Inside a raised layer in dark (palette, menus), step hover/chip fills up one level: */
+[data-theme="dark"] .layer-raised { --surface-2: #2E3037; --border: #3B3E46; --border-strong: #4A4D56; --accent-soft: #363950; }
+
+/* ---------- Accent presets: light ---------- */
+[data-accent="ocean"]    { --accent:#2563D9; --accent-hover:#2159C3; --accent-press:#1E4FAE; --accent-soft:#ECF0F7; --accent-fg:#FFFFFF; --accent-text:#2563D9; }
+[data-accent="teal"]     { --accent:#0B7A75; --accent-hover:#0A6E69; --accent-press:#09625E; --accent-soft:#EAF2EF; --accent-fg:#FFFFFF; --accent-text:#0B7A75; }
+[data-accent="fern"]     { --accent:#277F4B; --accent-hover:#237244; --accent-press:#1F663C; --accent-soft:#ECF2EC; --accent-fg:#FFFFFF; --accent-text:#277F4B; }
+[data-accent="amber"]    { --accent:#E0A021; --accent-hover:#CA901E; --accent-press:#B8831B; --accent-soft:#FBF5E9; --accent-fg:#141519; --accent-text:#8C5B00; }
+[data-accent="coral"]    { --accent:#C8432B; --accent-hover:#B43C27; --accent-press:#A03622; --accent-soft:#F9EDE9; --accent-fg:#FFFFFF; --accent-text:#C8432B; }
+[data-accent="rose"]     { --accent:#C23668; --accent-hover:#AF315E; --accent-press:#9B2B53; --accent-soft:#F8ECEE; --accent-fg:#FFFFFF; --accent-text:#C23668; }
+[data-accent="violet"]   { --accent:#7A45C8; --accent-hover:#6E3EB4; --accent-press:#6237A0; --accent-soft:#F3EDF6; --accent-fg:#FFFFFF; --accent-text:#7A45C8; }
+[data-accent="slate"]    { --accent:#525B73; --accent-hover:#4A5268; --accent-press:#42495C; --accent-soft:#EFEFEF; --accent-fg:#FFFFFF; --accent-text:#525B73; }
+[data-accent="graphite"] { --accent:#3A3733; --accent-hover:#4E4B47; --accent-press:#5D5B58; --accent-soft:#EDECEA; --accent-fg:#FFFFFF; --accent-text:#3A3733; }
+
+/* ---------- Accent presets: dark ---------- */
+[data-theme="dark"][data-accent="indigo"],
+[data-theme="dark"]:not([data-accent])     { --accent:#9C9CF2; --accent-hover:#AAAAF4; --accent-press:#8989D5; --accent-soft:#323447; --accent-fg:#141519; --accent-text:#9C9CF2; }
+[data-theme="dark"][data-accent="ocean"]    { --accent:#7AA8F7; --accent-hover:#8DB4F8; --accent-press:#6B94D9; --accent-soft:#2C3648; --accent-fg:#141519; --accent-text:#7AA8F7; }
+[data-theme="dark"][data-accent="teal"]     { --accent:#4FC4BC; --accent-hover:#68CCC5; --accent-press:#46ACA5; --accent-soft:#243B3E; --accent-fg:#141519; --accent-text:#4FC4BC; }
+[data-theme="dark"][data-accent="fern"]     { --accent:#62C48A; --accent-hover:#78CC9A; --accent-press:#56AC79; --accent-soft:#283B35; --accent-fg:#141519; --accent-text:#62C48A; }
+[data-theme="dark"][data-accent="amber"]    { --accent:#E8B04A; --accent-hover:#EBBB63; --accent-press:#CC9B41; --accent-soft:#403729; --accent-fg:#141519; --accent-text:#E8B04A; }
+[data-theme="dark"][data-accent="coral"]    { --accent:#F28B74; --accent-hover:#F49B87; --accent-press:#D57A66; --accent-soft:#423131; --accent-fg:#141519; --accent-text:#F28B74; }
+[data-theme="dark"][data-accent="rose"]     { --accent:#F084AB; --accent-hover:#F295B7; --accent-press:#D37496; --accent-soft:#41303B; --accent-fg:#141519; --accent-text:#F084AB; }
+[data-theme="dark"][data-accent="violet"]   { --accent:#B892F0; --accent-hover:#C2A1F2; --accent-press:#A280D3; --accent-soft:#373247; --accent-fg:#141519; --accent-text:#B892F0; }
+[data-theme="dark"][data-accent="slate"]    { --accent:#A3ABBF; --accent-hover:#B0B7C8; --accent-press:#8F96A8; --accent-soft:#33373E; --accent-fg:#141519; --accent-text:#A3ABBF; }
+[data-theme="dark"][data-accent="graphite"] { --accent:#D6D2CB; --accent-hover:#DCD8D2; --accent-press:#BCB9B3; --accent-soft:#3D3E40; --accent-fg:#141519; --accent-text:#D6D2CB; }
+
+/* ---------- Phone (below 720px): type steps up, rows grow ---------- */
+@media (max-width: 719px) {
+  :root {
+    --fs-xs: 0.8125rem;  --lh-xs: 1.125rem;   /* 13/18 */
+    --fs-sm: 0.875rem;   --lh-sm: 1.25rem;    /* 14/20 */
+    --fs-base: 1rem;     --lh-base: 1.375rem; /* 16/22 */
+    --fs-lg: 1.0625rem;  --lh-lg: 1.5rem;     /* 17/24 */
+    --fs-xl: 1.625rem;   --lh-xl: 2rem;       /* 26/32 */
+    --fs-display: 2.375rem; --lh-display: 2.625rem; /* 38/42 */
+    --fs-timer: 3.5rem;                       /* 56 */
+    --control: 44px; --control-lg: 44px;
+  }
+}
+
+/* ---------- Reduced motion: nothing moves ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
+}
+
+/* ---------- Base rules ---------- */
+html { font-size: 100%; }  /* the Text size setting changes this one value */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-feature-settings: var(--font-features-ui);
+  font-optical-sizing: auto;
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+}
+button, input, select, textarea { font: inherit; font-feature-settings: inherit; color: inherit; }
+:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ---------- Text styles ---------- */
+.t-label   { font-size: var(--fs-xs); line-height: var(--lh-xs); font-weight: 500; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.t-title   { font-family: var(--font-head); font-size: var(--fs-xl); line-height: var(--lh-xl); font-weight: 600; }
+.t-display { font-family: var(--font-head); font-size: var(--fs-display); line-height: var(--lh-display); font-weight: 600; letter-spacing: var(--tracking-display); font-variant-numeric: lining-nums tabular-nums; }
+.t-timer   { font-family: var(--font-timer); font-size: var(--fs-timer); line-height: var(--lh-timer); font-weight: 500; letter-spacing: var(--tracking-timer); font-variant-numeric: tabular-nums; }
+.t-count   { font-variant-numeric: var(--numeric-counts); }

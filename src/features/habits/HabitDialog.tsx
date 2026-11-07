@@ -7,7 +7,7 @@ import type { Habit, HabitFrequency, HabitGoal } from "../../domain/habits";
 import { addGroup, addHabit, updateHabit, useHabits } from "../../stores/habits";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const field = "h-9 rounded-sm border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent";
+const field = "h-9 rounded-control border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent";
 
 export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const groupMap = useHabits((s) => s.groups);
@@ -40,7 +40,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
         }}
       >
         <h2 className="text-lg font-semibold">{habit ? "Edit habit" : "New habit"}</h2>
-        <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 focus-within:border-accent">
+        <div className="flex items-center gap-2 rounded-card border border-border bg-surface px-3 focus-within:border-accent">
           <AppIcon name={icon} size={20} color={color} />
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Drink water" aria-label="Name" className="h-11 flex-1 bg-transparent outline-none" />
         </div>
@@ -70,7 +70,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
                 type="button"
                 aria-pressed={goal.kind === k}
                 onClick={() => setGoal(k === "once" ? { kind: "once" } : { kind: k, target: goal.kind === "once" ? (k === "count" ? 8 : 5) : goal.target, unit: goal.kind === "once" ? (k === "count" ? "times" : "km") : goal.unit })}
-                className={`h-8 flex-1 rounded-sm text-xs ${goal.kind === k ? "bg-accent text-accent-fg" : "bg-hover text-fg-2"}`}
+                className={`h-8 flex-1 rounded-control text-xs ${goal.kind === k ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
               >
                 {label}
               </button>
@@ -101,7 +101,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
                 type="button"
                 aria-pressed={freq.kind === k}
                 onClick={() => setFreq(k === "daily" ? { kind: "daily" } : k === "weekdays" ? { kind: "weekdays", days: [1, 2, 3, 4, 5] } : { kind: "perWeek", count: 3 })}
-                className={`h-8 flex-1 rounded-sm text-xs ${freq.kind === k ? "bg-accent text-accent-fg" : "bg-hover text-fg-2"}`}
+                className={`h-8 flex-1 rounded-control text-xs ${freq.kind === k ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
               >
                 {label}
               </button>
@@ -119,7 +119,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
                     const days = freq.days.includes(i) ? freq.days.filter((x) => x !== i) : [...freq.days, i];
                     if (days.length) setFreq({ kind: "weekdays", days });
                   }}
-                  className={`size-8 rounded-full text-xs font-semibold ${freq.days.includes(i) ? "bg-accent text-accent-fg" : "bg-hover text-fg-2"}`}
+                  className={`size-8 rounded-full text-xs font-semibold ${freq.days.includes(i) ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
                 >
                   {d}
                 </button>
@@ -138,9 +138,9 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
           <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Reminders</legend>
           <div className="flex flex-wrap items-center gap-1.5">
             {reminders.map((r) => (
-              <span key={r} className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pl-2.5 pr-1 font-mono text-xs">
+              <span key={r} className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pl-2.5 pr-1 tabular-nums text-xs">
                 {r}
-                <button type="button" aria-label={`Remove ${r}`} onClick={() => setReminders(reminders.filter((x) => x !== r))} className="rounded-full p-0.5 hover:bg-hover">
+                <button type="button" aria-label={`Remove ${r}`} onClick={() => setReminders(reminders.filter((x) => x !== r))} className="rounded-full p-0.5 hover:bg-surface-2">
                   <X size={11} />
                 </button>
               </span>

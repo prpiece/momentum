@@ -66,10 +66,10 @@ function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: stri
     <div className="border-b border-border p-3">
       <div className="mb-2 flex items-center">
         <span className="flex-1 text-sm font-semibold">{format(fromLocalDate(month), "MMMM yyyy")}</span>
-        <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+        <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
           <ChevronLeft size={15} />
         </button>
-        <button type="button" aria-label="Next month" onClick={() => shift(1)} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+        <button type="button" aria-label="Next month" onClick={() => shift(1)} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
           <ChevronRight size={15} />
         </button>
       </div>
@@ -90,8 +90,8 @@ function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: stri
               onPointerEnter={() => dragRef.current && setDrag({ ...dragRef.current, to: d })}
               onClick={(e) => e.detail === 0 && setCalAnchor(d)}
               aria-label={format(fromLocalDate(d), "EEEE, MMMM d")}
-              className={`mx-auto grid size-7 select-none place-items-center rounded-full font-mono text-xs transition-colors ${
-                d === today && !dragging ? "bg-accent font-semibold text-accent-fg" : dragging ? "bg-accent/70 text-accent-fg" : inRange ? "bg-accent-soft text-fg" : fromLocalDate(d).getMonth() === m ? "text-fg hover:bg-hover" : "text-muted hover:bg-hover"
+              className={`mx-auto grid size-7 select-none place-items-center rounded-full tabular-nums text-xs transition-colors ${
+                d === today && !dragging ? "bg-accent font-semibold text-accent-fg" : dragging ? "bg-accent/70 text-accent-fg" : inRange ? "bg-accent-soft text-fg" : fromLocalDate(d).getMonth() === m ? "text-fg hover:bg-surface-2" : "text-muted hover:bg-surface-2"
               }`}
             >
               {format(fromLocalDate(d), "d")}
@@ -123,7 +123,7 @@ function ArrangeTasks() {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">Arrange tasks · {tasks.length}</h3>
         <p className="mt-0.5 text-[0.7rem] text-muted">Drag onto the calendar to schedule; drag a block here to unschedule.</p>
         <div className="mt-2 flex gap-1.5">
-          <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Filter by list" className="h-7 min-w-0 flex-1 rounded-sm border border-border bg-surface px-1.5 text-xs">
+          <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Filter by list" className="h-7 min-w-0 flex-1 rounded-control border border-border bg-surface px-1.5 text-xs">
             <option value="">All lists</option>
             {Object.values(lists)
               .filter((l) => !l.archived)
@@ -133,7 +133,7 @@ function ArrangeTasks() {
                 </option>
               ))}
           </select>
-          <select value={minPriority} onChange={(e) => setMinPriority(PRIORITIES.find((x) => x === Number(e.target.value)) ?? 0)} aria-label="Minimum priority" className="h-7 rounded-sm border border-border bg-surface px-1.5 text-xs">
+          <select value={minPriority} onChange={(e) => setMinPriority(PRIORITIES.find((x) => x === Number(e.target.value)) ?? 0)} aria-label="Minimum priority" className="h-7 rounded-control border border-border bg-surface px-1.5 text-xs">
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>
                 {p === 0 ? "Any priority" : `${PRIORITY_LABEL[p]}+`}
@@ -167,7 +167,7 @@ function ArrangeItem({ vm }: { vm: TaskVM }) {
       {...listeners}
       onClick={() => openTask(t.id)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, null))}
-      className={`flex cursor-grab items-center gap-2 rounded-sm border border-border bg-surface-2 px-2 py-1.5 text-sm shadow-sm hover:border-accent ${isDragging ? "opacity-40" : ""}`}
+      className={`flex cursor-grab items-center gap-2 rounded-control border border-border bg-raised px-2 py-1.5 text-sm hover:border-accent ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id)} label={`Complete ${t.title}`} size={15} />
       <span className="truncate">{t.title}</span>

@@ -1,7 +1,7 @@
 import { Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, Flag, FolderInput, PanelRightOpen, Pin, PinOff, Sun, Sunrise, Trash2 } from "lucide-react";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
-import { PRIORITIES, PRIORITY_LABEL, type LocalDate, type Schedule } from "../../domain/types";
+import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type LocalDate, type Schedule } from "../../domain/types";
 import { withUndo } from "../../lib/undo";
 import { duplicateTask, moveTasks, setStatus, useData } from "../../stores/data";
 import { openTask, useUi, type MenuEntry } from "../../stores/ui";
@@ -48,7 +48,7 @@ export function taskMenu(id: string, key: string | null): MenuEntry[] {
       choices: [...PRIORITIES].reverse().map((p) => ({
         title: PRIORITY_LABEL[p],
         active: !many && t.priority === p,
-        icon: <Flag size={15} style={{ color: p ? `var(--p${p})` : undefined }} fill={p ? `var(--p${p})` : "none"} />,
+        icon: <Flag size={15} style={{ color: p ? PRIORITY_VAR[p] : undefined }} fill={p ? PRIORITY_VAR[p] : "none"} />,
         run: () => bulkEdit(ids, many ? `Set priority on ${ids.length} tasks` : `Priority: ${PRIORITY_LABEL[p]}`, () => ({ priority: p })),
       })),
     },

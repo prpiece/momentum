@@ -34,7 +34,7 @@ export function CountdownChips() {
           <button
             type="button"
             onClick={() => openEvent(chip.e.id)}
-            className="flex h-7 items-center gap-1.5 rounded-sm border border-border px-2.5 text-xs text-fg-2 transition-colors duration-[var(--dur)] hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+            className="flex h-7 items-center gap-1.5 rounded-control border border-border px-2.5 text-xs text-fg-2 transition-colors duration-[var(--dur)] hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
           >
             <Hourglass size={13} style={chip.e.color ? { color: chip.e.color } : undefined} />
             <span className="tabular-nums">{text(chip)}</span>

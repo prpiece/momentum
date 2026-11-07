@@ -34,7 +34,7 @@ export const onItemMenu = (item: CalItem) => (e: React.MouseEvent) => {
 };
 
 const tint = (color: string, done: boolean) => ({
-  background: `color-mix(in oklch, ${color} ${done ? 8 : 18}%, var(--surface-2))`,
+  background: `color-mix(in oklch, ${color} ${done ? 8 : 18}%, var(--raised))`,
   borderLeftColor: color,
 });
 
@@ -117,7 +117,7 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
       onContextMenu={onItemMenu(item)}
       onKeyDown={(e) => e.key === "Enter" && openItem(item)}
       aria-label={`${item.title}, ${label}`}
-      className={`group absolute overflow-hidden rounded-sm border-l-[3px] px-1.5 py-0.5 text-xs leading-tight shadow-sm transition-[opacity,box-shadow] duration-[var(--dur)] hover:z-10 hover:shadow-lg ${
+      className={`group absolute overflow-hidden rounded-control border-l-[3px] px-1.5 py-0.5 text-xs leading-tight transition-[opacity,box-shadow] duration-[var(--dur)] hover:z-10 hover:shadow-float ${
         item.readOnly ? "cursor-default" : "cursor-grab"
       } ${isDragging ? "opacity-30" : ""} ${item.done ? "opacity-60" : ""} ${preview ? "z-20 ring-2 ring-accent" : ""}`}
       style={{
@@ -136,7 +136,7 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
         <span className={`min-w-0 flex-1 truncate font-medium ${item.done ? "line-through" : ""}`}>{item.title}</span>
         {item.recurring && <Repeat size={10} className="mt-0.5 shrink-0 opacity-60" />}
       </div>
-      {height > 30 && <div className="truncate font-mono text-[0.65rem] text-fg-2">{preview ? "…" : label}</div>}
+      {height > 30 && <div className="truncate tabular-nums text-[0.65rem] text-fg-2">{preview ? "…" : label}</div>}
       {!item.readOnly && (
         <div onPointerDown={startResize("end")} className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize" aria-hidden="true" />
       )}
@@ -163,7 +163,7 @@ export const Chip = memo(function Chip({ item, scope, showTime }: { item: CalIte
     >
       {!item.allDay && <span className="size-1.5 shrink-0 rounded-full" style={{ background: item.color }} />}
       <DoneCheck item={item} />
-      {showTime && item.start && <span className="shrink-0 font-mono text-[0.65rem] text-muted">{formatTime(item.start, timeFormat)}</span>}
+      {showTime && item.start && <span className="shrink-0 tabular-nums text-[0.65rem] text-muted">{formatTime(item.start, timeFormat)}</span>}
       <span className={`truncate font-medium ${item.done ? "line-through" : ""}`}>{item.title}</span>
     </div>
   );

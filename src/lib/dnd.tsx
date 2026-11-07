@@ -126,7 +126,7 @@ function TaskGhost({ id }: { id: string }) {
   const selection = useUi((s) => s.selection);
   const count = selection.includes(id) ? selection.length : 1;
   return (
-    <div className="flex max-w-xs cursor-grabbing items-center gap-2 rounded-md border border-accent bg-surface-2 px-3 py-2 text-sm font-medium shadow-lg">
+    <div className="flex max-w-xs cursor-grabbing items-center gap-2 rounded-card border border-accent bg-raised px-3 py-2 text-sm font-medium shadow-float">
       <span className="size-3 rounded-full border-2 border-accent" />
       <span className="truncate">{title}</span>
       {count > 1 && <span className="rounded-full bg-accent px-1.5 text-xs text-accent-fg">{count}</span>}

@@ -13,7 +13,7 @@ import { withUndo } from "../../lib/undo";
 import { createFromText } from "./quickAddSubmit";
 
 const PREVIEW = 5;
-const field = "rounded-sm border border-border bg-bg px-2.5 py-1.5 text-sm outline-none focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_var(--accent-soft)]";
+const field = "rounded-control border border-border bg-bg px-2.5 py-1.5 text-sm outline-none focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_var(--accent-soft)]";
 
 /** Paste a block of text, one task per line or custom separator (D92). Mounted once in App. */
 export function ImportDialog() {
@@ -91,7 +91,7 @@ function ImportBody() {
             ]}
             onChange={setMode}
           />
-          {mode === "custom" && <input value={sep} onChange={(e) => setSep(e.target.value)} aria-label="Custom separator" maxLength={8} className={`${field} w-20 font-mono`} />}
+          {mode === "custom" && <input value={sep} onChange={(e) => setSep(e.target.value)} aria-label="Custom separator" maxLength={8} className={`${field} w-20 tabular-nums`} />}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <label className="flex items-center gap-2 text-sm text-fg-2">
@@ -109,8 +109,8 @@ function ImportBody() {
             </select>
           </label>
         </div>
-        <div aria-live="polite" className="rounded-md border border-border bg-surface p-3">
-          <div className="font-mono text-sm text-muted">
+        <div aria-live="polite" className="rounded-card border border-border bg-surface p-3">
+          <div className="tabular-nums text-sm text-muted">
             {items.length} task{items.length === 1 ? "" : "s"}
             {subtasks > 0 && ` · ${subtasks} subtask${subtasks === 1 ? "" : "s"}`}
           </div>

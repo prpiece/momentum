@@ -28,7 +28,7 @@ export function reminderLabel(r: Reminder): string {
 }
 
 const sameReminder = (a: Reminder, b: Reminder) => JSON.stringify(a) === JSON.stringify(b);
-const field = "h-8 rounded-sm border border-border bg-surface px-2 text-sm outline-none focus:border-accent";
+const field = "h-8 rounded-control border border-border bg-surface px-2 text-sm outline-none focus:border-accent";
 
 export function ScheduleEditor(props: {
   schedule: Schedule;
@@ -62,13 +62,13 @@ export function ScheduleEditor(props: {
             ["Tomorrow", addDaysLocal(today, 1)],
             ["Next week", addDaysLocal(today, 7)],
           ].map(([label, d]) => (
-            <button key={label} type="button" onClick={() => setDate(d)} className={`h-7 rounded-full px-2.5 text-xs ${date === d ? "bg-accent text-accent-fg" : "bg-hover text-fg-2 hover:text-fg"}`}>
+            <button key={label} type="button" onClick={() => setDate(d)} className={`h-7 rounded-full px-2.5 text-xs ${date === d ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2 hover:text-fg"}`}>
               {label}
             </button>
           ))}
           <input type="date" aria-label="Date" value={date ?? ""} onChange={(e) => setDate(e.target.value)} className={field} />
           {s.kind !== "none" && (
-            <button type="button" aria-label="Clear date" onClick={() => props.onSchedule({ kind: "none" })} className="grid size-7 place-items-center rounded-sm text-muted hover:bg-hover">
+            <button type="button" aria-label="Clear date" onClick={() => props.onSchedule({ kind: "none" })} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
               <X size={14} />
             </button>
           )}
@@ -94,12 +94,12 @@ export function ScheduleEditor(props: {
                   </option>
                 ))}
               </select>
-              <button type="button" onClick={() => props.onSchedule({ kind: "day", date })} className="h-7 rounded-full bg-hover px-2.5 text-xs text-fg-2 hover:text-fg">
+              <button type="button" onClick={() => props.onSchedule({ kind: "day", date })} className="h-7 rounded-full bg-surface-2 px-2.5 text-xs text-fg-2 hover:text-fg">
                 All day
               </button>
             </div>
           ) : (
-            <button type="button" onClick={() => props.onSchedule(timed(atLocalTime(date, "09:00"), 60))} className="flex h-7 items-center gap-1 rounded-full bg-hover px-2.5 text-xs text-fg-2 hover:text-fg">
+            <button type="button" onClick={() => props.onSchedule(timed(atLocalTime(date, "09:00"), 60))} className="flex h-7 items-center gap-1 rounded-full bg-surface-2 px-2.5 text-xs text-fg-2 hover:text-fg">
               <Plus size={12} /> Add time
             </button>
           )}
@@ -140,7 +140,7 @@ export function ScheduleEditor(props: {
             {props.reminders.map((r, i) => (
               <span key={i} className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pl-2.5 pr-1 text-xs">
                 {reminderLabel(r)}
-                <button type="button" aria-label="Remove reminder" onClick={() => props.onReminders(props.reminders.filter((_, j) => j !== i))} className="rounded-full p-0.5 hover:bg-hover">
+                <button type="button" aria-label="Remove reminder" onClick={() => props.onReminders(props.reminders.filter((_, j) => j !== i))} className="rounded-full p-0.5 hover:bg-surface-2">
                   <X size={11} />
                 </button>
               </span>
@@ -177,7 +177,7 @@ function RuleBuilder({ onDone }: { onDone: (rule: string) => void }) {
   const [days, setDays] = useState<string[]>([]);
   const rule = `FREQ=${freq}${interval > 1 ? `;INTERVAL=${interval}` : ""}${freq === "WEEKLY" && days.length ? `;BYDAY=${days.join(",")}` : ""}`;
   return (
-    <div className="space-y-2 rounded-md border border-border p-2.5">
+    <div className="space-y-2 rounded-card border border-border p-2.5">
       <div className="flex items-center gap-1.5 text-sm">
         Every
         <input type="number" min={1} max={99} value={interval} onChange={(e) => setInterval(Math.max(1, Number(e.target.value) || 1))} className={`${field} w-14`} aria-label="Interval" />
@@ -196,7 +196,7 @@ function RuleBuilder({ onDone }: { onDone: (rule: string) => void }) {
               type="button"
               aria-pressed={days.includes(d)}
               onClick={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])}
-              className={`size-7 rounded-full text-[0.7rem] font-semibold ${days.includes(d) ? "bg-accent text-accent-fg" : "bg-hover text-fg-2"}`}
+              className={`size-7 rounded-full text-[0.7rem] font-semibold ${days.includes(d) ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
             >
               {d.slice(0, 2)}
             </button>
@@ -205,7 +205,7 @@ function RuleBuilder({ onDone }: { onDone: (rule: string) => void }) {
       )}
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted">{describeRule(rule)}</span>
-        <button type="button" onClick={() => onDone(rule)} className="h-7 rounded-sm bg-accent px-3 text-xs font-medium text-accent-fg">
+        <button type="button" onClick={() => onDone(rule)} className="h-7 rounded-control bg-accent px-3 text-xs font-medium text-accent-fg">
           Apply
         </button>
       </div>

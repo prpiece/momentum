@@ -80,7 +80,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   return (
     <div className="flex h-full min-h-0 flex-col" style={tint}>
       <div data-tour="toolbar" className="flex items-center gap-1 px-6 pb-3 pt-1">
-        <span className="mr-2 shrink-0 font-mono text-sm text-muted">{openCount} open</span>
+        <span className="mr-2 shrink-0 tabular-nums text-sm text-muted">{openCount} open</span>
         <FilterBar view={spec.id} />
         <div className="flex-1" />
         {spec.id === "today" && <TodayStreak />}
@@ -90,12 +90,12 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
             aria-pressed={options.showCompleted}
             title="Show completed"
             onClick={() => setOptions({ showCompleted: !options.showCompleted })}
-            className={`mr-1 flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-xs focus-visible:ring-2 focus-visible:ring-accent ${options.showCompleted ? "bg-accent-soft font-medium text-fg" : "text-fg-2 hover:bg-hover"}`}
+            className={`mr-1 flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs focus-visible:ring-2 focus-visible:ring-accent ${options.showCompleted ? "bg-accent-soft font-medium text-fg" : "text-fg-2 hover:bg-surface-2"}`}
           >
             <CircleCheckBig size={15} /> Completed
           </button>
         )}
-        <div role="radiogroup" aria-label="View mode" className="mr-1 flex rounded-sm border border-border bg-bg p-0.5">
+        <div role="radiogroup" aria-label="View mode" className="mr-1 flex rounded-control border border-border bg-bg p-0.5">
           {MODES.filter((m) => m.id !== "kanban" || list).map((l) => (
             <button
               key={l.id}
@@ -104,14 +104,14 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
               aria-checked={layout === l.id}
               title={l.label}
               onClick={() => setMode(l.id)}
-              className={`flex h-7 items-center gap-1.5 rounded-[6px] px-2 text-xs ${layout === l.id ? "bg-surface-2 font-medium text-fg shadow-sm" : "text-muted hover:text-fg"}`}
+              className={`flex h-7 items-center gap-1.5 rounded-[6px] px-2 text-xs ${layout === l.id ? "bg-raised font-medium text-fg" : "text-muted hover:text-fg"}`}
             >
               <l.icon size={14} /> {l.label}
             </button>
           ))}
         </div>
         {layout === "list" && (
-          <button ref={menu.anchor} type="button" onClick={menu.toggle} className="flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-xs text-fg-2 hover:bg-hover">
+          <button ref={menu.anchor} type="button" onClick={menu.toggle} className="flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs text-fg-2 hover:bg-surface-2">
             <ListFilter size={15} />
             {options.groupBy !== "none" ? `Grouped by ${options.groupBy}` : `Sort: ${SORTS.find((s) => s.id === options.sortBy)?.label}`}
           </button>

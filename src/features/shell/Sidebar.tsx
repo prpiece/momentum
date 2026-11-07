@@ -103,15 +103,15 @@ function NavItem(props: {
         onBlur={() => setTip(null)}
         aria-current={active ? "page" : undefined}
         aria-label={props.collapsed ? props.label : undefined}
-        className={`flex h-[var(--row-h)] w-full items-center gap-3 rounded-sm px-3 text-sm transition-colors duration-[var(--dur)] ${props.indent ? "pl-7" : ""} ${
-          isOver ? "bg-accent text-accent-fg ring-2 ring-accent" : active ? "bg-accent-soft font-semibold text-fg" : "text-fg-2 hover:bg-hover hover:text-fg"
+        className={`flex h-[var(--row)] w-full items-center gap-3 rounded-control px-3 text-sm transition-colors duration-[var(--dur)] ${props.indent ? "pl-7" : ""} ${
+          isOver ? "bg-accent text-accent-fg ring-2 ring-accent" : active ? "bg-accent-soft font-semibold text-fg" : "text-fg-2 hover:bg-surface-2 hover:text-fg"
         }`}
       >
         <span className={`grid w-[18px] shrink-0 place-items-center ${active && !isOver ? "text-accent" : ""}`}>{props.icon}</span>
         <span className={`min-w-0 flex-1 truncate text-left transition-opacity duration-[var(--dur)] ${props.collapsed ? "opacity-0" : ""}`}>{props.label}</span>
         {!props.collapsed && props.badge}
         {!props.collapsed && props.count ? (
-          <span key={props.count} className={`anim-pop font-mono text-xs text-muted ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>
+          <span key={props.count} className={`anim-pop tabular-nums text-xs text-muted ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>
             {props.count}
           </span>
         ) : null}
@@ -121,7 +121,7 @@ function NavItem(props: {
           type="button"
           aria-label={`${props.label} options`}
           onClick={(e) => props.menu && openMenuAt(e.currentTarget, props.menu())}
-          className="absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-sm text-muted opacity-0 hover:bg-hover hover:text-fg focus:opacity-100 group-hover/nav:opacity-100"
+          className="absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-control text-muted opacity-0 hover:bg-surface-2 hover:text-fg focus:opacity-100 group-hover/nav:opacity-100"
         >
           <MoreHorizontal size={15} />
         </button>
@@ -129,7 +129,7 @@ function NavItem(props: {
       {tip && (
         <span
           role="tooltip"
-          className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-sm bg-fg px-2 py-1 text-xs font-medium text-bg shadow-lg"
+          className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-control bg-fg px-2 py-1 text-xs font-medium text-bg shadow-float"
           style={{ top: tip.top + tip.height / 2, ...(props.side === "left" ? { left: tip.right + 10 } : { right: window.innerWidth - tip.left + 10 }) }}
         >
           {props.label}
@@ -164,7 +164,7 @@ function InlineName({ initial, onDone }: { initial: string; onDone: (v: string |
         if (e.key === "Enter") e.currentTarget.blur();
         if (e.key === "Escape") onDone(null);
       }}
-      className="mx-2 my-0.5 h-8 w-[calc(100%-1rem)] rounded-sm border border-accent bg-surface px-2 text-sm outline-none"
+      className="mx-2 my-0.5 h-8 w-[calc(100%-1rem)] rounded-control border border-accent bg-surface px-2 text-sm outline-none"
     />
   );
 }
@@ -290,7 +290,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside aria-label="Navigation" className={`flex shrink-0 flex-col py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease)] ${collapsed ? "w-[calc(2.5rem+18px)]" : "w-64"}`}>
+    <aside aria-label="Navigation" className={`flex shrink-0 flex-col py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease-out)] ${collapsed ? "w-[calc(2.5rem+18px)]" : "w-64"}`}>
       <div data-tauri-drag-region className={`flex h-10 select-none items-center px-3 ${collapsed ? "justify-center" : "justify-between"}`}>
         {!collapsed && (
           <div className="pointer-events-none flex items-center gap-2.5 px-1">
@@ -303,17 +303,17 @@ export function Sidebar() {
           onClick={() => update({ sidebarCollapsed: !collapsed })}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}
-          className="grid size-8 place-items-center rounded-sm text-muted transition-colors hover:bg-hover hover:text-fg"
+          className="grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-surface-2 hover:text-fg"
         >
           <Toggle size={18} />
         </button>
       </div>
 
       {!collapsed && (
-        <button type="button" data-tour="search" onClick={() => setPalette(true)} className="mx-3 mt-2 flex h-9 items-center gap-2 rounded-sm border border-border bg-surface px-3 text-sm text-muted transition-colors hover:border-accent hover:text-fg">
+        <button type="button" data-tour="search" onClick={() => setPalette(true)} className="mx-3 mt-2 flex h-9 items-center gap-2 rounded-control border border-border bg-surface px-3 text-sm text-muted transition-colors hover:border-accent hover:text-fg">
           <Search size={15} />
           <span className="flex-1 text-left">Search</span>
-          <kbd className="rounded border border-border px-1.5 font-mono text-[0.65rem]">Ctrl K</kbd>
+          <kbd className="rounded-xs border border-border px-1.5 tabular-nums text-[0.65rem]">Ctrl K</kbd>
         </button>
       )}
 
@@ -348,7 +348,7 @@ export function Sidebar() {
               onToggle={() => setOpenSec({ ...openSec, lists: !openSec.lists })}
               actions={
                 <>
-                  <button type="button" aria-label="New folder" title="New folder" onClick={() => setNewFolder("")} className="grid size-6 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent">
+                  <button type="button" aria-label="New folder" title="New folder" onClick={() => setNewFolder("")} className="grid size-6 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent">
                     <FolderPlus size={14} />
                   </button>
                   <ListDialogButton className="size-6">
@@ -395,13 +395,13 @@ function TopLevelDrop() {
   const { setNodeRef, isOver } = useDroppable({ id: "folder-drop:top", data: { type: "folder", id: null } satisfies DropData, disabled: !dragging });
   if (!dragging) return null;
   return (
-    <li ref={setNodeRef} className={`mx-1 rounded-sm border border-dashed px-3 py-1.5 text-xs ${isOver ? "border-accent bg-accent-soft text-fg" : "border-border text-muted"}`}>
+    <li ref={setNodeRef} className={`mx-1 rounded-control border border-dashed px-3 py-1.5 text-xs ${isOver ? "border-accent bg-accent-soft text-fg" : "border-border text-muted"}`}>
       Move to top level
     </li>
   );
 }
 
-const iconBtn = "grid size-6 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent";
+const iconBtn = "grid size-6 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent";
 
 function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; count: number; onRename: () => void; onAddSub: () => void }) {
   const [newList, setNewList] = useState(false);
@@ -436,7 +436,7 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
     <div
       ref={(n) => (drag.setNodeRef(n), drop.setNodeRef(n))}
       style={t ? { transform: `translate3d(${t.x}px, ${t.y}px, 0)`, position: "relative", zIndex: 20 } : undefined}
-      className={`group/nav relative rounded-sm ${target ? "ring-2 ring-accent" : ""} ${drag.isDragging ? "opacity-70" : ""}`}
+      className={`group/nav relative rounded-control ${target ? "ring-2 ring-accent" : ""} ${drag.isDragging ? "opacity-70" : ""}`}
     >
       <button
         type="button"
@@ -445,11 +445,11 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
         onClick={() => !justDragged() && updateFolder(folder.id, { collapsed: !folder.collapsed })}
         onContextMenu={(e) => openContextMenu(e, items())}
         aria-expanded={!folder.collapsed}
-        className="flex h-[var(--row-h)] w-full items-center gap-2 rounded-sm px-3 text-sm font-medium text-fg-2 hover:bg-hover hover:text-fg"
+        className="flex h-[var(--row)] w-full items-center gap-2 rounded-control px-3 text-sm font-medium text-fg-2 hover:bg-surface-2 hover:text-fg"
       >
         <ChevronRight size={14} className={`text-muted transition-transform duration-[var(--dur)] ${folder.collapsed ? "" : "rotate-90"}`} />
         <span className="flex-1 truncate text-left">{folder.name}</span>
-        {count > 0 && <span className="font-mono text-xs text-muted group-focus-within/nav:opacity-0 group-hover/nav:opacity-0">{count}</span>}
+        {count > 0 && <span className="tabular-nums text-xs text-muted group-focus-within/nav:opacity-0 group-hover/nav:opacity-0">{count}</span>}
       </button>
       <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center opacity-0 focus-within:opacity-100 group-hover/nav:opacity-100">
         <button type="button" aria-label={`New list in ${folder.name}`} title="New list" onClick={() => setNewList(true)} className={iconBtn}>

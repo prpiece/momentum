@@ -32,7 +32,7 @@ export function VoiceSection() {
   useEffect(() => {
     if (isTauri) void voiceInputDevices().then(setDevices, () => undefined);
   }, []);
-  const btn = "flex h-9 items-center gap-2 rounded-sm border border-border px-3 text-sm hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent";
+  const btn = "flex h-9 items-center gap-2 rounded-control border border-border px-3 text-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent";
 
   if (!isTauri) return <p className="text-sm text-muted">Voice quick-add needs the desktop app.</p>;
   return (
@@ -61,7 +61,7 @@ export function VoiceSection() {
         )}
       </div>
       {(status.state === "downloading" || status.state === "verifying") && (
-        <div className="h-1.5 overflow-hidden rounded-full bg-hover" role="progressbar" aria-label="Voice model download" aria-valuenow={status.state === "downloading" ? Math.round((status.received / status.total) * 100) : undefined}>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-label="Voice model download" aria-valuenow={status.state === "downloading" ? Math.round((status.received / status.total) * 100) : undefined}>
           <div
             className={`h-full rounded-full bg-accent transition-[width] duration-[var(--dur)] ${status.state === "verifying" ? "w-full animate-pulse" : ""}`}
             style={status.state === "downloading" ? { width: `${(status.received / status.total) * 100}%` } : undefined}
@@ -73,7 +73,7 @@ export function VoiceSection() {
         <select
           value={mic ?? ""}
           onChange={(e) => update({ voiceMic: e.target.value || null })}
-          className="h-9 max-w-64 rounded-sm border border-border bg-surface px-2 text-sm focus-visible:ring-2 focus-visible:ring-accent"
+          className="h-9 max-w-64 rounded-control border border-border bg-surface px-2 text-sm focus-visible:ring-2 focus-visible:ring-accent"
         >
           <option value="">System default</option>
           {mic && !devices.includes(mic) && <option value={mic}>{mic} (not connected)</option>}

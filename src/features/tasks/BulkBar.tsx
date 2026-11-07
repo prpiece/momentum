@@ -2,7 +2,7 @@ import { CalendarDays, CheckCheck, Flag, FolderInput, Hash, Trash2, X } from "lu
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { MenuItem, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
 import { addDaysLocal, todayLocal } from "../../domain/dates";
-import { PRIORITIES, PRIORITY_LABEL, type Schedule } from "../../domain/types";
+import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type Schedule } from "../../domain/types";
 import { withUndo } from "../../lib/undo";
 import { moveTasks, setStatus, useData } from "../../stores/data";
 import { setSelection, useUi } from "../../stores/ui";
@@ -25,10 +25,10 @@ export function BulkBar() {
     bulkEdit(selection, `Rescheduled ${n} tasks`, () => ({ schedule }));
     void label;
   };
-  const btn = "flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-sm hover:bg-hover";
+  const btn = "flex h-8 items-center gap-1.5 rounded-control px-2.5 text-sm hover:bg-surface-2";
 
   return (
-    <div role="toolbar" aria-label="Bulk edit" className="anim-rise absolute inset-x-0 bottom-5 z-30 mx-auto flex w-fit items-center gap-1 rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
+    <div role="toolbar" aria-label="Bulk edit" className="anim-rise absolute inset-x-0 bottom-5 z-30 mx-auto flex w-fit items-center gap-1 rounded-panel border border-border bg-raised p-1.5 shadow-float">
       <span className="px-2.5 text-sm font-semibold">{n} selected</span>
       <button type="button" className={btn} onClick={() => withUndo(`Completed ${n} tasks`, () => selection.forEach((id) => setStatus(id, "done")))}>
         <CheckCheck size={16} /> Complete
@@ -48,7 +48,7 @@ export function BulkBar() {
       <button type="button" className={`${btn} text-danger`} onClick={() => void deleteTasks(selection)}>
         <Trash2 size={16} /> Delete
       </button>
-      <button type="button" aria-label="Clear selection" className="grid size-8 place-items-center rounded-sm text-muted hover:bg-hover" onClick={() => setSelection([])}>
+      <button type="button" aria-label="Clear selection" className="grid size-8 place-items-center rounded-control text-muted hover:bg-surface-2" onClick={() => setSelection([])}>
         <X size={16} />
       </button>
 
@@ -64,7 +64,7 @@ export function BulkBar() {
       {prioMenu.open && (
         <Popover anchor={prioMenu.anchor} onClose={prioMenu.close}>
           {[...PRIORITIES].reverse().map((p) => (
-            <MenuItem key={p} icon={<Flag size={14} style={{ color: p ? `var(--p${p})` : undefined }} />} onSelect={() => (prioMenu.close(), bulkEdit(selection, `Set priority on ${n} tasks`, () => ({ priority: p })))}>
+            <MenuItem key={p} icon={<Flag size={14} style={{ color: p ? PRIORITY_VAR[p] : undefined }} />} onSelect={() => (prioMenu.close(), bulkEdit(selection, `Set priority on ${n} tasks`, () => ({ priority: p })))}>
               {PRIORITY_LABEL[p]}
             </MenuItem>
           ))}

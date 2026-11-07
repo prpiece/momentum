@@ -1,108 +1,286 @@
 @import "tailwindcss";
 
-/* Tailwind utilities map onto the runtime variables below, e.g. bg-surface, text-fg-2, rounded-md. */
+/* Tailwind utilities map onto the runtime variables below, e.g. bg-raised, text-fg-2, rounded-card.
+   The values are the v1.0 design tokens (docs/design/momentum-tokens.css, PLAN D198). */
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-raised: var(--raised);
   --color-border: var(--border);
-  --color-hover: var(--hover);
+  --color-border-strong: var(--border-strong);
+  --color-control-border: var(--control-border);
   --color-fg: var(--fg);
   --color-fg-2: var(--fg-2);
-  --color-muted: var(--fg-muted);
+  --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-accent-hover: var(--accent-hover);
   --color-accent-press: var(--accent-press);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
   --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-press: var(--danger-press);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-fg: var(--danger-fg);
   --color-success: var(--success);
-  --color-p1: var(--p1);
-  --color-p2: var(--p2);
-  --color-p3: var(--p3);
+  --color-success-soft: var(--success-soft);
+  --color-prio-high: var(--prio-high);
+  --color-prio-high-tint: var(--prio-high-tint);
+  --color-prio-med: var(--prio-med);
+  --color-prio-low: var(--prio-low);
+  --color-q-do: var(--q-do);
+  --color-q-schedule: var(--q-schedule);
+  --color-q-delegate: var(--q-delegate);
+  --color-q-drop: var(--q-drop);
+  --color-streak: var(--streak);
+  --color-on-strong: var(--on-strong);
+  --color-m-bronze: var(--m-bronze);
+  --color-m-silver: var(--m-silver);
+  --color-m-gold: var(--m-gold);
+  --color-m-platinum: var(--m-platinum);
+  --color-m-diamond: var(--m-diamond);
+  --color-l-violet: var(--l-violet);
+  --color-l-amber: var(--l-amber);
+  --color-l-blue: var(--l-blue);
+  --color-l-green: var(--l-green);
+  --color-l-coral: var(--l-coral);
+  --color-l-teal: var(--l-teal);
+  --color-h-blue: var(--h-blue);
+  --color-h-violet: var(--h-violet);
+  --color-h-coral: var(--h-coral);
+  --color-h-amber: var(--h-amber);
+  --color-h-teal: var(--h-teal);
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-xs: var(--r-xs);
+  --radius-control: var(--r-control);
+  --radius-card: var(--r-card);
+  --radius-panel: var(--r-panel);
+  --radius-full: var(--r-full);
 
-  --shadow-sm: var(--shadow-1);
-  --shadow-lg: var(--shadow-2);
+  /* One shadow, for floating layers only (menus, dialogs, popovers). Cards sit on borders. */
+  --shadow-float: var(--shadow);
 
-  --font-sans: "Plus Jakarta Sans Variable", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-timer);
 }
 
+/* ==========================================================================
+   Light is the default. Dark: html[data-theme="dark"].
+   Accent: html[data-accent="ocean" | …], set by src/lib/applySettings.ts. Indigo is the default.
+   All colour pairs listed as "text" meet WCAG AA (4.5:1) on their surfaces;
+   rings, borders and icons meet 3:1 (src/styles/tokens.test.ts).
+   ========================================================================== */
 :root {
-  /* --accent and --accent-fg are set at runtime from Settings (src/lib/applySettings.ts). */
-  --accent: #2f6fed;
-  --accent-fg: #ffffff;
-  --accent-hover: color-mix(in oklch, var(--accent), black 10%);
-  --accent-press: color-mix(in oklch, var(--accent), black 20%);
-  --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+  /* ---------- Type: families ---------- */
+  --font-ui: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-head: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', 'Inter Variable', system-ui, sans-serif; /* 24px+ only, max 2 per screen */
+  --font-timer: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace; /* focus timer digits only */
+  --font-features-ui: "cv05", "cv08";   /* distinct l, I and 1 */
+  --numeric-counts: tabular-nums;       /* counts, dates, times, stats */
 
-  --bg: #f4f4f1;
-  --surface: #ffffff;
-  --surface-2: #ffffff;
-  --border: #e5e4df;
-  --hover: color-mix(in oklch, var(--fg) 6%, transparent);
-  --fg: #1b1c20;
-  --fg-2: #474a53;
-  --fg-muted: #696c76;
-  --danger: #c8323f;
-  --success: #1d7f53;
-  /* priority low / medium / high (UI marks: >= 3:1 on surface) */
-  --p1: #3a78d8;
-  --p2: #c27c06;
-  --p3: #d23f3f;
-  /* matrix quadrants (D74): fixed, independent of the accent; --q-on is the badge text (AA on each) */
-  --q1: #c8323f;
-  --q2: #2563d9;
-  --q3: #7a4bd6;
-  --q4: #646772;
-  --q-on: #ffffff;
-  --shadow-1: 0 1px 2px rgb(20 20 30 / 0.06), 0 1px 1px rgb(20 20 30 / 0.04);
-  --shadow-2: 0 12px 32px -8px rgb(20 20 30 / 0.18), 0 2px 6px rgb(20 20 30 / 0.06);
+  /* ---------- Type: scale (desktop, ≥720px). rem so the Text size setting scales it ---------- */
+  --fs-xs: 0.75rem;      --lh-xs: 1rem;        /* 12/16 · 500 · uppercase labels +0.04em */
+  --fs-sm: 0.8125rem;    --lh-sm: 1.125rem;    /* 13/18 · 400 */
+  --fs-base: 0.875rem;   --lh-base: 1.25rem;   /* 14/20 · 400, 500 task titles */
+  --fs-lg: 1rem;         --lh-lg: 1.375rem;    /* 16/22 · 600 card titles */
+  --fs-xl: 1.5rem;       --lh-xl: 1.875rem;    /* 24/30 · head 600 page titles */
+  --fs-display: 2.75rem; --lh-display: 3rem;   /* 44/48 · head 600 −0.01em big numbers */
+  --fs-timer: 4rem;      --lh-timer: 1;        /* 64 · timer 500 */
+  --fs-timer-sm: 2rem;   --lh-timer-sm: 2.25rem; /* 32/36 · mini window timer */
+  --tracking-label: 0.04em;
+  --tracking-display: -0.01em;
+  --tracking-timer: -0.02em;
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600; --weight-bold: 700;
 
-  --dur: 180ms;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --row-h: 2.25rem;
-  --pad: 0.75rem;
+  /* ---------- Spacing (4px grid) ---------- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+
+  /* ---------- Sizes ---------- */
+  --row: 36px;            --row-compact: 32px;   --row-touch: 52px;   /* phone two-line task row */
+  --control: 32px;        --control-sm: 28px;    --control-lg: 40px;  /* quick-add, search */
+  --chip: 24px;           --keycap: 22px;
+  --touch: 44px;          --checkbox: 18px;      --checkbox-sm: 16px;
+  --icon-sm: 16px;        --icon-md: 18px;       --icon-stroke: 1.75;
+  --sidebar: 240px;       --content-max: 880px;
+  --drawer: 560px;        --detail-panel: 380px; --side-panel: 216px;
+  --dialog: 480px;        --palette: 640px;
+  --mini-window-w: 320px; --mini-window-h: 240px;
+  --bottom-bar: 56px;     /* plus safe-area inset */
+  --breakpoint-narrow: 720px;
+
+  /* ---------- Radius ---------- */
+  --r-xs: 4px;        /* keycaps, inline token highlight, tabs inside a 24px track */
+  --r-control: 6px;   /* buttons, inputs, chips, rows, segments */
+  --r-card: 10px;     /* cards, menus, list groups, quadrants */
+  --r-panel: 14px;    /* dialogs, palette, sheets, mini window, tour card */
+  --r-full: 999px;    /* checkboxes, toggles, pills, progress */
+
+  /* ---------- Motion ---------- */
+  --dur-fast: 150ms;  /* fades, menus */
+  --dur: 180ms;       /* ticks, counters, segment pill */
+  --dur-slow: 220ms;  /* panels, sheets, rows closing, bars growing */
+  --dur-hold: 600ms;  /* completed row lingers before closing */
+  --ease-out:  cubic-bezier(.2, 0, 0, 1);   /* things entering */
+  --ease-in:   cubic-bezier(.4, 0, 1, 1);   /* things leaving */
+  --ease-move: cubic-bezier(.4, 0, .2, 1);  /* moving between positions */
+  --toast-info: 4s;
+  --toast-undo: 10s;
+  /* Hover and press are instant (no transition). */
+
+  /* ---------- Colour: light ---------- */
+  --bg: #F6F5F2;              /* window, sidebar */
+  --surface: #FDFCFA;         /* content */
+  --surface-2: #F0EEEA;       /* hover, input tracks, chips */
+  --raised: #FDFCFA;          /* menus, dialogs, palette, toasts */
+  --border: #E5E2DC;
+  --border-strong: #D4D0C8;
+  --control-border: #8A857C;  /* checkbox ring, toggle off (3:1) */
+  --fg: #1F1D1A;
+  --fg-2: #4A4640;
+  --muted: #6B665E;
+
+  --accent: #5151CC;
+  --accent-hover: #4949B8;
+  --accent-press: #4141A3;
+  --accent-soft: #EFEEF6;     /* selection; text on it stays --fg */
+  --accent-fg: #FFFFFF;
+  --accent-text: #5151CC;     /* icons, links, focus ring */
+
+  --danger: #C8352A;
+  --danger-hover: #B42F25;
+  --danger-press: #A42A21;
+  --danger-soft: #FAEBE8;
+  --danger-fg: #FFFFFF;
+  --success: #2B7D47;
+  --success-soft: #EDF5EF;
+
+  --prio-high: #C8352A;
+  --prio-high-tint: #FAEBE8;  /* fill inside the high-priority ring */
+  --prio-med: #A86400;
+  --prio-low: #3470C2;
+
+  /* Matrix quadrants (D74): fixed, independent of the accent. A picked colour replaces them inline (D85). */
+  --q-do: #C8352A;
+  --q-schedule: #3470C2;
+  --q-delegate: #A86400;
+  --q-drop: #6B665E;
+
+  --streak: #A86400;          /* flame, perfect-day dots */
+  --on-strong: #FFFFFF;       /* text/icons on streak, metal, quadrant, habit fills */
+
+  --m-bronze: #9A5B2E; --m-silver: #6F757F; --m-gold: #8C6600; --m-platinum: #46747B; --m-diamond: #3F6FB0;
+
+  /* User-picked colours (lists, habits, events). Fixed per theme. */
+  --l-violet: #7A45C8; --l-amber: #A86400; --l-blue: #3470C2; --l-green: #2B7D47; --l-coral: #C8432B; --l-teal: #0B7A75;
+  --h-blue: #3470C2;   --h-violet: #7A45C8; --h-coral: #C8432B; --h-amber: #A86400; --h-teal: #0B7A75;
+
+  --scrim: rgba(31, 29, 26, .32);
+  --shadow: 0 1px 2px rgba(31, 29, 26, .06), 0 8px 24px rgba(31, 29, 26, .10);
+  --focus-ring-input: 0 0 0 3px var(--accent-soft);  /* with border-color: var(--accent-text) */
 
   color-scheme: light;
 }
 
-/* Layered dark surfaces: bg < surface < surface-2, never pure black. */
+/* ---------- Colour: dark (layered surfaces, never pure black) ---------- */
 :root[data-theme="dark"] {
-  --accent-hover: color-mix(in oklch, var(--accent), white 12%);
-  --accent-press: color-mix(in oklch, var(--accent), white 22%);
-  --accent-soft: color-mix(in oklch, var(--accent) 22%, transparent);
-
   --bg: #141519;
-  --surface: #1b1d22;
-  --surface-2: #24262c;
-  --border: #2e3138;
-  --fg: #ecedf0;
-  --fg-2: #b9bcc4;
-  --fg-muted: #8d909a;
-  --danger: #f0707f;
-  --success: #4fc48d;
-  --p1: #6aa0f5;
-  --p2: #f0b04a;
-  --p3: #f27272;
-  --q1: #f27272;
-  --q2: #6aa0f5;
-  --q3: #b598f8;
-  --q4: #9a9da7;
-  --q-on: #15161a;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-2: 0 16px 40px -8px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.3);
+  --surface: #1B1D22;
+  --surface-2: #24262C;
+  --raised: #24262C;
+  --border: #2E3037;
+  --border-strong: #3B3E46;
+  --control-border: #6E7079;
+  --fg: #ECEAE5;
+  --fg-2: #BEBBB5;
+  --muted: #8F8D88;
+
+  --accent: #9C9CF2;
+  --accent-hover: #AAAAF4;
+  --accent-press: #8989D5;
+  --accent-soft: #323447;
+  --accent-fg: #141519;
+  --accent-text: #9C9CF2;
+
+  --danger: #EF6C5C;
+  --danger-hover: #F2826F;
+  --danger-press: #D85F50;
+  --danger-soft: #362624;
+  --danger-fg: #141519;
+  --success: #5CC283;
+  --success-soft: #243A2E;
+
+  --prio-high: #EF6C5C;
+  --prio-high-tint: #362624;
+  --prio-med: #E9A23B;
+  --prio-low: #76A5EC;
+
+  --q-do: #EF6C5C;
+  --q-schedule: #76A5EC;
+  --q-delegate: #E9A23B;
+  --q-drop: #9A9791;
+
+  --streak: #E9A23B;
+  --on-strong: #141519;
+
+  --m-bronze: #D08A5A; --m-silver: #B4BAC4; --m-gold: #E2B33C; --m-platinum: #8DC0C6; --m-diamond: #8FB4EA;
+
+  --l-violet: #B892F0; --l-amber: #E9A23B; --l-blue: #76A5EC; --l-green: #5CC283; --l-coral: #F28B74; --l-teal: #4FC4BC;
+  --h-blue: #76A5EC;   --h-violet: #B892F0; --h-coral: #F28B74; --h-amber: #E9A23B; --h-teal: #4FC4BC;
+
+  --scrim: rgba(0, 0, 0, .50);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .40), 0 8px 24px rgba(0, 0, 0, .36);
 
   color-scheme: dark;
 }
+/* Inside a raised layer in dark (palette, menus), step hover/chip fills up one level: */
+[data-theme="dark"] .layer-raised { --surface-2: #2E3037; --border: #3B3E46; --border-strong: #4A4D56; --accent-soft: #363950; }
 
-:root[data-density="compact"] {
-  --row-h: 1.875rem;
-  --pad: 0.5rem;
+/* ---------- Accent presets: light (ids match ACCENTS in src/domain/color.ts) ---------- */
+[data-accent="ocean"]    { --accent:#2563D9; --accent-hover:#2159C3; --accent-press:#1E4FAE; --accent-soft:#ECF0F7; --accent-fg:#FFFFFF; --accent-text:#2563D9; }
+[data-accent="teal"]     { --accent:#0B7A75; --accent-hover:#0A6E69; --accent-press:#09625E; --accent-soft:#EAF2EF; --accent-fg:#FFFFFF; --accent-text:#0B7A75; }
+[data-accent="fern"]     { --accent:#277F4B; --accent-hover:#237244; --accent-press:#1F663C; --accent-soft:#ECF2EC; --accent-fg:#FFFFFF; --accent-text:#277F4B; }
+[data-accent="amber"]    { --accent:#E0A021; --accent-hover:#CA901E; --accent-press:#B8831B; --accent-soft:#FBF5E9; --accent-fg:#141519; --accent-text:#8C5B00; }
+[data-accent="coral"]    { --accent:#C8432B; --accent-hover:#B43C27; --accent-press:#A03622; --accent-soft:#F9EDE9; --accent-fg:#FFFFFF; --accent-text:#C8432B; }
+[data-accent="rose"]     { --accent:#C23668; --accent-hover:#AF315E; --accent-press:#9B2B53; --accent-soft:#F8ECEE; --accent-fg:#FFFFFF; --accent-text:#C23668; }
+[data-accent="violet"]   { --accent:#7A45C8; --accent-hover:#6E3EB4; --accent-press:#6237A0; --accent-soft:#F3EDF6; --accent-fg:#FFFFFF; --accent-text:#7A45C8; }
+[data-accent="slate"]    { --accent:#525B73; --accent-hover:#4A5268; --accent-press:#42495C; --accent-soft:#EFEFEF; --accent-fg:#FFFFFF; --accent-text:#525B73; }
+[data-accent="graphite"] { --accent:#3A3733; --accent-hover:#4E4B47; --accent-press:#5D5B58; --accent-soft:#EDECEA; --accent-fg:#FFFFFF; --accent-text:#3A3733; }
+
+/* ---------- Accent presets: dark ---------- */
+[data-theme="dark"][data-accent="indigo"],
+[data-theme="dark"]:not([data-accent])     { --accent:#9C9CF2; --accent-hover:#AAAAF4; --accent-press:#8989D5; --accent-soft:#323447; --accent-fg:#141519; --accent-text:#9C9CF2; }
+[data-theme="dark"][data-accent="ocean"]    { --accent:#7AA8F7; --accent-hover:#8DB4F8; --accent-press:#6B94D9; --accent-soft:#2C3648; --accent-fg:#141519; --accent-text:#7AA8F7; }
+[data-theme="dark"][data-accent="teal"]     { --accent:#4FC4BC; --accent-hover:#68CCC5; --accent-press:#46ACA5; --accent-soft:#243B3E; --accent-fg:#141519; --accent-text:#4FC4BC; }
+[data-theme="dark"][data-accent="fern"]     { --accent:#62C48A; --accent-hover:#78CC9A; --accent-press:#56AC79; --accent-soft:#283B35; --accent-fg:#141519; --accent-text:#62C48A; }
+[data-theme="dark"][data-accent="amber"]    { --accent:#E8B04A; --accent-hover:#EBBB63; --accent-press:#CC9B41; --accent-soft:#403729; --accent-fg:#141519; --accent-text:#E8B04A; }
+[data-theme="dark"][data-accent="coral"]    { --accent:#F28B74; --accent-hover:#F49B87; --accent-press:#D57A66; --accent-soft:#423131; --accent-fg:#141519; --accent-text:#F28B74; }
+[data-theme="dark"][data-accent="rose"]     { --accent:#F084AB; --accent-hover:#F295B7; --accent-press:#D37496; --accent-soft:#41303B; --accent-fg:#141519; --accent-text:#F084AB; }
+[data-theme="dark"][data-accent="violet"]   { --accent:#B892F0; --accent-hover:#C2A1F2; --accent-press:#A280D3; --accent-soft:#373247; --accent-fg:#141519; --accent-text:#B892F0; }
+[data-theme="dark"][data-accent="slate"]    { --accent:#A3ABBF; --accent-hover:#B0B7C8; --accent-press:#8F96A8; --accent-soft:#33373E; --accent-fg:#141519; --accent-text:#A3ABBF; }
+[data-theme="dark"][data-accent="graphite"] { --accent:#D6D2CB; --accent-hover:#DCD8D2; --accent-press:#BCB9B3; --accent-soft:#3D3E40; --accent-fg:#141519; --accent-text:#D6D2CB; }
+
+/* Accent swatches (Settings, Matrix colours) show each preset as it looks in this theme: --sw/--sw-fg light, --sw-d/--sw-fg-d dark. */
+.swatch { background: var(--sw); color: var(--sw-fg, var(--accent-fg)); }
+[data-theme="dark"] .swatch { background: var(--sw-d); color: var(--sw-fg-d, var(--accent-fg)); }
+
+/* ---------- Density ---------- */
+:root[data-density="compact"] { --row: var(--row-compact); }
+
+/* ---------- Phone (below 720px): type steps up, rows grow ---------- */
+@media (max-width: 719px) {
+  :root {
+    --fs-xs: 0.8125rem;  --lh-xs: 1.125rem;   /* 13/18 */
+    --fs-sm: 0.875rem;   --lh-sm: 1.25rem;    /* 14/20 */
+    --fs-base: 1rem;     --lh-base: 1.375rem; /* 16/22 */
+    --fs-lg: 1.0625rem;  --lh-lg: 1.5rem;     /* 17/24 */
+    --fs-xl: 1.625rem;   --lh-xl: 2rem;       /* 26/32 */
+    --fs-display: 2.375rem; --lh-display: 2.625rem; /* 38/42 */
+    --fs-timer: 3.5rem;                       /* 56 */
+    --control: 44px; --control-lg: 44px;
+  }
 }
 
 /* Base styles live in a layer so Tailwind utilities (e.g. outline-none) can override them. */
@@ -117,13 +295,19 @@
     margin: 0;
     background: var(--bg);
     color: var(--fg);
-    font-family: var(--font-sans);
-    line-height: 1.55;
+    font-family: var(--font-ui);
+    font-feature-settings: var(--font-features-ui);
+    font-optical-sizing: auto;
+    font-size: var(--fs-base);
+    line-height: var(--lh-base);
     -webkit-font-smoothing: antialiased;
   }
 
+  button, input, select, textarea { font-feature-settings: inherit; }
+
+  /* An outline rather than the token file's box-shadow ring: it can't collide with shadow-float or be clipped by overflow (D198). */
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--accent-text);
     outline-offset: 2px;
   }
 
@@ -132,9 +316,16 @@
   }
 }
 
+/* ---------- Text styles ---------- */
+.t-label   { font-size: var(--fs-xs); line-height: var(--lh-xs); font-weight: 500; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.t-title   { font-family: var(--font-head); font-size: var(--fs-xl); line-height: var(--lh-xl); font-weight: 600; }
+.t-display { font-family: var(--font-head); font-size: var(--fs-display); line-height: var(--lh-display); font-weight: 600; letter-spacing: var(--tracking-display); font-variant-numeric: lining-nums tabular-nums; }
+.t-timer   { font-family: var(--font-timer); font-size: var(--fs-timer); line-height: var(--lh-timer); font-weight: 500; letter-spacing: var(--tracking-timer); font-variant-numeric: tabular-nums; }
+.t-count   { font-variant-numeric: var(--numeric-counts); }
+
 /* ---------- motion ---------- */
 /* The tour spotlight glides from one part of the app to the next (D69). */
-.tour-ring { transition: top 360ms var(--ease), left 360ms var(--ease), width 360ms var(--ease), height 360ms var(--ease), box-shadow 360ms var(--ease); }
+.tour-ring { transition: top 360ms var(--ease-move), left 360ms var(--ease-move), width 360ms var(--ease-move), height 360ms var(--ease-move), box-shadow 360ms var(--ease-move); }
 @keyframes pop {
   0% { transform: scale(0.6); }
   60% { transform: scale(1.15); }
@@ -152,11 +343,11 @@
 @keyframes slide-from-left {
   from { transform: translateX(-100%); }
 }
-.anim-pop { animation: pop 260ms var(--ease); }
-.anim-fade { animation: fade-in var(--dur) var(--ease); }
-.anim-rise { animation: rise var(--dur) var(--ease); }
-.anim-slide-right { animation: slide-from-right 220ms var(--ease); }
-.anim-slide-left { animation: slide-from-left 220ms var(--ease); }
+.anim-pop { animation: pop 260ms var(--ease-out); }
+.anim-fade { animation: fade-in var(--dur) var(--ease-out); }
+.anim-rise { animation: rise var(--dur) var(--ease-out); }
+.anim-slide-right { animation: slide-from-right var(--dur-slow) var(--ease-out); }
+.anim-slide-left { animation: slide-from-left var(--dur-slow) var(--ease-out); }
 
 @keyframes view-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -179,19 +370,19 @@
 @keyframes step-in {
   from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 18px)); }
 }
-.anim-step { animation: step-in 240ms var(--ease); }
+.anim-step { animation: step-in 240ms var(--ease-out); }
 
 /* Popovers and menus scale in from their anchor; dialogs settle in (D102). */
 @keyframes pop-in {
   from { opacity: 0; transform: scale(0.95); }
 }
-.anim-pop-in { animation: pop-in var(--dur) var(--ease); transform-origin: top; }
+.anim-pop-in { animation: pop-in var(--dur-fast) var(--ease-out); transform-origin: top; }
 @keyframes dialog-in {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }
 }
-.anim-dialog { animation: dialog-in 220ms var(--ease); }
+.anim-dialog { animation: dialog-in var(--dur-slow) var(--ease-out); }
 /* Children rise in one after another (the task drawer's sections). */
-.anim-stagger > * { animation: rise 260ms var(--ease) backwards; }
+.anim-stagger > * { animation: rise 260ms var(--ease-out) backwards; }
 .anim-stagger > :nth-child(2) { animation-delay: 30ms; }
 .anim-stagger > :nth-child(3) { animation-delay: 60ms; }
 .anim-stagger > :nth-child(4) { animation-delay: 90ms; }
@@ -199,26 +390,26 @@
 .anim-stagger > :nth-child(n + 6) { animation-delay: 150ms; }
 
 /* Each view fades in when you switch to it (App keys the content by view). */
-.anim-view { animation: view-in 220ms var(--ease); }
+.anim-view { animation: view-in var(--dur-slow) var(--ease-out); }
 /* Chart marks grow from their baseline. */
-.anim-grow-y { animation: grow-y 520ms var(--ease) backwards; transform-box: fill-box; transform-origin: bottom; }
-.anim-grow-x { animation: grow-x 600ms var(--ease) backwards; transform-origin: left; }
-.anim-ring { animation: ring-in 900ms var(--ease); }
+.anim-grow-y { animation: grow-y 520ms var(--ease-out) backwards; transform-box: fill-box; transform-origin: bottom; }
+.anim-grow-x { animation: grow-x 600ms var(--ease-out) backwards; transform-origin: left; }
+.anim-ring { animation: ring-in 900ms var(--ease-out); }
 .anim-flicker { animation: flicker 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
 
 /* ---------- celebrations (D63) ---------- */
 /* The logo traces itself in; its dot lands last. */
 @keyframes draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
-.anim-draw { animation: draw 520ms 160ms var(--ease) backwards; }
+.anim-draw { animation: draw 520ms 160ms var(--ease-out) backwards; }
 @keyframes dot-in { 0% { transform: scale(0); } 70% { transform: scale(1.6); } 100% { transform: scale(1); } }
-.anim-dot { animation: dot-in 360ms 560ms var(--ease) backwards; transform-box: fill-box; transform-origin: center; }
+.anim-dot { animation: dot-in 360ms 560ms var(--ease-out) backwards; transform-box: fill-box; transform-origin: center; }
 /* Small moments: a logo badge pops out of the checkbox and swooshes up. */
 @keyframes badge-up {
   0% { opacity: 0; transform: translate(-50%, 0) scale(0.3) rotate(0deg); }
   25% { opacity: 1; transform: translate(-50%, -10px) scale(1.15) rotate(-6deg); }
   100% { opacity: 0; transform: translate(-30%, -34px) scale(0.85) rotate(-14deg); }
 }
-.anim-badge { animation: badge-up 640ms var(--ease) forwards; }
+.anim-badge { animation: badge-up 640ms var(--ease-out) forwards; }
 /* Big moments: the logo jumps in, bounces, and (weeks and up) spins with a trail. */
 @keyframes hero-in {
   0% { opacity: 0; transform: translateY(40px) scale(0.3) rotate(-25deg); }
@@ -228,12 +419,13 @@
 }
 @keyframes hero-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes hero-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-.anim-hero { animation: hero-in 640ms var(--ease) backwards; }
-.anim-hero-spin { animation: hero-spin 900ms 640ms var(--ease) backwards, hero-bob 1.4s 1.6s ease-in-out infinite; filter: drop-shadow(0 0 18px color-mix(in oklch, var(--accent) 70%, transparent)); }
+.anim-hero { animation: hero-in 640ms var(--ease-out) backwards; }
+/* ponytail: the glow drop-shadow is left for the celebration step of the visual pass (no glows, brief). */
+.anim-hero-spin { animation: hero-spin 900ms 640ms var(--ease-out) backwards, hero-bob 1.4s 1.6s ease-in-out infinite; filter: drop-shadow(0 0 18px color-mix(in oklch, var(--accent) 70%, transparent)); }
 .anim-hero-bob { animation: hero-bob 1.4s 700ms ease-in-out infinite; }
 /* Rings burst outward behind the logo; dots pop out along --dx/--dy. */
 @keyframes ring-burst { from { opacity: 0.9; transform: scale(0.4); } to { opacity: 0; transform: scale(2.6); } }
-.anim-ring-burst { animation: ring-burst 900ms var(--ease) backwards; }
+.anim-ring-burst { animation: ring-burst 900ms var(--ease-out) backwards; }
 @keyframes pop-out {
   0% { opacity: 0; transform: translate(0, 0) scale(0.2); }
   30% { opacity: 1; }
@@ -241,25 +433,25 @@
 }
 .anim-pop-out { animation: pop-out 820ms cubic-bezier(.15,.9,.3,1) backwards; }
 @keyframes card-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
-.anim-card { animation: card-in 360ms 380ms var(--ease) backwards; }
+.anim-card { animation: card-in 360ms 380ms var(--ease-out) backwards; }
 
 /* Slim scrollbars without arrow buttons that stop short of rounded corners (D84). `scrollbar-width`/`-color` would disable these in Chromium, so they are not used. */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-button { display: none; }
 ::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-track { background: transparent; margin-block: var(--r-lg); margin-inline: var(--r-lg); }
-::-webkit-scrollbar-thumb { background: var(--border) padding-box; border: 2px solid transparent; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background-color: var(--fg-muted); }
+::-webkit-scrollbar-track { background: transparent; margin-block: var(--r-panel); margin-inline: var(--r-panel); }
+::-webkit-scrollbar-thumb { background: var(--border-strong) padding-box; border: 2px solid transparent; border-radius: var(--r-full); }
+::-webkit-scrollbar-thumb:hover { background-color: var(--muted); }
 
 /* Rendered Markdown in the task drawer */
 .prose-md { line-height: 1.6; overflow-wrap: anywhere; }
 .prose-md > * + * { margin-top: 0.5em; }
-.prose-md h1, .prose-md h2, .prose-md h3 { font-weight: 650; font-size: 1.05em; }
+.prose-md h1, .prose-md h2, .prose-md h3 { font-weight: 600; font-size: 1.05em; }
 .prose-md ul { list-style: disc; padding-left: 1.25em; }
 .prose-md ol { list-style: decimal; padding-left: 1.25em; }
-.prose-md a { color: var(--accent); text-decoration: underline; }
-.prose-md code { font-family: var(--font-mono); font-size: 0.9em; background: var(--hover); padding: 0.1em 0.3em; border-radius: 4px; }
-.prose-md pre { background: var(--hover); padding: 0.75em; border-radius: 8px; overflow-x: auto; }
+.prose-md a { color: var(--accent-text); text-decoration: underline; }
+.prose-md code { font-family: ui-monospace, 'Cascadia Mono', monospace; font-size: 0.9em; background: var(--surface-2); padding: 0.1em 0.3em; border-radius: var(--r-xs); }
+.prose-md pre { background: var(--surface-2); padding: 0.75em; border-radius: var(--r-control); overflow-x: auto; }
 .prose-md blockquote { border-left: 3px solid var(--border); padding-left: 0.75em; color: var(--fg-2); }
 
 /* Motion follows the OS unless Settings → Animations says otherwise (html[data-motion]). */

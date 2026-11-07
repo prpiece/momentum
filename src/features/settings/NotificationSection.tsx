@@ -26,7 +26,7 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
       onClick={() => onChange(!checked)}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-[var(--dur)] ${checked ? "bg-accent" : "bg-border"}`}
     >
-      <span className={`absolute left-0 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform duration-[var(--dur)] ease-[var(--ease)] ${checked ? "translate-x-[1.125rem]" : "translate-x-0.5"}`} />
+      <span className={`absolute left-0 top-0.5 size-4 rounded-full bg-white transition-transform duration-[var(--dur)] ease-[var(--ease-out)] ${checked ? "translate-x-[1.125rem]" : "translate-x-0.5"}`} />
     </button>
   );
 }
@@ -46,9 +46,9 @@ export function Line({ title, hint, children }: { title: string; hint?: string; 
 /** A still of the popup card, so the style choice is visible before anything fires. */
 function Preview({ style }: { style: NotifySettings["style"] }) {
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-md bg-bg p-3" aria-hidden="true">
+    <div className="flex flex-wrap items-end gap-3 rounded-card bg-bg p-3" aria-hidden="true">
       {style !== "system" && (
-        <div className="w-64 rounded-md border border-border bg-surface-2 p-3 shadow-lg">
+        <div className="w-64 rounded-card border border-border bg-raised p-3 shadow-float">
           <div className="flex items-start gap-2.5">
             <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
               <AlarmClock size={15} />
@@ -59,16 +59,16 @@ function Preview({ style }: { style: NotifySettings["style"] }) {
             </div>
           </div>
           <div className="mt-2.5 flex gap-1.5">
-            <span className="flex h-6 items-center gap-1 rounded-sm bg-accent px-2 text-[0.7rem] font-medium text-accent-fg">
+            <span className="flex h-6 items-center gap-1 rounded-control bg-accent px-2 text-[0.7rem] font-medium text-accent-fg">
               <Check size={12} /> Done
             </span>
-            <span className="flex h-6 items-center rounded-sm bg-hover px-2 text-[0.7rem] text-fg-2">10 min</span>
-            <span className="flex h-6 items-center rounded-sm bg-hover px-2 text-[0.7rem] text-fg-2">1 hour</span>
+            <span className="flex h-6 items-center rounded-control bg-surface-2 px-2 text-[0.7rem] text-fg-2">10 min</span>
+            <span className="flex h-6 items-center rounded-control bg-surface-2 px-2 text-[0.7rem] text-fg-2">1 hour</span>
           </div>
         </div>
       )}
       {style !== "popup" && (
-        <div className="flex w-56 items-start gap-2 rounded-sm border border-border bg-surface p-2.5 shadow-sm">
+        <div className="flex w-56 items-start gap-2 rounded-control border border-border bg-surface p-2.5">
           <Monitor size={14} className="mt-0.5 shrink-0 text-muted" />
           <div className="min-w-0">
             <div className="truncate text-xs font-semibold">Dentist appointment</div>
@@ -96,7 +96,7 @@ export function NotificationSection() {
           {KINDS.map(([k, title, hint]) => (
             <Line key={k} title={title} hint={hint}>
               {k === "digest" && n.digest && (
-                <input type="time" aria-label="Daily summary time" value={n.digestTime} onChange={(e) => e.target.value && set({ digestTime: e.target.value })} className="h-8 rounded-sm border border-border bg-surface px-2 font-mono text-sm outline-none focus:border-accent" />
+                <input type="time" aria-label="Daily summary time" value={n.digestTime} onChange={(e) => e.target.value && set({ digestTime: e.target.value })} className="h-8 rounded-control border border-border bg-surface px-2 tabular-nums text-sm outline-none focus:border-accent" />
               )}
               <Switch checked={n[k]} onChange={(v) => set({ [k]: v })} label={title} />
             </Line>
@@ -127,7 +127,7 @@ export function NotificationSection() {
                       ["top-right", "Top right", PanelTop],
                     ] as const
                   ).map(([v, label, Icon]) => (
-                    <button key={v} type="button" aria-pressed={n.corner === v} onClick={() => set({ corner: v })} className={`flex h-8 items-center gap-1.5 rounded-sm border px-2.5 text-xs ${n.corner === v ? "border-accent bg-accent-soft text-fg" : "border-border text-fg-2 hover:bg-hover"}`}>
+                    <button key={v} type="button" aria-pressed={n.corner === v} onClick={() => set({ corner: v })} className={`flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-xs ${n.corner === v ? "border-accent bg-accent-soft text-fg" : "border-border text-fg-2 hover:bg-surface-2"}`}>
                       <Icon size={14} /> {label}
                     </button>
                   ))}
@@ -139,7 +139,7 @@ export function NotificationSection() {
             </>
           )}
           <Preview style={n.style} />
-          <button type="button" onClick={testNotification} className="flex h-9 items-center gap-2 rounded-sm border border-border px-3 text-sm hover:bg-hover">
+          <button type="button" onClick={testNotification} className="flex h-9 items-center gap-2 rounded-control border border-border px-3 text-sm hover:bg-surface-2">
             <BellRing size={15} /> Send a test notification
           </button>
         </div>

@@ -32,7 +32,7 @@ export function FilterBar({ view }: { view: ViewId }) {
   };
 
   return (
-    <div className="flex h-8 min-w-0 max-w-sm flex-1 items-center gap-1.5 rounded-sm border border-border bg-bg px-2 transition-colors focus-within:border-accent">
+    <div className="flex h-8 min-w-0 max-w-sm flex-1 items-center gap-1.5 rounded-control border border-border bg-bg px-2 transition-colors focus-within:border-accent">
       <Search size={14} className="shrink-0 text-muted" />
       <input
         ref={input}
@@ -51,17 +51,17 @@ export function FilterBar({ view }: { view: ViewId }) {
         className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted"
       />
       {chips.length > 0 && (
-        <span className="shrink-0 rounded-full bg-accent-soft px-1.5 font-mono text-[0.65rem] text-accent" title={chips.map((c) => c.text).join(" ")}>
+        <span className="shrink-0 rounded-full bg-accent-soft px-1.5 tabular-nums text-[0.65rem] text-accent" title={chips.map((c) => c.text).join(" ")}>
           {chips.length}
         </span>
       )}
       {query && (
-        <button type="button" aria-label="Clear filter" onClick={() => setFilter(view, "")} className="grid size-5 shrink-0 place-items-center rounded-sm text-muted hover:bg-hover hover:text-fg">
+        <button type="button" aria-label="Clear filter" onClick={() => setFilter(view, "")} className="grid size-5 shrink-0 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg">
           <X size={13} />
         </button>
       )}
       {canPin && (
-        <button type="button" aria-label="Pin filter to sidebar" title="Pin to sidebar" onClick={pin} className="grid size-5 shrink-0 place-items-center rounded-sm text-muted hover:bg-hover hover:text-accent">
+        <button type="button" aria-label="Pin filter to sidebar" title="Pin to sidebar" onClick={pin} className="grid size-5 shrink-0 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-accent">
           <Pin size={13} />
         </button>
       )}

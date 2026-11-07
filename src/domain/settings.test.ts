@@ -12,7 +12,7 @@ describe("parseSettings", () => {
   it("keeps valid fields and replaces invalid ones individually", () => {
     const s = parseSettings({ theme: "dark", accent: "#2F6FED", density: "huge", weekStart: 3, sidebarSide: "right" });
     expect(s.theme).toBe("dark");
-    expect(s.accent).toBe("#2f6fed");
+    expect(s.accent).toBe("ocean");
     expect(parseSettings({ accent: "#abcdef" }).accent).toBe(DEFAULT_SETTINGS.accent);
     expect(s.density).toBe(DEFAULT_SETTINGS.density);
     expect(s.weekStart).toBe(DEFAULT_SETTINGS.weekStart);
@@ -20,17 +20,17 @@ describe("parseSettings", () => {
   });
 
   it("keeps only preset quadrant colours", () => {
-    expect(parseSettings({ matrixColors: ["#2F6FED", "red", 3] }).matrixColors).toEqual(["#2f6fed", null, null, null]);
+    expect(parseSettings({ matrixColors: ["#2F6FED", "red", 3, "graphite"] }).matrixColors).toEqual(["ocean", null, null, "graphite"]);
     expect(parseSettings({ matrixColors: "nope" }).matrixColors).toEqual([null, null, null, null]);
   });
 
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
-      theme: "dark", accent: "#0e8a85", density: "compact", motion: "on", fontSize: "xxl", zoom: 1.25, layout: "bar", barPosition: "bottom", sidebarSide: "right",
+      theme: "dark", accent: "teal", density: "compact", motion: "on", fontSize: "xxl", zoom: 1.25, layout: "bar", barPosition: "bottom", sidebarSide: "right",
       sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline", showCompleted: false } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
-      matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["#0e8a85", null, null, "#2f6fed"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
+      matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["teal", null, null, "ocean"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
       sounds: { enabled: false, volume: 0.3, picks: { task: "ding", habit: "none", streak: "pop", dayDone: "chime", focusEnd: "marimba", longBreak: "fanfare" } },
       onboarded: true, gettingStarted: { dismissed: true, done: ["habits", "tokens"], seenVersion: "1.0.0" }, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },

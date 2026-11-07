@@ -9,6 +9,9 @@ import { PRIORITIES, type LocalDate, type Priority, type Schedule, type Task } f
 export type Quadrant = 1 | 2 | 3 | 4;
 export const QUADRANTS: readonly Quadrant[] = [1, 2, 3, 4];
 
+/** Quadrant colour (design tokens --q-*, D74); a picked colour replaces the variable inline (D85). */
+export const QUADRANT_VAR: Record<Quadrant, string> = { 1: "var(--q-do)", 2: "var(--q-schedule)", 3: "var(--q-delegate)", 4: "var(--q-drop)" };
+
 export const QUADRANT_INFO: Record<Quadrant, { title: string; hint: string; important: boolean; urgent: boolean }> = {
   1: { title: "Do First", hint: "Urgent & important", important: true, urgent: true },
   2: { title: "Schedule", hint: "Important, not urgent", important: true, urgent: false },

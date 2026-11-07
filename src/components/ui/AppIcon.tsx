@@ -149,7 +149,7 @@ export function AppIcon({ name, size = 16, fallback = CircleCheck, className, co
 /** A tinted rounded tile with the icon, used for habits and countdowns. */
 export function IconTile({ name, color, size = 36, fallback }: { name: string; color: string; size?: number; fallback?: LucideIcon }) {
   return (
-    <span className="grid shrink-0 place-items-center rounded-md" style={{ width: size, height: size, background: `color-mix(in oklch, ${color} 16%, transparent)` }}>
+    <span className="grid shrink-0 place-items-center rounded-card" style={{ width: size, height: size, background: `color-mix(in oklch, ${color} 16%, transparent)` }}>
       <AppIcon name={name} size={Math.round(size * 0.5)} color={color} fallback={fallback} />
     </span>
   );
@@ -161,14 +161,14 @@ export function IconPicker({ value, onChange, color, none }: { value: string | n
     // Padding inside the scroller keeps the selected ring from being clipped at its edges.
     <div className="grid max-h-40 grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] justify-items-center gap-1 overflow-y-auto p-1" role="group" aria-label="Icon">
       {none && (
-        <button type="button" onClick={() => onChange(null)} aria-pressed={value === null} className={`grid size-9 place-items-center rounded-sm text-[0.65rem] text-muted transition-colors ${value === null ? "bg-accent-soft ring-1 ring-accent" : "hover:bg-hover"}`}>
+        <button type="button" onClick={() => onChange(null)} aria-pressed={value === null} className={`grid size-9 place-items-center rounded-control text-[0.65rem] text-muted transition-colors ${value === null ? "bg-accent-soft ring-1 ring-accent" : "hover:bg-surface-2"}`}>
           {none}
         </button>
       )}
       {Object.entries(ICONS).map(([key, I]) => {
         const on = current === I;
         return (
-          <button key={key} type="button" title={key} aria-label={key} aria-pressed={on} onClick={() => onChange(key)} className={`grid size-9 place-items-center rounded-sm transition-colors ${on ? "bg-accent-soft ring-1 ring-accent" : "text-fg-2 hover:bg-hover hover:text-fg"}`}>
+          <button key={key} type="button" title={key} aria-label={key} aria-pressed={on} onClick={() => onChange(key)} className={`grid size-9 place-items-center rounded-control transition-colors ${on ? "bg-accent-soft ring-1 ring-accent" : "text-fg-2 hover:bg-surface-2 hover:text-fg"}`}>
             <I size={17} style={on && color ? { color } : undefined} />
           </button>
         );
@@ -179,6 +179,6 @@ export function IconPicker({ value, onChange, color, none }: { value: string | n
 
 /** A list's icon in its color, or a color dot when it has no icon. */
 export function ListGlyph({ icon, color, size = 15 }: { icon: string | null; color: string | null; size?: number }) {
-  if (!iconOf(icon)) return <span className="shrink-0 rounded-full" style={{ width: size * 0.6, height: size * 0.6, background: color ?? "var(--fg-muted)" }} />;
+  if (!iconOf(icon)) return <span className="shrink-0 rounded-full" style={{ width: size * 0.6, height: size * 0.6, background: color ?? "var(--muted)" }} />;
   return <AppIcon name={icon} size={size} color={color ?? undefined} className={color ? undefined : "text-muted"} />;
 }

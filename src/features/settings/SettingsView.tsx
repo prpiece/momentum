@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type CSSProperties, type ReactNode, useState } from "react";
 import { Segmented } from "../../components/ui/Segmented";
 import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
@@ -11,7 +11,7 @@ import { TagsSection } from "./TagsSection";
 import { HelpSection } from "../help/HelpSection";
 import { HELP_SECTION_ID } from "../help/featureIcons";
 import { LayoutPicker } from "./LayoutPicker";
-import { ACCENT_PRESETS } from "../../domain/color";
+import { ACCENTS, type AccentId } from "../../domain/color";
 import { ZOOMS, type Settings, type ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
 import { hydrate } from "../../stores/data";
@@ -23,7 +23,7 @@ import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
 
 function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-4 rounded-md border border-border bg-surface-2 p-5 shadow-sm">
+    <section id={id} className="scroll-mt-4 rounded-card border border-border bg-raised p-5">
       <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted">{title}</h2>
       <div className="space-y-4">{children}</div>
     </section>
@@ -39,22 +39,22 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function AccentPicker({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
-  const swatch = "grid size-7 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110";
+function AccentPicker({ value, onChange }: { value: AccentId; onChange: (id: AccentId) => void }) {
+  const swatch = `grid size-7 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110 swatch`;
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Accent color">
-      {ACCENT_PRESETS.map((p) => (
+      {ACCENTS.map((p) => (
         <button
-          key={p.hex}
+          key={p.id}
           type="button"
           title={p.name}
           aria-label={p.name}
-          aria-pressed={p.hex === value}
-          onClick={() => onChange(p.hex)}
+          aria-pressed={p.id === value}
+          onClick={() => onChange(p.id)}
           className={swatch}
-          style={{ background: p.hex }}
+          style={{ "--sw": p.light, "--sw-d": p.dark } as CSSProperties}
         >
-          {p.hex === value && <Check size={15} strokeWidth={3} className="text-accent-fg" />}
+          {p.id === value && <Check size={15} strokeWidth={3} className="text-accent-fg" />}
         </button>
       ))}
     </div>
@@ -89,7 +89,7 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (v: strin
         onChange([e.ctrlKey || e.metaKey ? "CommandOrControl" : "", e.altKey ? "Alt" : "", e.shiftKey ? "Shift" : "", key].filter(Boolean).join("+"));
         setRecording(false);
       }}
-      className={`h-9 min-w-40 rounded-sm border px-3 font-mono text-sm ${recording ? "border-accent bg-accent-soft" : "border-border bg-surface"}`}
+      className={`h-9 min-w-40 rounded-control border px-3 tabular-nums text-sm ${recording ? "border-accent bg-accent-soft" : "border-border bg-surface"}`}
     >
       {recording ? "Press keys…" : label}
     </button>
@@ -113,7 +113,7 @@ export function SettingsView() {
               const v = DEFAULT_VIEWS.find((d) => d.id === e.target.value);
               if (v) update({ defaultView: v.id });
             }}
-            className="h-9 rounded-sm border border-border bg-surface px-3 text-sm"
+            className="h-9 rounded-control border border-border bg-surface px-3 text-sm"
           >
             {DEFAULT_VIEWS.map((v) => (
               <option key={v.id} value={v.id}>
@@ -291,7 +291,7 @@ export function SettingsView() {
                 await Promise.all([hydrate(), hydrateHabits(), hydrateFocus()]);
                 toast("Sample data loaded");
               }}
-              className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover"
+              className="h-9 rounded-control border border-border px-3 text-sm hover:bg-surface-2"
             >
               Load sample data
             </button>
