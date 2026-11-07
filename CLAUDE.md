@@ -32,7 +32,7 @@ Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/C
 - **Validate at boundaries** (JSON import, .ics import, DB rows). Code inside the boundary trusts those types.
 - **Drag and drop:** dnd-kit pointer sensors only. `dragDropEnabled: false` is set in `tauri.conf.json` because Tauri's native file-drop handler would otherwise swallow drag events on Windows.
 - **Offline:** no network calls anywhere, except the update check (PLAN D59). Fonts come from `@fontsource`.
-- **Subtasks:** Matrix, calendar and focus read `Derived.roots`, never `active`; drops onto them map a subtask to `rootOf` (PLAN D58).
+- **Subtasks:** a view shows a subtask inside its parent when both are in it, otherwise on its own with the parent's name: lists via `flattenTree`, cards via `topLevelIn` (PLAN D196). Date grids show dated subtasks; only the Arrange panel and focus picker read `Derived.roots`.
 - **New dependencies** need a one-line reason in PLAN.md §4.
 
 ## Design tokens (`src/styles/tokens.css`)

@@ -12,8 +12,6 @@ export type TaskViewSpec = {
   icon: LucideIcon;
   list: TaskList | null;
   tag: Tag | null;
-  /** Custom lists render a subtask tree; smart lists and tags are flat. */
-  tree: boolean;
   /** Finished tasks show in a collapsible "Completed" group, behind Show completed. False when the view's own filter picks a status. */
   splitCompleted: boolean;
   filter: (vm: TaskVM, today: LocalDate) => boolean;
@@ -45,7 +43,6 @@ export function taskViewSpec(
       icon: nav.icon,
       list: inbox ? (lists.inbox ?? null) : null,
       tag: null,
-      tree: inbox,
       splitCompleted: true,
       filter: (vm, today) => inSmartScope(view, vm, today),
       defaults: SMART_DEFAULTS[view] ?? (() => ({})),
@@ -61,7 +58,6 @@ export function taskViewSpec(
       icon: List,
       list,
       tag: null,
-      tree: true,
       splitCompleted: true,
       filter: (vm) => vm.task.listId === list.id,
       defaults: () => ({ listId: list.id }),
@@ -77,7 +73,6 @@ export function taskViewSpec(
       icon: Hash,
       list: null,
       tag,
-      tree: false,
       splitCompleted: true,
       filter: (vm) => vm.task.tags.includes(tag.id),
       defaults: () => ({ tags: [tag.id] }),
@@ -99,7 +94,6 @@ export function taskViewSpec(
       icon: ListFilter,
       list: null,
       tag: null,
-      tree: false,
       splitCompleted: f.status === null,
       filter: (vm, today) => matchesFilter(vm, f, { today, lists, tags }),
       defaults: () => ({

@@ -176,7 +176,12 @@ export async function initOs() {
     await w?.center();
     await w?.show();
     await w?.setFocus();
-    await emit("quickadd:focus", { context, lists: Object.values(useData.getState().lists).map((l) => l.name) });
+    const { lists, tags } = useData.getState();
+    await emit("quickadd:focus", {
+      context,
+      lists: Object.values(lists).filter((l) => !l.archived).sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.name),
+      tags: Object.values(tags).map((t) => t.name).sort((a, b) => a.localeCompare(b)),
+    });
   };
   // `N` with no inline bar on screen (D70): open the popup pre-filled from the current view.
   window.addEventListener(QUICK_ADD_POPUP_EVENT, () => {

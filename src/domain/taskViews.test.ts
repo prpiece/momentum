@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { atLocalTime, timed } from "./dates";
-import { flattenTree, groupVMs, inSmartList, inSmartScope, isOverdue, matchScore, sortVMs, toVM, type TaskVM } from "./taskViews";
+import { flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, sortVMs, toVM, type TaskVM } from "./taskViews";
 import type { Schedule, SmartListId, Task, TaskList } from "./types";
 
 const TODAY = "2026-10-25";
@@ -139,7 +139,24 @@ describe("flattenTree", () => {
       ["g", 2],
     ]);
     expect(flattenTree([p], of, new Set([c1.task.id])).map((r) => r.vm.task.title)).toEqual(["p", "c1"]);
-    expect(flattenTree([p], of, new Set())[1]).toMatchObject({ childCount: 1, doneChildCount: 1 });
+    expect(flattenTree([p], of, new Set())[1]).toMatchObject({ shownKids: 1, childCount: 1, doneChildCount: 1 });
+  });
+
+  it("counts every subtask even when the view nests only some", () => {
+    const p = vm(mk({ title: "p" }));
+    const shown = vm(mk({ title: "a", parentId: p.task.id }));
+    const hidden = vm(mk({ title: "b", parentId: p.task.id, status: "done" }));
+    const row = flattenTree([p], (id) => (id === p.task.id ? [shown] : []), new Set(), (id) => (id === p.task.id ? [shown, hidden] : []))[0];
+    expect(row).toMatchObject({ shownKids: 1, childCount: 2, doneChildCount: 1 });
+  });
+});
+
+describe("topLevelIn", () => {
+  it("keeps a subtask on its own only when its parent isn't in the view", () => {
+    const p = vm(mk({ title: "p" }));
+    const nested = vm(mk({ title: "nested", parentId: p.task.id }));
+    const orphan = vm(mk({ title: "orphan", parentId: "elsewhere" }));
+    expect(topLevelIn([p, nested, orphan]).map((v) => v.task.title)).toEqual(["p", "orphan"]);
   });
 });
 

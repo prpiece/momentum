@@ -1,5 +1,5 @@
 import { useSortable } from "@dnd-kit/sortable";
-import { ChevronRight, ListChecks, ListTree, Pin, Repeat, Bell, FileText } from "lucide-react";
+import { ChevronRight, CornerDownRight, ListChecks, ListTree, Pin, Repeat, Bell, FileText } from "lucide-react";
 import { memo, useState } from "react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
@@ -17,12 +17,14 @@ export type RowClick = (id: string, e: React.MouseEvent) => void;
 /** One task line. Draggable everywhere (to lists, calendar, matrix); reorders only when `reorderable`. */
 export const TaskRow = memo(function TaskRow(props: {
   row: TreeRow;
+  /** Parent title, for a subtask shown without its parent (D196). */
+  parent?: string;
   container: string;
   reorderable: boolean;
   showList: boolean;
   onClick: RowClick;
 }) {
-  const { vm, depth, childCount, doneChildCount } = props.row;
+  const { vm, depth, shownKids, childCount, doneChildCount } = props.row;
   const t = vm.task;
   const selected = useUi((s) => s.selection.includes(t.id));
   const open = useUi((s) => s.drawer?.id === t.id);
@@ -75,7 +77,7 @@ export const TaskRow = memo(function TaskRow(props: {
     >
       {/* A fixed toggle gutter keeps every checkbox in a column, with or without subtasks. */}
       <div style={{ width: 16 + depth * 20 }} className="flex h-6 shrink-0 items-center justify-end">
-        {childCount > 0 && (
+        {shownKids > 0 && (
           <button
             type="button"
             aria-label={collapsed ? "Expand subtasks" : "Collapse subtasks"}
@@ -98,6 +100,12 @@ export const TaskRow = memo(function TaskRow(props: {
           {t.title || <span className="text-muted">Untitled</span>}
         </div>
         <Meta>
+          {props.parent && (
+            <span className="inline-flex min-w-0 max-w-48 items-center gap-1" title={`Subtask of ${props.parent}`}>
+              <CornerDownRight size={12} className="shrink-0" />
+              <span className="truncate">{props.parent}</span>
+            </span>
+          )}
           {vm.date && (
             <span className={overdue ? "font-medium text-danger" : vm.date === today ? "text-accent" : ""}>
               {relativeDayLabel(vm.date, today)}

@@ -1,5 +1,7 @@
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { format } from "date-fns";
-import { Ban, CalendarDays, ChevronLeft, Copy, Flag, Hash, ImagePlus, ListChecks, ListTodo, Pin, Trash2, X } from "lucide-react";
+import { Ban, CalendarDays, ChevronLeft, Copy, Flag, GripVertical, Hash, ImagePlus, ListChecks, ListTodo, Pin, Trash2, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { IconButton } from "../../components/ui/Dialog";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
@@ -9,7 +11,7 @@ import { loadActivity } from "../../db/repo";
 import { importImage, MAX_IMAGE_BYTES, newImageName, writeImage } from "../../lib/appFiles";
 import { scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
 import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, type Activity, type Task } from "../../domain/types";
-import { addTask, depthOf, duplicateTask, ensureTags, uid, updateTask, useData } from "../../stores/data";
+import { addTask, depthOf, duplicateTask, ensureTags, reorderTask, uid, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { closeDrawer, openTask, toast, useUi } from "../../stores/ui";
 import { deleteTasks, editTask, setWontDo, toggleDone } from "./actions";
@@ -356,9 +358,9 @@ function Subtasks({ task }: { task: Task }) {
   return (
     <section>
       <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Subtasks {kids.length > 0 && `· ${kids.filter((k) => k.task.status !== "open").length}/${kids.length}`}</h3>
-      <ul className="space-y-0.5">
+      <Reorderable ids={kids.map((k) => k.task.id)} onMove={(id, to) => reorderTask(id, to, kids.map((k) => k.task.id))}>
         {kids.map((k) => (
-          <li key={k.task.id} className="anim-rise group flex items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-hover">
+          <SortableItem key={k.task.id} id={k.task.id} label={k.task.title} className="py-1">
             <TaskCheckbox status={k.task.status} priority={k.task.priority} onToggle={() => toggleDone(k.task.id, k.key)} label={`Complete ${k.task.title}`} size={16} />
             <button type="button" onClick={() => openTask(k.task.id, k.key)} className={`flex-1 truncate text-left text-sm ${k.task.status !== "open" ? "text-muted line-through" : ""}`}>
               {k.task.title}
@@ -366,9 +368,9 @@ function Subtasks({ task }: { task: Task }) {
             <button type="button" aria-label={`Delete ${k.task.title}`} title="Delete subtask" onClick={() => void deleteTasks([k.task.id], k.key)} className="grid size-6 place-items-center rounded-sm text-muted opacity-0 hover:text-danger focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover:opacity-100">
               <Trash2 size={13} />
             </button>
-          </li>
+          </SortableItem>
         ))}
-      </ul>
+      </Reorderable>
       {canNest ? (
         <input
           value={draft}
@@ -399,9 +401,9 @@ function Checklist({ task }: { task: Task }) {
       <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
         <ListChecks size={14} /> Checklist {items.length > 0 && `· ${items.filter((i) => i.done).length}/${items.length}`}
       </h3>
-      <ul className="space-y-0.5">
+      <Reorderable ids={items.map((i) => i.id)} onMove={(id, to) => set(arrayMove(items, items.findIndex((i) => i.id === id), to))}>
         {items.map((it) => (
-          <li key={it.id} className="anim-rise group flex items-center gap-2.5 rounded-sm px-1 py-0.5 hover:bg-hover">
+          <SortableItem key={it.id} id={it.id} label={it.title} className="py-0.5">
             <input type="checkbox" checked={it.done} onChange={() => set(items.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))} className="size-4 accent-[var(--accent)]" aria-label={it.title} />
             <input
               defaultValue={it.title}
@@ -412,9 +414,9 @@ function Checklist({ task }: { task: Task }) {
             <button type="button" aria-label="Remove item" onClick={() => set(items.filter((x) => x.id !== it.id))} className="opacity-0 group-hover:opacity-100">
               <X size={13} className="text-muted" />
             </button>
-          </li>
+          </SortableItem>
         ))}
-      </ul>
+      </Reorderable>
       <input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -429,6 +431,52 @@ function Checklist({ task }: { task: Task }) {
         className="mt-1 h-8 w-full rounded-sm bg-transparent px-1 text-sm outline-none placeholder:text-muted"
       />
     </section>
+  );
+}
+
+/**
+ * Drag-to-reorder for the drawer's subtasks and checklist. A DndContext of its own, so these
+ * drags never reach the app's drop targets (lists, calendar, matrix).
+ */
+function Reorderable({ ids, onMove, children }: { ids: string[]; onMove: (id: string, toIndex: number) => void; children: ReactNode }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const end = ({ active, over }: DragEndEvent) => {
+    if (over && active.id !== over.id) onMove(String(active.id), ids.indexOf(String(over.id)));
+  };
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={end}>
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <ul className="space-y-0.5">{children}</ul>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+/** A row with a grip handle (pointer or Space + arrows); the rest of the row stays clickable and editable. */
+function SortableItem({ id, label, className, children }: { id: string; label: string; className: string; children: ReactNode }) {
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined, transition }}
+      className={`anim-rise group flex items-center gap-1.5 rounded-sm pr-1 hover:bg-hover ${className} ${isDragging ? "relative z-10 bg-surface shadow-md" : ""}`}
+    >
+      <button
+        ref={setActivatorNodeRef}
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={`Reorder ${label}`}
+        title="Drag to reorder"
+        className="grid h-6 w-4 shrink-0 cursor-grab touch-none place-items-center rounded text-muted opacity-0 hover:text-fg focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100"
+      >
+        <GripVertical size={13} />
+      </button>
+      {children}
+    </li>
   );
 }
 

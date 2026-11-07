@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { addDaysLocal, daysBetween, fromLocalDate, todayLocal } from "../../domain/dates";
-import { sortVMs, type TaskVM } from "../../domain/taskViews";
+import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import { openTask } from "../../stores/ui";
 
 const DAYS = 14;
@@ -16,8 +16,9 @@ export function TimelineView({ vms }: { vms: TaskVM[] }) {
   const end = days[DAYS - 1];
   const open = sortVMs(vms.filter((v) => v.task.status === "open"), "date");
   const dated = open.filter((v) => v.date && v.date >= start && v.date <= end);
-  const undated = open.filter((v) => !v.date);
-  const outside = open.length - dated.length - undated.length;
+  // Dated subtasks get their own bar; undated ones stay inside their parent (D196).
+  const undated = topLevelIn(open).filter((v) => !v.date);
+  const outside = open.filter((v) => v.date && (v.date < start || v.date > end)).length;
 
   return (
     <div className="min-h-0 flex-1 overflow-auto px-4 pb-10">

@@ -3,7 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { todayLocal } from "../../domain/dates";
-import { flattenTree, groupVMs, sortVMs, type TaskVM, type TreeRow } from "../../domain/taskViews";
+import { flattenTree, groupVMs, sortVMs, topLevelIn, type TaskVM, type TreeRow } from "../../domain/taskViews";
 import type { ViewOptions } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
 import { reorderTask, useData } from "../../stores/data";
@@ -14,7 +14,7 @@ import type { TaskViewSpec } from "./viewSpec";
 
 type Row =
   | { kind: "header"; key: string; label: string; count: number; collapsible?: string }
-  | { kind: "task"; key: string; row: TreeRow };
+  | { kind: "task"; key: string; row: TreeRow; parent?: string };
 
 // Dropping a task row onto another row in the same container reorders siblings.
 onDrop("task", (drag, drop) => {
@@ -39,29 +39,34 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
   const container = spec.id;
 
   const rows = useMemo<Row[]>(() => {
+    // Every view nests a subtask under its parent when both are in it; otherwise the subtask
+    // stands alone, labelled with its parent (D196).
     const inView = new Set(vms.map((v) => v.task.id));
     const isOpen = (v: TaskVM) => v.task.status === "open";
-    const parentShown = (v: TaskVM) => !!v.task.parentId && inView.has(v.task.parentId);
-    const openOnes = spec.splitCompleted ? vms.filter(isOpen) : vms;
-    const roots = spec.tree ? openOnes.filter((v) => !parentShown(v)) : openOnes;
-    const childrenOf = (id: string) => sortVMs(derived.childrenOf(id).filter((k) => inView.has(k.task.id)), "manual");
+    const all = (id: string) => derived.childrenOf(id);
+    const childrenOf = (id: string) => sortVMs(all(id).filter((k) => inView.has(k.task.id)), "manual");
     const collapsedSet = new Set(Object.keys(collapsed));
+    const parentOf = (r: TreeRow) => (r.depth === 0 && r.vm.task.parentId ? derived.byId.get(r.vm.task.parentId)?.task.title : undefined);
     const out: Row[] = [];
+    const openOnes = spec.splitCompleted ? vms.filter(isOpen) : vms;
+    const roots = topLevelIn(openOnes);
     for (const g of groupVMs(sortVMs(roots, options.sortBy), options.groupBy, { today, lists: new Map(Object.entries(lists)), tags: new Map(Object.entries(tags)) })) {
       if (g.label) out.push({ kind: "header", key: `h:${g.key}`, label: g.label, count: g.items.length });
-      const tree = spec.tree ? flattenTree(g.items, childrenOf, collapsedSet) : g.items.map((vm) => ({ vm, depth: 0, childCount: 0, doneChildCount: 0 }));
-      for (const r of tree) out.push({ kind: "task", key: `${g.key}:${r.vm.task.id}`, row: r });
+      for (const r of flattenTree(g.items, childrenOf, collapsedSet, all)) out.push({ kind: "task", key: `${g.key}:${r.vm.task.id}`, row: r, parent: parentOf(r) });
     }
     if (spec.splitCompleted) {
-      const done = vms.filter((v) => !isOpen(v) && !(parentShown(v) && spec.tree && derived.byId.get(v.task.parentId ?? "")?.task.status === "open"));
+      // Finished subtasks of an open parent in the view stay nested under it.
+      const done = vms.filter((v) => !isOpen(v) && !(v.task.parentId && inView.has(v.task.parentId) && derived.byId.get(v.task.parentId)?.task.status === "open"));
       if (done.length) {
         const ck = `completed:${spec.id}`;
         // Completed starts collapsed; toggling records "expanded" in the same map.
         const expanded = !!collapsed[ck];
         out.push({ kind: "header", key: "h:done", label: "Completed", count: done.length, collapsible: ck });
         if (expanded)
-          for (const vm of sortVMs(done, "created").sort((a, b) => (b.task.completedAt ?? "").localeCompare(a.task.completedAt ?? "")))
-            out.push({ kind: "task", key: `done:${vm.task.id}`, row: { vm, depth: 0, childCount: 0, doneChildCount: 0 } });
+          for (const vm of sortVMs(done, "created").sort((a, b) => (b.task.completedAt ?? "").localeCompare(a.task.completedAt ?? ""))) {
+            const row = flattenTree([vm], () => [], collapsedSet, all)[0];
+            out.push({ kind: "task", key: `done:${vm.task.id}`, row, parent: parentOf(row) });
+          }
       }
     }
     return out;
@@ -101,7 +106,7 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
                 {r.kind === "header" ? (
                   <GroupHeader label={r.label} count={r.count} toggleKey={r.collapsible} expanded={r.collapsible ? !!collapsed[r.collapsible] : true} />
                 ) : (
-                  <TaskRow row={r.row} container={container} reorderable={reorderable} showList={!spec.list} onClick={onClick} />
+                  <TaskRow row={r.row} parent={r.parent} container={container} reorderable={reorderable} showList={!spec.list} onClick={onClick} />
                 )}
               </div>
             );

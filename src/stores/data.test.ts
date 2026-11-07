@@ -15,7 +15,6 @@ import {
   removeFolder,
   replaceAll,
   restoreTasks,
-  rootOf,
   setParent,
   setStatus,
   undoable,
@@ -111,13 +110,13 @@ describe("subtasks", () => {
     expect(useData.getState().tasks[a.id].status).toBe("done");
   });
 
-  it("keeps subtasks out of the top-level views and maps them to their root", () => {
+  it("keeps subtasks out of the top-level task set", () => {
     const p = addTask({ title: "P" });
     const c = addTask({ title: "C", parentId: p.id, schedule: { kind: "day", date: "2026-10-31" } });
     const g = addTask({ title: "G", parentId: c.id });
     const { tasks, lists } = useData.getState();
     expect(derive(tasks, lists).roots.map((v) => v.task.id)).toEqual([p.id]);
-    expect([rootOf(g.id), rootOf(c.id), rootOf(p.id)]).toEqual([p.id, p.id, p.id]);
+    expect(derive(tasks, lists).childrenOf(c.id).map((v) => v.task.id)).toEqual([g.id]);
   });
 });
 

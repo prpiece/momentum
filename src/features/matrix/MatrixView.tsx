@@ -6,11 +6,11 @@ import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { accentForeground, ACCENT_PRESETS } from "../../domain/color";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { patchForQuadrant, QUADRANT_INFO, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
-import { sortVMs, type TaskVM } from "../../domain/taskViews";
+import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
 import { justDragged, onDrop } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { addTask, rootOf, updateTask, useData, type NewTask } from "../../stores/data";
+import { addTask, updateTask, useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { openContextMenu, openTask, useUi } from "../../stores/ui";
 import { editTask, toggleDone } from "../tasks/actions";
@@ -25,8 +25,7 @@ onDrop("quadrant", (drag, drop) => {
   const rules = useSettings.getState().settings.matrix;
   const today = todayLocal();
   const sel = useUi.getState().selection;
-  // A dragged subtask moves its parent: the matrix only holds top-level tasks (D58).
-  const ids = [...new Set((sel.includes(drag.id) ? sel : [drag.id]).map(rootOf))];
+  const ids = sel.includes(drag.id) ? sel : [drag.id];
   const d = derive(tasks, lists);
   const vms = ids.map((id) => d.byId.get(id)).filter((v): v is TaskVM => !!v);
   const series = vms.filter((v) => v.task.recurrence && "schedule" in patchForQuadrant(v, drop.q, today, rules));
@@ -37,13 +36,13 @@ onDrop("quadrant", (drag, drop) => {
   for (const v of series) void editTask(v.task.id, patchForQuadrant(v, drop.q, today, rules), v.key);
 });
 
-/** Matrix mode of a task view (D164): that view's open top-level tasks (D58). New tasks get the view's defaults. */
+/** Matrix mode of a task view (D164): that view's open tasks, subtasks folded into their parent's card when it's here too (D196). New tasks get the view's defaults. */
 export function MatrixView({ vms, defaults }: { vms: readonly TaskVM[]; defaults: Partial<NewTask> }) {
   const rules = useSettings((s) => s.settings.matrix);
   const today = todayLocal();
   const groups = useMemo(() => {
     const out: Record<Quadrant, TaskVM[]> = { 1: [], 2: [], 3: [], 4: [] };
-    for (const vm of vms) if (vm.task.status === "open" && vm.task.parentId === null) out[quadrantOf(vm, today, rules)].push(vm);
+    for (const vm of topLevelIn(vms.filter((v) => v.task.status === "open"))) out[quadrantOf(vm, today, rules)].push(vm);
     for (const q of QUADRANTS) out[q] = sortVMs(out[q], "date");
     return out;
   }, [vms, rules, today]);

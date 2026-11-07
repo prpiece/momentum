@@ -94,7 +94,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       id: `task-${vm.task.id}`,
       group: "Tasks",
       label: vm.task.title,
-      hint: lists[vm.task.listId]?.name,
+      hint: (vm.task.parentId && derived.byId.get(vm.task.parentId)?.task.title) || lists[vm.task.listId]?.name,
       icon: vm.task.status === "open" ? <Circle size={16} /> : <CheckCircle2 size={16} className="text-success" />,
       run: () => (close(), openTask(vm.task.id, vm.key)),
       text: `${vm.task.title} ${vm.task.description}`,

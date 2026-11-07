@@ -1,5 +1,6 @@
 import { CalendarDays, Flag, Hash, List, Plus, Repeat, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTokenSuggest } from "../../components/ui/TokenSuggest";
 import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { parseQuickAdd, type ChipKind } from "../../domain/quickAdd";
 import { describeRule } from "../../domain/recurrence";
@@ -55,9 +56,13 @@ export function QuickAdd(props: {
   }, []);
 
   const lists = useData((s) => s.lists);
+  const tags = useData((s) => s.tags);
   const names = useMemo(() => Object.values(lists).map((l) => l.name), [lists]);
+  const openListNames = useMemo(() => Object.values(lists).filter((l) => !l.archived).sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.name), [lists]);
+  const tagNames = useMemo(() => Object.values(tags).map((t) => t.name).sort((a, b) => a.localeCompare(b)), [tags]);
   const parsed = useMemo(() => parseQuickAdd(text, new Date(), parsing, names), [text, parsing, names]);
   const today = todayLocal();
+  const complete = useTokenSuggest({ text, setText, input, lists: parsing ? openListNames : [], tags: parsing ? tagNames : [] });
 
   const chipLabel = (kind: ChipKind, raw: string): string => {
     const s = parsed.schedule;
@@ -91,7 +96,9 @@ export function QuickAdd(props: {
           value={text}
           autoFocus={props.autoFocus}
           onChange={(e) => setText(e.target.value)}
+          {...complete.inputProps}
           onKeyDown={(e) => {
+            if (complete.onKeyDown(e)) return;
             if (e.key === "Enter") submit();
             if (e.key === "Escape") {
               if (parsed.chips.length && !rawMode) {
@@ -120,7 +127,9 @@ export function QuickAdd(props: {
           </button>
         )}
       </div>
-      {parsing && parsed.chips.length > 0 && (
+      {complete.open ? (
+        <div className="border-t border-border px-3 py-2">{complete.row}</div>
+      ) : parsing && parsed.chips.length > 0 && (
         <div className="anim-fade flex flex-wrap items-center gap-1.5 border-t border-border px-3 py-2">
           {parsed.chips.map((c) => {
             const Icon = CHIP_ICON[c.kind];

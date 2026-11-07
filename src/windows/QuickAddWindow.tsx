@@ -9,6 +9,7 @@ import { apply, readAppearance } from "../lib/applySettings";
 import { parseVoicePopupEvent, type CompleteCandidate } from "../domain/voice";
 import { CompleteConfirm } from "./CompleteConfirm";
 import { TokenPicker } from "./TokenPicker";
+import { useTokenSuggest } from "../components/ui/TokenSuggest";
 
 /** Voice quick-add as the popup sees it; the main window drives it with `quickadd:voice` (D81). */
 type VoicePhase = { kind: "idle" } | { kind: "listening" } | { kind: "transcribing" } | { kind: "error"; message: string };
@@ -29,6 +30,7 @@ export function QuickAddWindow() {
   const [spoken, setSpoken] = useState(false);
   const [context, setContext] = useState<QuickAddContext | null>(null);
   const [lists, setLists] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [appearance, setAppearance] = useState(readAppearance);
   const [voice, setVoice] = useState<VoicePhase>({ kind: "idle" });
   /** A spoken "complete ..." waiting for a yes (D95); `text` is the transcript, restored if the user backs out. */
@@ -63,10 +65,12 @@ export function QuickAddWindow() {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const w = getCurrentWindow();
       off = [
-        await listen<{ context: QuickAddContext | null; lists: unknown }>("quickadd:focus", (e) => {
+        await listen<{ context: QuickAddContext | null; lists: unknown; tags: unknown }>("quickadd:focus", (e) => {
           setContext(e.payload.context);
-          // Boundary: only strings become list names.
-          setLists(Array.isArray(e.payload.lists) ? e.payload.lists.filter((n): n is string => typeof n === "string") : []);
+          // Boundary: only strings become list and tag names.
+          const strings = (v: unknown) => (Array.isArray(v) ? v.filter((n): n is string => typeof n === "string") : []);
+          setLists(strings(e.payload.lists));
+          setTags(strings(e.payload.tags));
           setAppearance(readAppearance());
           input.current?.focus();
           input.current?.select();
@@ -142,6 +146,7 @@ export function QuickAddWindow() {
   };
 
   const today = todayLocal();
+  const ac = useTokenSuggest({ text, setText, input, lists: parsing ? lists : [], tags: parsing ? tags : [] });
   const label = (kind: ChipKind, chipText: string) => {
     const s = parsed.schedule;
     if (kind === "date" && s.kind === "day") return relativeDayLabel(s.date, today);
@@ -179,7 +184,9 @@ export function QuickAddWindow() {
           autoFocus
           value={text}
           onChange={(e) => setText(e.target.value)}
+          {...ac.inputProps}
           onKeyDown={(e) => {
+            if (!confirm && ac.onKeyDown(e)) return;
             if (confirm) {
               const n = confirm.candidates.length;
               if (e.key === "Enter") void complete(confirm.candidates[confirm.picked].id);
@@ -214,7 +221,8 @@ export function QuickAddWindow() {
         </button>
       </div>
       {confirm && <CompleteConfirm candidates={confirm.candidates} picked={confirm.picked} onPick={(picked) => setConfirm({ ...confirm, picked })} onConfirm={(id) => void complete(id)} onCancel={backOut} />}
-      <div className={`min-h-7 flex-wrap items-center gap-1.5 pb-1 ${confirm ? "hidden" : "flex"}`}>
+      {!confirm && ac.open && <div className="min-h-7 pb-1">{ac.row}</div>}
+      <div className={`min-h-7 flex-wrap items-center gap-1.5 pb-1 ${confirm || ac.open ? "hidden" : "flex"}`}>
         {voice.kind === "error" && (
           <span role="alert" className="text-xs font-medium text-danger">
             {voice.message}

@@ -127,27 +127,43 @@ export function groupVMs(vms: readonly TaskVM[], groupBy: GroupBy, ctx: GroupCtx
   return [...groups.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
 
-export type TreeRow = { vm: TaskVM; depth: number; childCount: number; doneChildCount: number };
+/**
+ * A row of a task tree. `shownKids` is how many children the view nests under it (drives the
+ * expand toggle); `childCount`/`doneChildCount` count all its subtasks, in the view or not.
+ */
+export type TreeRow = { vm: TaskVM; depth: number; shownKids: number; childCount: number; doneChildCount: number };
 
-/** Depth-first rows for a task tree; collapsed parents hide their descendants. */
+/** Depth-first rows for a task tree; collapsed parents hide their descendants. Counts come from `allChildrenOf`. */
 export function flattenTree(
   roots: readonly TaskVM[],
   childrenOf: (id: string) => TaskVM[],
   collapsed: ReadonlySet<string>,
+  allChildrenOf: (id: string) => TaskVM[] = childrenOf,
 ): TreeRow[] {
   const rows: TreeRow[] = [];
   const walk = (vm: TaskVM, depth: number) => {
     const kids = childrenOf(vm.task.id);
+    const all = allChildrenOf(vm.task.id);
     rows.push({
       vm,
       depth,
-      childCount: kids.length,
-      doneChildCount: kids.filter((k) => k.task.status !== "open").length,
+      shownKids: kids.length,
+      childCount: all.length,
+      doneChildCount: all.filter((k) => k.task.status !== "open").length,
     });
     if (!collapsed.has(vm.task.id)) for (const k of kids) walk(k, depth + 1);
   };
   for (const r of roots) walk(r, 0);
   return rows;
+}
+
+/**
+ * The tasks a view shows at the top level (D196): those whose parent isn't in the view too.
+ * The rest appear inside their parent: nested in lists, counted on cards.
+ */
+export function topLevelIn(vms: readonly TaskVM[]): TaskVM[] {
+  const ids = new Set(vms.map((v) => v.task.id));
+  return vms.filter((v) => !v.task.parentId || !ids.has(v.task.parentId));
 }
 
 /**

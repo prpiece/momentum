@@ -11,7 +11,7 @@ export type Derived = {
   childrenOf: (id: string) => TaskVM[];
   /** Live tasks in non-archived lists: what smart lists, calendar and search see. */
   active: TaskVM[];
-  /** Active top-level tasks. Matrix, calendar and focus show these; subtasks stay inside their parent (D58). */
+  /** Active top-level tasks: what the calendar's Arrange panel and the focus picker offer (D196). */
   roots: TaskVM[];
 };
 

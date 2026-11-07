@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
-import { sortVMs, type TaskVM } from "../../domain/taskViews";
+import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
 import { addSection, addTask, moveSection, removeSection, updateSection, updateTask, useData } from "../../stores/data";
@@ -34,7 +34,7 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
     () => Object.values(allSections).filter((x) => x.listId === list.id).sort((a, b) => a.sortOrder - b.sortOrder),
     [allSections, list.id],
   );
-  const roots = sortVMs(vms.filter((v) => !v.task.parentId && v.task.status === "open"), "manual");
+  const roots = sortVMs(topLevelIn(vms.filter((v) => v.task.status === "open")), "manual");
   const [adding, setAdding] = useState(false);
   const unsectioned = roots.filter((v) => !v.task.sectionId || !sections.some((s) => s.id === v.task.sectionId));
   // Only when it holds tasks, or there are no sections to add to (D88). Never conjured by a drag.
