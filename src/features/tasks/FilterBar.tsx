@@ -51,7 +51,7 @@ export function FilterBar({ view }: { view: ViewId }) {
         className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted"
       />
       {chips.length > 0 && (
-        <span className="shrink-0 rounded-full bg-accent-soft px-1.5 tabular-nums text-[0.65rem] text-accent" title={chips.map((c) => c.text).join(" ")}>
+        <span className="shrink-0 rounded-full bg-accent-soft px-1.5 tabular-nums text-[length:var(--fs-xs)] text-accent" title={chips.map((c) => c.text).join(" ")}>
           {chips.length}
         </span>
       )}

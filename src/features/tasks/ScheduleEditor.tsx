@@ -68,7 +68,7 @@ export function ScheduleEditor(props: {
           ))}
           <input type="date" aria-label="Date" value={date ?? ""} onChange={(e) => setDate(e.target.value)} className={field} />
           {s.kind !== "none" && (
-            <button type="button" aria-label="Clear date" onClick={() => props.onSchedule({ kind: "none" })} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
+            <button type="button" aria-label="Clear date" onClick={() => props.onSchedule({ kind: "none" })} className="btn btn-ghost btn-sm icon-btn text-muted">
               <X size={14} />
             </button>
           )}
@@ -196,7 +196,7 @@ function RuleBuilder({ onDone }: { onDone: (rule: string) => void }) {
               type="button"
               aria-pressed={days.includes(d)}
               onClick={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])}
-              className={`size-7 rounded-full text-[0.7rem] font-semibold ${days.includes(d) ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
+              className={`size-7 rounded-full text-[length:var(--fs-xs)] font-semibold ${days.includes(d) ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
             >
               {d.slice(0, 2)}
             </button>

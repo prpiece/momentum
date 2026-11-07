@@ -64,7 +64,7 @@ export function TrophyShelf() {
               <div className="h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-label={`${t.name} progress`} aria-valuenow={shown} aria-valuemin={prev} aria-valuemax={next}>
                 <div className="h-full rounded-full bg-accent transition-[width] duration-[var(--dur)]" style={{ width: `${pct}%` }} />
               </div>
-              <p className="mt-1 tabular-nums text-[0.7rem] text-muted">{top ? `${shown} ${t.unit} · top level` : `${shown} / ${next} ${t.unit}`}</p>
+              <p className="mt-1 tabular-nums text-[length:var(--fs-xs)] text-muted">{top ? `${shown} ${t.unit} · top level` : `${shown} / ${next} ${t.unit}`}</p>
             </div>
             <div className="flex flex-wrap gap-1" aria-label="Levels">
               {t.levels.map((l, i) => (

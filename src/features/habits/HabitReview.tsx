@@ -93,10 +93,10 @@ function Nav({ title, onPrev, onNext }: { title: string; onPrev: () => void; onN
   return (
     <div className="mb-3 flex items-center gap-1">
       <h3 className="flex-1 text-sm font-semibold">{title}</h3>
-      <button type="button" aria-label="Previous" onClick={onPrev} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
+      <button type="button" aria-label="Previous" onClick={onPrev} className="btn btn-ghost btn-sm icon-btn text-muted">
         <ChevronLeft size={15} />
       </button>
-      <button type="button" aria-label="Next" onClick={onNext} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
+      <button type="button" aria-label="Next" onClick={onNext} className="btn btn-ghost btn-sm icon-btn text-muted">
         <ChevronRight size={15} />
       </button>
     </div>

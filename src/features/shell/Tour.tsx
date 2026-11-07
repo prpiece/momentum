@@ -6,8 +6,8 @@ import { useSettings } from "../../stores/settings";
 import { useAppVersion } from "../../lib/updater";
 import { go, useUi } from "../../stores/ui";
 
-const Kbd = ({ children }: { children: ReactNode }) => <kbd className="rounded-xs border border-border bg-bg px-1.5 py-0.5 tabular-nums text-[0.7rem] text-fg">{children}</kbd>;
-const Token = ({ children }: { children: ReactNode }) => <code className="rounded-full bg-accent-soft px-2 py-0.5 tabular-nums text-[0.72rem] text-fg">{children}</code>;
+const Kbd = ({ children }: { children: ReactNode }) => <kbd className="rounded-xs border border-border bg-bg px-1.5 py-0.5 tabular-nums text-[length:var(--fs-xs)] text-fg">{children}</kbd>;
+const Token = ({ children }: { children: ReactNode }) => <code className="rounded-full bg-accent-soft px-2 py-0.5 tabular-nums text-[length:var(--fs-xs)] text-fg">{children}</code>;
 const Tip = ({ children }: { children: ReactNode }) => (
   <p className="flex gap-1.5 rounded-control bg-accent-soft/60 px-2.5 py-1.5 text-xs leading-relaxed text-fg-2">
     <Lightbulb size={13} className="mt-0.5 shrink-0" aria-hidden />
@@ -221,7 +221,7 @@ export function Tour() {
             <div className="text-[0.68rem] font-semibold uppercase tracking-wider text-muted">{i === 0 ? "Quick tour" : `${i} of ${last}`}</div>
             <h2 className="text-base font-bold tracking-tight">{step.title}</h2>
           </div>
-          <button type="button" onClick={close} aria-label="Skip the tour" title="Skip the tour" className="-mr-1.5 -mt-1 grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg">
+          <button type="button" onClick={close} aria-label="Skip the tour" title="Skip the tour" className="-mr-1.5 -mt-1 btn btn-ghost btn-sm icon-btn text-muted">
             <X size={15} />
           </button>
         </div>

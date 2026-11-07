@@ -51,7 +51,7 @@ export function GettingStartedCard() {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss Getting started"
-          className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+          className="btn btn-ghost btn-sm icon-btn text-muted focus-visible:ring-2 focus-visible:ring-accent"
         >
           <X size={15} />
         </button>
@@ -60,7 +60,7 @@ export function GettingStartedCard() {
         <ul aria-label="New" className="mb-2 border-b border-border pb-2">
           {items.fresh.map((f) => (
             <li key={f.id} className="flex items-start gap-2.5 py-1.5">
-              <span className="mt-0.5 rounded-control bg-accent-soft px-1.5 text-[0.65rem] font-semibold uppercase leading-4 text-fg">New</span>
+              <span className="mt-0.5 rounded-control bg-accent-soft px-1.5 text-[length:var(--fs-xs)] font-semibold uppercase leading-4 text-fg">New</span>
               <div className="min-w-0">
                 <div className="text-sm font-medium">{f.title}</div>
                 <p className="text-xs text-fg-2">{f.howTo}</p>

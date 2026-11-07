@@ -31,7 +31,7 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
           setNote(checkinOf(habit.id, date)?.note ?? "");
           setOpen(true);
         }}
-        className={`grid size-7 shrink-0 place-items-center rounded-control hover:bg-surface-2 ${c?.note || c?.mood ? "text-accent" : "text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
+        className={`btn btn-ghost btn-sm icon-btn ${c?.note || c?.mood ? "text-accent-text" : "text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
       >
         {c?.mood ? <MoodFace mood={c.mood} size={16} /> : <MessageSquareText size={15} />}
       </button>
@@ -46,14 +46,14 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
                 aria-checked={c?.mood === m}
                 aria-label={`Mood ${m} of 5`}
                 onClick={() => setCheckin(habit.id, date, { mood: c?.mood === m ? null : m })}
-                className={`grid size-9 place-items-center rounded-full transition-transform hover:scale-110 ${c?.mood === m ? "bg-accent-soft ring-2 ring-accent" : ""}`}
+                className={`grid size-9 place-items-center rounded-full transition-transform hover:scale-110 ${c?.mood === m ? "bg-accent-soft ring-2 ring-accent-text" : ""}`}
               >
                 <MoodFace mood={m} size={22} />
               </button>
             ))}
           </div>
           <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="How did it go?" aria-label="Note" className="input min-h-20 w-full resize-none" />
-          <p className="mt-1 text-[0.65rem] text-muted">Saved when you close this.</p>
+          <p className="mt-1 text-[length:var(--fs-xs)] text-muted">Saved when you close this.</p>
         </Popover>
       )}
     </>

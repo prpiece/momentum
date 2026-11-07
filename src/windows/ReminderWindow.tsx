@@ -82,7 +82,7 @@ export function ReminderWindow() {
         const Icon = ICON[r.target.kind];
         const doable = r.target.kind === "task" || r.target.kind === "habit";
         return (
-        <article key={r.key} className="anim-rise rounded-card border border-border bg-raised p-3 shadow-float" aria-live="assertive">
+        <article key={r.key} className="layer anim-rise rounded-card p-3" aria-live="assertive">
           <div className="flex items-start gap-2.5">
             <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
               <Icon size={15} />

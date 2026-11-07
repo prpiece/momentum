@@ -24,7 +24,7 @@ export function TodayHabits() {
   const doneCount = due.filter((h) => isDone(h, checkins[h.id]?.[today]?.value)).length;
   return (
     <section className="pb-2" aria-label="Today's habits">
-      <button type="button" onClick={() => toggleCollapsed("today:habits")} aria-expanded={!collapsed} className="flex items-center gap-1.5 px-2 pb-1.5 text-xs font-semibold uppercase tracking-wider text-fg-2 hover:text-fg">
+      <button type="button" onClick={() => toggleCollapsed("today:habits")} aria-expanded={!collapsed} className="flex items-center gap-1.5 px-2 pb-1.5 t-label text-fg-2 hover:text-fg">
         <ChevronRight size={14} className={`transition-transform duration-[var(--dur)] ${collapsed ? "" : "rotate-90"}`} />
         Habits
         <span className="tabular-nums font-normal text-muted">

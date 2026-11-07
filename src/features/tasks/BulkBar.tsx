@@ -48,7 +48,7 @@ export function BulkBar() {
       <button type="button" className={`${btn} text-danger`} onClick={() => void deleteTasks(selection)}>
         <Trash2 size={16} /> Delete
       </button>
-      <button type="button" aria-label="Clear selection" className="grid size-8 place-items-center rounded-control text-muted hover:bg-surface-2" onClick={() => setSelection([])}>
+      <button type="button" aria-label="Clear selection" className="btn btn-ghost icon-btn text-muted" onClick={() => setSelection([])}>
         <X size={16} />
       </button>
 

@@ -50,7 +50,7 @@ export function Heatmap({ values, today, weeks, weekStart }: { values: Map<Local
           ))}
         </div>
       </div>
-      <figcaption className="mt-2 flex items-center justify-end gap-1 text-[0.7rem] text-muted">
+      <figcaption className="mt-2 flex items-center justify-end gap-1 text-[length:var(--fs-xs)] text-muted">
         Less
         {[0, 1, 2, 3, 4].map((l) => (
           <span key={l} className="size-2.5 rounded-[3px]" style={{ background: fill(l) }} />

@@ -31,7 +31,7 @@ export function HelpSection() {
         if (!rows.length) return null;
         return (
           <section key={group}>
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">{group}</h3>
+            <h3 className="mb-1 t-label text-muted">{group}</h3>
             <ul className="divide-y divide-border">
               {rows.map((f) => {
                 const Icon = FEATURE_ICON[f.icon];

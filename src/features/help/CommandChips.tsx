@@ -12,7 +12,7 @@ export function CommandChips({ commands }: { commands: FeatureCommand[] }) {
         <span
           key={c.text}
           title={c.title}
-          className={`whitespace-nowrap px-1.5 py-0.5 tabular-nums text-[0.7rem] ${c.token ? "rounded-full bg-accent-soft text-fg" : "rounded-control border border-border bg-surface text-fg-2"}`}
+          className={`whitespace-nowrap px-1.5 py-0.5 tabular-nums text-[length:var(--fs-xs)] ${c.token ? "rounded-full bg-accent-soft text-fg" : "rounded-control border border-border bg-surface text-fg-2"}`}
         >
           {c.text}
         </span>

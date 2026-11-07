@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { Pause, Play, SkipForward, Square, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { BarChart } from "../../components/ui/BarChart";
 import { NumField } from "../../components/ui/NumField";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
@@ -64,10 +64,10 @@ function FocusStats() {
   }, [sessions, ws]);
   if (!Object.keys(sessions).length) return null;
   return (
-    <section className="mt-6 rounded-panel border border-border bg-raised p-5">
-      <div className="mb-3 flex items-baseline">
-        <h2 className="flex-1 text-sm font-semibold">Focus time · last 14 days</h2>
-        <span className="tabular-nums text-xs text-muted">this week {Math.floor(week / 60)}h {week % 60}m</span>
+    <section className="card mt-6">
+      <div className="card-h">
+        <h3>Focus time · last 14 days</h3>
+        <span className="text-[length:var(--fs-sm)] tabular-nums text-muted">this week {Math.floor(week / 60)}h {week % 60}m</span>
       </div>
       <BarChart
         title="Focus minutes per day, last 14 days"
@@ -75,7 +75,7 @@ function FocusStats() {
         format={(v) => `${v}m`}
         label={(b) => format(fromLocalDate(b.start), "EEE, MMM d")}
         tick={(b, i) => (i % 2 === 1 ? "" : format(fromLocalDate(b.start), "d MMM"))}
-        color="var(--prio-high)"
+        color="var(--accent)"
       />
     </section>
   );
@@ -104,8 +104,6 @@ export function FocusView() {
     .filter((s) => toLocalDate(new Date(s.startAt)) === today)
     .sort((a, b) => b.startAt.localeCompare(a.startAt));
   const todayMin = Math.round(todays.reduce((n, s) => n + s.seconds, 0) / 60);
-  const R = 120;
-  const C = 2 * Math.PI * R;
   const boundTask = t.status === "idle" ? taskId : t.taskId;
 
   return (
@@ -113,36 +111,20 @@ export function FocusView() {
     <div className="flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       <div className="flex shrink-0 flex-col items-center justify-center-safe gap-5 p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {t.status === "idle" && (
-          <div role="radiogroup" aria-label="Timer mode" className="flex rounded-control border border-border bg-bg p-0.5">
+          <div role="radiogroup" aria-label="Timer mode" className="seg">
             {(["pomodoro", "stopwatch"] as const).map((m) => (
-              <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`h-8 rounded-[6px] px-4 text-sm capitalize ${mode === m ? "bg-raised font-semibold" : "text-muted"}`}>
+              <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`seg-item capitalize ${mode === m ? "is-on" : ""}`}>
                 {m}
               </button>
             ))}
           </div>
         )}
 
-        <div className="relative grid size-[clamp(12rem,42vh,16.5rem)] shrink-0 place-items-center">
-          <svg viewBox={`0 0 ${2 * R + 24} ${2 * R + 24}`} className="absolute inset-0 size-full -rotate-90" aria-hidden="true">
-            <circle cx={R + 12} cy={R + 12} r={R} fill="none" stroke="var(--border)" strokeWidth={8} />
-            {activeMode === "pomodoro" && (t.status === "running" || t.status === "paused") && (
-              <circle cx={R + 12} cy={R + 12} r={R} fill="none" stroke={t.phase === "focus" ? "var(--accent)" : "var(--success)"} strokeWidth={8} strokeLinecap="round" strokeDasharray={`${C * progress} ${C}`} className="transition-[stroke-dasharray] duration-1000 ease-linear" />
-            )}
-          </svg>
-          <div className="text-center" role="timer" aria-live="off">
-            <div className="text-xs font-semibold uppercase tracking-widest text-muted">
-              {t.status === "idle" ? "Ready" : t.status === "done" ? "Session done" : t.mode === "stopwatch" ? "Stopwatch" : `${PHASE_NAME[t.phase]}${t.phase === "focus" ? ` · round ${t.round}${t.cycles.kind === "finite" ? ` of ${t.cycles.count}` : ""}` : ""}`}
-              {t.status === "paused" && " · paused"}
-            </div>
-            <div className={`font-mono font-medium tabular-nums tracking-[var(--tracking-timer)] ${clock.length > 5 ? "text-[clamp(1.9rem,5vh,2.75rem)]" : "text-[clamp(2.5rem,7vh,3.75rem)]"}`}>{clock}</div>
-          </div>
-        </div>
-
         <select
           value={boundTask ?? ""}
           onChange={(e) => (t.status === "idle" ? setTaskId(e.target.value || null) : setFocusTask(e.target.value || null))}
           aria-label="Task to focus on"
-          className="h-10 w-80 max-w-full rounded-card border border-border bg-surface px-3 text-sm"
+          className="input h-[var(--control-lg)] w-80 max-w-full rounded-card font-medium"
         >
           <option value="">No specific task</option>
           {boundTask && !options.some((o) => o.task.id === boundTask) && tasks[boundTask] && <option value={boundTask}>{tasks[boundTask].title}</option>}
@@ -154,45 +136,64 @@ export function FocusView() {
         </select>
         {boundTask && <Steps parentId={boundTask} />}
 
+        <div className="flex flex-col items-center" role="timer" aria-live="off">
+          <div className="t-label text-muted">
+            {t.status === "idle" ? "Ready" : t.status === "done" ? "Session done" : t.mode === "stopwatch" ? "Stopwatch" : `${PHASE_NAME[t.phase]}${t.phase === "focus" ? ` · round ${t.round}${t.cycles.kind === "finite" ? ` of ${t.cycles.count}` : ""}` : ""}`}
+            {t.status === "paused" && " · paused"}
+          </div>
+          <div className="t-timer my-2">{clock}</div>
+          {activeMode === "pomodoro" && (t.status === "running" || t.status === "paused") && (
+            <div className="w-[360px] max-w-full">
+              <div className="bar">
+                <span style={{ width: `${progress * 100}%`, ...(t.phase === "focus" ? {} : { "--c": "var(--success)" }) } as CSSProperties} />
+              </div>
+              <div className="mt-2 flex justify-between text-[length:var(--fs-sm)] tabular-nums text-muted">
+                <span>{formatClock(total - (remaining ?? 0))}</span>
+                <span>{formatClock(total)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-3">
           {t.status === "done" ? (
             <>
-              <button type="button" onClick={() => startFocus("pomodoro", t.taskId)} className="flex h-12 items-center gap-2 rounded-full bg-accent px-8 text-base font-semibold text-accent-fg hover:bg-accent-hover">
-                <Play size={18} fill="currentColor" /> Start again
+              <button type="button" onClick={() => startFocus("pomodoro", t.taskId)} className="btn btn-primary btn-lg">
+                <Play size={18} strokeWidth={1.75} /> Start again
               </button>
-              <button type="button" onClick={stopFocus} className="h-12 rounded-full bg-surface-2 px-5 text-sm text-fg-2 hover:text-fg">
+              <button type="button" onClick={stopFocus} className="btn btn-secondary btn-lg">
                 Close
               </button>
             </>
           ) : t.status === "idle" ? (
-            <button type="button" onClick={() => startFocus(mode, taskId)} className="flex h-12 items-center gap-2 rounded-full bg-accent px-8 text-base font-semibold text-accent-fg hover:bg-accent-hover">
-              <Play size={18} fill="currentColor" /> Start
+            <button type="button" onClick={() => startFocus(mode, taskId)} className="btn btn-primary btn-lg px-8">
+              <Play size={18} strokeWidth={1.75} /> Start
             </button>
           ) : (
             <>
+              {t.mode === "pomodoro" && (
+                <button type="button" onClick={skipPhase} aria-label="Skip to next phase" title="Skip" className="btn btn-secondary btn-lg icon-btn w-[var(--control-lg)]">
+                  <SkipForward size={18} strokeWidth={1.75} />
+                </button>
+              )}
               {t.status === "running" ? (
-                <button type="button" onClick={pauseFocus} aria-label="Pause" className="grid size-12 place-items-center rounded-full bg-accent text-accent-fg hover:bg-accent-hover">
-                  <Pause size={20} fill="currentColor" />
+                <button type="button" onClick={pauseFocus} className="btn btn-primary btn-lg px-8">
+                  <Pause size={18} strokeWidth={1.75} /> Pause
                 </button>
               ) : (
-                <button type="button" onClick={resumeFocus} aria-label="Resume" className="grid size-12 place-items-center rounded-full bg-accent text-accent-fg hover:bg-accent-hover">
-                  <Play size={20} fill="currentColor" />
+                <button type="button" onClick={resumeFocus} className="btn btn-primary btn-lg px-8">
+                  <Play size={18} strokeWidth={1.75} /> Resume
                 </button>
               )}
-              {t.mode === "pomodoro" && (
-                <button type="button" onClick={skipPhase} aria-label="Skip to next phase" title="Skip" className="grid size-12 place-items-center rounded-full bg-surface-2 text-fg-2 hover:text-fg">
-                  <SkipForward size={18} />
-                </button>
-              )}
-              <button type="button" onClick={stopFocus} aria-label="Stop and save" title="Stop" className="grid size-12 place-items-center rounded-full bg-surface-2 text-fg-2 hover:text-danger">
-                <Square size={16} fill="currentColor" />
+              <button type="button" onClick={stopFocus} aria-label="Stop and save" title="Stop" className="btn btn-secondary btn-lg icon-btn w-[var(--control-lg)] hover:text-danger">
+                <Square size={16} strokeWidth={1.75} />
               </button>
             </>
           )}
         </div>
 
         {t.status === "idle" && mode === "pomodoro" && (
-          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted">
+          <div className="flex max-w-xl flex-wrap items-center justify-center gap-3 text-[length:var(--fs-sm)] text-muted">
             {(
               [
                 ["focusMin", "Focus", 1, 180],
@@ -215,7 +216,7 @@ export function FocusView() {
                 aria-checked={cfg.cycles.kind === "infinite"}
                 aria-label="Repeat until stopped"
                 onClick={() => update({ pomodoro: { ...cfg, cycles: cfg.cycles.kind === "infinite" ? { kind: "finite", count: 4 } : { kind: "infinite" } } })}
-                className={`h-7 rounded-control border px-2 text-base leading-none ${cfg.cycles.kind === "infinite" ? "border-accent bg-accent-soft text-fg" : "border-border"}`}
+                className={`btn btn-sm text-[length:var(--fs-base)] ${cfg.cycles.kind === "infinite" ? "border-accent-text bg-accent-soft text-fg" : "btn-secondary"}`}
               >
                 ∞
               </button>
@@ -224,33 +225,40 @@ export function FocusView() {
           </div>
         )}
         {t.status === "done" && (
-          <p className="text-sm text-fg-2">
+          <p className="text-[length:var(--fs-sm)] text-fg-2">
             {t.cycles} cycle{t.cycles === 1 ? "" : "s"} completed · {Math.round(t.focusMs / 60_000)} min focused
           </p>
         )}
       </div>
 
-      <aside className="flex shrink-0 flex-col border-t border-border p-4 lg:w-72 lg:border-l lg:border-t-0" aria-label="Today's focus">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Today</h2>
-        <div className="mt-1 tabular-nums text-3xl font-semibold">
-          {Math.floor(todayMin / 60)}
-          <span className="font-sans text-sm text-muted">h </span>
-          {todayMin % 60}
-          <span className="font-sans text-sm text-muted">m</span>
+      <aside className="flex shrink-0 flex-col gap-6 border-t border-border bg-surface px-4 py-5 lg:w-[280px] lg:border-l lg:border-t-0" aria-label="Today's focus">
+        <div>
+          <h2 className="t-label mb-1 text-muted">Today</h2>
+          <div className="text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] tabular-nums">
+            {Math.floor(todayMin / 60)}
+            <span className="text-[length:var(--fs-sm)] font-normal text-muted">h </span>
+            {todayMin % 60}
+            <span className="text-[length:var(--fs-sm)] font-normal text-muted">m</span>
+          </div>
+          <div className="text-[length:var(--fs-xs)] text-muted">
+            {todays.length} session{todays.length === 1 ? "" : "s"}
+          </div>
         </div>
-        <div className="text-xs text-muted">{todays.length} session{todays.length === 1 ? "" : "s"}</div>
-        <ul className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto">
+        <ul className="-mx-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
           {todays.map((s) => (
-            <li key={s.id} className="group flex items-center gap-2 rounded-control px-2 py-1.5 text-sm hover:bg-surface-2">
-              <span className="tabular-nums text-xs text-muted">{format(new Date(s.startAt), "HH:mm")}</span>
-              <span className="min-w-0 flex-1 truncate">{(s.taskId && tasks[s.taskId]?.title) || "Focus"}</span>
-              <span className="tabular-nums text-xs text-fg-2">{Math.round(s.seconds / 60)}m</span>
-              <button type="button" aria-label="Delete session" onClick={() => deleteSession(s.id)} className="opacity-0 group-hover:opacity-100">
-                <Trash2 size={13} className="text-muted hover:text-danger" />
+            <li key={s.id} className="group flex min-h-10 items-center gap-2.5 rounded-control px-1 text-[length:var(--fs-sm)] hover:bg-surface-2">
+              <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="truncate font-medium">{(s.taskId && tasks[s.taskId]?.title) || "Focus"}</b>
+                <span className="text-[length:var(--fs-xs)] tabular-nums text-muted">{format(new Date(s.startAt), "HH:mm")}</span>
+              </span>
+              <span className="font-medium tabular-nums">{Math.round(s.seconds / 60)}m</span>
+              <button type="button" aria-label="Delete session" onClick={() => deleteSession(s.id)} className="btn btn-ghost btn-sm icon-btn text-muted opacity-0 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100">
+                <Trash2 size={14} strokeWidth={1.75} />
               </button>
             </li>
           ))}
-          {!todays.length && <li className="px-2 py-6 text-center text-xs text-muted">Finished focus sessions show up here.</li>}
+          {!todays.length && <li className="px-1 py-6 text-center text-[length:var(--fs-sm)] text-muted">Finished focus sessions show up here.</li>}
         </ul>
       </aside>
     </div>
@@ -264,7 +272,7 @@ function Steps({ parentId }: { parentId: string }) {
   return (
     <ul aria-label="Subtasks" className="-mt-2 w-80 max-w-full space-y-0.5">
       {kids.map(({ task: k, key }) => (
-        <li key={k.id} className="flex items-center gap-2.5 rounded-control px-3 py-1 text-sm hover:bg-surface-2">
+        <li key={k.id} className="flex h-[var(--row-compact)] items-center gap-2.5 rounded-control px-3 text-[length:var(--fs-sm)] hover:bg-surface-2">
           <TaskCheckbox status={k.status} priority={k.priority} onToggle={() => toggleDone(k.id, key)} label={`Complete ${k.title}`} size={16} />
           <span className={`min-w-0 flex-1 truncate ${k.status !== "open" ? "text-muted line-through" : ""}`}>{k.title || "Untitled"}</span>
         </li>
@@ -280,5 +288,5 @@ export function FocusBadge() {
   const now = useNow(t.status === "running");
   if (t.status === "idle" || t.status === "done") return null;
   const ms = remainingMs(t, now, cfg) ?? elapsedMs(t, now);
-  return <span className={`tabular-nums text-[0.7rem] ${t.status === "paused" ? "text-muted" : "text-accent"}`}>{formatClock(ms)}</span>;
+  return <span className={`tabular-nums text-[length:var(--fs-xs)] ${t.status === "paused" ? "text-muted" : "text-accent"}`}>{formatClock(ms)}</span>;
 }

@@ -62,7 +62,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
           {done ? (
             <Check key="d" size={size * 0.45} strokeWidth={3.25} className="anim-pop" style={{ color: accentForeground(habit.color) }} />
           ) : habit.goal.kind === "once" ? null : value > 0 ? (
-            <span className="tabular-nums text-[0.65rem] font-semibold">{fmt(value)}</span>
+            <span className="tabular-nums text-[length:var(--fs-xs)] font-semibold">{fmt(value)}</span>
           ) : (
             <Plus size={size * 0.4} className="text-muted" />
           )}
@@ -90,7 +90,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
                 <span className="text-sm text-fg-2">{habit.goal.unit}</span>
               </div>
             </label>
-            <button type="submit" className="mt-2 h-8 w-full rounded-control bg-accent text-xs font-medium text-accent-fg">
+            <button type="submit" className="btn btn-primary mt-2 w-full">
               Save
             </button>
           </form>

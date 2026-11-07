@@ -23,8 +23,8 @@ import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
 
 function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-4 rounded-card border border-border bg-raised p-5">
-      <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted">{title}</h2>
+    <section id={id} className="scroll-mt-4 card p-5">
+      <h2 className="mb-4 t-label text-muted">{title}</h2>
       <div className="space-y-4">{children}</div>
     </section>
   );

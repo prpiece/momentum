@@ -59,7 +59,7 @@ export function UpdatesSection() {
       )}
       {status.kind === "available" && status.notes && (
         <div className="prose-md max-h-64 overflow-y-auto rounded-card border border-border bg-surface p-3 text-sm text-fg-2">
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">What's new in {status.version}</div>
+          <div className="mb-1 t-label text-muted">What's new in {status.version}</div>
           <ReactMarkdown>{status.notes}</ReactMarkdown>
         </div>
       )}

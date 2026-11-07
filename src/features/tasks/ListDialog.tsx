@@ -41,7 +41,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
       >
         <h2 className="text-lg font-semibold">{list ? "Edit list" : "New list"}</h2>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">Name</span>
+          <span className="mb-1.5 block t-label text-muted">Name</span>
           <div className="input-wrap h-[var(--control-lg)]">
             <ListGlyph icon={icon} color={color} size={18} />
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. School" />
@@ -49,7 +49,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
         </label>
 
         <fieldset>
-          <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Color</legend>
+          <legend className="mb-1.5 t-label text-muted">Color</legend>
           <div className="flex flex-wrap items-center gap-2">
             {ACCENT_PRESETS.map((p) => (
               <button key={p.hex} type="button" aria-label={p.name} aria-pressed={color === p.hex} onClick={() => setColor(p.hex)} className="grid size-7 place-items-center rounded-full" style={{ background: p.hex }}>
@@ -61,7 +61,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
         </fieldset>
 
         <fieldset>
-          <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Icon</legend>
+          <legend className="mb-1.5 t-label text-muted">Icon</legend>
           <IconPicker value={icon} onChange={setIcon} color={color ?? undefined} none="Dot" />
         </fieldset>
 

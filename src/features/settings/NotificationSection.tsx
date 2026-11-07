@@ -34,7 +34,7 @@ function Preview({ style }: { style: NotifySettings["style"] }) {
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-card bg-bg p-3" aria-hidden="true">
       {style !== "system" && (
-        <div className="w-64 rounded-card border border-border bg-raised p-3 shadow-float">
+        <div className="layer w-64 rounded-card p-3">
           <div className="flex items-start gap-2.5">
             <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
               <AlarmClock size={15} />
@@ -45,11 +45,11 @@ function Preview({ style }: { style: NotifySettings["style"] }) {
             </div>
           </div>
           <div className="mt-2.5 flex gap-1.5">
-            <span className="flex h-6 items-center gap-1 rounded-control bg-accent px-2 text-[0.7rem] font-medium text-accent-fg">
+            <span className="flex h-6 items-center gap-1 rounded-control bg-accent px-2 text-[length:var(--fs-xs)] font-medium text-accent-fg">
               <Check size={12} /> Done
             </span>
-            <span className="flex h-6 items-center rounded-control bg-surface-2 px-2 text-[0.7rem] text-fg-2">10 min</span>
-            <span className="flex h-6 items-center rounded-control bg-surface-2 px-2 text-[0.7rem] text-fg-2">1 hour</span>
+            <span className="flex h-6 items-center rounded-control bg-surface-2 px-2 text-[length:var(--fs-xs)] text-fg-2">10 min</span>
+            <span className="flex h-6 items-center rounded-control bg-surface-2 px-2 text-[length:var(--fs-xs)] text-fg-2">1 hour</span>
           </div>
         </div>
       )}
@@ -58,7 +58,7 @@ function Preview({ style }: { style: NotifySettings["style"] }) {
           <Monitor size={14} className="mt-0.5 shrink-0 text-muted" />
           <div className="min-w-0">
             <div className="truncate text-xs font-semibold">Dentist appointment</div>
-            <div className="text-[0.7rem] text-muted">Windows notification</div>
+            <div className="text-[length:var(--fs-xs)] text-muted">Windows notification</div>
           </div>
         </div>
       )}
@@ -78,7 +78,7 @@ export function NotificationSection() {
       </Line>
       <div className={`space-y-4 transition-opacity duration-[var(--dur)] ${n.enabled ? "" : "pointer-events-none opacity-45"}`} aria-disabled={!n.enabled}>
         <div className="space-y-3 border-t border-border pt-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted">What notifies</div>
+          <div className="t-label text-muted">What notifies</div>
           {KINDS.map(([k, title, hint]) => (
             <Line key={k} title={title} hint={hint}>
               {k === "digest" && n.digest && (
@@ -89,7 +89,7 @@ export function NotificationSection() {
           ))}
         </div>
         <div className="space-y-3 border-t border-border pt-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted">How they look</div>
+          <div className="t-label text-muted">How they look</div>
           <Line title="Style" hint="The popup has Done, Snooze and Open buttons.">
             <Segmented
               name="notify-style"

@@ -145,7 +145,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
         {items.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">No matches for “{q}”.</li>}
         {items.map((it, i) => (
           <li key={it.id} id={`pi-${it.id}`} role="option" aria-selected={i === cursor}>
-            {(i === 0 || items[i - 1].group !== it.group) && <div className="px-3 pb-1 pt-2 text-[0.7rem] font-semibold uppercase tracking-wider text-muted">{it.group}</div>}
+            {(i === 0 || items[i - 1].group !== it.group) && <div className="px-3 pb-1 pt-2 t-label text-muted">{it.group}</div>}
             <button
               type="button"
               onMouseMove={() => setCursor(i)}

@@ -180,7 +180,7 @@ function Stat({ label, value, icon }: { label: string; value: ReactNode; icon?: 
 
 function Card({ title, hint, action, className = "", children }: { title: string; hint?: string; action?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <section className={`rounded-card border border-border bg-raised p-5 ${className}`}>
+    <section className={`card p-5 ${className}`}>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h2 className="text-sm font-semibold">{title}</h2>
         {hint && <span className="text-xs text-muted">{hint}</span>}

@@ -56,7 +56,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
         </div>
 
         <fieldset className="space-y-2">
-          <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Goal</legend>
+          <legend className="mb-1.5 t-label text-muted">Goal</legend>
           <div className="flex gap-1.5">
             {(
               [
@@ -87,7 +87,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
         </fieldset>
 
         <fieldset className="space-y-2">
-          <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Frequency</legend>
+          <legend className="mb-1.5 t-label text-muted">Frequency</legend>
           <div className="flex gap-1.5">
             {(
               [
@@ -135,7 +135,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
         </fieldset>
 
         <fieldset>
-          <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Reminders</legend>
+          <legend className="mb-1.5 t-label text-muted">Reminders</legend>
           <div className="flex flex-wrap items-center gap-1.5">
             {reminders.map((r) => (
               <span key={r} className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pl-2.5 pr-1 tabular-nums text-xs">

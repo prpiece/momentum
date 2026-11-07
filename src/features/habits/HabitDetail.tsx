@@ -48,20 +48,20 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
       <header className="flex items-center gap-3">
         <IconTile name={habit.icon} color={habit.color} size={48} />
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-lg font-semibold">{habit.name}</h2>
+          <h2 className="truncate text-[length:var(--fs-lg)] font-semibold">{habit.name}</h2>
           <p className="text-xs text-muted">
             {frequencyLabel(habit.frequency)}
             {habit.goal.kind !== "once" && ` · ${fmt(habit.goal.target)} ${habit.goal.unit} a day`}
           </p>
         </div>
-        <button type="button" onClick={onEdit} aria-label="Edit habit" className="grid size-9 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg">
+        <button type="button" onClick={onEdit} aria-label="Edit habit" className="btn btn-ghost icon-btn text-muted">
           <Pencil size={16} />
         </button>
       </header>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<Flame size={15} className="text-prio-high" />} label="Current streak" value={cur.count} unit={`${cur.unit}${cur.count === 1 ? "" : "s"}`} />
-        <Stat icon={<Trophy size={15} className="text-prio-med" />} label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
+        <Stat icon={<Flame size={15} className="text-streak" />} label="Current streak" value={cur.count} unit={`${cur.unit}${cur.count === 1 ? "" : "s"}`} />
+        <Stat icon={<Trophy size={15} className="text-streak" />} label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
         <Stat label="Last 30 days" value={rate30 === null ? "–" : Math.round(rate30 * 100)} unit={rate30 === null ? "" : "%"} />
         <Stat label="Check-ins" value={total} unit="total" />
       </div>
@@ -71,7 +71,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
 
       {notes.length > 0 && (
         <section>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Notes</h3>
+          <h3 className="mb-2 t-label text-muted">Notes</h3>
           <ul className="space-y-2">
             {notes.map((n) => (
               <li key={n.date} className="flex gap-3 text-sm">
@@ -89,14 +89,14 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
 
 function Stat({ icon, label, value, unit }: { icon?: React.ReactNode; label: string; value: number | string; unit: string }) {
   return (
-    <div className="rounded-card border border-border bg-raised p-3">
+    <div className="card p-3">
       <div className="flex items-center gap-1.5 text-xs text-muted">
         {icon}
         {label}
       </div>
-      <div className="mt-1 tabular-nums text-2xl font-semibold">
+      <div className="mt-1 text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] tabular-nums">
         {value}
-        <span className="ml-1 font-sans text-xs font-normal text-muted">{unit}</span>
+        <span className="ml-1 text-[length:var(--fs-sm)] font-normal text-muted">{unit}</span>
       </div>
     </div>
   );
@@ -111,19 +111,19 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
   return (
     <section>
       <div className="mb-2 flex items-center gap-1">
-        <h3 className="flex-1 text-xs font-semibold uppercase tracking-wider text-muted">
+        <h3 className="flex-1 t-label text-muted">
           {format(fromLocalDate(month), "MMMM yyyy")} {rate !== null && <span className="ml-1 tabular-nums normal-case">· {Math.round(rate * 100)}%</span>}
         </h3>
-        <button type="button" aria-label="Previous month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), -1)))} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
+        <button type="button" aria-label="Previous month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), -1)))} className="btn btn-ghost btn-sm icon-btn text-muted">
           <ChevronLeft size={15} />
         </button>
-        <button type="button" aria-label="Next month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), 1)))} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
+        <button type="button" aria-label="Next month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), 1)))} className="btn btn-ghost btn-sm icon-btn text-muted">
           <ChevronRight size={15} />
         </button>
       </div>
       <div className="grid max-w-md grid-cols-7 gap-1">
         {days.slice(0, 7).map((d) => (
-          <span key={d} className="text-center text-[0.65rem] font-semibold text-muted">
+          <span key={d} className="text-center text-[length:var(--fs-xs)] font-semibold text-muted">
             {format(fromLocalDate(d), "EEEEE")}
           </span>
         ))}
@@ -135,7 +135,7 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
             <div
               key={d}
               title={cellTitle(habit, d, v)}
-              className={`grid aspect-square place-items-center rounded-control tabular-nums text-xs ${inMonth ? "" : "opacity-30"} ${d === today ? "ring-2 ring-accent" : ""}`}
+              className={`grid aspect-square place-items-center rounded-control tabular-nums text-xs ${inMonth ? "" : "opacity-30"} ${d === today ? "ring-2 ring-accent-text" : ""}`}
               style={{ background: d > today ? "transparent" : cellFill(habit, v, isScheduled(habit, d)), color: done ? accentForeground(habit.color) : "var(--fg-2)" }}
             >
               {format(fromLocalDate(d), "d")}
@@ -159,7 +159,7 @@ function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; 
   const height = 7 * (CELL + GAP) + 14;
   return (
     <section>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Past year</h3>
+      <h3 className="mb-2 t-label text-muted">Past year</h3>
       <div className="overflow-x-auto">
         <svg width={width} height={height} role="img" aria-label={`${habit.name}: daily check-ins over the past year`}>
           {weeks.map((w, wi) => {
@@ -187,7 +187,7 @@ function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; 
           })}
         </svg>
       </div>
-      <div className="mt-2 flex items-center gap-1.5 text-[0.65rem] text-muted">
+      <div className="mt-2 flex items-center gap-1.5 text-[length:var(--fs-xs)] text-muted">
         Less
         {[undefined, 0.3, 0.7, 1].map((r, i) => (
           <span key={i} className="size-2.5 rounded-[3px]" style={{ background: cellFill(habit, r === undefined ? undefined : r * targetOf(habit), true) }} />
