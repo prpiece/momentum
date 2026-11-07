@@ -46,7 +46,7 @@ export function BarChart(props: {
         {data.map((d, i) => {
           const x = padL + i * slot + (slot - barW) / 2;
           const h = Math.max(0, y(0) - y(d.value));
-          const r = Math.min(4, barW / 2, h);
+          const r = Math.min(4, barW / 2, h); // --r-xs at the top only
           return (
             <g key={d.start} onMouseEnter={() => setHover(i)}>
               {/* Full-height hit target, larger than the mark. */}
@@ -54,7 +54,7 @@ export function BarChart(props: {
               {d.value > 0 && (
                 <path
                   d={`M${x},${y(0)} v${-(h - r)} q0,${-r} ${r},${-r} h${barW - 2 * r} q${r},0 ${r},${r} v${h - r} z`}
-                  fill={color}
+                  fill={i === data.length - 1 ? color : "var(--border-strong)"}
                   opacity={hover === null || hover === i ? 1 : 0.45}
                   className="anim-grow-y transition-opacity duration-[var(--dur)]"
                   style={{ animationDelay: `${i * 25}ms` }}
@@ -70,7 +70,7 @@ export function BarChart(props: {
       {hover !== null && data[hover] && (
         <div
           role="tooltip"
-          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-control bg-fg px-2 py-1 text-xs text-bg shadow-float"
+          className="layer pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-control px-2 py-1 text-[length:var(--fs-xs)]"
           style={{ left: `${((padL + hover * slot + slot / 2) / W) * 100}%`, top: `${(y(data[hover].value) / H) * 100}%` }}
         >
           <span className="font-semibold">{format(data[hover].value)}</span> · {props.label(data[hover])}

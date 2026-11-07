@@ -5,8 +5,8 @@ import { heatLevel } from "../../domain/stats";
 import type { LocalDate, WeekStart } from "../../domain/types";
 
 /** Accent steps for heat levels 1–4 (0 is the empty-cell gray). One hue, light to dark. */
-const STEP = [0, 30, 55, 78, 100];
-const fill = (level: number) => (level === 0 ? "var(--surface-2)" : `color-mix(in oklch, var(--accent) ${STEP[level]}%, var(--raised))`);
+const STEP = [0, 25, 50, 75, 100];
+const fill = (level: number) => (level === 0 ? "var(--surface-2)" : `color-mix(in srgb, var(--accent) ${STEP[level]}%, var(--surface))`);
 
 /** GitHub-style calendar of completions: one column per week, one row per weekday. */
 export function Heatmap({ values, today, weeks, weekStart }: { values: Map<LocalDate, number>; today: LocalDate; weeks: number; weekStart: WeekStart }) {
@@ -19,7 +19,7 @@ export function Heatmap({ values, today, weeks, weekStart }: { values: Map<Local
 
   return (
     <figure>
-      <div className="mb-2 h-5 text-xs text-fg-2" aria-live="polite">
+      <div className="mb-2 h-5 text-[length:var(--fs-sm)] text-fg-2" aria-live="polite">
         {shown ? (
           <>
             <span className="font-semibold text-fg">{values.get(shown) ?? 0} tasks</span> · {format(fromLocalDate(shown), "EEEE, MMM d")}
@@ -41,7 +41,7 @@ export function Heatmap({ values, today, weeks, weekStart }: { values: Map<Local
                   <span
                     key={d}
                     onMouseEnter={() => setHover(d)}
-                    className={`anim-fade aspect-square rounded-[3px] transition-transform duration-[var(--dur)] hover:scale-125 ${hover === d ? "ring-1 ring-fg" : ""}`}
+                    className={`anim-fade aspect-square rounded-[2px] transition-transform duration-[var(--dur)] ${hover === d ? "ring-1 ring-accent-text" : ""}`}
                     style={{ background: fill(heatLevel(values.get(d) ?? 0, max)), animationDelay: `${w * 12}ms`, animationFillMode: "backwards" }}
                   />
                 ),
@@ -53,7 +53,7 @@ export function Heatmap({ values, today, weeks, weekStart }: { values: Map<Local
       <figcaption className="mt-2 flex items-center justify-end gap-1 text-[length:var(--fs-xs)] text-muted">
         Less
         {[0, 1, 2, 3, 4].map((l) => (
-          <span key={l} className="size-2.5 rounded-[3px]" style={{ background: fill(l) }} />
+          <span key={l} className="size-2.5 rounded-[2px]" style={{ background: fill(l) }} />
         ))}
         More
       </figcaption>
