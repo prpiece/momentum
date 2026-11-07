@@ -40,7 +40,7 @@ export function GettingStartedCard() {
   const doneCount = items.core.filter((f) => gs.done.includes(f.id)).length;
   const dismiss = () => update({ gettingStarted: { ...gs, dismissed: true, seenVersion: version === "0.0.0" ? gs.seenVersion : version } });
   return (
-    <section aria-label="Getting started" className="mx-6 mb-3 rounded-card border border-border bg-raised p-4">
+    <section aria-label="Getting started" className="mb-3 rounded-card border border-border bg-surface p-4">
       <div className="mb-1 flex items-center gap-2">
         <h2 className="text-sm font-semibold">Getting started</h2>
         <span className="tabular-nums text-xs text-muted">

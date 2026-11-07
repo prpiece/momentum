@@ -96,8 +96,10 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
   });
 
   return (
-    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 pb-24" role="listbox" aria-multiselectable="true" aria-label={spec.title}>
+    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto pb-24" role="listbox" aria-multiselectable="true" aria-label={spec.title}>
       <SortableContext items={taskIds.map((id) => `${container}:${id}`)} strategy={verticalListSortingStrategy}>
+        {/* Centred page column; the scrollbar stays at the window edge. */}
+        <div className="mx-auto max-w-[var(--content-max)] px-6">
         <div style={{ height: virtual.getTotalSize(), position: "relative" }}>
           {virtual.getVirtualItems().map((vi) => {
             const r = rows[vi.index];
@@ -111,6 +113,7 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
               </div>
             );
           })}
+        </div>
         </div>
       </SortableContext>
     </div>

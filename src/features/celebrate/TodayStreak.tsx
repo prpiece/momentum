@@ -23,13 +23,13 @@ export function TodayStreak() {
   const usedThisWeek = [...restDays].some((d) => d !== today && d >= ws && d <= addDaysLocal(ws, 6));
 
   return (
-    <div className="flex shrink-0 items-center gap-1">
+    <div className="flex shrink-0 items-center gap-3">
       {run > 0 && (
-        <span title={`${run} perfect ${run === 1 ? "day" : "days"} in a row`} className="flex items-center gap-1 rounded-control px-2 py-1 text-sm font-semibold text-[#e8590c]">
-          <Flame size={16} className="anim-flicker" fill="currentColor" fillOpacity={0.25} />
-          <span key={run} className="anim-pop tabular-nums tabular-nums">
+        <span title={`${run} perfect ${run === 1 ? "day" : "days"} in a row`} className="flex items-center gap-1.5 text-[length:var(--fs-sm)] text-fg-2">
+          <Flame size={16} strokeWidth={1.75} className="text-streak" />
+          <b key={run} className="anim-pop font-semibold tabular-nums text-fg">
             {run}
-          </span>
+          </b> day streak
         </span>
       )}
       <button
@@ -37,9 +37,10 @@ export function TodayStreak() {
         disabled={!resting && usedThisWeek}
         onClick={() => setRestDay(today, !resting)}
         title={!resting && usedThisWeek ? "You've had this week's rest day" : "A rest day doesn't count and doesn't break your run. One per week."}
-        className={`flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs disabled:opacity-40 ${resting ? "bg-accent-soft text-fg" : "text-fg-2 hover:bg-surface-2"} focus-visible:ring-2 focus-visible:ring-accent`}
+        aria-pressed={resting}
+        className="btn btn-ghost btn-sm"
       >
-        <BedDouble size={15} />
+        <BedDouble size={16} strokeWidth={1.75} />
         {resting ? "Resting today" : "Rest day"}
       </button>
     </div>

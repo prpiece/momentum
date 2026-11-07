@@ -45,18 +45,18 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto px-4 pb-6">
+    <div className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto px-8 pb-6">
       <SortableContext items={sections.map((s) => `col:${s.id}`)} strategy={horizontalListSortingStrategy}>
         {columns.map((c) => (
           <Column key={c.section?.id ?? "none"} list={list} section={c.section} items={c.items} index={c.section ? sections.indexOf(c.section) : -1} count={sections.length} />
         ))}
       </SortableContext>
-      <div className="w-72 shrink-0">
+      <div className="w-40 shrink-0">
         {adding ? (
           <input
             autoFocus
             placeholder="Section name"
-            className="h-10 w-full rounded-card border border-border bg-raised px-3 text-sm outline-none focus:border-accent"
+            className="input"
             onBlur={() => setAdding(false)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && e.currentTarget.value.trim()) {
@@ -67,8 +67,8 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
             }}
           />
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className="flex h-10 w-full items-center gap-2 rounded-card border border-dashed border-border px-3 text-sm text-muted hover:border-accent hover:text-fg">
-            <Plus size={16} /> Add section
+          <button type="button" onClick={() => setAdding(true)} className="btn btn-ghost w-full justify-start">
+            <Plus size={16} strokeWidth={1.75} /> Add section
           </button>
         )}
       </div>
@@ -100,22 +100,22 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
       ref={setNodeRef}
       style={{ transform: sort.transform ? `translate3d(${sort.transform.x}px, 0, 0)` : undefined, transition: sort.transition }}
       aria-label={section?.name ?? "Unsectioned"}
-      className={`flex w-72 shrink-0 flex-col rounded-panel border p-2 transition-colors duration-[var(--dur)] ${
+      className={`flex max-h-full w-[280px] shrink-0 flex-col rounded-card border px-2 pb-2 ${
         sort.isDragging ? "z-10 opacity-80 shadow-float " : ""
       }${
-        isOver ? "border-accent bg-accent-soft" : "border-transparent bg-bg"
+        isOver ? "border-accent-text bg-accent-soft" : "border-transparent bg-bg"
       }`}
     >
       <header
         ref={section ? sort.setActivatorNodeRef : undefined}
         {...(section && !renaming ? { ...sort.attributes, ...sort.listeners } : {})}
-        className={`flex h-9 items-center gap-2 px-2 ${section ? "cursor-grab" : ""}`}
+        className={`flex h-10 shrink-0 items-center gap-2 px-1 ${section ? "cursor-grab" : ""}`}
       >
         {renaming && section ? (
           <input
             autoFocus
             defaultValue={section.name}
-            className="h-7 min-w-0 flex-1 rounded-control border border-accent bg-surface px-2 text-sm outline-none"
+            className="input h-7 min-w-0 flex-1"
             onBlur={(e) => {
               if (e.target.value.trim()) updateSection(section.id, { name: e.target.value.trim() });
               setRenaming(false);
@@ -123,12 +123,12 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
           />
         ) : (
-          <h3 className="flex-1 truncate text-sm font-semibold">{section?.name ?? "Unsectioned"}</h3>
+          <h3 className="min-w-0 truncate text-[length:var(--fs-sm)] font-semibold">{section?.name ?? "Unsectioned"}</h3>
         )}
-        <span className="tabular-nums text-xs text-muted">{items.length}</span>
+        <span className="mr-auto text-[length:var(--fs-sm)] tabular-nums text-muted">{items.length}</span>
         {section && (
-          <button ref={menu.anchor} type="button" aria-label="Section options" onClick={menu.toggle} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
-            <MoreHorizontal size={16} />
+          <button ref={menu.anchor} type="button" aria-label="Section options" onClick={menu.toggle} className="btn btn-ghost btn-sm icon-btn text-muted">
+            <MoreHorizontal size={16} strokeWidth={1.75} />
           </button>
         )}
         {menu.open && section && (
@@ -148,7 +148,7 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
           </Popover>
         )}
       </header>
-      <div className="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto p-1">
+      <div className="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto">
         {items.map((vm) => (
           <Card key={vm.task.id} vm={vm} />
         ))}
@@ -164,7 +164,7 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
         }}
         placeholder="+ Add task"
         aria-label={`Add task to ${section?.name ?? "Unsectioned"}`}
-        className="mt-1 h-9 rounded-control bg-transparent px-2 text-sm outline-none placeholder:text-muted focus:bg-surface"
+        className="mt-1 h-8 shrink-0 rounded-control border border-transparent bg-transparent px-2 text-[length:var(--fs-sm)] outline-none placeholder:text-muted hover:bg-surface-2 focus-visible:border-accent-text focus-visible:bg-surface focus-visible:shadow-[var(--focus-ring-input)] focus-visible:outline-none"
       />
     </section>
   );
@@ -182,13 +182,19 @@ function Card({ vm }: { vm: TaskVM }) {
       onClick={() => openTask(t.id, vm.key)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => e.key === "Enter" && openTask(t.id, vm.key)}
-      className={`flex cursor-grab items-start gap-2.5 rounded-card border border-border bg-raised p-3 transition-shadow hover:shadow-float ${isDragging ? "opacity-40" : ""}`}
+      className={`flex cursor-grab flex-col gap-2 rounded-card border border-border bg-surface px-3 py-2.5 hover:border-border-strong ${isDragging ? "opacity-40" : ""}`}
     >
-      <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm leading-5">{t.title}</div>
-        {vm.date && <div className={`mt-1 text-xs ${vm.date < today ? "text-danger" : "text-muted"}`}>{relativeDayLabel(vm.date, today)}</div>}
+      <div className="flex items-start gap-2.5 font-medium">
+        <span className="mt-px">
+          <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} />
+        </span>
+        <span className={`min-w-0 flex-1 ${t.status !== "open" ? "font-normal text-muted line-through" : ""}`}>{t.title}</span>
       </div>
+      {vm.date && (
+        <div className="flex items-center gap-2.5 pl-7 text-[length:var(--fs-sm)] text-muted">
+          <span className={`ml-auto tabular-nums ${t.status === "open" && vm.date < today ? "text-danger" : "text-fg-2"}`}>{relativeDayLabel(vm.date, today)}</span>
+        </div>
+      )}
     </div>
   );
 }

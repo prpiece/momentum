@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { PageHead } from "../../components/ui/PageHead";
+import { ToolbarActions } from "../../components/ui/Toolbar";
 import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
 import { todayLocal } from "../../domain/dates";
 import type { GroupBy, ListLayout, SortBy } from "../../domain/types";
@@ -33,8 +34,8 @@ type Mode = ListLayout | "matrix";
 const MODES: { id: Mode; label: string; icon: typeof ListTodo }[] = [
   { id: "list", label: "List", icon: ListTodo },
   { id: "kanban", label: "Board", icon: Columns3 },
-  { id: "matrix", label: "Matrix", icon: Grid2x2 },
   { id: "timeline", label: "Timeline", icon: CalendarRange },
+  { id: "matrix", label: "Matrix", icon: Grid2x2 },
 ];
 const GROUPS: { id: GroupBy; label: string }[] = [
   { id: "none", label: "None" },
@@ -79,10 +80,12 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   );
   const openCount = vms.filter((v) => v.task.status === "open").length;
   const tint = list?.tint && list.color ? { background: `color-mix(in oklch, ${list.color} 6%, var(--surface))` } : undefined;
+  // List mode reads as a page (880px, centred); Board, Timeline and Matrix use the full width (D198).
+  const page = layout === "list" ? "mx-auto w-full max-w-[var(--content-max)]" : "w-full";
 
   return (
     <div className="flex h-full min-h-0 flex-col" style={tint}>
-      <div className="px-6 pb-3 pt-5">
+      <div className={`${page} px-8 pb-4 pt-6`}>
         <PageHead
           title={spec.title}
           lead={list?.icon && list.id !== "inbox" ? <ListGlyph icon={list.icon} color={list.color} size={20} /> : undefined}
@@ -92,42 +95,29 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
               {openCount} open
             </span>
           }
-        />
+        >
+          {spec.id === "today" && <TodayStreak />}
+        </PageHead>
       </div>
-      <div data-tour="toolbar" className="flex items-center gap-1 px-6 pb-3">
-        <FilterBar view={spec.id} />
-        <div className="flex-1" />
-        {spec.id === "today" && <TodayStreak />}
-        {spec.splitCompleted && (
-          <button
-            type="button"
-            aria-pressed={options.showCompleted}
-            title="Show completed"
-            onClick={() => setOptions({ showCompleted: !options.showCompleted })}
-            className={`mr-1 flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs focus-visible:ring-2 focus-visible:ring-accent ${options.showCompleted ? "bg-accent-soft font-medium text-fg" : "text-fg-2 hover:bg-surface-2"}`}
-          >
-            <CircleCheckBig size={15} /> Completed
-          </button>
-        )}
-        <div role="radiogroup" aria-label="View mode" className="mr-1 flex rounded-control border border-border bg-bg p-0.5">
+      <ToolbarActions>
+        <div data-tour="toolbar" className="flex items-center gap-1.5">
+        <div role="radiogroup" aria-label="View mode" className="seg">
           {MODES.filter((m) => m.id !== "kanban" || list).map((l) => (
-            <button
-              key={l.id}
-              type="button"
-              role="radio"
-              aria-checked={layout === l.id}
-              title={l.label}
-              onClick={() => setMode(l.id)}
-              className={`flex h-7 items-center gap-1.5 rounded-[6px] px-2 text-xs ${layout === l.id ? "bg-raised font-medium text-fg" : "text-muted hover:text-fg"}`}
-            >
-              <l.icon size={14} /> {l.label}
+            <button key={l.id} type="button" role="radio" aria-checked={layout === l.id} onClick={() => setMode(l.id)} className={`seg-item ${layout === l.id ? "is-on" : ""}`}>
+              <l.icon size={16} strokeWidth={1.75} /> {l.label}
             </button>
           ))}
         </div>
+        <span className="tb-sep" aria-hidden />
+        {spec.splitCompleted && (
+          <button type="button" aria-pressed={options.showCompleted} title="Show completed" onClick={() => setOptions({ showCompleted: !options.showCompleted })} className="btn btn-ghost">
+            <CircleCheckBig size={16} strokeWidth={1.75} /> Completed
+          </button>
+        )}
         {layout === "list" && (
-          <button ref={menu.anchor} type="button" onClick={menu.toggle} className="flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs text-fg-2 hover:bg-surface-2">
-            <ListFilter size={15} />
-            {options.groupBy !== "none" ? `Grouped by ${options.groupBy}` : `Sort: ${SORTS.find((s) => s.id === options.sortBy)?.label}`}
+          <button ref={menu.anchor} type="button" onClick={menu.toggle} aria-haspopup="menu" aria-expanded={menu.open} className="btn btn-ghost">
+            <ListFilter size={16} strokeWidth={1.75} />
+            {options.groupBy !== "none" ? `Group: ${GROUPS.find((g) => g.id === options.groupBy)?.label}` : `Sort: ${SORTS.find((s) => s.id === options.sortBy)?.label}`}
           </button>
         )}
         {menu.open && (
@@ -151,15 +141,23 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         )}
         {list && list.id !== "inbox" && (
           <ListDialogButton list={list}>
-            <Settings2 size={16} />
+            <Settings2 size={16} strokeWidth={1.75} />
           </ListDialogButton>
         )}
+        </div>
+      </ToolbarActions>
+      <div className={`${page} px-8 pb-3`}>
+        <FilterBar view={spec.id} />
       </div>
-      {spec.id === "today" && <GettingStartedCard />}
-      {spec.id === "today" && <CountdownChips />}
+      {spec.id === "today" && (
+        <div className={`${page} px-8`}>
+          <GettingStartedCard />
+          <CountdownChips />
+        </div>
+      )}
 
       {spec.canAdd && layout !== "kanban" && layout !== "matrix" && (
-        <div data-tour="quickadd" className="px-4 pb-2">
+        <div data-tour="quickadd" className={`${page} px-8 pb-3`}>
           <QuickAdd
             defaults={spec.defaults(today)}
             isVisible={(t) => {
@@ -170,7 +168,11 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         </div>
       )}
 
-      {spec.id === "today" && <TodayHabits />}
+      {spec.id === "today" && (
+        <div className={`${page} px-8`}>
+          <TodayHabits />
+        </div>
+      )}
 
       {vms.length === 0 ? (
         <EmptyState icon={spec.icon} title={query ? "No matches" : (EMPTY[spec.id]?.[0] ?? "Nothing here yet")}>

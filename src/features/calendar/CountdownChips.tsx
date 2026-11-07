@@ -28,15 +28,15 @@ export function CountdownChips() {
     return n < 0 ? `${e.title} was ${days} ago` : `${days} until ${e.title}`;
   };
   return (
-    <ul aria-label="Pinned countdowns" className="flex flex-wrap gap-2 px-6 pb-3">
+    <ul aria-label="Pinned countdowns" className="flex flex-wrap gap-2 pb-3">
       {chips.map((chip) => (
         <li key={chip.e.id}>
           <button
             type="button"
             onClick={() => openEvent(chip.e.id)}
-            className="flex h-7 items-center gap-1.5 rounded-control border border-border px-2.5 text-xs text-fg-2 transition-colors duration-[var(--dur)] hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+            className="cd-chip"
           >
-            <Hourglass size={13} style={chip.e.color ? { color: chip.e.color } : undefined} />
+            <Hourglass size={16} strokeWidth={1.75} style={chip.e.color ? { color: chip.e.color } : undefined} />
             <span className="tabular-nums">{text(chip)}</span>
           </button>
         </li>

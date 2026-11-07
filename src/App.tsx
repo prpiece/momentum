@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { ContextMenu } from "./components/ui/ContextMenu";
 import { EmptyState } from "./components/ui/EmptyState";
 import { Toaster } from "./components/ui/Toaster";
+import { TOOLBAR_SLOT_ID } from "./components/ui/Toolbar";
 import { CelebrationOverlay } from "./features/celebrate/CelebrationOverlay";
 import { UpdatePrompt } from "./features/shell/UpdatePrompt";
 import { WhatsNew } from "./features/shell/WhatsNew";
@@ -61,8 +62,8 @@ function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | n
   const parent = crumbParent(view, spec, folders);
   return (
     // The toolbar (D198). Also the window's title bar: drag to move, double-click to maximize (children pass clicks through).
-    <header data-tauri-drag-region className="flex h-12 shrink-0 select-none items-center gap-1.5 border-b border-border pl-6 pr-3 [&>:not(:last-child)]:pointer-events-none">
-      <h1 className="flex min-w-0 items-center gap-1 text-[length:var(--fs-sm)] text-muted">
+    <header data-tauri-drag-region className="flex h-12 shrink-0 select-none items-center gap-1.5 border-b border-border pl-6 pr-3">
+      <h1 className="pointer-events-none flex min-w-0 shrink items-center gap-1 text-[length:var(--fs-sm)] text-muted">
         {parent && (
           <>
             <span className="truncate">{parent}</span>
@@ -71,7 +72,8 @@ function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | n
         )}
         <b className="truncate font-semibold text-fg">{spec?.title ?? navFor(view).label}</b>
       </h1>
-      <span className="flex-1" />
+      <span className="pointer-events-none flex-1" />
+      <div id={TOOLBAR_SLOT_ID} className="flex shrink-0 items-center gap-1.5" />
       {/* The top bar layout has them in the bar. */}
       {controls && <WindowControls />}
     </header>

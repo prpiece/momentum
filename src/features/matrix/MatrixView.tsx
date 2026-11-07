@@ -47,8 +47,8 @@ export function MatrixView({ vms, defaults }: { vms: readonly TaskVM[]; defaults
   }, [vms, rules, today]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-4 pb-4">
-      <div className="flex items-center justify-end px-2 pb-2">
+    <div className="flex h-full min-h-0 flex-col px-8 pb-6">
+      <div className="flex items-center justify-end pb-2">
         <RulesEditor />
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3">
@@ -76,22 +76,19 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
     <section
       ref={setNodeRef}
       aria-label={info.title}
-      className={`flex min-h-0 flex-col rounded-panel border bg-raised transition-colors duration-[var(--dur)] ${isOver ? "border-accent bg-accent-soft" : "border-border"}`}
-      style={{ borderTopColor: QUADRANT_VAR[q], borderTopWidth: 3, ...(isOver ? {} : { backgroundColor: `color-mix(in srgb, ${QUADRANT_VAR[q]} 7%, var(--raised))` }) }}
+      className={`flex min-h-0 flex-col overflow-hidden rounded-card border px-2 pb-2 pt-2.5 ${isOver ? "border-accent-text bg-accent-soft" : "border-border bg-surface"}`}
     >
-      <header className="flex items-baseline gap-2 px-4 pb-2 pt-3">
-        <span className="grid size-5 place-items-center rounded-full tabular-nums text-[0.7rem] font-bold" style={{ background: QUADRANT_VAR[q], color: "var(--on-strong)" }}>
-          {q}
-        </span>
-        <h2 className="text-sm font-semibold">{info.title}</h2>
-        <span className="text-xs text-muted">{info.hint}</span>
-        <span className="ml-auto tabular-nums text-xs text-muted">{items.length}</span>
+      <header className="flex items-center gap-2 px-1 pb-2">
+        <span className="h-[18px] w-[3px] shrink-0 rounded-[2px]" style={{ background: QUADRANT_VAR[q] }} aria-hidden />
+        <h2 className="text-[length:var(--fs-sm)] font-semibold">{info.title}</h2>
+        <span className="truncate text-[length:var(--fs-xs)] text-muted">{info.hint}</span>
+        <span className="ml-auto text-[length:var(--fs-xs)] tabular-nums text-muted">{items.length}</span>
       </header>
-      <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
+      <ul className="min-h-0 flex-1 overflow-y-auto">
         {items.map((vm) => (
           <MatrixItem key={vm.task.id} vm={vm} />
         ))}
-        {!items.length && <li className="px-2 py-6 text-center text-xs text-muted">Drop tasks here</li>}
+        {!items.length && <li className="px-1 py-2 text-[length:var(--fs-sm)] text-muted">Drop tasks here</li>}
       </ul>
       <input
         value={draft}
@@ -99,7 +96,7 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
         onKeyDown={(e) => e.key === "Enter" && add()}
         placeholder={`+ Add to ${info.title}`}
         aria-label={`Add task to ${info.title}`}
-        className="m-2 h-9 rounded-control bg-transparent px-2 text-sm outline-none placeholder:text-muted focus:bg-surface"
+        className="mt-1 h-8 shrink-0 rounded-control border border-transparent bg-transparent px-2 text-[length:var(--fs-sm)] outline-none placeholder:text-muted hover:bg-surface-2 focus-visible:border-accent-text focus-visible:bg-surface focus-visible:shadow-[var(--focus-ring-input)] focus-visible:outline-none"
       />
     </section>
   );
@@ -120,18 +117,18 @@ function MatrixItem({ vm }: { vm: TaskVM }) {
       onClick={() => !justDragged() && openTask(t.id, vm.key)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => e.key === "Enter" && openTask(t.id, vm.key)}
-      className={`flex cursor-grab items-center gap-2.5 rounded-control px-2 py-1.5 text-sm transition-colors ${selected ? "bg-accent-soft" : "hover:bg-surface-2"} ${isDragging ? "opacity-40" : ""}`}
+      className={`flex h-[var(--row-compact)] cursor-grab items-center gap-2.5 rounded-control px-1 text-[length:var(--fs-sm)] ${selected ? "bg-accent-soft" : "hover:bg-surface-2"} ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} size={16} />
-      <span className="min-w-0 flex-1 truncate">{t.title}</span>
+      <span className="min-w-0 flex-1 truncate font-medium">{t.title}</span>
       {kids.length > 0 && (
-        <span className="flex shrink-0 items-center gap-1 text-xs text-muted" aria-label="Subtasks done">
-          <ListTree size={12} />
+        <span className="flex shrink-0 items-center gap-[3px] tabular-nums text-muted" aria-label="Subtasks done">
+          <ListTree size={16} strokeWidth={1.75} />
           {kids.filter((k) => k.task.status !== "open").length}/{kids.length}
         </span>
       )}
-      {vm.date && <span className={`shrink-0 text-xs ${vm.date < today ? "text-danger" : "text-muted"}`}>{relativeDayLabel(vm.date, today)}</span>}
-      {list && list.id !== "inbox" && <span className="max-w-24 shrink-0 truncate text-xs text-muted">{list.name}</span>}
+      {vm.date && <span className={`shrink-0 tabular-nums ${vm.date < today ? "text-danger" : "text-fg-2"}`}>{relativeDayLabel(vm.date, today)}</span>}
+      {list && list.id !== "inbox" && <span className="max-w-24 shrink-0 truncate text-muted">{list.name}</span>}
     </li>
   );
 }
@@ -195,7 +192,7 @@ function RulesEditor() {
   };
   return (
     <>
-      <button ref={menu.anchor} type="button" onClick={menu.toggle} className="flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs text-fg-2 hover:bg-surface-2">
+      <button ref={menu.anchor} type="button" onClick={menu.toggle} className="btn btn-ghost btn-sm">
         <Settings2 size={15} /> Rules
       </button>
       {menu.open && (
@@ -208,7 +205,7 @@ function RulesEditor() {
                 type="button"
                 aria-pressed={rules.importantPriorities.includes(p)}
                 onClick={() => toggle(p)}
-                className={`h-7 rounded-full px-3 text-xs ${rules.importantPriorities.includes(p) ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
+                className="btn btn-ghost btn-sm border-border"
               >
                 {PRIORITY_LABEL[p]}
               </button>

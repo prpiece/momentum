@@ -141,3 +141,16 @@
   .prop > .prop-v > svg { color: var(--fg-2); flex: none; }
   .prop > .prop-v.is-empty { color: var(--muted); }
 }
+
+/* A ghost button that toggles (Show completed): on looks like a selected item. */
+@layer components {
+  .btn-ghost[aria-pressed="true"] { background: var(--accent-soft); color: var(--fg); }
+  .btn-ghost[aria-pressed="true"] > svg { color: var(--accent-text); }
+  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex: none; }
+}
+
+/* Pinned countdown chip (Today). */
+@layer components {
+  .cd-chip { height: 28px; padding: 0 10px; border-radius: var(--r-full); background: var(--surface-2); display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--fg-2); white-space: nowrap; }
+  .cd-chip:hover { color: var(--fg); background: var(--border); }
+}
