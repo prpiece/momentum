@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight, PanelRight, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
+import { Switch } from "../../components/ui/Switch";
+import { ToolbarActions } from "../../components/ui/Toolbar";
 import { dayRange, rangeTitle, stepAnchor, viewDays } from "../../domain/calendar";
 import { addDaysLocal, todayLocal } from "../../domain/dates";
 import { CAL_VIEWS, type CalView, type CalendarSettings } from "../../domain/types";
@@ -65,25 +67,24 @@ export function CalendarView() {
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex flex-wrap items-center gap-2 px-6 pb-3">
-          <button type="button" onClick={() => setCalAnchor(todayLocal())} className="h-8 rounded-control border border-border px-3 text-sm font-medium hover:bg-surface-2" title="Today (T)">
+        <ToolbarActions>
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={() => setCalAnchor(todayLocal())} className="btn btn-secondary" title="Today (T)">
             Today
           </button>
-          <div className="flex">
-            <button type="button" aria-label="Previous" title="Previous (←)" onClick={() => setCalAnchor(step(anchor, -1))} className="grid size-8 place-items-center rounded-control text-fg-2 hover:bg-surface-2">
-              <ChevronLeft size={18} />
-            </button>
-            <button type="button" aria-label="Next" title="Next (→)" onClick={() => setCalAnchor(step(anchor, 1))} className="grid size-8 place-items-center rounded-control text-fg-2 hover:bg-surface-2">
-              <ChevronRight size={18} />
-            </button>
-          </div>
-          <h2 className="mr-auto text-base font-semibold tracking-tight">{rangeTitle(span ? "5day" : view, days, anchor)}</h2>
+          <button type="button" aria-label="Previous" title="Previous (←)" onClick={() => setCalAnchor(step(anchor, -1))} className="btn btn-ghost icon-btn">
+            <ChevronLeft size={18} strokeWidth={1.75} />
+          </button>
+          <button type="button" aria-label="Next" title="Next (→)" onClick={() => setCalAnchor(step(anchor, 1))} className="btn btn-ghost icon-btn">
+            <ChevronRight size={18} strokeWidth={1.75} />
+          </button>
+          <h2 className="ml-1 mr-3 whitespace-nowrap text-[length:var(--fs-lg)] font-semibold leading-[var(--lh-lg)]">{rangeTitle(span ? "5day" : view, days, anchor)}</h2>
           {span && (
-            <button type="button" onClick={() => setCalSpan(null)} title="Back to the selected view" className="anim-pop flex h-7 items-center gap-1 rounded-full bg-accent-soft px-2.5 text-xs font-medium text-accent hover:bg-accent hover:text-accent-fg">
-              {span} days <X size={12} />
+            <button type="button" onClick={() => setCalSpan(null)} title="Back to the selected view" aria-pressed="true" className="anim-pop btn btn-ghost btn-sm">
+              {span} days <X size={14} strokeWidth={1.75} />
             </button>
           )}
-          <div role="radiogroup" aria-label="Calendar view" className="flex rounded-control border border-border bg-bg p-0.5">
+          <div role="radiogroup" aria-label="Calendar view" className="seg">
             {CAL_VIEWS.map((v) => (
               <button
                 key={v}
@@ -92,24 +93,25 @@ export function CalendarView() {
                 aria-checked={!span && view === v}
                 title={`${LABEL[v][0]} (${LABEL[v][1]})`}
                 onClick={() => setCal({ view: v })}
-                className={`h-7 rounded-[6px] px-2.5 text-xs ${!span && view === v ? "bg-raised font-semibold text-fg" : "text-muted hover:text-fg"}`}
+                className={`seg-item ${!span && view === v ? "is-on" : ""}`}
               >
                 {LABEL[v][0]}
               </button>
             ))}
           </div>
-          <button ref={options.anchor} type="button" aria-label="View options" title="View options" onClick={options.toggle} className="grid size-8 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg">
-            <SlidersHorizontal size={16} />
+          <span className="tb-sep" aria-hidden />
+          <button ref={options.anchor} type="button" aria-label="View options" title="View options" onClick={options.toggle} className="btn btn-ghost icon-btn">
+            <SlidersHorizontal size={16} strokeWidth={1.75} />
           </button>
-          <button type="button" aria-label="Toggle side panel" aria-pressed={cal.arrangeOpen} title="Arrange tasks" onClick={() => setCal({ arrangeOpen: !cal.arrangeOpen })} className={`grid size-8 place-items-center rounded-control hover:bg-surface-2 ${cal.arrangeOpen ? "text-accent" : "text-muted"}`}>
-            <PanelRight size={16} />
+          <button type="button" aria-label="Toggle side panel" aria-pressed={cal.arrangeOpen} title="Arrange tasks" onClick={() => setCal({ arrangeOpen: !cal.arrangeOpen })} className={`btn btn-ghost icon-btn ${cal.arrangeOpen ? "is-on" : ""}`}>
+            <PanelRight size={16} strokeWidth={1.75} />
           </button>
           {options.open && (
             <Popover anchor={options.anchor} onClose={options.close} align="end" className="w-60 p-2">
               <MenuLabel>Color by</MenuLabel>
-              <div className="flex gap-1 px-1.5 pb-1">
+              <div className="seg mx-1.5 mb-1 flex">
                 {(["list", "priority", "tag"] as const).map((c) => (
-                  <button key={c} type="button" onClick={() => setCal({ colorBy: c })} className={`h-7 flex-1 rounded-control text-xs capitalize ${cal.colorBy === c ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}>
+                  <button key={c} type="button" onClick={() => setCal({ colorBy: c })} className={`seg-item flex-1 justify-center capitalize ${cal.colorBy === c ? "is-on" : ""}`}>
                     {c}
                   </button>
                 ))}
@@ -123,24 +125,25 @@ export function CalendarView() {
                   ["showFocus", "Focus records"],
                 ] as const
               ).map(([k, label]) => (
-                <label key={k} className="flex cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-1.5 text-sm hover:bg-surface-2">
-                  <input type="checkbox" checked={cal[k]} onChange={(e) => setCal({ [k]: e.target.checked })} className="size-4 accent-[var(--accent)]" />
+                <div key={k} className="menu-item justify-between">
                   {label}
-                </label>
+                  <Switch checked={cal[k]} onChange={(v) => setCal({ [k]: v })} label={label} />
+                </div>
               ))}
               <MenuSeparator />
               <MenuLabel>Density</MenuLabel>
-              <div className="flex gap-1 px-1.5 pb-1">
+              <div className="seg mx-1.5 mb-1 flex">
                 {(["comfortable", "compact"] as const).map((d) => (
-                  <button key={d} type="button" onClick={() => setCal({ density: d })} className={`h-7 flex-1 rounded-control text-xs capitalize ${cal.density === d ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}>
+                  <button key={d} type="button" onClick={() => setCal({ density: d })} className={`seg-item flex-1 justify-center capitalize ${cal.density === d ? "is-on" : ""}`}>
                     {d}
                   </button>
                 ))}
               </div>
-              <p className="px-2.5 pt-1 text-[0.7rem] text-muted">Week start and 12/24-hour time are in Settings.</p>
+              <p className="px-2 pt-1 text-[length:var(--fs-xs)] text-muted">Week start and 12/24-hour time are in Settings.</p>
             </Popover>
           )}
         </div>
+        </ToolbarActions>
         {span ? (
           <TimeGrid days={days} items={items} onViewDay={openDay} />
         ) : view === "month" ? (

@@ -20,7 +20,7 @@ const MAX_SPAN = 14;
 /** Mini month picker + "Arrange tasks": unscheduled tasks to drag onto the calendar. */
 export function SidePanel({ weekStart, visible }: { weekStart: WeekStart; visible: string[] }) {
   return (
-    <aside aria-label="Calendar panel" className="flex w-72 shrink-0 flex-col border-l border-border">
+    <aside aria-label="Calendar panel" className="flex w-[var(--side-panel)] shrink-0 flex-col border-l border-border">
       <MiniMonth weekStart={weekStart} visible={visible} />
       <ArrangeTasks />
     </aside>
@@ -65,17 +65,17 @@ function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: stri
   return (
     <div className="border-b border-border p-3">
       <div className="mb-2 flex items-center">
-        <span className="flex-1 text-sm font-semibold">{format(fromLocalDate(month), "MMMM yyyy")}</span>
-        <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
+        <span className="flex-1 text-[length:var(--fs-sm)] font-semibold">{format(fromLocalDate(month), "MMMM yyyy")}</span>
+        <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="btn btn-ghost btn-sm icon-btn text-muted">
           <ChevronLeft size={15} />
         </button>
-        <button type="button" aria-label="Next month" onClick={() => shift(1)} className="grid size-7 place-items-center rounded-control text-muted hover:bg-surface-2">
+        <button type="button" aria-label="Next month" onClick={() => shift(1)} className="btn btn-ghost btn-sm icon-btn text-muted">
           <ChevronRight size={15} />
         </button>
       </div>
       <div className="grid grid-cols-7 text-center">
         {days.slice(0, 7).map((d) => (
-          <span key={d} className="pb-1 text-[0.65rem] font-semibold text-muted">
+          <span key={d} className="pb-1 text-[length:var(--fs-xs)] font-medium text-muted">
             {format(fromLocalDate(d), "EEEEE")}
           </span>
         ))}
@@ -90,7 +90,7 @@ function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: stri
               onPointerEnter={() => dragRef.current && setDrag({ ...dragRef.current, to: d })}
               onClick={(e) => e.detail === 0 && setCalAnchor(d)}
               aria-label={format(fromLocalDate(d), "EEEE, MMMM d")}
-              className={`mx-auto grid size-7 select-none place-items-center rounded-full tabular-nums text-xs transition-colors ${
+              className={`mx-auto grid size-6 select-none place-items-center rounded-full tabular-nums text-[length:var(--fs-xs)] ${
                 d === today && !dragging ? "bg-accent font-semibold text-accent-fg" : dragging ? "bg-accent/70 text-accent-fg" : inRange ? "bg-accent-soft text-fg" : fromLocalDate(d).getMonth() === m ? "text-fg hover:bg-surface-2" : "text-muted hover:bg-surface-2"
               }`}
             >
@@ -120,10 +120,10 @@ function ArrangeTasks() {
   return (
     <div ref={setNodeRef} className={`flex min-h-0 flex-1 flex-col transition-colors ${isOver ? "bg-accent-soft" : ""}`}>
       <div className="px-3 pt-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">Arrange tasks · {tasks.length}</h3>
-        <p className="mt-0.5 text-[0.7rem] text-muted">Drag onto the calendar to schedule; drag a block here to unschedule.</p>
+        <h3 className="t-label text-muted">Arrange tasks <span className="tabular-nums">{tasks.length}</span></h3>
+        <p className="mt-0.5 text-[length:var(--fs-xs)] text-muted">Drag onto the calendar to schedule; drag a block here to unschedule.</p>
         <div className="mt-2 flex gap-1.5">
-          <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Filter by list" className="h-7 min-w-0 flex-1 rounded-control border border-border bg-surface px-1.5 text-xs">
+          <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Filter by list" className="input h-7 min-w-0 flex-1 px-1.5 text-xs">
             <option value="">All lists</option>
             {Object.values(lists)
               .filter((l) => !l.archived)
@@ -133,7 +133,7 @@ function ArrangeTasks() {
                 </option>
               ))}
           </select>
-          <select value={minPriority} onChange={(e) => setMinPriority(PRIORITIES.find((x) => x === Number(e.target.value)) ?? 0)} aria-label="Minimum priority" className="h-7 rounded-control border border-border bg-surface px-1.5 text-xs">
+          <select value={minPriority} onChange={(e) => setMinPriority(PRIORITIES.find((x) => x === Number(e.target.value)) ?? 0)} aria-label="Minimum priority" className="input h-7 w-auto px-1.5 text-xs">
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>
                 {p === 0 ? "Any priority" : `${PRIORITY_LABEL[p]}+`}
@@ -147,7 +147,7 @@ function ArrangeTasks() {
           <ArrangeItem key={vm.task.id} vm={vm} />
         ))}
         {!tasks.length && (
-          <li className="flex flex-col items-center gap-2 px-3 py-8 text-center text-xs text-muted">
+          <li className="flex flex-col items-center gap-2 px-3 py-8 text-center text-[length:var(--fs-sm)] text-muted">
             <Inbox size={22} />
             Every task has a date.
           </li>
@@ -167,7 +167,7 @@ function ArrangeItem({ vm }: { vm: TaskVM }) {
       {...listeners}
       onClick={() => openTask(t.id)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, null))}
-      className={`flex cursor-grab items-center gap-2 rounded-control border border-border bg-raised px-2 py-1.5 text-sm hover:border-accent ${isDragging ? "opacity-40" : ""}`}
+      className={`flex h-[var(--row-compact)] cursor-grab items-center gap-2 rounded-control border border-border bg-surface px-2 text-[length:var(--fs-sm)] hover:border-border-strong ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id)} label={`Complete ${t.title}`} size={15} />
       <span className="truncate">{t.title}</span>

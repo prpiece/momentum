@@ -40,7 +40,7 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
 
   return (
     <Popover anchor={draft.anchor} onClose={close} className="w-72 p-3">
-      <div role="radiogroup" aria-label="Create" className="mb-2 flex gap-1">
+      <div role="radiogroup" aria-label="Create" className="seg mb-2 flex">
         {(["task", "event"] as const).map((k) => (
           <button
             key={k}
@@ -48,7 +48,7 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
             role="radio"
             aria-checked={kind === k}
             onClick={() => setKind(k)}
-            className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs ${kind === k ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
+            className={`seg-item flex-1 justify-center ${kind === k ? "is-on" : ""}`}
           >
             {k === "task" ? <CheckCircle2 size={13} /> : <CalendarDays size={13} />}
             {k === "task" ? "Task" : "Event"}
@@ -64,12 +64,12 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
         aria-label="Title"
         className="input w-full"
       />
-      <div className="mt-1.5 tabular-nums text-[0.7rem] text-muted">{when}</div>
+      <div className="mt-1.5 tabular-nums text-[length:var(--fs-xs)] text-muted">{when}</div>
       <div className="mt-3 flex justify-between">
-        <button type="button" onClick={() => create(true)} className="h-8 rounded-control px-2 text-xs text-fg-2 hover:bg-surface-2">
+        <button type="button" onClick={() => create(true)} className="btn btn-ghost btn-sm">
           More options
         </button>
-        <button type="button" onClick={() => create(false)} className="h-8 rounded-control bg-accent px-3 text-xs font-medium text-accent-fg hover:bg-accent-hover">
+        <button type="button" onClick={() => create(false)} className="btn btn-primary btn-sm">
           Save
         </button>
       </div>

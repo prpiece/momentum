@@ -33,9 +33,10 @@ export const onItemMenu = (item: CalItem) => (e: React.MouseEvent) => {
   if (items.length) openContextMenu(e, items);
 };
 
+/** The mocks event fill: a light tint of the item colour on the surface, with a stronger border of it (D198). */
 const tint = (color: string, done: boolean) => ({
-  background: `color-mix(in oklch, ${color} ${done ? 8 : 18}%, var(--raised))`,
-  borderLeftColor: color,
+  background: `color-mix(in srgb, ${color} ${done ? 6 : 14}%, var(--surface))`,
+  borderColor: `color-mix(in srgb, ${color} ${done ? 20 : 40}%, var(--surface))`,
 });
 
 function useBlockDrag(item: CalItem, scope: string) {
@@ -59,10 +60,9 @@ function DoneCheck({ item }: { item: CalItem }) {
         e.stopPropagation();
         toggleDone(item.id, item.key);
       }}
-      className="mt-px grid size-3.5 shrink-0 place-items-center rounded-full border-[1.5px]"
-      style={{ borderColor: item.color, background: item.done ? item.color : "transparent" }}
+      className={`check mt-px size-3 [&>svg]:size-2 ${item.done ? "" : (["", "p-low", "p-med", "p-high"][item.priority] ?? "")}`}
     >
-      {item.done && <Check size={9} strokeWidth={4} className="text-white" />}
+      <Check strokeWidth={3} />
     </button>
   );
 }
@@ -117,9 +117,9 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
       onContextMenu={onItemMenu(item)}
       onKeyDown={(e) => e.key === "Enter" && openItem(item)}
       aria-label={`${item.title}, ${label}`}
-      className={`group absolute overflow-hidden rounded-control border-l-[3px] px-1.5 py-0.5 text-xs leading-tight transition-[opacity,box-shadow] duration-[var(--dur)] hover:z-10 hover:shadow-float ${
+      className={`group absolute overflow-hidden rounded-control border px-1.5 py-[3px] text-[length:var(--fs-xs)] leading-[var(--lh-xs)] transition-opacity duration-[var(--dur)] hover:z-10 ${
         item.readOnly ? "cursor-default" : "cursor-grab"
-      } ${isDragging ? "opacity-30" : ""} ${item.done ? "opacity-60" : ""} ${preview ? "z-20 ring-2 ring-accent" : ""}`}
+      } ${isDragging ? "opacity-30" : ""} ${item.done ? "opacity-60" : ""} ${preview ? "z-20 ring-2 ring-accent-text" : ""}`}
       style={{
         top: top * px,
         height: Math.max(height, 14),
@@ -133,10 +133,10 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
       )}
       <div className="flex items-start gap-1">
         <DoneCheck item={item} />
-        <span className={`min-w-0 flex-1 truncate font-medium ${item.done ? "line-through" : ""}`}>{item.title}</span>
-        {item.recurring && <Repeat size={10} className="mt-0.5 shrink-0 opacity-60" />}
+        <span className={`min-w-0 flex-1 truncate text-[length:var(--fs-sm)] font-medium leading-[var(--lh-sm)] ${item.done ? "line-through" : ""}`}>{item.title}</span>
+        {item.recurring && <Repeat size={12} strokeWidth={1.75} className="mt-0.5 shrink-0 text-fg-2" />}
       </div>
-      {height > 30 && <div className="truncate tabular-nums text-[0.65rem] text-fg-2">{preview ? "…" : label}</div>}
+      {height > 30 && <div className="truncate tabular-nums text-fg-2">{preview ? "…" : label}</div>}
       {!item.readOnly && (
         <div onPointerDown={startResize("end")} className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize" aria-hidden="true" />
       )}
@@ -156,15 +156,15 @@ export const Chip = memo(function Chip({ item, scope, showTime }: { item: CalIte
       onClick={() => openItem(item)}
       onContextMenu={onItemMenu(item)}
       onKeyDown={(e) => e.key === "Enter" && openItem(item)}
-      className={`flex h-5 min-w-0 items-center gap-1 rounded-[5px] border-l-[3px] px-1.5 text-[0.7rem] leading-none ${item.readOnly ? "" : "cursor-grab"} ${
+      className={`flex h-5 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden rounded-xs border px-1.5 text-[length:var(--fs-xs)] leading-none hover:bg-surface-2 ${item.readOnly ? "" : "cursor-grab"} ${
         isDragging ? "opacity-30" : ""
       } ${item.done ? "opacity-60" : ""}`}
-      style={item.allDay ? tint(item.color, item.done) : { borderLeftColor: "transparent" }}
+      style={item.allDay ? tint(item.color, item.done) : { borderColor: "transparent" }}
     >
       {!item.allDay && <span className="size-1.5 shrink-0 rounded-full" style={{ background: item.color }} />}
       <DoneCheck item={item} />
-      {showTime && item.start && <span className="shrink-0 tabular-nums text-[0.65rem] text-muted">{formatTime(item.start, timeFormat)}</span>}
-      <span className={`truncate font-medium ${item.done ? "line-through" : ""}`}>{item.title}</span>
+      {showTime && item.start && <span className="shrink-0 tabular-nums text-muted">{formatTime(item.start, timeFormat)}</span>}
+      <span className={`min-w-0 truncate ${item.allDay ? "font-medium" : ""} ${item.done ? "line-through" : ""}`}>{item.title}</span>
     </div>
   );
 });

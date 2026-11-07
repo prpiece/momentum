@@ -54,16 +54,16 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         {days.map((d) => {
           const date = fromLocalDate(d);
           return (
-            <button key={d} type="button" onClick={() => onViewDay(d)} className="flex flex-col items-center py-2 hover:bg-surface-2">
-              <span className={`text-[0.7rem] font-semibold uppercase tracking-wider ${d === today ? "text-accent" : "text-muted"}`}>{format(date, "EEE")}</span>
-              <span className={`mt-0.5 grid size-8 place-items-center rounded-full tabular-nums text-lg ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
+            <button key={d} type="button" onClick={() => onViewDay(d)} className="flex h-14 min-w-0 items-center gap-2 border-l border-border px-2.5 hover:bg-surface-2">
+              <span className={`t-label ${d === today ? "text-accent-text" : "text-muted"}`}>{format(date, "EEE")}</span>
+              <span className={`grid size-7 place-items-center rounded-full text-[length:var(--fs-lg)] font-semibold tabular-nums ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
             </button>
           );
         })}
       </div>
 
       <div className="grid border-b border-border pr-2" style={{ gridTemplateColumns: cols }}>
-        <div className="pr-2 pt-1.5 text-right text-[0.65rem] text-muted">all-day</div>
+        <div className="flex items-center justify-end pr-2 text-[length:var(--fs-xs)] text-muted">all-day</div>
         {byDay.map(({ day, allDay }) => (
           <AllDayCell key={day} day={day} items={allDay} onCreate={(anchor) => setDraft({ anchor, schedule: { kind: "day", date: day } })} />
         ))}
@@ -73,7 +73,7 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         <div className="relative grid" style={{ gridTemplateColumns: cols, height: 24 * hourPx }}>
           <div className="relative">
             {Array.from({ length: 23 }, (_, i) => i + 1).map((h) => (
-              <span key={h} className="absolute right-2 -translate-y-1/2 tabular-nums text-[0.65rem] text-muted" style={{ top: h * hourPx }}>
+              <span key={h} className="absolute right-2 -translate-y-1/2 tabular-nums text-[length:var(--fs-xs)] text-muted" style={{ top: h * hourPx }}>
                 {formatTime(new Date(2000, 0, 1, h), timeFormat)}
               </span>
             ))}
@@ -113,7 +113,7 @@ function AllDayCell({ day, items, onCreate }: { day: string; items: CalItem[]; o
         <Chip key={i.uid} item={i} scope={`allday:${day}`} />
       ))}
       {items.length > ALL_DAY_ROWS && (
-        <button type="button" onClick={() => setExpanded(!expanded)} className="px-1 text-[0.65rem] font-medium text-muted hover:text-fg">
+        <button type="button" onClick={() => setExpanded(!expanded)} className="px-1 text-[length:var(--fs-xs)] font-medium text-muted hover:text-fg">
           {expanded ? "Show less" : `+${items.length - ALL_DAY_ROWS} more`}
         </button>
       )}
@@ -175,25 +175,25 @@ function DayColumn(props: {
       ref={setNodeRef}
       data-cal-col={props.day}
       onPointerDown={onPointerDown}
-      className={`relative border-l border-border ${isOver ? "bg-accent-soft/40" : props.isToday ? "bg-[color-mix(in_oklch,var(--accent)_3%,transparent)]" : ""}`}
+      className={`relative border-l border-border ${isOver ? "bg-accent-soft/40" : props.isToday ? "bg-[color-mix(in_srgb,var(--accent-soft)_40%,transparent)]" : ""}`}
       style={{
         backgroundImage: `repeating-linear-gradient(to bottom, var(--border) 0 1px, transparent 1px ${props.hourPx}px)`,
       }}
     >
       {props.children}
       {sel && (
-        <div className="pointer-events-none absolute inset-x-1 z-20 rounded-control border-2 border-accent bg-accent-soft px-1.5 py-0.5 text-[0.7rem] font-medium" style={{ top: sel.from * px, height: (sel.to - sel.from) * px }}>
+        <div className="pointer-events-none absolute inset-x-1 z-20 rounded-control border-2 border-accent-text bg-accent-soft px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium" style={{ top: sel.from * px, height: (sel.to - sel.from) * px }}>
           {formatTime(new Date(2000, 0, 1, 0, sel.from), timeFormat)} – {formatTime(new Date(2000, 0, 1, 0, sel.to), timeFormat)}
         </div>
       )}
       {props.ghost && (
-        <div className="pointer-events-none absolute inset-x-1 z-30 rounded-control border-2 border-dashed border-accent bg-accent-soft px-1.5 text-[0.7rem] font-semibold" style={{ top: props.ghost.top * px, height: Math.max(props.ghost.minutes, SNAP) * px }}>
+        <div className="pointer-events-none absolute inset-x-1 z-30 rounded-control border-2 border-dashed border-accent-text bg-accent-soft px-1.5 text-[length:var(--fs-xs)] font-semibold" style={{ top: props.ghost.top * px, height: Math.max(props.ghost.minutes, SNAP) * px }}>
           {formatTime(new Date(2000, 0, 1, 0, props.ghost.top), timeFormat)}
         </div>
       )}
       {props.isToday && (
         <div className="pointer-events-none absolute inset-x-0 z-20" style={{ top: nowTop }} aria-label="Current time">
-          <div className="absolute -left-1.5 -top-1.5 size-3 rounded-full bg-accent" />
+          <div className="absolute -left-1 -top-[3px] size-2 rounded-full bg-accent" />
           <div className="h-0.5 bg-accent" />
         </div>
       )}

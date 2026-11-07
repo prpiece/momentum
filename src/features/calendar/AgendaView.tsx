@@ -12,20 +12,20 @@ export function AgendaView({ days, items }: { days: string[]; items: CalItem[] }
   const timeFormat = useSettings((s) => s.settings.timeFormat);
   const today = todayLocal();
   const groups = days.map((d) => ({ day: d, items: itemsOnDay(items, d) })).filter((g) => g.items.length);
-  if (!groups.length) return <p className="p-10 text-center text-sm text-muted">Nothing scheduled in the next 30 days.</p>;
+  if (!groups.length) return <p className="p-10 text-center text-[length:var(--fs-sm)] text-muted">Nothing scheduled in the next 30 days.</p>;
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-10">
+    <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-10">
       {groups.map((g) => (
         <section key={g.day} className="flex gap-6 border-b border-border py-4">
           <div className="w-28 shrink-0">
-            <div className={`text-sm font-semibold ${g.day === today ? "text-accent" : ""}`}>{relativeDayLabel(g.day, today)}</div>
-            <div className="text-xs text-muted">{format(fromLocalDate(g.day), "EEE, MMM d")}</div>
+            <div className={`text-[length:var(--fs-sm)] font-semibold ${g.day === today ? "text-accent-text" : ""}`}>{relativeDayLabel(g.day, today)}</div>
+            <div className="text-[length:var(--fs-xs)] tabular-nums text-muted">{format(fromLocalDate(g.day), "EEE, MMM d")}</div>
           </div>
           <ul className="min-w-0 flex-1 space-y-1">
             {g.items.map((i) => (
               <li key={i.uid}>
                 <div role="button" tabIndex={0} onClick={() => openItem(i)} onContextMenu={onItemMenu(i)} onKeyDown={(e) => e.key === "Enter" && openItem(i)} className="flex items-center gap-3 rounded-control px-2 py-1.5 hover:bg-surface-2">
-                  <span className="w-28 shrink-0 tabular-nums text-xs text-muted">
+                  <span className="w-28 shrink-0 tabular-nums text-[length:var(--fs-sm)] text-muted">
                     {i.allDay || !i.start || !i.end ? "All day" : `${formatTime(i.start, timeFormat)} – ${formatTime(i.end, timeFormat)}`}
                   </span>
                   {i.source === "task" ? (
@@ -33,8 +33,8 @@ export function AgendaView({ days, items }: { days: string[]; items: CalItem[] }
                   ) : (
                     <span className="size-3 shrink-0 rounded-[4px]" style={{ background: i.color }} />
                   )}
-                  <span className={`min-w-0 flex-1 truncate text-sm ${i.done ? "text-muted line-through" : ""}`}>{i.title}</span>
-                  {i.recurring && <Repeat size={12} className="text-muted" />}
+                  <span className={`min-w-0 flex-1 truncate ${i.done ? "text-muted line-through" : ""}`}>{i.title}</span>
+                  {i.recurring && <Repeat size={16} strokeWidth={1.75} className="text-muted" />}
                 </div>
               </li>
             ))}
