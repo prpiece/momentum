@@ -5,7 +5,7 @@ import { Segmented } from "../../components/ui/Segmented";
 import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { splitImport } from "../../domain/bulkImport";
 import { parseQuickAdd } from "../../domain/quickAdd";
-import { PRIORITY_LABEL } from "../../domain/types";
+import { PRIORITY_LABEL, type Task } from "../../domain/types";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { setImport, toast, useUi } from "../../stores/ui";
@@ -41,8 +41,11 @@ function ImportBody() {
   const { items, total } = useMemo(() => splitImport(text, mode === "custom" && sep ? sep : undefined), [text, mode, sep]);
   const preview = useMemo(() => {
     const now = new Date();
-    return items.slice(0, PREVIEW).map((raw) => ({ raw, p: parseQuickAdd(raw, now, parsing, names) }));
+    // Indent by depth so the preview shows the subtask tree.
+    const depth = (i: number): number => ((p) => (p === null ? 0 : 1 + depth(p)))(items[i].parent);
+    return items.slice(0, PREVIEW).map(({ text: raw }, i) => ({ raw, depth: depth(i), p: parseQuickAdd(raw, now, parsing, names) }));
   }, [items, parsing, names]);
+  const subtasks = items.filter((i) => i.parent !== null).length;
   const today = todayLocal();
   const close = () => setImport(false);
 
@@ -50,7 +53,13 @@ function ImportBody() {
     if (!items.length) return;
     const missing = new Set<string>();
     withUndo(`Imported ${items.length} task${items.length === 1 ? "" : "s"}`, () => {
-      for (const line of items) createFromText(line, { listId }, parsing, () => false, "typed", (name) => missing.add(name));
+      // Items come parents first, so each subtask's parent already exists. In pasted order (bottom).
+      const created: (Task | null)[] = [];
+      for (const { text: line, parent } of items) {
+        const p = parent === null ? null : created[parent];
+        const defaults = p ? { listId: p.listId, parentId: p.id } : { listId };
+        created.push(createFromText(line, defaults, parsing, () => false, "typed", (name) => missing.add(name), "bottom"));
+      }
     });
     if (missing.size) toast(`No list named ${[...missing].map((n) => `“${n}”`).join(", ")}; those tasks went to the chosen list`);
     close();
@@ -67,7 +76,7 @@ function ImportBody() {
           onKeyDown={(e) => e.key === "Enter" && (e.ctrlKey || e.metaKey) && (e.preventDefault(), run())}
           rows={7}
           aria-label="Text to import"
-          placeholder={"Paste a list here, one task per line:\n- Buy milk tomorrow\n- Call mum !high"}
+          placeholder={"Paste a list here, one task per line. Indent a line to make it a subtask:\n- Plan trip friday\n    - Book flights !high\n- Call mum"}
           className={`${field} block w-full resize-y`}
         />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -103,11 +112,12 @@ function ImportBody() {
         <div aria-live="polite" className="rounded-md border border-border bg-surface p-3">
           <div className="font-mono text-sm text-muted">
             {items.length} task{items.length === 1 ? "" : "s"}
+            {subtasks > 0 && ` · ${subtasks} subtask${subtasks === 1 ? "" : "s"}`}
           </div>
           {total > items.length && <p className="mt-1 text-xs text-danger">Only the first {items.length} of {total} items will be imported.</p>}
           {preview.length > 0 && (
             <ul className="mt-2 space-y-1.5">
-              {preview.map(({ raw, p }, i) => {
+              {preview.map(({ raw, depth, p }, i) => {
                 const s = p.schedule;
                 const when =
                   s.kind === "day"
@@ -116,7 +126,7 @@ function ImportBody() {
                       ? `${relativeDayLabel(todayLocal(new Date(s.start)), today)} ${formatTime(new Date(s.start), timeFormat)}`
                       : null;
                 return (
-                  <li key={i} className="flex items-center gap-2 text-sm">
+                  <li key={i} className="flex items-center gap-2 text-sm" style={{ paddingLeft: `${depth * 1.25}rem` }}>
                     <span className="min-w-0 flex-1 truncate">{p.title || raw}</span>
                     {when && (
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium">

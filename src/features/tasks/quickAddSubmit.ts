@@ -21,11 +21,13 @@ export function createFromText(
   origin: InputOrigin = "typed",
   /** A `~List` that doesn't exist; bulk import collects these instead of one toast each (D92). */
   onMissingList: (name: string, fellBackTo: string) => void = (name, to) => toast(`No list named “${name}”; added to ${to}`),
+  position: "top" | "bottom" = "top",
 ): Task | null {
   if (!text.trim()) return null;
   const p = parseQuickAdd(text, new Date(), parsing, listNames(), origin);
   const lists = useData.getState().lists;
-  const listId = (p.listName && listByName(p.listName)?.id) || defaults.listId;
+  // A subtask lives in its parent's list, so a `~List` token is ignored there.
+  const listId = defaults.parentId ? defaults.listId : (p.listName && listByName(p.listName)?.id) || defaults.listId;
   const t = addTask({
     ...defaults,
     title: p.title,
@@ -34,10 +36,10 @@ export function createFromText(
     ...(p.priority !== null ? { priority: p.priority } : {}),
     tags: [...new Set([...(defaults.tags ?? []), ...ensureTags(p.tags)])],
     recurrence: p.rule ? { rule: p.rule, exdates: [] } : null,
-  });
+  }, position);
   trackDone("task:created-quickadd");
   if (p.chips.length) trackDone("task:token-used");
-  if (p.listName && !listByName(p.listName)) onMissingList(p.listName, lists[t.listId]?.name ?? "Inbox");
+  if (p.listName && !defaults.parentId && !listByName(p.listName)) onMissingList(p.listName, lists[t.listId]?.name ?? "Inbox");
   else if (announce(t)) {
     const s = t.schedule;
     const today = todayLocal();
