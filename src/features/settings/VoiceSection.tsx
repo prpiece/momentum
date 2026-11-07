@@ -32,7 +32,7 @@ export function VoiceSection() {
   useEffect(() => {
     if (isTauri) void voiceInputDevices().then(setDevices, () => undefined);
   }, []);
-  const btn = "flex h-9 items-center gap-2 rounded-control border border-border px-3 text-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent";
+  const btn = "btn btn-secondary";
 
   if (!isTauri) return <p className="text-sm text-muted">Voice quick-add needs the desktop app.</p>;
   return (

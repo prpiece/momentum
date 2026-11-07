@@ -30,7 +30,7 @@ export function UpdatesSection() {
   const checkUpdates = useSettings((s) => s.settings.checkUpdates);
   const update = useSettings((s) => s.update);
   const busy = status.kind === "checking" || status.kind === "downloading";
-  const btn = "flex h-9 items-center gap-2 rounded-control border border-border px-3 text-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50";
+  const btn = "btn btn-secondary";
 
   return (
     <div className="space-y-4">

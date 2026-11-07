@@ -167,3 +167,9 @@
   .bar { height: 4px; width: 100%; border-radius: var(--r-full); background: var(--surface-2); overflow: hidden; }
   .bar > span { display: block; height: 100%; border-radius: inherit; background: var(--c, var(--accent)); transition: width var(--dur-slow) var(--ease-move); }
 }
+
+/* The selected accent swatch: a ring in its own colour, set off by the surface. */
+@layer components {
+  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw); }
+  [data-theme="dark"] .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw-d); }
+}

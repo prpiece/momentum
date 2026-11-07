@@ -1,5 +1,6 @@
-import { Check } from "lucide-react";
-import { type CSSProperties, type ReactNode, useState } from "react";
+import { Bell, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Settings2, Wrench } from "lucide-react";
+import { type CSSProperties, type ReactNode, useRef, useState } from "react";
+import { Switch } from "../../components/ui/Switch";
 import { Segmented } from "../../components/ui/Segmented";
 import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
@@ -21,26 +22,27 @@ import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/ui";
 import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
 
-function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
+/** A settings group (D198): a small label over one bordered card; each direct child is a row with a hairline above it. */
+function Section({ title, id, children }: { title: string; id: string; children: ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-4 card p-5">
-      <h2 className="mb-4 t-label text-muted">{title}</h2>
-      <div className="space-y-4">{children}</div>
+    <section id={id} data-settings-section className="scroll-mt-8">
+      <h2 className="t-label mb-1.5 ml-0.5 text-muted">{title}</h2>
+      <div className="overflow-hidden rounded-card border border-border bg-surface [&>*]:px-3.5 [&>*]:py-3 [&>*+*]:border-t [&>*+*]:border-border">{children}</div>
     </section>
   );
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <span className="text-sm font-medium">{label}</span>
+    <div className="flex min-h-[60px] flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <span className="font-medium">{label}</span>
       {children}
     </div>
   );
 }
 
 function AccentPicker({ value, onChange }: { value: AccentId; onChange: (id: AccentId) => void }) {
-  const swatch = `grid size-7 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110 swatch`;
+  const swatch = "size-[22px] rounded-full swatch";
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Accent color">
       {ACCENTS.map((p) => (
@@ -54,7 +56,6 @@ function AccentPicker({ value, onChange }: { value: AccentId; onChange: (id: Acc
           className={swatch}
           style={{ "--sw": p.light, "--sw-d": p.dark } as CSSProperties}
         >
-          {p.id === value && <Check size={15} strokeWidth={3} className="text-accent-fg" />}
         </button>
       ))}
     </div>
@@ -63,10 +64,10 @@ function AccentPicker({ value, onChange }: { value: AccentId; onChange: (id: Acc
 
 function Toggle({ checked, onChange, text }: { checked: boolean; onChange: (v: boolean) => void; text: string }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-fg-2">
-      <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <span className="flex items-center gap-2.5 text-[length:var(--fs-sm)] text-muted">
       {text}
-    </label>
+      <Switch checked={checked} onChange={onChange} label={text} />
+    </span>
   );
 }
 
@@ -89,7 +90,7 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (v: strin
         onChange([e.ctrlKey || e.metaKey ? "CommandOrControl" : "", e.altKey ? "Alt" : "", e.shiftKey ? "Shift" : "", key].filter(Boolean).join("+"));
         setRecording(false);
       }}
-      className={`h-9 min-w-40 rounded-control border px-3 tabular-nums text-sm ${recording ? "border-accent bg-accent-soft" : "border-border bg-surface"}`}
+      className={`btn min-w-40 tabular-nums ${recording ? "border-accent-text bg-accent-soft text-fg" : "btn-secondary"}`}
     >
       {recording ? "Press keys…" : label}
     </button>
@@ -103,9 +104,33 @@ export function SettingsView() {
   const update = useSettings((st) => st.update);
   const set = <K extends keyof Settings>(key: K) => (value: Settings[K]) => update({ [key]: value });
 
+  const sections = SECTIONS.filter((x) => x.id !== "settings-developer" || import.meta.env.DEV);
+  const pane = useRef<HTMLDivElement>(null);
+  const [current, setCurrent] = useState(sections[0].id);
+  // The nav marks the last group whose top has scrolled past the top of the pane.
+  const onScroll = () => {
+    const root = pane.current;
+    if (!root) return;
+    const edge = root.getBoundingClientRect().top + 40;
+    const passed = [...root.querySelectorAll<HTMLElement>("[data-settings-section]")].filter((el) => el.getBoundingClientRect().top <= edge);
+    setCurrent(passed[passed.length - 1]?.id ?? sections[0].id);
+  };
+
   return (
-    <div className="mx-auto max-w-2xl space-y-5 p-6">
-      <Section title="General">
+    <div className="flex h-full min-h-0">
+      <nav aria-label="Settings sections" className="hidden w-[var(--side-panel)] shrink-0 flex-col gap-px border-r border-border px-2 py-4 md:flex">
+        {sections.map((x) => (
+          <button key={x.id} type="button" aria-current={current === x.id ? "true" : undefined} onClick={() => (document.getElementById(x.id)?.scrollIntoView({ block: "start" }), setCurrent(x.id))} className="nav-item w-full">
+            <span className="ni-icon">
+              <x.icon size={16} strokeWidth={1.75} />
+            </span>
+            <span className="ni-label">{x.title}</span>
+          </button>
+        ))}
+      </nav>
+      <div ref={pane} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
+    <div className="flex max-w-[640px] flex-col gap-6 px-6 py-8 md:px-12">
+      <Section title="General" id="settings-general">
         <Row label="Start view">
           <select
             value={s.defaultView}
@@ -113,7 +138,7 @@ export function SettingsView() {
               const v = DEFAULT_VIEWS.find((d) => d.id === e.target.value);
               if (v) update({ defaultView: v.id });
             }}
-            className="h-9 rounded-control border border-border bg-surface px-3 text-sm"
+            className="input w-auto"
           >
             {DEFAULT_VIEWS.map((v) => (
               <option key={v.id} value={v.id}>
@@ -148,10 +173,7 @@ export function SettingsView() {
           />
         </Row>
         <Row label="Smart parsing in quick add">
-          <label className="flex items-center gap-2 text-sm text-fg-2">
-            <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={s.smartParse} onChange={(e) => update({ smartParse: e.target.checked })} />
-            Detect dates, !priority, #tags, ~lists
-          </label>
+          <Toggle checked={s.smartParse} onChange={(v) => update({ smartParse: v })} text="Detect dates, !priority, #tags, ~lists" />
         </Row>
         <Row label="Closing the window">
           <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text="Keep running in the tray" />
@@ -166,12 +188,12 @@ export function SettingsView() {
           <ShortcutInput value={s.miniShortcut} onChange={(v) => update({ miniShortcut: v })} />
         </Row>
         <div className="space-y-2">
-          <span className="text-sm font-medium">Tags</span>
+          <span className="font-medium">Tags</span>
           <TagsSection />
         </div>
       </Section>
 
-      <Section title="Appearance">
+      <Section title="Appearance" id="settings-appearance">
         <Row label="Theme">
           <Segmented
             name="theme"
@@ -245,13 +267,13 @@ export function SettingsView() {
         </Row>
         <Row label="Zoom">
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted">Ctrl + / Ctrl − / Ctrl 0</span>
+            <span className="text-[length:var(--fs-xs)] text-muted">Ctrl + / Ctrl − / Ctrl 0</span>
             <Segmented name="zoom" label="Zoom" value={s.zoom} onChange={set("zoom")} options={ZOOMS.map((z) => ({ value: z, label: `${Math.round(z * 100)}%` }))} />
           </div>
         </Row>
       </Section>
 
-      <Section title="Notifications & sounds">
+      <Section title="Notifications & sounds" id="settings-notifications">
         <NotificationSection />
         <SoundsSection />
       </Section>
@@ -261,10 +283,10 @@ export function SettingsView() {
         <Row label="Push to talk">
           <ShortcutInput value={s.voiceShortcut} onChange={(v) => (v === s.quickAddShortcut ? toast("That shortcut already opens quick add.") : update({ voiceShortcut: v }))} />
         </Row>
-        <p className="text-xs text-muted">Hold the shortcut, say a task, let go, then press Enter. Or say “start focus”, “stop focus”, “open today”, “show matrix”, “show completed” or “open calendar”.</p>
+        <p className="text-[length:var(--fs-sm)] text-muted">Hold the shortcut, say a task, let go, then press Enter. Or say “start focus”, “stop focus”, “open today”, “show matrix”, “show completed” or “open calendar”.</p>
       </Section>
 
-      <Section title="Data">
+      <Section title="Data" id="settings-data">
         <DataSection />
       </Section>
 
@@ -272,13 +294,13 @@ export function SettingsView() {
         <HelpSection />
       </Section>
 
-      <Section title="About & updates">
+      <Section title="About & updates" id="settings-about">
         <UpdatesSection />
         <AboutSection />
       </Section>
 
       {import.meta.env.DEV && (
-        <Section title="Developer">
+        <Section title="Developer" id="settings-developer">
           <Row label="Sample data">
             <button
               type="button"
@@ -291,7 +313,7 @@ export function SettingsView() {
                 await Promise.all([hydrate(), hydrateHabits(), hydrateFocus()]);
                 toast("Sample data loaded");
               }}
-              className="h-9 rounded-control border border-border px-3 text-sm hover:bg-surface-2"
+              className="btn btn-secondary"
             >
               Load sample data
             </button>
@@ -299,5 +321,18 @@ export function SettingsView() {
         </Section>
       )}
     </div>
+      </div>
+    </div>
   );
 }
+
+const SECTIONS: { id: string; title: string; icon: LucideIcon }[] = [
+  { id: "settings-general", title: "General", icon: Settings2 },
+  { id: "settings-appearance", title: "Appearance", icon: Palette },
+  { id: "settings-notifications", title: "Notifications & sounds", icon: Bell },
+  { id: VOICE_SECTION_ID, title: "Voice", icon: Mic },
+  { id: "settings-data", title: "Data", icon: Database },
+  { id: HELP_SECTION_ID, title: "Help", icon: LifeBuoy },
+  { id: "settings-about", title: "About & updates", icon: Info },
+  { id: "settings-developer", title: "Developer", icon: Wrench },
+];

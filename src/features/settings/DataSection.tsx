@@ -7,7 +7,7 @@ import { ACCENT_PRESETS } from "../../domain/color";
 import { useAppVersion } from "../../lib/updater";
 import { confirm, toast } from "../../stores/ui";
 
-const btn = "flex h-9 items-center gap-2 rounded-control border border-border px-3 text-sm hover:bg-surface-2 disabled:opacity-50";
+const btn = "btn btn-secondary";
 
 /** Backup export / restore and one-time .ics import. */
 export function DataSection() {

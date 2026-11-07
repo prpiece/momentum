@@ -21,8 +21,8 @@ export function Line({ title, hint, children }: { title: string; hint?: string; 
   return (
     <div className="flex items-center gap-4">
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium">{title}</div>
-        {hint && <div className="text-xs text-muted">{hint}</div>}
+        <div className="font-medium">{title}</div>
+        {hint && <div className="text-[length:var(--fs-sm)] text-muted">{hint}</div>}
       </div>
       {children}
     </div>

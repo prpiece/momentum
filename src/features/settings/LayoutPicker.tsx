@@ -57,12 +57,12 @@ export function LayoutPicker() {
           aria-checked={current === c.id}
           onClick={() => update(c.barPosition ? { layout: c.layout, barPosition: c.barPosition } : { layout: c.layout })}
           className={`flex flex-col gap-1.5 rounded-card border p-2 text-left transition-colors duration-[var(--dur)] focus-visible:ring-2 focus-visible:ring-accent ${
-            current === c.id ? "border-accent bg-accent-soft/40" : "border-border hover:bg-surface-2"
+            current === c.id ? "border-accent-text bg-accent-soft" : "border-border hover:bg-surface-2"
           }`}
         >
           <Thumb choice={c} />
-          <span className="text-xs font-semibold">{c.name}</span>
-          <span className="-mt-1 text-[0.68rem] leading-tight text-muted">{c.hint}</span>
+          <span className="text-[length:var(--fs-sm)] font-semibold">{c.name}</span>
+          <span className="-mt-1 text-[length:var(--fs-xs)] leading-tight text-muted">{c.hint}</span>
         </button>
       ))}
     </div>
