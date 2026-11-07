@@ -1,6 +1,9 @@
 import { CalendarRange, CircleCheckBig, Columns3, Grid2x2, ListFilter, ListTodo, Settings2 } from "lucide-react";
+import { format } from "date-fns";
 import { useMemo } from "react";
+import { ListGlyph } from "../../components/ui/AppIcon";
 import { EmptyState } from "../../components/ui/EmptyState";
+import { PageHead } from "../../components/ui/PageHead";
 import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
 import { todayLocal } from "../../domain/dates";
 import type { GroupBy, ListLayout, SortBy } from "../../domain/types";
@@ -79,8 +82,19 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col" style={tint}>
-      <div data-tour="toolbar" className="flex items-center gap-1 px-6 pb-3 pt-1">
-        <span className="mr-2 shrink-0 tabular-nums text-sm text-muted">{openCount} open</span>
+      <div className="px-6 pb-3 pt-5">
+        <PageHead
+          title={spec.title}
+          lead={list?.icon && list.id !== "inbox" ? <ListGlyph icon={list.icon} color={list.color} size={20} /> : undefined}
+          sub={
+            <span className="tabular-nums">
+              {spec.id === "today" && `${format(new Date(), "EEEE d MMMM")} · `}
+              {openCount} open
+            </span>
+          }
+        />
+      </div>
+      <div data-tour="toolbar" className="flex items-center gap-1 px-6 pb-3">
         <FilterBar view={spec.id} />
         <div className="flex-1" />
         {spec.id === "today" && <TodayStreak />}

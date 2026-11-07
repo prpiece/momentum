@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ListGlyph } from "./components/ui/AppIcon";
+import { ChevronRight } from "lucide-react";
 import { ContextMenu } from "./components/ui/ContextMenu";
 import { EmptyState } from "./components/ui/EmptyState";
 import { Toaster } from "./components/ui/Toaster";
@@ -7,7 +7,7 @@ import { CelebrationOverlay } from "./features/celebrate/CelebrationOverlay";
 import { UpdatePrompt } from "./features/shell/UpdatePrompt";
 import { WhatsNew } from "./features/shell/WhatsNew";
 import { onWriteError } from "./db/client";
-import type { ViewId } from "./domain/types";
+import type { Folder, ViewId } from "./domain/types";
 import { CalendarView } from "./features/calendar/CalendarView";
 import { EventDialog } from "./features/calendar/EventDialog";
 import { FocusView } from "./features/focus/FocusView";
@@ -48,18 +48,30 @@ function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   );
 }
 
+/** Where a view sits, for the toolbar's breadcrumb: a list's folder, or the kind of view. */
+function crumbParent(view: ViewId, spec: TaskViewSpec | null, folders: Record<string, Folder>): string | null {
+  if (spec?.list && spec.list.id !== "inbox") return (spec.list.folderId && folders[spec.list.folderId]?.name) || "Lists";
+  if (view.startsWith("tag:")) return "Tags";
+  if (view.startsWith("filter:")) return "Filters";
+  return null;
+}
+
 function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | null; controls: boolean }) {
-  const nav = navFor(view);
-  const Icon = spec?.icon ?? nav.icon;
+  const folders = useData((s) => s.folders);
+  const parent = crumbParent(view, spec, folders);
   return (
-    // Also the window's title bar: drag to move, double-click to maximize (children pass clicks through).
-    <header data-tauri-drag-region className="flex h-14 shrink-0 select-none items-center gap-3 pl-6 pr-3 [&>:not(:last-child)]:pointer-events-none">
-      {spec?.list?.icon && spec.list.id !== "inbox" ? (
-        <ListGlyph icon={spec.list.icon} color={spec.list.color} size={20} />
-      ) : (
-        <Icon size={20} className="text-accent" style={spec?.list?.color ? { color: spec.list.color } : undefined} />
-      )}
-      <h1 className="truncate text-lg font-semibold tracking-tight">{spec?.title ?? nav.label}</h1>
+    // The toolbar (D198). Also the window's title bar: drag to move, double-click to maximize (children pass clicks through).
+    <header data-tauri-drag-region className="flex h-12 shrink-0 select-none items-center gap-1.5 border-b border-border pl-6 pr-3 [&>:not(:last-child)]:pointer-events-none">
+      <h1 className="flex min-w-0 items-center gap-1 text-[length:var(--fs-sm)] text-muted">
+        {parent && (
+          <>
+            <span className="truncate">{parent}</span>
+            <ChevronRight size={14} aria-hidden />
+          </>
+        )}
+        <b className="truncate font-semibold text-fg">{spec?.title ?? navFor(view).label}</b>
+      </h1>
+      <span className="flex-1" />
       {/* The top bar layout has them in the bar. */}
       {controls && <WindowControls />}
     </header>

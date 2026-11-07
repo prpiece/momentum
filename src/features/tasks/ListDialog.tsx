@@ -122,7 +122,7 @@ export function ListDialogButton({ list, children, folderId, className = "size-8
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" aria-label={list ? "List settings" : "New list"} title={list ? "List settings" : "New list"} onClick={() => setOpen(true)} className={`grid place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent ${className}`}>
+      <button type="button" aria-label={list ? "List settings" : "New list"} title={list ? "List settings" : "New list"} onClick={() => setOpen(true)} className={`btn btn-ghost icon-btn text-muted ${className}`}>
         {children}
       </button>
       {open && <ListDialog list={list} folderId={folderId} onClose={() => setOpen(false)} />}
