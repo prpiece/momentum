@@ -12,7 +12,6 @@ import { CalendarView } from "./features/calendar/CalendarView";
 import { EventDialog } from "./features/calendar/EventDialog";
 import { FocusView } from "./features/focus/FocusView";
 import { HabitsView } from "./features/habits/HabitsView";
-import { MatrixView } from "./features/matrix/MatrixView";
 import { StatsView } from "./features/stats/StatsView";
 import { SettingsView } from "./features/settings/SettingsView";
 import { CommandPalette } from "./features/shell/CommandPalette";
@@ -37,7 +36,6 @@ import { toast, useUi } from "./stores/ui";
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
   if (view === "calendar") return <CalendarView />;
-  if (view === "matrix") return <MatrixView />;
   if (view === "habits") return <HabitsView />;
   if (view === "stats") return <StatsView />;
   if (view === "focus") return <FocusView />;

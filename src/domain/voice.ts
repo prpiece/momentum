@@ -2,12 +2,16 @@ import { bestName } from "./fuzzy";
 import { isRecord } from "./settings";
 
 /** The screens a voice command can open by name. */
-export type VoiceView = "inbox" | "today" | "upcoming" | "calendar" | "matrix" | "habits" | "focus" | "stats" | "settings";
+export type VoiceView = "inbox" | "today" | "upcoming" | "calendar" | "habits" | "focus" | "stats" | "settings";
 export type FocusOp = "start" | "stop" | "pause" | "resume" | "skip" | "break";
 
 /** A fixed spoken phrase that controls the app instead of becoming a task (GLOSSARY: Voice command). */
 export type VoiceCommand =
   | { kind: "view"; view: VoiceView }
+  /** Switch the current task view to Matrix mode (D175). */
+  | { kind: "matrix" }
+  /** Turn on Show completed in the current task view (replaces opening the Logbook). */
+  | { kind: "showCompleted" }
   | { kind: "openList"; name: string }
   | { kind: "focus"; op: FocusOp }
   | { kind: "mini"; open: boolean }
@@ -26,14 +30,16 @@ const VIEWS: Record<string, VoiceView> = {
   today: "today",
   upcoming: "upcoming",
   calendar: "calendar",
-  matrix: "matrix",
   habits: "habits",
   habit: "habits",
   focus: "focus",
   stats: "stats",
   statistics: "stats",
   settings: "settings",
+  countdown: "calendar",
+  countdowns: "calendar",
 };
+const COMPLETED = new Set(["logbook", "completed", "done tasks", "completed tasks", "finished tasks"]);
 
 function focusCommand(verb: string, noun: string): VoiceCommand | null {
   if (noun === "break") return START.has(verb) || verb === "take" ? { kind: "focus", op: "break" } : verb === "skip" ? { kind: "focus", op: "skip" } : null;
@@ -59,6 +65,8 @@ export function matchVoiceCommand(text: string, listNames: readonly string[] = [
   if (words[words.length - 1] === "window" && words[words.length - 2] === "mini") words.pop();
   if (words.length < 2) return null;
   const [verb, ...rest] = words;
+  if (OPEN.has(verb) && rest.join(" ") === "matrix") return { kind: "matrix" };
+  if (OPEN.has(verb) && COMPLETED.has(rest.join(" "))) return { kind: "showCompleted" };
   if (rest.length === 1) {
     const noun = rest[0];
     if (OPEN.has(verb) && noun in VIEWS) return { kind: "view", view: VIEWS[noun] };

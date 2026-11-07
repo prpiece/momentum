@@ -3,11 +3,11 @@ export type LocalDate = string;
 /** UTC instant, ISO 8601 (`Date.prototype.toISOString`). */
 export type Instant = string;
 
-/** Logbook (done + won't do) is reached from search and the view menu, not the sidebar. */
-export const SMART_LISTS = ["inbox", "today", "upcoming", "logbook"] as const;
+/** Finished tasks show in each view with Show completed, and the `done` search keyword finds them all (D165). */
+export const SMART_LISTS = ["inbox", "today", "upcoming"] as const;
 export type SmartListId = (typeof SMART_LISTS)[number];
 
-export const MODULE_VIEWS = ["calendar", "matrix", "habits", "focus", "stats", "settings"] as const;
+export const MODULE_VIEWS = ["calendar", "habits", "focus", "stats", "settings"] as const;
 export type ModuleView = (typeof MODULE_VIEWS)[number];
 
 /** Every top-level screen. */
@@ -148,7 +148,16 @@ export const GROUP_BYS = ["none", "list", "date", "priority", "tag"] as const;
 export type GroupBy = (typeof GROUP_BYS)[number];
 export const SORT_BYS = ["manual", "date", "priority", "created", "title"] as const;
 export type SortBy = (typeof SORT_BYS)[number];
-export type ViewOptions = { groupBy: GroupBy; sortBy: SortBy };
+/** How a task view shows its tasks (D164). Board needs sections, so only lists have it; it lives on the list (`TaskList.layout`). */
+export const VIEW_MODES = ["list", "matrix", "timeline"] as const;
+export type ViewMode = (typeof VIEW_MODES)[number];
+export type ViewOptions = {
+  groupBy: GroupBy;
+  sortBy: SortBy;
+  /** On a list, "matrix" overrides the list's own layout and "list" means "use the list's layout" (D193). */
+  mode: ViewMode;
+  showCompleted: boolean;
+};
 
 // ---------- Settings ----------
 

@@ -10,7 +10,7 @@ import { sortVMs, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
 import { justDragged, onDrop } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { addTask, rootOf, updateTask, useData } from "../../stores/data";
+import { addTask, rootOf, updateTask, useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { openContextMenu, openTask, useUi } from "../../stores/ui";
 import { editTask, toggleDone } from "../tasks/actions";
@@ -37,16 +37,16 @@ onDrop("quadrant", (drag, drop) => {
   for (const v of series) void editTask(v.task.id, patchForQuadrant(v, drop.q, today, rules), v.key);
 });
 
-export function MatrixView() {
-  const derived = useDerived();
+/** Matrix mode of a task view (D164): that view's open top-level tasks (D58). New tasks get the view's defaults. */
+export function MatrixView({ vms, defaults }: { vms: readonly TaskVM[]; defaults: Partial<NewTask> }) {
   const rules = useSettings((s) => s.settings.matrix);
   const today = todayLocal();
   const groups = useMemo(() => {
     const out: Record<Quadrant, TaskVM[]> = { 1: [], 2: [], 3: [], 4: [] };
-    for (const vm of derived.roots) if (vm.task.status === "open") out[quadrantOf(vm, today, rules)].push(vm);
+    for (const vm of vms) if (vm.task.status === "open" && vm.task.parentId === null) out[quadrantOf(vm, today, rules)].push(vm);
     for (const q of QUADRANTS) out[q] = sortVMs(out[q], "date");
     return out;
-  }, [derived, rules, today]);
+  }, [vms, rules, today]);
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pb-4">
@@ -55,14 +55,14 @@ export function MatrixView() {
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3">
         {QUADRANTS.map((q) => (
-          <QuadrantPanel key={q} q={q} items={groups[q]} />
+          <QuadrantPanel key={q} q={q} items={groups[q]} defaults={defaults} />
         ))}
       </div>
     </div>
   );
 }
 
-function QuadrantPanel({ q, items }: { q: Quadrant; items: TaskVM[] }) {
+function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; defaults: Partial<NewTask> }) {
   const info = QUADRANT_INFO[q];
   const rules = useSettings((s) => s.settings.matrix);
   const { setNodeRef, isOver } = useDroppable({ id: `quadrant:${q}`, data: { type: "quadrant", q } });
@@ -71,7 +71,7 @@ function QuadrantPanel({ q, items }: { q: Quadrant; items: TaskVM[] }) {
     const title = draft.trim();
     if (!title) return;
     // New tasks inherit the quadrant's attributes (same rule as dropping a blank task here).
-    addTask({ title, ...patchForQuadrant({ task: { priority: 0 }, date: null, schedule: { kind: "none" } }, q, todayLocal(), rules) });
+    addTask({ ...defaults, title, ...patchForQuadrant({ task: { priority: 0 }, date: null, schedule: { kind: "none" } }, q, todayLocal(), rules) });
     setDraft("");
   };
   return (

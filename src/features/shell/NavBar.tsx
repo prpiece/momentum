@@ -118,7 +118,7 @@ export function NavBar({ position }: { position: BarPosition }) {
   const btn = "flex h-8 shrink-0 items-center gap-1.5 rounded-sm px-3 text-sm transition-colors duration-[var(--dur)] hover:bg-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent";
   const sep = <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />;
   const smartItems = SIDEBAR_SMART_NAV.map((n) => (
-    <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} labels={dockLabels} tooltip={dock} count={counts.smart[n.id] || undefined} drop={n.id === "logbook" ? undefined : { type: "smart", id: n.id }} />
+    <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} labels={dockLabels} tooltip={dock} count={counts.smart[n.id] || undefined} drop={{ type: "smart", id: n.id }} />
   ));
 
   // Dock: all modules, the trailing ones folded into "More" when the window is too narrow (D77).

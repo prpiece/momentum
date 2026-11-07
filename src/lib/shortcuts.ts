@@ -4,6 +4,7 @@ import { ZOOMS, type Priority, type ViewId } from "../domain/types";
 import { focusFilter } from "../features/tasks/FilterBar";
 import { bulkEdit, deleteTasks, toggleDone } from "../features/tasks/actions";
 import { focusQuickAdd } from "../features/tasks/QuickAdd";
+import { showInCurrentView } from "../features/tasks/viewOptions";
 import { setStatus, useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
 import { closeDrawer, go, setPalette, setSelection, setShortcuts, toast, useUi } from "../stores/ui";
@@ -29,9 +30,7 @@ export const GO: Record<string, ViewId> = {
   i: "inbox",
   t: "today",
   u: "upcoming",
-  l: "logbook",
   c: "calendar",
-  m: "matrix",
   h: "habits",
   f: "focus",
   s: "stats",
@@ -119,6 +118,11 @@ export function useGlobalShortcuts() {
         if (GO[key]) {
           e.preventDefault();
           return go(GO[key]);
+        }
+        // Matrix is a view mode, not a page (D164).
+        if (key === "m") {
+          e.preventDefault();
+          return showInCurrentView({ mode: "matrix" });
         }
       }
       if (e.key === "Escape") {

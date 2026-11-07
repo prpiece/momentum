@@ -3,8 +3,6 @@ import {
   CalendarDays,
   ChartColumn,
   CalendarRange,
-  CircleCheckBig,
-  Grid2x2,
   Inbox,
   type LucideIcon,
   Settings,
@@ -19,14 +17,11 @@ export const SMART_LIST_NAV: NavDef<SmartListId>[] = [
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "today", label: "Today", icon: Sun },
   { id: "upcoming", label: "Upcoming", icon: CalendarRange },
-  { id: "logbook", label: "Logbook", icon: CircleCheckBig },
 ];
-/** Logbook stays off the sidebar. */
-export const SIDEBAR_SMART_NAV = SMART_LIST_NAV.filter((n) => n.id !== "logbook");
+export const SIDEBAR_SMART_NAV = SMART_LIST_NAV;
 
 export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
   { id: "calendar", label: "Calendar", icon: CalendarDays },
-  { id: "matrix", label: "Matrix", icon: Grid2x2 },
   { id: "habits", label: "Habits", icon: Target },
   { id: "focus", label: "Focus", icon: AlarmClock },
   { id: "stats", label: "Statistics", icon: ChartColumn },

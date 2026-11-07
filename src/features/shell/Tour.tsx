@@ -153,7 +153,7 @@ const STEPS: Step[] = [
   {
     title: "Eisenhower matrix",
     target: "main",
-    view: "matrix",
+    view: "today",
     body: (
       <>
         <p>Sorts your tasks by urgent and important, so you see what to do now, what to schedule, what to hand off and what to drop.</p>

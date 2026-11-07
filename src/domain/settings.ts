@@ -20,6 +20,7 @@ import {
   SORT_BYS,
   THEMES,
   TIME_FORMATS,
+  VIEW_MODES,
   WEEK_STARTS,
   type Settings,
   type SoundEvent,
@@ -85,7 +86,12 @@ export const DEFAULT_SETTINGS: Settings = {
   pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, cycles: { kind: "infinite" } },
 };
 
-export const DEFAULT_VIEW_OPTIONS: ViewOptions = { groupBy: "none", sortBy: "manual" };
+/** A view's options before the user changes any. Today and Upcoming hide finished tasks; lists show them in a Completed group. */
+export function defaultViewOptions(view: string): ViewOptions {
+  const smart = view === "today" || view === "upcoming";
+  const ordered = view === "inbox" || view.startsWith("list:");
+  return { groupBy: view === "upcoming" ? "date" : "none", sortBy: ordered ? "manual" : "date", mode: "list", showCompleted: !smart };
+}
 
 export function oneOf<T>(allowed: readonly T[], v: unknown): v is T {
   return (allowed as readonly unknown[]).includes(v);
@@ -95,8 +101,18 @@ export function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** Smart lists merged in D49; old ids in saved settings carry over. */
-const RENAMED_VIEWS: Record<string, ViewId> = { tomorrow: "upcoming", next7: "upcoming", completed: "logbook", wontdo: "logbook", countdown: "calendar" };
+/** Smart lists merged in D49, pages retired in v1.0 (D165, D163, D164); old ids in saved settings carry over. */
+const RENAMED_VIEWS: Record<string, ViewId> = {
+  tomorrow: "upcoming",
+  next7: "upcoming",
+  completed: "today",
+  wontdo: "today",
+  logbook: "today",
+  countdown: "calendar",
+  matrix: "today",
+};
+/** Retired views whose own view options are dropped rather than carried to the view they map to. */
+const RETIRED = new Set(["completed", "wontdo", "logbook", "countdown", "matrix"]);
 const renamed = (v: unknown): unknown => (typeof v === "string" && RENAMED_VIEWS[v]) || v;
 
 export function isViewId(v: unknown): v is ViewId {
@@ -109,13 +125,24 @@ function parseViewOptions(raw: unknown): Settings["viewOptions"] {
   const out: Settings["viewOptions"] = {};
   for (const [k, v] of Object.entries(raw)) {
     const key = String(renamed(k));
-    if (!isRecord(v) || out[key]) continue;
+    if (!isRecord(v) || out[key] || RETIRED.has(k)) continue;
+    const d = defaultViewOptions(key);
     out[key] = {
-      groupBy: oneOf(GROUP_BYS, v.groupBy) ? v.groupBy : DEFAULT_VIEW_OPTIONS.groupBy,
-      sortBy: oneOf(SORT_BYS, v.sortBy) ? v.sortBy : DEFAULT_VIEW_OPTIONS.sortBy,
+      groupBy: oneOf(GROUP_BYS, v.groupBy) ? v.groupBy : d.groupBy,
+      sortBy: oneOf(SORT_BYS, v.sortBy) ? v.sortBy : d.sortBy,
+      mode: oneOf(VIEW_MODES, v.mode) ? v.mode : d.mode,
+      showCompleted: typeof v.showCompleted === "boolean" ? v.showCompleted : d.showCompleted,
     };
   }
   return out;
+}
+
+/** A start view on a retired page lands on Today, set up to show what that page showed. */
+function carryRetiredStartView(defaultView: unknown, options: Settings["viewOptions"]): Settings["viewOptions"] {
+  const today = options.today ?? defaultViewOptions("today");
+  if (defaultView === "logbook" || defaultView === "completed" || defaultView === "wontdo") return { ...options, today: { ...today, showCompleted: true } };
+  if (defaultView === "matrix") return { ...options, today: { ...today, mode: "matrix" } };
+  return options;
 }
 
 function parseSavedFilters(raw: unknown): Settings["savedFilters"] {
@@ -241,7 +268,7 @@ export function parseSettings(raw: unknown): Settings {
     weekStart: oneOf(WEEK_STARTS, r.weekStart) ? r.weekStart : d.weekStart,
     timeFormat: oneOf(TIME_FORMATS, r.timeFormat) ? r.timeFormat : d.timeFormat,
     smartParse: typeof r.smartParse === "boolean" ? r.smartParse : d.smartParse,
-    viewOptions: parseViewOptions(r.viewOptions),
+    viewOptions: carryRetiredStartView(r.defaultView, parseViewOptions(r.viewOptions)),
     savedFilters: parseSavedFilters(r.savedFilters),
     calendar: parseCalendar(r.calendar),
     matrix: parseMatrix(r.matrix),

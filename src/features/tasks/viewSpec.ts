@@ -1,7 +1,7 @@
 import { Hash, List, ListFilter, type LucideIcon } from "lucide-react";
 import { addDaysLocal } from "../../domain/dates";
 import { matchesFilter, nameKey, parseFilter } from "../../domain/filter";
-import { inSmartList, type TaskVM } from "../../domain/taskViews";
+import { inSmartScope, type TaskVM } from "../../domain/taskViews";
 import { SMART_LISTS, type LocalDate, type SavedFilter, type SmartListId, type Tag, type TaskList, type ViewId } from "../../domain/types";
 import type { NewTask } from "../../stores/data";
 import { SMART_LIST_NAV } from "../shell/nav";
@@ -14,7 +14,7 @@ export type TaskViewSpec = {
   tag: Tag | null;
   /** Custom lists render a subtask tree; smart lists and tags are flat. */
   tree: boolean;
-  /** Finished tasks show in a collapsible "Completed" group instead of inline. */
+  /** Finished tasks show in a collapsible "Completed" group, behind Show completed. False when the view's own filter picks a status. */
   splitCompleted: boolean;
   filter: (vm: TaskVM, today: LocalDate) => boolean;
   /** What a task created from this view's quick add starts with. */
@@ -46,10 +46,10 @@ export function taskViewSpec(
       list: inbox ? (lists.inbox ?? null) : null,
       tag: null,
       tree: inbox,
-      splitCompleted: inbox,
-      filter: inbox ? (vm) => vm.task.listId === "inbox" : (vm, today) => inSmartList(view, vm, today),
+      splitCompleted: true,
+      filter: (vm, today) => inSmartScope(view, vm, today),
       defaults: SMART_DEFAULTS[view] ?? (() => ({})),
-      canAdd: view !== "logbook",
+      canAdd: true,
     };
   }
   if (view.startsWith("list:")) {

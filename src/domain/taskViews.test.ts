@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { atLocalTime, timed } from "./dates";
-import { flattenTree, groupVMs, inSmartList, isOverdue, matchScore, sortVMs, toVM, type TaskVM } from "./taskViews";
+import { flattenTree, groupVMs, inSmartList, inSmartScope, isOverdue, matchScore, sortVMs, toVM, type TaskVM } from "./taskViews";
 import type { Schedule, SmartListId, Task, TaskList } from "./types";
 
 const TODAY = "2026-10-25";
@@ -46,11 +46,21 @@ describe("smart lists", () => {
     expect(lists("inbox")(mk({ listId: "work" }))).toEqual([]);
   });
 
-  it("puts finished tasks only in the Logbook", () => {
-    const all: SmartListId[] = ["inbox", "today", "upcoming", "logbook"];
-    expect(lists(...all)(mk({ status: "done", priority: 3, schedule: day(TODAY) }))).toEqual(["logbook"]);
-    expect(lists(...all)(mk({ status: "wont_do" }))).toEqual(["logbook"]);
+  it("keeps finished tasks out of the open smart lists", () => {
+    const all: SmartListId[] = ["inbox", "today", "upcoming"];
+    expect(lists(...all)(mk({ status: "done", priority: 3, schedule: day(TODAY) }))).toEqual([]);
+    expect(lists(...all)(mk({ status: "wont_do" }))).toEqual([]);
     expect(isOverdue(vm(mk({ status: "done", schedule: day("2026-10-01") })), TODAY)).toBe(false);
+  });
+
+  it("scopes finished tasks for Show completed", () => {
+    const scope = (t: Task) => (["inbox", "today", "upcoming"] as const).filter((id) => inSmartScope(id, vm(t), TODAY));
+    const doneToday = atLocalTime(TODAY, "09:00").toISOString();
+    const doneYesterday = atLocalTime("2026-10-24", "09:00").toISOString();
+    expect(scope(mk({ status: "done", completedAt: doneToday, schedule: day("2026-10-01") }))).toEqual(["inbox", "today"]);
+    expect(scope(mk({ status: "done", completedAt: doneYesterday, listId: "work" }))).toEqual([]);
+    expect(scope(mk({ status: "wont_do", completedAt: doneYesterday, listId: "work", schedule: day("2026-11-02") }))).toEqual(["upcoming"]);
+    expect(scope(mk({ listId: "work", schedule: day(TODAY) }))).toEqual(["today"]);
   });
 
   it("dates timed tasks by their local start day", () => {

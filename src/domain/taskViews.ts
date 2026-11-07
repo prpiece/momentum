@@ -1,4 +1,4 @@
-import { addDaysLocal, scheduleDate, wallKey } from "./dates";
+import { addDaysLocal, scheduleDate, toLocalDate, wallKey } from "./dates";
 import { effective } from "./recurrence";
 import {
   INBOX_ID,
@@ -39,8 +39,23 @@ export function inSmartList(id: SmartListId, vm: TaskVM, today: LocalDate): bool
       return open && vm.date !== null && vm.date <= today;
     case "upcoming":
       return open && vm.date !== null && vm.date > today;
-    case "logbook":
-      return !open;
+  }
+}
+
+/**
+ * What a smart view holds with Show completed on (D165): its open tasks, plus the finished ones
+ * that belong there. Today keeps what was finished today; Upcoming, finished tasks dated later.
+ */
+export function inSmartScope(id: SmartListId, vm: TaskVM, today: LocalDate): boolean {
+  const t = vm.task;
+  if (t.status === "open") return inSmartList(id, vm, today);
+  switch (id) {
+    case "inbox":
+      return t.listId === INBOX_ID;
+    case "today":
+      return t.completedAt !== null && toLocalDate(new Date(t.completedAt)) === today;
+    case "upcoming":
+      return vm.date !== null && vm.date > today;
   }
 }
 

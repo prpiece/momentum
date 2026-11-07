@@ -61,13 +61,12 @@ export function useCounts(): { smart: Record<SmartListId, number>; lists: Record
       inbox: 0,
       today: 0,
       upcoming: 0,
-      logbook: 0,
     };
     const lists: Record<string, number> = {};
     for (const vm of d.active) {
       if (vm.task.status !== "open") continue;
       lists[vm.task.listId] = (lists[vm.task.listId] ?? 0) + 1;
-      for (const id of SMART_LISTS) if (id !== "logbook" && inSmartList(id, vm, today)) smart[id]++;
+      for (const id of SMART_LISTS) if (inSmartList(id, vm, today)) smart[id]++;
     }
     return { smart, lists };
   }, [d, today]);

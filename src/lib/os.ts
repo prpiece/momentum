@@ -30,6 +30,7 @@ import { checkForUpdate } from "./updater";
 import { playEvent, playSound } from "./sounds";
 import { checkLastWeek, checkTrophies, onCheckin, onLongBreak, onTaskDone } from "./celebrate";
 import { setDoneHandler, setStatus, useData } from "../stores/data";
+import { showInCurrentView } from "../features/tasks/viewOptions";
 
 export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
 export type ReminderAction = { dto: ReminderDTO; action: "done" | "open" | "dismiss" } | { dto: ReminderDTO; action: "snooze"; minutes: number };
@@ -217,6 +218,12 @@ export async function initOs() {
       case "view":
         void showMain();
         return go(cmd.view);
+      case "matrix":
+        void showMain();
+        return showInCurrentView({ mode: "matrix" });
+      case "showCompleted":
+        void showMain();
+        return showInCurrentView({ showCompleted: true });
       case "openList": {
         const list = Object.values(useData.getState().lists).find((l) => l.name === cmd.name);
         if (!list) return;

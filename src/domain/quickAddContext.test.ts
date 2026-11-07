@@ -10,7 +10,7 @@ describe("quick-add context", () => {
     expect(contextForView("list:w", lists, "2026-03-05")).toEqual({ kind: "list", listId: "w", name: "Work" });
     expect(contextForView("inbox", lists, "2026-03-05")).toEqual({ kind: "list", listId: "inbox", name: "Inbox" });
     expect(contextForView("list:gone", lists, "2026-03-05")).toBeNull();
-    expect(contextForView("matrix", lists, "2026-03-05")).toBeNull();
+    expect(contextForView("habits", lists, "2026-03-05")).toBeNull();
   });
   it("patches tasks", () => {
     expect(patchForContext({ kind: "day", date: "2026-03-05" }, () => true)).toEqual({ schedule: { kind: "day", date: "2026-03-05" } });
