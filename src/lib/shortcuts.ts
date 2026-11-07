@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { addDaysLocal, moveToDate, todayLocal } from "../domain/dates";
-import { ZOOMS, type Priority, type ViewId } from "../domain/types";
+import { GO } from "../domain/features";
+import { ZOOMS, type Priority } from "../domain/types";
 import { focusFilter } from "../features/tasks/FilterBar";
 import { bulkEdit, deleteTasks, toggleDone } from "../features/tasks/actions";
 import { focusQuickAdd } from "../features/tasks/QuickAdd";
@@ -25,17 +26,6 @@ const typing = (e: KeyboardEvent) => {
   return t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || (t instanceof HTMLElement && t.isContentEditable);
 };
 
-/** `G` then a letter jumps to a view. */
-export const GO: Record<string, ViewId> = {
-  i: "inbox",
-  t: "today",
-  u: "upcoming",
-  c: "calendar",
-  h: "habits",
-  f: "focus",
-  s: "stats",
-  ",": "settings",
-};
 const G_WINDOW_MS = 1200;
 let gPressedAt = 0;
 

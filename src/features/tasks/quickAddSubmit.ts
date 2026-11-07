@@ -2,6 +2,7 @@ import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { parseQuickAdd, type InputOrigin } from "../../domain/quickAdd";
 import type { Task } from "../../domain/types";
 import { addTask, ensureTags, useData, type NewTask } from "../../stores/data";
+import { trackDone } from "../../stores/settings";
 import { openTask, toast } from "../../stores/ui";
 
 const nameKey = (s: string) => s.replace(/\s+/g, "").toLowerCase();
@@ -34,6 +35,8 @@ export function createFromText(
     tags: [...new Set([...(defaults.tags ?? []), ...ensureTags(p.tags)])],
     recurrence: p.rule ? { rule: p.rule, exdates: [] } : null,
   });
+  trackDone("task:created-quickadd");
+  if (p.chips.length) trackDone("task:token-used");
   if (p.listName && !listByName(p.listName)) onMissingList(p.listName, lists[t.listId]?.name ?? "Inbox");
   else if (announce(t)) {
     const s = t.schedule;

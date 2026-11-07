@@ -2,7 +2,7 @@ import { bestName } from "./fuzzy";
 import { isRecord } from "./settings";
 
 /** The screens a voice command can open by name. */
-export type VoiceView = "inbox" | "today" | "upcoming" | "calendar" | "habits" | "focus" | "stats" | "settings";
+export type VoiceView = "inbox" | "today" | "upcoming" | "calendar" | "habits" | "focus" | "progress" | "settings";
 export type FocusOp = "start" | "stop" | "pause" | "resume" | "skip" | "break";
 
 /** A fixed spoken phrase that controls the app instead of becoming a task (GLOSSARY: Voice command). */
@@ -33,8 +33,9 @@ const VIEWS: Record<string, VoiceView> = {
   habits: "habits",
   habit: "habits",
   focus: "focus",
-  stats: "stats",
-  statistics: "stats",
+  stats: "progress",
+  statistics: "progress",
+  progress: "progress",
   settings: "settings",
   countdown: "calendar",
   countdowns: "calendar",

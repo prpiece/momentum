@@ -6,7 +6,7 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { fitModules } from "../../domain/dockFit";
 import type { BarPosition, ViewId } from "../../domain/types";
 import type { DropData } from "../../lib/dnd";
-import { GO } from "../../lib/shortcuts";
+import { GO } from "../../domain/features";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { go, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";

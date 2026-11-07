@@ -1,4 +1,5 @@
 import { ACCENT_PRESETS } from "./color";
+import { FEATURES, type GettingStarted } from "./features";
 import {
   BAR_POSITIONS,
   CAL_VIEWS,
@@ -79,6 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
     picks: { task: "pop", habit: "marimba", streak: "fanfare", dayDone: "fanfare", focusEnd: "chime", longBreak: "ding" },
   },
   onboarded: false,
+  gettingStarted: { dismissed: false, done: [], seenVersion: null },
   quickAddShortcut: "CommandOrControl+Shift+A",
   miniShortcut: "CommandOrControl+Alt+M",
   voiceShortcut: "CommandOrControl+Alt+Space",
@@ -110,6 +112,7 @@ const RENAMED_VIEWS: Record<string, ViewId> = {
   logbook: "today",
   countdown: "calendar",
   matrix: "today",
+  stats: "progress",
 };
 /** Retired views whose own view options are dropped rather than carried to the view they map to. */
 const RETIRED = new Set(["completed", "wontdo", "logbook", "countdown", "matrix"]);
@@ -235,6 +238,16 @@ function parsePomodoro(raw: unknown): Settings["pomodoro"] {
   return { focusMin: int(r.focusMin, 1, 180, d.focusMin), shortMin: int(r.shortMin, 1, 60, d.shortMin), longMin: int(r.longMin, 1, 90, d.longMin), longEvery: int(r.longEvery, 2, 12, d.longEvery), cycles: parseCycles(r.cycles) };
 }
 
+const VERSION = /^\d+\.\d+\.\d+$/;
+
+/** Users from before v1.0 (onboarded, no Getting started yet) see what v1.0 brought as "New:". */
+function parseGettingStarted(raw: unknown, onboarded: boolean): GettingStarted {
+  if (!isRecord(raw)) return { dismissed: false, done: [], seenVersion: onboarded ? "0.9.1" : null };
+  const ids = new Set(FEATURES.map((f) => f.id));
+  const done = Array.isArray(raw.done) ? [...new Set(raw.done.filter((x): x is string => typeof x === "string" && ids.has(x)))] : [];
+  return { dismissed: raw.dismissed === true, done, seenVersion: typeof raw.seenVersion === "string" && VERSION.test(raw.seenVersion) ? raw.seenVersion : null };
+}
+
 /** Before D114 there were four layouts: classic and flat had a sidebar, topbar and dock a bar. */
 function parseLayout(layout: unknown, barPosition: unknown): Pick<Settings, "layout" | "barPosition"> {
   if (layout === "classic" || layout === "flat") return { layout: "sidebar", barPosition: DEFAULT_SETTINGS.barPosition };
@@ -279,6 +292,7 @@ export function parseSettings(raw: unknown): Settings {
     notify: parseNotify(r.notify, r.notifications),
     sounds: parseSounds(r.sounds),
     onboarded: r.onboarded === true,
+    gettingStarted: parseGettingStarted(r.gettingStarted, r.onboarded === true),
     quickAddShortcut: accelerator(r.quickAddShortcut, d.quickAddShortcut),
     voiceShortcut: ((v) => (v === accelerator(r.quickAddShortcut, d.quickAddShortcut) ? d.voiceShortcut : v))(accelerator(r.voiceShortcut, d.voiceShortcut)),
     voiceMic: typeof r.voiceMic === "string" && r.voiceMic ? r.voiceMic : null,

@@ -14,6 +14,7 @@ import { setViewOptions, viewOptionsOf } from "./viewOptions";
 import { TodayHabits } from "../habits/TodayHabits";
 import { TodayStreak } from "../celebrate/TodayStreak";
 import { CountdownChips } from "../calendar/CountdownChips";
+import { GettingStartedCard } from "../help/GettingStartedCard";
 import { BulkBar } from "./BulkBar";
 import { FilterBar } from "./FilterBar";
 import { KanbanView } from "./KanbanView";
@@ -140,6 +141,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
           </ListDialogButton>
         )}
       </div>
+      {spec.id === "today" && <GettingStartedCard />}
       {spec.id === "today" && <CountdownChips />}
 
       {spec.canAdd && layout !== "kanban" && layout !== "matrix" && (

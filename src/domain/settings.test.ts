@@ -33,7 +33,7 @@ describe("parseSettings", () => {
       matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["#0e8a85", null, null, "#2f6fed"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
       sounds: { enabled: false, volume: 0.3, picks: { task: "ding", habit: "none", streak: "pop", dayDone: "chime", focusEnd: "marimba", longBreak: "fanfare" } },
-      onboarded: true, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
+      onboarded: true, gettingStarted: { dismissed: true, done: ["habits", "tokens"], seenVersion: "1.0.0" }, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
@@ -123,6 +123,14 @@ describe("parseSettings migrations", () => {
 
   it("maps the retired 3-day calendar view to 5 days", () => {
     expect(parseSettings({ calendar: { view: "3day" } }).calendar.view).toBe("5day");
+  });
+});
+
+describe("parseSettings getting started", () => {
+  it("treats pre-v1.0 users as upgraders and drops unknown items", () => {
+    expect(parseSettings({ onboarded: true }).gettingStarted).toEqual({ dismissed: false, done: [], seenVersion: "0.9.1" });
+    expect(parseSettings({}).gettingStarted.seenVersion).toBeNull();
+    expect(parseSettings({ gettingStarted: { done: ["habits", "nope", "habits", 3], seenVersion: "x" } }).gettingStarted).toEqual({ dismissed: false, done: ["habits"], seenVersion: null });
   });
 });
 

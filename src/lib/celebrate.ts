@@ -73,7 +73,7 @@ function checkToday() {
   }
   if (!markCelebrated([`day:${today}`]).length) return;
   const run = dayRun(p);
-  celebrate("day", TIER_TITLE.day, run > 1 ? `🔥 ${run} perfect days in a row` : "Everything due today is done", "dayDone");
+  celebrate("day", TIER_TITLE.day, run > 1 ? `${run} perfect days in a row` : "Everything due today is done", "dayDone");
 }
 
 /** A week that ended without a perfect last day still counts: celebrate it on the next visit. */
@@ -104,7 +104,7 @@ export function checkTrophies() {
     .join(" · ");
   // Usually a trophy arrives with its own perfect-day celebration: add it to that one.
   const cur = useCelebration.getState().current;
-  if (cur) useCelebration.setState({ current: { ...cur, detail: `${cur.detail}\n🏆 ${names}` } });
+  if (cur) useCelebration.setState({ current: { ...cur, detail: `${cur.detail}\nTrophy: ${names}` } });
   else celebrate("day", "Trophy unlocked!", names, "streak");
 }
 

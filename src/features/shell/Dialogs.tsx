@@ -1,4 +1,5 @@
 import { Button, Dialog } from "../../components/ui/Dialog";
+import { FEATURE_GROUPS, FEATURES } from "../../domain/features";
 import { setShortcuts, useUi } from "../../stores/ui";
 
 /** "This / this and following / all" prompt for recurring tasks. */
@@ -46,56 +47,28 @@ export function ConfirmDialog() {
   );
 }
 
-/** Single source of truth for the "?" sheet; lib/shortcuts.ts implements the bindings. */
-export const SHORTCUTS: [section: string, keys: string, what: string][] = [
-  ["General", "Ctrl K", "Search & commands"],
-  ["General", "N", "New task (focus quick add)"],
-  ["General", "/", "Filter the current list"],
-  ["General", "Ctrl + / Ctrl − / Ctrl 0", "Zoom in / out / reset"],
-  ["General", "Ctrl Shift A", "Quick add from anywhere (global)"],
-  ["General", "Ctrl Z", "Undo last change"],
-  ["General", "[", "Collapse / expand sidebar"],
-  ["General", "Ctrl ,", "Settings"],
-  ["General", "?", "This cheat sheet"],
-  ["General", "Esc", "Close drawer / clear selection"],
-  ["Go to", "G I / G T / G U", "Inbox / Today / Upcoming"],
-  ["Go to", "G C / G M", "Calendar / Matrix mode"],
-  ["Go to", "G H / G F", "Habits / Focus"],
-  ["Go to", "G S", "Statistics"],
-  ["Tasks", "↑ ↓  or  J K", "Move between tasks"],
-  ["Tasks", "Enter", "Open focused task"],
-  ["Tasks", "Space  or  C", "Complete task"],
-  ["Tasks", "1 2 3 / 0", "Priority high, medium, low / none"],
-  ["Tasks", "T / Shift T", "Schedule for today / tomorrow"],
-  ["Tasks", "Delete", "Delete task"],
-  ["Tasks", "Ctrl / Shift + click", "Multi-select (keys act on all)"],
-  ["Quick add & filter", "!high  !2", "Priority"],
-  ["Quick add & filter", "#tag  ~List", "Tag, list"],
-  ["Quick add & filter", "tomorrow 5pm, every mon", "Date, time, repeat"],
-  ["Quick add & filter", "overdue  nodate  done", "Filter only"],
-  ["Calendar", "D / X / W / M / A", "Day / 5-day / week / month / agenda"],
-  ["Calendar", "T", "Jump to today"],
-  ["Calendar", "← →", "Previous / next"],
-];
-
+/** The "?" sheet: every shortcut and token in the feature registry (D167); lib/shortcuts.ts implements the bindings. */
 export function ShortcutSheet() {
   const open = useUi((s) => s.shortcutsOpen);
   if (!open) return null;
-  const sections = [...new Set(SHORTCUTS.map((s) => s[0]))];
+  const sections = FEATURE_GROUPS.map((group) => ({
+    group,
+    rows: FEATURES.filter((f) => f.group === group).flatMap((f) => f.commands.flatMap((c) => (c.kind === "keys" ? [[c.keys, c.text]] : c.kind === "token" ? [[c.token, c.text]] : []))),
+  })).filter((s) => s.rows.length);
   return (
     <Dialog label="Keyboard shortcuts" onClose={() => setShortcuts(false)} width="max-w-2xl">
       <div className="p-6">
         <h2 className="mb-4 text-lg font-semibold">Keyboard shortcuts</h2>
         <div className="grid gap-6 sm:grid-cols-2">
-          {sections.map((sec) => (
-            <section key={sec}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">{sec}</h3>
+          {sections.map(({ group, rows }) => (
+            <section key={group}>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">{group}</h3>
               <dl className="space-y-1.5">
-                {SHORTCUTS.filter((s) => s[0] === sec).map(([, keys, what]) => (
-                  <div key={keys} className="flex items-center justify-between gap-4 text-sm">
+                {rows.map(([keys, what]) => (
+                  <div key={keys + what} className="flex items-center justify-between gap-4 text-sm">
                     <dt className="text-fg-2">{what}</dt>
                     <dd>
-                      <kbd className="rounded-sm border border-border bg-surface px-1.5 py-0.5 font-mono text-xs">{keys}</kbd>
+                      <kbd className="whitespace-nowrap rounded-sm border border-border bg-surface px-1.5 py-0.5 font-mono text-xs">{keys}</kbd>
                     </dd>
                   </div>
                 ))}

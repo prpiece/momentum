@@ -5,7 +5,7 @@ import { parseSession, sessionRow } from "../db/miscRows";
 import * as timer from "../domain/focus";
 import type { FocusMode, FocusSession, TimerState } from "../domain/focus";
 import { uid } from "./data";
-import { useSettings } from "./settings";
+import { trackDone, useSettings } from "./settings";
 
 type State = { timer: TimerState; sessions: Record<string, FocusSession> };
 export const useFocus = create<State>(() => ({ timer: { status: "idle" }, sessions: {} }));
@@ -63,7 +63,10 @@ export function tickFocus() {
   if (t.status !== "running" || t.mode !== "pomodoro") return;
   if ((timer.remainingMs(t, Date.now(), cfg()) ?? 1) > 0) return;
   const { before, state } = skipPhase();
-  if (before.status === "running" && state.status !== "idle") onPhaseEnd(before.phase, state.status === "done" ? "done" : state.phase);
+  if (before.status === "running" && state.status !== "idle") {
+    if (before.phase === "focus") trackDone("focus:completed");
+    onPhaseEnd(before.phase, state.status === "done" ? "done" : state.phase);
+  }
 }
 
 export function deleteSession(id: string) {

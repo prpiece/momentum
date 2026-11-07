@@ -1,17 +1,19 @@
 import { ListGlyph } from "../../components/ui/AppIcon";
-import { CornerDownLeft, Hash, Moon, PanelLeft, Plus, Search, Sun, SunMoon, Keyboard, ListPlus, ListFilter, FileInput, CheckCircle2, Circle, Compass } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { CornerDownLeft, Hash, Search, ListFilter, CheckCircle2, Circle } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Dialog } from "../../components/ui/Dialog";
 import { matchScore } from "../../domain/taskViews";
+import { FEATURES, type PaletteId } from "../../domain/features";
 import type { ViewId } from "../../domain/types";
 import { useData } from "../../stores/data";
-import { useSettings } from "../../stores/settings";
+import { trackDone, useSettings } from "../../stores/settings";
 import { go, openTask, setImport, setPalette, setShortcuts, useUi } from "../../stores/ui";
 import { ListDialog } from "../tasks/ListDialog";
 import { openTour } from "./Tour";
 import { focusQuickAdd } from "../tasks/QuickAdd";
 import { useDerived } from "../tasks/selectors";
-import { MODULE_NAV, SETTINGS_NAV, SMART_LIST_NAV } from "./nav";
+import { FEATURE_ICON, HELP_SECTION_ID } from "../help/featureIcons";
+import { showInCurrentView } from "../tasks/viewOptions";
 
 type Item = { id: string; group: string; label: string; hint?: string; icon: ReactNode; run: () => void; score: number };
 
@@ -42,27 +44,41 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
   const update = useSettings((s) => s.update);
   const collapsed = useSettings((s) => s.settings.sidebarCollapsed);
   const close = () => setPalette(false);
+  useEffect(() => trackDone("palette:opened"), []);
 
   const items = useMemo<Item[]>(() => {
     const navTo = (view: ViewId) => () => (go(view), close());
-    const commands: Omit<Item, "score">[] = [
-      { id: "new-task", group: "Commands", label: "New task", hint: "N", icon: <Plus size={16} />, run: () => (close(), setTimeout(focusQuickAdd, 50)) },
-      { id: "new-list", group: "Commands", label: "New list", icon: <ListPlus size={16} />, run: onNewList },
-      { id: "import", group: "Commands", label: "Import tasks…", icon: <FileInput size={16} />, run: () => (close(), setImport(true)) },
-      ...[...SMART_LIST_NAV, ...MODULE_NAV, SETTINGS_NAV].map((n) => ({
-        id: `go-${n.id}`,
-        group: "Commands",
-        label: `Go to ${n.label}`,
-        icon: <n.icon size={16} />,
-        run: navTo(n.id),
-      })),
-      { id: "theme-light", group: "Commands", label: "Switch theme: Light", icon: <Sun size={16} />, run: () => (update({ theme: "light" }), close()) },
-      { id: "theme-dark", group: "Commands", label: "Switch theme: Dark", icon: <Moon size={16} />, run: () => (update({ theme: "dark" }), close()) },
-      { id: "theme-system", group: "Commands", label: "Switch theme: System", icon: <SunMoon size={16} />, run: () => (update({ theme: "system" }), close()) },
-      { id: "sidebar", group: "Commands", label: collapsed ? "Expand sidebar" : "Collapse sidebar", icon: <PanelLeft size={16} />, run: () => (update({ sidebarCollapsed: !collapsed }), close()) },
-      { id: "tour", group: "Commands", label: "Take the tour", icon: <Compass size={16} />, run: () => (close(), openTour()) },
-      { id: "shortcuts", group: "Commands", label: "Keyboard shortcuts", hint: "?", icon: <Keyboard size={16} />, run: () => (close(), setShortcuts(true)) },
-    ];
+    const run: Record<PaletteId, () => void> = {
+      "new-task": () => (close(), setTimeout(focusQuickAdd, 50)),
+      "new-list": onNewList,
+      import: () => (close(), setImport(true)),
+      "go-inbox": navTo("inbox"),
+      "go-today": navTo("today"),
+      "go-upcoming": navTo("upcoming"),
+      "go-calendar": navTo("calendar"),
+      "go-habits": navTo("habits"),
+      "go-focus": navTo("focus"),
+      "go-progress": navTo("progress"),
+      "go-settings": navTo("settings"),
+      "matrix-mode": () => (close(), showInCurrentView({ mode: "matrix" })),
+      "show-completed": () => (close(), showInCurrentView({ showCompleted: true })),
+      "theme-light": () => (update({ theme: "light" }), close()),
+      "theme-dark": () => (update({ theme: "dark" }), close()),
+      "theme-system": () => (update({ theme: "system" }), close()),
+      sidebar: () => (update({ sidebarCollapsed: !collapsed }), close()),
+      tour: () => (close(), openTour()),
+      help: () => (navTo("settings")(), setTimeout(() => document.getElementById(HELP_SECTION_ID)?.scrollIntoView({ block: "start" }), 50)),
+      shortcuts: () => (close(), setShortcuts(true)),
+    };
+    // Every static command comes from the feature registry (D167), so each has help text.
+    const commands: Omit<Item, "score">[] = FEATURES.flatMap((f) =>
+      f.commands.flatMap((c) => {
+        if (c.kind !== "palette") return [];
+        const Icon = FEATURE_ICON[f.icon];
+        const label = c.id === "sidebar" ? (collapsed ? "Expand sidebar" : "Collapse sidebar") : c.text;
+        return [{ id: c.id, group: "Commands", label, hint: c.hint, icon: <Icon size={16} />, run: run[c.id] }];
+      }),
+    );
     const listItems = Object.values(lists).map((l) => ({
       id: `list-${l.id}`,
       group: "Lists",

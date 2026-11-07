@@ -1,3 +1,5 @@
+import type { GettingStarted } from "./features";
+
 /** Local calendar date, `YYYY-MM-DD`. Never converted to an instant. */
 export type LocalDate = string;
 /** UTC instant, ISO 8601 (`Date.prototype.toISOString`). */
@@ -7,7 +9,7 @@ export type Instant = string;
 export const SMART_LISTS = ["inbox", "today", "upcoming"] as const;
 export type SmartListId = (typeof SMART_LISTS)[number];
 
-export const MODULE_VIEWS = ["calendar", "habits", "focus", "stats", "settings"] as const;
+export const MODULE_VIEWS = ["calendar", "habits", "focus", "progress", "settings"] as const;
 export type ModuleView = (typeof MODULE_VIEWS)[number];
 
 /** Every top-level screen. */
@@ -248,6 +250,7 @@ export type Settings = {
   sounds: SoundSettings;
   /** The first-run welcome tour has been shown. */
   onboarded: boolean;
+  gettingStarted: GettingStarted;
   /** Tauri accelerator, e.g. `CommandOrControl+Shift+A`. */
   quickAddShortcut: string;
   /** Toggles the mini window (D80). */

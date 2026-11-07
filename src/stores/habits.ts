@@ -7,6 +7,7 @@ import { isDone, type CheckinMap, type Habit, type HabitCheckin, type HabitGroup
 import { after, reorder } from "../domain/order";
 import type { LocalDate } from "../domain/types";
 import { uid } from "./data";
+import { trackDone } from "./settings";
 import { toast } from "./ui";
 
 type ById<T> = Record<string, T>;
@@ -129,7 +130,10 @@ export function setCheckin(habitId: string, date: LocalDate, patch: Partial<Pick
   });
   void write(empty ? ["DELETE FROM habit_checkins WHERE habit_id = $1 AND date = $2", [habitId, date]] : checkinUpsert(next));
   const h = useHabits.getState().habits[habitId];
-  if (h && next.value > prev.value) onCheckin(h, date, prev.value, next.value);
+  if (h && next.value > prev.value) {
+    trackDone("habit:checked");
+    onCheckin(h, date, prev.value, next.value);
+  }
 }
 
 /** Tap: once-habits toggle; counted habits add `delta` (the row's menu offers −1). Check-ins toast an Undo. */

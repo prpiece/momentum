@@ -24,7 +24,7 @@ export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "habits", label: "Habits", icon: Target },
   { id: "focus", label: "Focus", icon: AlarmClock },
-  { id: "stats", label: "Statistics", icon: ChartColumn },
+  { id: "progress", label: "Progress", icon: ChartColumn },
 ];
 
 /** Calendar stays in the sidebar; the other modules sit in the collapsible "More" group. */

@@ -37,7 +37,7 @@ function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
   if (view === "calendar") return <CalendarView />;
   if (view === "habits") return <HabitsView />;
-  if (view === "stats") return <StatsView />;
+  if (view === "progress") return <StatsView />;
   if (view === "focus") return <FocusView />;
   if (spec) return <TaskView spec={spec} />;
   const nav = navFor(view);
