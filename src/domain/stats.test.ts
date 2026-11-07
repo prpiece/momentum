@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { atLocalTime } from "./dates";
-import type { Habit } from "./habits";
-import { byWeekday, completedByList, completedPerDay, completedPerWeek, dayStreaks, habitConsistency, heatLevel, niceScale } from "./stats";
+import { completedPerDay, completedPerWeek, dayStreaks, heatLevel, niceScale } from "./stats";
 import type { Task } from "./types";
 
 const TODAY = "2026-10-25";
@@ -50,15 +49,6 @@ describe("completedPerDay", () => {
   });
 });
 
-describe("habitConsistency", () => {
-  it("averages per-habit rates and skips habits that expected nothing", () => {
-    const h = (id: string, startDate: string): Habit => ({ id, name: id, icon: "", color: "#000", goal: { kind: "once" }, frequency: { kind: "daily" }, reminders: [], groupId: null, sortOrder: 0, archived: false, startDate, createdAt: "" });
-    const values = (id: string) => new Map(id === "a" ? [["2026-10-23", 1]] : [["2026-10-23", 1], ["2026-10-24", 1]]);
-    // a: 1 of 2 days (23, 24) = 0.5; b: 2 of 2 = 1; c starts later: ignored.
-    expect(habitConsistency([h("a", "2026-10-23"), h("b", "2026-10-23"), h("c", "2026-11-01")], values, "2026-10-23", TODAY, TODAY, 1)).toBe(0.75);
-  });
-});
-
 describe("niceScale", () => {
   it("rounds the axis up to friendly steps", () => {
     expect(niceScale(0)).toEqual({ top: 3, step: 1 });
@@ -77,14 +67,7 @@ describe("motivation stats", () => {
     expect(dayStreaks(b([0, 0]))).toEqual({ current: 0, best: 0 });
   });
 
-  it("sums by weekday and by list, and grades heat", () => {
-    // 2026-10-20 is a Tuesday.
-    expect(byWeekday(b([2, 0, 5]))).toEqual([0, 0, 2, 0, 5, 0, 0]);
-    const tasks = [done("2026-10-25", { listId: "a" }), done("2026-10-24", { listId: "a" }), done("2026-10-24", { listId: "b" }), done("2026-09-01", { listId: "b" })];
-    expect(completedByList(tasks, "2026-10-01")).toEqual([
-      { listId: "a", value: 2 },
-      { listId: "b", value: 1 },
-    ]);
+  it("grades heat", () => {
     expect([0, 1, 5, 10].map((v) => heatLevel(v, 10))).toEqual([0, 1, 2, 4]);
   });
 });

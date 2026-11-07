@@ -27,9 +27,7 @@ export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
   { id: "progress", label: "Progress", icon: ChartColumn },
 ];
 
-/** Calendar stays in the sidebar; the other modules sit in the collapsible "More" group. */
-export const MORE_NAV = MODULE_NAV.filter((n) => n.id !== "calendar");
-export const PRIMARY_MODULE_NAV = MODULE_NAV.filter((n) => n.id === "calendar");
+
 
 export const SETTINGS_NAV: NavDef<"settings"> = { id: "settings", label: "Settings", icon: Settings };
 

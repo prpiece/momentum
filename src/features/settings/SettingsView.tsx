@@ -8,7 +8,8 @@ import { UpdatesSection } from "./UpdatesSection";
 import { VoiceSection } from "./VoiceSection";
 import { VOICE_SECTION_ID } from "../../lib/voice";
 import { TagsSection } from "./TagsSection";
-import { openTour } from "../shell/Tour";
+import { HelpSection } from "../help/HelpSection";
+import { HELP_SECTION_ID } from "../help/featureIcons";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { ZOOMS, type Settings, type ViewId } from "../../domain/types";
@@ -104,6 +105,72 @@ export function SettingsView() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 p-6">
+      <Section title="General">
+        <Row label="Start view">
+          <select
+            value={s.defaultView}
+            onChange={(e) => {
+              const v = DEFAULT_VIEWS.find((d) => d.id === e.target.value);
+              if (v) update({ defaultView: v.id });
+            }}
+            className="h-9 rounded-sm border border-border bg-surface px-3 text-sm"
+          >
+            {DEFAULT_VIEWS.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+        </Row>
+        <Row label="Week starts on">
+          <Segmented
+            name="weekStart"
+            label="Week starts on"
+            value={s.weekStart}
+            onChange={set("weekStart")}
+            options={[
+              { value: 1, label: "Monday" },
+              { value: 0, label: "Sunday" },
+              { value: 6, label: "Saturday" },
+            ]}
+          />
+        </Row>
+        <Row label="Time format">
+          <Segmented
+            name="timeFormat"
+            label="Time format"
+            value={s.timeFormat}
+            onChange={set("timeFormat")}
+            options={[
+              { value: "12h", label: "1:30 PM" },
+              { value: "24h", label: "13:30" },
+            ]}
+          />
+        </Row>
+        <Row label="Smart parsing in quick add">
+          <label className="flex items-center gap-2 text-sm text-fg-2">
+            <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={s.smartParse} onChange={(e) => update({ smartParse: e.target.checked })} />
+            Detect dates, !priority, #tags, ~lists
+          </label>
+        </Row>
+        <Row label="Closing the window">
+          <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text="Keep running in the tray" />
+        </Row>
+        <Row label="Launch at login">
+          <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text="Start minimized to the tray" />
+        </Row>
+        <Row label="Global quick add">
+          <ShortcutInput value={s.quickAddShortcut} onChange={(v) => (v === s.voiceShortcut ? toast("That shortcut is already push-to-talk.") : update({ quickAddShortcut: v }))} />
+        </Row>
+        <Row label="Mini window">
+          <ShortcutInput value={s.miniShortcut} onChange={(v) => update({ miniShortcut: v })} />
+        </Row>
+        <div className="space-y-2">
+          <span className="text-sm font-medium">Tags</span>
+          <TagsSection />
+        </div>
+      </Section>
+
       <Section title="Appearance">
         <Row label="Theme">
           <Segmented
@@ -121,6 +188,21 @@ export function SettingsView() {
         <Row label="Accent">
           <AccentPicker value={s.accent} onChange={set("accent")} />
         </Row>
+        <LayoutPicker />
+        {s.layout === "sidebar" && (
+          <Row label="Sidebar position">
+            <Segmented
+              name="sidebarSide"
+              label="Sidebar position"
+              value={s.sidebarSide}
+              onChange={set("sidebarSide")}
+              options={[
+                { value: "left", label: "Left" },
+                { value: "right", label: "Right" },
+              ]}
+            />
+          </Row>
+        )}
         <Row label="Animations">
           <Segmented
             name="motion"
@@ -169,107 +251,9 @@ export function SettingsView() {
         </Row>
       </Section>
 
-      <Section title="Layout">
-        <LayoutPicker />
-        {s.layout === "sidebar" && (
-          <Row label="Sidebar position">
-            <Segmented
-              name="sidebarSide"
-              label="Sidebar position"
-              value={s.sidebarSide}
-              onChange={set("sidebarSide")}
-              options={[
-                { value: "left", label: "Left" },
-                { value: "right", label: "Right" },
-              ]}
-            />
-          </Row>
-        )}
-        <Row label="Start view">
-          <select
-            value={s.defaultView}
-            onChange={(e) => {
-              const v = DEFAULT_VIEWS.find((d) => d.id === e.target.value);
-              if (v) update({ defaultView: v.id });
-            }}
-            className="h-9 rounded-sm border border-border bg-surface px-3 text-sm"
-          >
-            {DEFAULT_VIEWS.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.label}
-              </option>
-            ))}
-          </select>
-        </Row>
-      </Section>
-
-      <Section title="Date & time">
-        <Row label="Week starts on">
-          <Segmented
-            name="weekStart"
-            label="Week starts on"
-            value={s.weekStart}
-            onChange={set("weekStart")}
-            options={[
-              { value: 1, label: "Monday" },
-              { value: 0, label: "Sunday" },
-              { value: 6, label: "Saturday" },
-            ]}
-          />
-        </Row>
-        <Row label="Time format">
-          <Segmented
-            name="timeFormat"
-            label="Time format"
-            value={s.timeFormat}
-            onChange={set("timeFormat")}
-            options={[
-              { value: "12h", label: "1:30 PM" },
-              { value: "24h", label: "13:30" },
-            ]}
-          />
-        </Row>
-      </Section>
-
-      <Section title="Tasks">
-        <Row label="Smart parsing in quick add">
-          <label className="flex items-center gap-2 text-sm text-fg-2">
-            <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={s.smartParse} onChange={(e) => update({ smartParse: e.target.checked })} />
-            Detect dates, !priority, #tags, ~lists
-          </label>
-        </Row>
-      </Section>
-
-      <Section title="Tags">
-        <TagsSection />
-      </Section>
-
-      <Section title="Notifications">
+      <Section title="Notifications & sounds">
         <NotificationSection />
-      </Section>
-
-      <Section title="Sounds">
         <SoundsSection />
-      </Section>
-
-      <Section title="System">
-        <Row label="Closing the window">
-          <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text="Keep running in the tray" />
-        </Row>
-        <Row label="Launch at login">
-          <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text="Start minimized to the tray" />
-        </Row>
-        <Row label="Guided tour">
-          <button type="button" onClick={openTour} className="h-9 rounded-sm border border-border px-3 text-sm hover:bg-hover">
-            Take the tour
-          </button>
-        </Row>
-        <Row label="Global quick add">
-          <ShortcutInput value={s.quickAddShortcut} onChange={(v) => (v === s.voiceShortcut ? toast("That shortcut is already push-to-talk.") : update({ quickAddShortcut: v }))} />
-        </Row>
-        <Row label="Mini window">
-          <ShortcutInput value={s.miniShortcut} onChange={(v) => update({ miniShortcut: v })} />
-        </Row>
       </Section>
 
       <Section title="Voice" id={VOICE_SECTION_ID}>
@@ -277,19 +261,19 @@ export function SettingsView() {
         <Row label="Push to talk">
           <ShortcutInput value={s.voiceShortcut} onChange={(v) => (v === s.quickAddShortcut ? toast("That shortcut already opens quick add.") : update({ voiceShortcut: v }))} />
         </Row>
-        <p className="text-xs text-muted">Hold the shortcut, say a task, let go, then press Enter. Or say “start focus”, “stop focus”, “open today”, “open matrix” or “open calendar”.</p>
-      </Section>
-
-
-      <Section title="Updates">
-        <UpdatesSection />
+        <p className="text-xs text-muted">Hold the shortcut, say a task, let go, then press Enter. Or say “start focus”, “stop focus”, “open today”, “show matrix”, “show completed” or “open calendar”.</p>
       </Section>
 
       <Section title="Data">
         <DataSection />
       </Section>
 
-      <Section title="About">
+      <Section title="Help" id={HELP_SECTION_ID}>
+        <HelpSection />
+      </Section>
+
+      <Section title="About & updates">
+        <UpdatesSection />
         <AboutSection />
       </Section>
 

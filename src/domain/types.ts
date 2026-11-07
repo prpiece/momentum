@@ -228,8 +228,6 @@ export type Settings = {
   barPosition: BarPosition;
   sidebarSide: (typeof SIDES)[number];
   sidebarCollapsed: boolean;
-  /** The sidebar's "More" module group is expanded. */
-  sidebarMoreOpen: boolean;
   defaultView: ViewId;
   weekStart: WeekStart;
   timeFormat: (typeof TIME_FORMATS)[number];

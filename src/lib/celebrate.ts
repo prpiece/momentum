@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { addDaysLocal, todayLocal } from "../domain/dates";
 import { bestStreak, currentStreak, isDone, type Habit } from "../domain/habits";
-import { dayOf, dayRun, levelOf, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, trophyCounts, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyCounts } from "../domain/perfect";
+import { bestDayRun, dayOf, dayRun, levelOf, perfectDays, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, trophyCounts, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyCounts } from "../domain/perfect";
 import { LEVEL_LOOKS } from "../features/celebrate/trophyLooks";
 import type { LocalDate, SoundEvent } from "../domain/types";
 import { derive } from "../features/tasks/selectors";
@@ -121,6 +121,13 @@ export function allTime(today: LocalDate) {
 
 /** Perfect days in a row, for the Today flame. */
 export const perfectRun = () => dayRun(prepared().p);
+
+/** Progress → This week and Streaks: the current and best perfect-day runs, and this week's perfect days. */
+export function perfectSummary() {
+  const { p, from } = prepared();
+  const ws = weekStartOf(p.input.today, p.input.weekStart);
+  return { run: dayRun(p), best: bestDayRun(p, from), thisWeek: perfectDays(p, ws, p.input.today) };
+}
 
 /** What each trophy ladder measures right now, for the shelf and level checks. */
 export function currentTrophyCounts(): TrophyCounts {

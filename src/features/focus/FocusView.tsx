@@ -12,7 +12,7 @@ import { addDaysLocal } from "../../domain/dates";
 import { useData } from "../../stores/data";
 import { deleteSession, pauseFocus, resumeFocus, setFocusTask, skipPhase, startFocus, stopFocus, useFocus } from "../../stores/focus";
 import { useSettings } from "../../stores/settings";
-import { addStatsSection } from "../stats/StatsView";
+import { addProgressSection } from "../progress/ProgressView";
 import { toggleDone } from "../tasks/actions";
 import { useDerived } from "../tasks/selectors";
 
@@ -49,7 +49,7 @@ function minutesPerDay(sessions: Record<string, { startAt: string; seconds: numb
   });
 }
 
-addStatsSection({
+addProgressSection({
   id: "focus",
   render: () => <FocusStats />,
 });

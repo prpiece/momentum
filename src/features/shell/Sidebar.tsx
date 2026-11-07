@@ -32,12 +32,11 @@ import { withUndo } from "../../lib/undo";
 import { addFolder, moveFolder, moveTasks, removeFolder, removeList, updateFolder, updateList, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { confirm, go, openContextMenu, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";
-import { useFocus } from "../../stores/focus";
 import { FocusBadge } from "../focus/FocusView";
 import { editTask } from "../tasks/actions";
 import { ListDialog, ListDialogButton } from "../tasks/ListDialog";
 import { useCounts } from "../tasks/selectors";
-import { MORE_NAV, PRIMARY_MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
+import { MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
 
 type Side = "left" | "right";
 
@@ -171,9 +170,7 @@ function InlineName({ initial, onDone }: { initial: string; onDone: (v: string |
 }
 
 export function Sidebar() {
-  const { sidebarCollapsed: collapsed, sidebarSide: side, sidebarMoreOpen: moreOpen } = useSettings((s) => s.settings);
-  const view = useUi((s) => s.view);
-  const focusRunning = useFocus((s) => s.timer.status !== "idle");
+  const { sidebarCollapsed: collapsed, sidebarSide: side } = useSettings((s) => s.settings);
   const savedFilters = useSettings((s) => s.settings.savedFilters);
   const update = useSettings((s) => s.update);
   const lists = useData((s) => s.lists);
@@ -200,18 +197,6 @@ export function Sidebar() {
     upcoming: { type: "smart", id: "upcoming" },
   };
 
-  const moreItem = (n: (typeof MORE_NAV)[number]) => (
-    <NavItem
-      key={n.id}
-      id={n.id}
-      label={n.label}
-      icon={icon(n.icon)}
-      collapsed={collapsed}
-      side={side}
-      indent={!collapsed}
-      badge={n.id === "focus" ? <FocusBadge /> : undefined}
-    />
-  );
   const patchFilter = (id: string, patch: Partial<SavedFilter>) => update({ savedFilters: savedFilters.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
   const filterItem = (f: SavedFilter) =>
     editingFilter?.id === f.id ? (
@@ -340,44 +325,10 @@ export function Sidebar() {
         </ul>
         <div className="mx-3 my-3 h-px bg-border" />
         <ul className="space-y-0.5">
-          {PRIMARY_MODULE_NAV.map((n) => (
-            <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} />
+          {MODULE_NAV.map((n) => (
+            <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} badge={n.id === "focus" ? <FocusBadge /> : undefined} />
           ))}
-          {collapsed ? (
-            <li>
-              <button
-                type="button"
-                aria-label="More"
-                title="More"
-                onClick={(e) => openMenuAt(e.currentTarget, MORE_NAV.map((n) => ({ label: n.label, icon: <n.icon size={14} />, run: () => go(n.id) })))}
-                className="flex h-[var(--row-h)] w-full items-center gap-3 rounded-sm px-3 text-fg-2 hover:bg-hover hover:text-fg"
-              >
-                <span className="grid w-[18px] shrink-0 place-items-center">{icon(MoreHorizontal)}</span>
-              </button>
-            </li>
-          ) : (
-            <li>
-              <button
-                type="button"
-                onClick={() => update({ sidebarMoreOpen: !moreOpen })}
-                aria-expanded={moreOpen}
-                className="flex h-[var(--row-h)] w-full items-center gap-3 rounded-sm px-3 text-sm text-fg-2 hover:bg-hover hover:text-fg"
-              >
-                <span className="grid w-[18px] shrink-0 place-items-center">
-                  <ChevronRight size={15} className={`transition-transform duration-[var(--dur)] ${moreOpen ? "rotate-90" : ""}`} />
-                </span>
-                <span className="flex-1 text-left">More</span>
-              </button>
-            </li>
-          )}
-          {/* With More closed, the current view and a running focus timer stay reachable. */}
-          {(!moreOpen || collapsed) && MORE_NAV.filter((n) => n.id === view || (n.id === "focus" && focusRunning)).map(moreItem)}
         </ul>
-        {!collapsed && (
-          <Collapse open={moreOpen}>
-            <ul className="space-y-0.5 pt-0.5">{MORE_NAV.map(moreItem)}</ul>
-          </Collapse>
-        )}
 
         {!collapsed && (
           <>

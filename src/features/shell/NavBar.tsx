@@ -14,7 +14,7 @@ import { FocusBadge } from "../focus/FocusView";
 import { ListDialog } from "../tasks/ListDialog";
 import { useCounts } from "../tasks/selectors";
 import { WindowControls } from "./WindowControls";
-import { MODULE_NAV, MORE_NAV, PRIMARY_MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
+import { MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
 
 type Variant = "top" | "dock";
 
@@ -162,16 +162,9 @@ export function NavBar({ position }: { position: BarPosition }) {
     <>
       {smartItems}
       {sep}
-      {PRIMARY_MODULE_NAV.map((n) => (
+      {MODULE_NAV.map((n) => (
         <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} badge={n.id === "focus" ? <FocusBadge /> : undefined} />
       ))}
-      {/* The current module stays visible next to Calendar, like the sidebar's closed "More". */}
-      {MORE_NAV.filter((n) => n.id === view).map((n) => (
-        <BarItem key={n.id} id={n.id} label={n.label} icon={<n.icon size={size} />} variant={variant} />
-      ))}
-      <button type="button" aria-label="More" onClick={(e) => openMenuAt(e.currentTarget, MORE_NAV.map((n) => ({ label: n.label, icon: <n.icon size={14} />, run: () => go(n.id) })))} className={`${btn} text-fg-2`}>
-        <MoreHorizontal size={size} /> More
-      </button>
       <button type="button" aria-label="Lists" title="Lists" data-tour="lists" onClick={(e) => openMenuAt(e.currentTarget, listsMenu())} className={`${btn} ${onList ? "bg-accent-soft font-semibold text-fg" : "text-fg-2"}`}>
         <ListFilter size={size} className={onList ? "text-accent" : ""} />
         Lists <ChevronDown size={14} />

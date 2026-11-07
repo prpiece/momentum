@@ -12,7 +12,7 @@ import { CalendarView } from "./features/calendar/CalendarView";
 import { EventDialog } from "./features/calendar/EventDialog";
 import { FocusView } from "./features/focus/FocusView";
 import { HabitsView } from "./features/habits/HabitsView";
-import { StatsView } from "./features/stats/StatsView";
+import { ProgressView } from "./features/progress/ProgressView";
 import { SettingsView } from "./features/settings/SettingsView";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dialogs";
@@ -37,7 +37,7 @@ function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
   if (view === "calendar") return <CalendarView />;
   if (view === "habits") return <HabitsView />;
-  if (view === "progress") return <StatsView />;
+  if (view === "progress") return <ProgressView />;
   if (view === "focus") return <FocusView />;
   if (spec) return <TaskView spec={spec} />;
   const nav = navFor(view);

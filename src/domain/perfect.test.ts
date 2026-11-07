@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal, atLocalTime } from "./dates";
 import type { Habit, HabitFrequency } from "./habits";
-import { dayOf, dayRun, levelOf, prepare, trophyCounts, TROPHIES, tierOfRun, weekQualifies, weekRun, type ProgressInput } from "./perfect";
+import { bestDayRun, dayOf, dayRun, levelOf, perfectDays, prepare, trophyCounts, TROPHIES, tierOfRun, weekQualifies, weekRun, type ProgressInput } from "./perfect";
 import type { LocalDate, Task } from "./types";
 
 // A Monday, so with weekStart 1 the week is 2026-10-26 … 2026-11-01.
@@ -84,6 +84,15 @@ describe("runs and weeks", () => {
     expect(dayRun(prepare(input({ tasks }), MON))).toBe(3);
     // A task left overdue fails every day until it's done.
     expect(dayRun(prepare(input({ tasks: [...tasks, task(day(3), day(6))] }), MON))).toBe(0);
+  });
+  it("finds the best run and counts perfect days in a range", () => {
+    // Perfect on days 0, 1, 2; day 3 fails (left overdue to day 4); perfect again on day 5.
+    const tasks = [task(day(0), day(0)), task(day(1), day(1)), task(day(2), day(2)), task(day(3), day(4)), task(day(5), day(5))];
+    const p = prepare(input({ tasks }), MON);
+    expect(bestDayRun(p, MON)).toBe(3);
+    expect(dayRun(p)).toBe(1);
+    expect(perfectDays(p, MON, day(6))).toBe(4);
+    expect(perfectDays(p, day(3), day(4))).toBe(0);
   });
   it("qualifies a week at 90% with 3 active days, not below", () => {
     const good = [0, 1, 2, 3, 4].flatMap((n) => [task(day(n), day(n)), task(day(n), day(n))]);

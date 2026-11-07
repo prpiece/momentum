@@ -159,6 +159,25 @@ export function dayRun(p: Prepared, max = 400): number {
   return n;
 }
 
+/** The longest perfect-day run from `from` to today, by the same rule as `dayRun`. */
+export function bestDayRun(p: Prepared, from: LocalDate): number {
+  let best = 0;
+  let n = 0;
+  for (let d = from; d <= p.input.today; d = addDaysLocal(d, 1)) {
+    const k = dayOf(p, d).kind;
+    if (k === "perfect") best = Math.max(best, ++n);
+    else if (k === "failed") n = 0;
+  }
+  return best;
+}
+
+/** Perfect days from `start` to `end`, inclusive. */
+export function perfectDays(p: Prepared, start: LocalDate, end: LocalDate): number {
+  let n = 0;
+  for (let d = start; d <= end; d = addDaysLocal(d, 1)) if (dayOf(p, d).kind === "perfect") n++;
+  return n;
+}
+
 export type Tier = "day" | "week" | "month" | "year";
 /** What a qualifying week's run is worth: every 52nd a year, every 4th a month. */
 export const tierOfRun = (run: number): Tier => (run % 52 === 0 ? "year" : run % 4 === 0 ? "month" : "week");
