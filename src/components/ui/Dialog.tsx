@@ -32,7 +32,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
 
   return createPortal(
     <div
-      className={`anim-fade fixed inset-0 z-50 flex justify-center bg-black/30 p-4 backdrop-blur-[2px] ${props.top ? "items-start pt-[12vh]" : "items-center"}`}
+      className={`anim-fade fixed inset-0 z-50 flex justify-center bg-[var(--scrim)] p-4 ${props.top ? "items-start pt-[12vh]" : "items-center"}`}
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -40,7 +40,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
         role="dialog"
         aria-modal="true"
         aria-label={props.label}
-        className={`anim-dialog max-h-full w-full overflow-auto rounded-panel border border-border bg-raised shadow-float ${props.width ?? "max-w-md"}`}
+        className={`layer layer-raised anim-dialog max-h-full w-full overflow-auto rounded-panel ${props.width ?? "max-w-[var(--dialog)]"}`}
       >
         {props.children}
       </div>
@@ -52,25 +52,19 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
 export function Button(props: {
   children: ReactNode;
   onClick?: () => void;
-  variant?: "primary" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
   title?: string;
 }) {
-  const v = props.variant ?? "ghost";
-  const cls = {
-    primary: "bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-press",
-    ghost: "text-fg-2 hover:bg-surface-2 hover:text-fg",
-    danger: "bg-danger text-white hover:opacity-90",
-  }[v];
   return (
     <button
       type={props.type ?? "button"}
       onClick={props.onClick}
       disabled={props.disabled}
       title={props.title}
-      className={`inline-flex h-9 items-center justify-center gap-2 rounded-control px-3.5 text-sm font-medium transition-colors duration-[var(--dur)] disabled:opacity-50 ${cls} ${props.className ?? ""}`}
+      className={`btn btn-${props.variant ?? "ghost"} ${props.className ?? ""}`}
     >
       {props.children}
     </button>
@@ -92,9 +86,7 @@ export function IconButton(props: {
       aria-label={props.label}
       title={props.label}
       onClick={props.onClick}
-      className={`grid size-8 shrink-0 place-items-center rounded-control transition-colors duration-[var(--dur)] hover:bg-surface-2 hover:text-fg ${
-        props.active ? "bg-accent-soft text-accent" : "text-muted"
-      } ${props.className ?? ""}`}
+      className={`btn btn-ghost icon-btn ${props.active ? "is-on" : ""} ${props.className ?? ""}`}
     >
       {props.children}
     </button>

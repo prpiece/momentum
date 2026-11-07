@@ -42,9 +42,9 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
         <h2 className="text-lg font-semibold">{list ? "Edit list" : "New list"}</h2>
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted">Name</span>
-          <div className="flex items-center gap-2 rounded-card border border-border bg-surface px-3 focus-within:border-accent">
+          <div className="input-wrap h-[var(--control-lg)]">
             <ListGlyph icon={icon} color={color} size={18} />
-            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className="h-10 flex-1 bg-transparent outline-none" placeholder="e.g. School" />
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. School" />
           </div>
         </label>
 

@@ -9,7 +9,7 @@ export function Segmented<T extends string | number>(props: {
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="radiogroup" aria-label={props.label} className="inline-flex rounded-control border border-border bg-bg p-0.5">
+    <div role="radiogroup" aria-label={props.label} className="seg">
       {props.options.map((o) => (
         // `relative` keeps the sr-only radio inside the label; otherwise focusing it scrolls <main> to wherever it lands.
         <label key={String(o.value)} className="relative">
@@ -20,7 +20,7 @@ export function Segmented<T extends string | number>(props: {
             checked={o.value === props.value}
             onChange={() => props.onChange(o.value)}
           />
-          <span className="block cursor-pointer select-none rounded-[6px] px-3 py-1 text-sm text-fg-2 transition-colors duration-[var(--dur)] hover:text-fg peer-checked:bg-raised peer-checked:font-medium peer-checked:text-fg peer-focus-visible:outline-2 peer-focus-visible:outline-accent">
+          <span className={`seg-item peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent-text ${o.value === props.value ? "is-on" : ""}`}>
             {o.label}
           </span>
         </label>

@@ -86,7 +86,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
             <label className="text-xs font-semibold text-muted">
               {habit.name} · goal {fmt(target)} {habit.goal.unit}
               <div className="mt-1.5 flex items-center gap-2">
-                <input autoFocus type="number" min={0} step="any" value={draft} onChange={(e) => setDraft(e.target.value)} className="h-9 w-full rounded-control border border-border bg-surface px-2 text-sm text-fg outline-none focus:border-accent" />
+                <input autoFocus type="number" min={0} step="any" value={draft} onChange={(e) => setDraft(e.target.value)} className="input w-full" />
                 <span className="text-sm text-fg-2">{habit.goal.unit}</span>
               </div>
             </label>

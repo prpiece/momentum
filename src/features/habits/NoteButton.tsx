@@ -52,7 +52,7 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
               </button>
             ))}
           </div>
-          <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="How did it go?" aria-label="Note" className="min-h-20 w-full resize-none rounded-control border border-border bg-surface p-2 text-sm outline-none focus:border-accent" />
+          <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="How did it go?" aria-label="Note" className="input min-h-20 w-full resize-none" />
           <p className="mt-1 text-[0.65rem] text-muted">Saved when you close this.</p>
         </Popover>
       )}

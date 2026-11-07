@@ -28,7 +28,7 @@ export function reminderLabel(r: Reminder): string {
 }
 
 const sameReminder = (a: Reminder, b: Reminder) => JSON.stringify(a) === JSON.stringify(b);
-const field = "h-8 rounded-control border border-border bg-surface px-2 text-sm outline-none focus:border-accent";
+const field = "input";
 
 export function ScheduleEditor(props: {
   schedule: Schedule;

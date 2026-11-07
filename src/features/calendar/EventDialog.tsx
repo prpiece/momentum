@@ -17,7 +17,7 @@ export function EventDialog() {
   return <EventForm key={`${event.id}:${open.key}`} event={event} occurrenceKey={open.key} />;
 }
 
-const field = "h-9 rounded-control border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent disabled:opacity-60";
+const field = "input disabled:opacity-60";
 
 function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceKey: string | null }) {
   const shown = occurrenceKey && event.recurrence ? scheduleForKey(event.schedule, occurrenceKey) : event.schedule;
@@ -143,7 +143,7 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
           ))}
         </div>
 
-        <textarea value={notes} disabled={ro} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" aria-label="Notes" className="min-h-20 w-full resize-y rounded-card border border-border bg-surface p-2.5 text-sm outline-none focus:border-accent" />
+        <textarea value={notes} disabled={ro} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" aria-label="Notes" className="input min-h-20 w-full resize-y" />
 
         <div className="flex items-center gap-2 border-t border-border pt-4">
           <Button variant="ghost" className="text-danger" onClick={() => void remove()}>

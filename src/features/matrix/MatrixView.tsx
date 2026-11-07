@@ -226,7 +226,7 @@ function RulesEditor() {
                 if (Number.isFinite(n) && n >= 0 && n <= 30) update({ matrix: { ...rules, urgentDays: n } });
               }}
               aria-label="Urgent within days"
-              className="h-8 w-16 rounded-control border border-border bg-surface px-2 outline-none focus:border-accent"
+              className="input w-16"
             />
             days (or overdue)
           </div>

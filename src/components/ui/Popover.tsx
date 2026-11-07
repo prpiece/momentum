@@ -58,7 +58,7 @@ export function Popover(props: {
     <div
       ref={ref}
       role="dialog"
-      className={`anim-pop-in fixed z-50 min-w-44 rounded-card border border-border bg-raised p-1 shadow-float ${props.className ?? ""}`}
+      className={`layer layer-raised anim-pop-in fixed z-50 min-w-[200px] rounded-card p-1 ${props.className ?? ""}`}
       style={pos ?? { top: -9999, left: -9999 }}
     >
       {props.children}
@@ -82,20 +82,18 @@ export function MenuItem(props: {
       role="menuitem"
       disabled={props.disabled}
       onClick={props.onSelect}
-      className={`flex w-full items-center gap-2.5 rounded-control px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-40 ${
-        props.danger ? "text-danger" : "text-fg"
-      } ${props.active ? "bg-accent-soft" : ""}`}
+      className={`menu-item ${props.danger ? "danger" : ""} ${props.active ? "is-on" : ""}`}
     >
-      {props.icon && <span className="shrink-0 text-muted">{props.icon}</span>}
-      <span className="flex-1 truncate">{props.children}</span>
+      {props.icon && <span className="mi-icon">{props.icon}</span>}
+      <span className="min-w-0 flex-1 truncate">{props.children}</span>
       {props.hint && <span className="text-xs text-muted">{props.hint}</span>}
     </button>
   );
 }
 
-export const MenuSeparator = () => <div className="mx-2 my-1 h-px bg-border" />;
+export const MenuSeparator = () => <div role="separator" className="menu-sep" />;
 export const MenuLabel = ({ children }: { children: ReactNode }) => (
-  <div className="px-2.5 pb-1 pt-1.5 text-[0.7rem] font-semibold uppercase tracking-wider text-muted">{children}</div>
+  <div className="t-label px-2 pb-1 pt-1.5 text-muted">{children}</div>
 );
 
 /** Anchor-button + popover pair. */

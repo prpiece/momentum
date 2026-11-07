@@ -3,7 +3,8 @@ import { Download, RefreshCw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { checkForUpdate, installUpdate, useAppVersion, useUpdate, type UpdateStatus } from "../../lib/updater";
 import { useSettings } from "../../stores/settings";
-import { Line, Switch } from "./NotificationSection";
+import { Switch } from "../../components/ui/Switch";
+import { Line } from "./NotificationSection";
 
 function statusLine(s: UpdateStatus): string {
   switch (s.kind) {

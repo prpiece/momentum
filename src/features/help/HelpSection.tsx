@@ -15,7 +15,7 @@ export function HelpSection() {
   const found = useMemo(() => searchFeatures(q).filter((f) => !f.requires), [q]);
   return (
     <div className="space-y-4">
-      <label className="flex h-9 items-center gap-2 rounded-control border border-border bg-surface px-3 focus-within:border-accent">
+      <label className="input-wrap">
         <Search size={15} className="text-muted" />
         <input
           value={q}

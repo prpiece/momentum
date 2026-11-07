@@ -62,7 +62,7 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
         onKeyDown={(e) => e.key === "Enter" && create(false)}
         placeholder={kind === "task" ? "Task title" : "Event title"}
         aria-label="Title"
-        className="h-9 w-full rounded-control border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent"
+        className="input w-full"
       />
       <div className="mt-1.5 tabular-nums text-[0.7rem] text-muted">{when}</div>
       <div className="mt-3 flex justify-between">

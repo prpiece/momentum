@@ -32,7 +32,7 @@ export function FilterBar({ view }: { view: ViewId }) {
   };
 
   return (
-    <div className="flex h-8 min-w-0 max-w-sm flex-1 items-center gap-1.5 rounded-control border border-border bg-bg px-2 transition-colors focus-within:border-accent">
+    <div className="input-wrap h-[var(--control)] min-w-0 max-w-sm flex-1">
       <Search size={14} className="shrink-0 text-muted" />
       <input
         ref={input}

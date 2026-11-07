@@ -1,6 +1,7 @@
 import { AlarmClock, BellRing, Check, Monitor, PanelBottom, PanelTop } from "lucide-react";
 import type { ReactNode } from "react";
 import { Segmented } from "../../components/ui/Segmented";
+import { Switch } from "../../components/ui/Switch";
 import type { NotifySettings } from "../../domain/types";
 import { testNotification } from "../../lib/os";
 import { useSettings } from "../../stores/settings";
@@ -15,21 +16,6 @@ const KINDS: [Flag, string, string][] = [
   ["focus", "Focus timer", "When a focus session or break ends"],
   ["quickAdd", "Global quick add", "Confirms tasks added from anywhere"],
 ];
-
-export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-[var(--dur)] ${checked ? "bg-accent" : "bg-border"}`}
-    >
-      <span className={`absolute left-0 top-0.5 size-4 rounded-full bg-white transition-transform duration-[var(--dur)] ease-[var(--ease-out)] ${checked ? "translate-x-[1.125rem]" : "translate-x-0.5"}`} />
-    </button>
-  );
-}
 
 export function Line({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
@@ -96,7 +82,7 @@ export function NotificationSection() {
           {KINDS.map(([k, title, hint]) => (
             <Line key={k} title={title} hint={hint}>
               {k === "digest" && n.digest && (
-                <input type="time" aria-label="Daily summary time" value={n.digestTime} onChange={(e) => e.target.value && set({ digestTime: e.target.value })} className="h-8 rounded-control border border-border bg-surface px-2 tabular-nums text-sm outline-none focus:border-accent" />
+                <input type="time" aria-label="Daily summary time" value={n.digestTime} onChange={(e) => e.target.value && set({ digestTime: e.target.value })} className="input w-auto tabular-nums" />
               )}
               <Switch checked={n[k]} onChange={(v) => set({ [k]: v })} label={title} />
             </Line>

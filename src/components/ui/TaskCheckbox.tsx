@@ -4,14 +4,9 @@ import { motionOn } from "../../lib/celebrate";
 import { Logo } from "../Logo";
 import type { Priority, TaskStatus } from "../../domain/types";
 
-const RING: Record<Priority, string> = {
-  0: "var(--muted)",
-  1: "var(--prio-low)",
-  2: "var(--prio-med)",
-  3: "var(--prio-high)",
-};
+const RING: Record<Priority, string> = { 0: "", 1: "p-low", 2: "p-med", 3: "p-high" };
 
-/** Round check, ringed in the priority color; pops when completed and sends a logo badge up (D63). */
+/** Round check (.check), ringed in the priority colour; ticks when completed and sends a logo badge up (D63). */
 export function TaskCheckbox(props: {
   status: TaskStatus;
   priority: Priority;
@@ -19,10 +14,8 @@ export function TaskCheckbox(props: {
   label: string;
   size?: number;
 }) {
-  const size = props.size ?? 18;
   const done = props.status === "done";
   const wont = props.status === "wont_do";
-  const color = RING[props.priority];
   const [burst, setBurst] = useState(0);
   return (
     <button
@@ -36,21 +29,10 @@ export function TaskCheckbox(props: {
         props.onToggle();
       }}
       onPointerDown={(e) => e.stopPropagation()}
-      className="group/check relative grid shrink-0 place-items-center rounded-full transition-colors duration-[var(--dur)]"
-      style={{
-        width: size,
-        height: size,
-        border: `1.75px solid ${done ? "var(--accent)" : color}`,
-        background: done ? "var(--accent)" : `color-mix(in oklch, ${color} 8%, transparent)`,
-      }}
+      className={`check ${done ? "" : RING[props.priority]} ${wont ? "is-wont" : ""}`}
+      style={props.size ? { width: props.size, height: props.size } : undefined}
     >
-      {done ? (
-        <Check key="done" size={size - 6} strokeWidth={3.5} className="anim-pop text-accent-fg" />
-      ) : wont ? (
-        <X size={size - 6} strokeWidth={3} className="text-muted" />
-      ) : (
-        <Check size={size - 6} strokeWidth={3} className="opacity-0 transition-opacity group-hover/check:opacity-40" style={{ color }} />
-      )}
+      {wont ? <X strokeWidth={2.75} /> : <Check key={done ? "done" : "open"} strokeWidth={2.75} className={done ? "anim-pop" : undefined} />}
       {burst > 0 && (
         <span key={burst} className="anim-badge pointer-events-none absolute -top-1 left-1/2 z-10" onAnimationEnd={() => setBurst(0)}>
           <Logo size={20} />

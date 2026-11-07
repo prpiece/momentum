@@ -7,7 +7,7 @@ import type { Habit, HabitFrequency, HabitGoal } from "../../domain/habits";
 import { addGroup, addHabit, updateHabit, useHabits } from "../../stores/habits";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const field = "h-9 rounded-control border border-border bg-surface px-2.5 text-sm outline-none focus:border-accent";
+const field = "input";
 
 export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const groupMap = useHabits((s) => s.groups);
@@ -40,9 +40,9 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
         }}
       >
         <h2 className="text-lg font-semibold">{habit ? "Edit habit" : "New habit"}</h2>
-        <div className="flex items-center gap-2 rounded-card border border-border bg-surface px-3 focus-within:border-accent">
+        <div className="input-wrap h-[var(--control-lg)]">
           <AppIcon name={icon} size={20} color={color} />
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Drink water" aria-label="Name" className="h-11 flex-1 bg-transparent outline-none" />
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Drink water" aria-label="Name" />
         </div>
 
         <IconPicker value={icon} onChange={(k) => k && setIcon(k)} color={color} />

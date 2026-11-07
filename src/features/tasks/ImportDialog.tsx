@@ -13,7 +13,7 @@ import { withUndo } from "../../lib/undo";
 import { createFromText } from "./quickAddSubmit";
 
 const PREVIEW = 5;
-const field = "rounded-control border border-border bg-bg px-2.5 py-1.5 text-sm outline-none focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_var(--accent-soft)]";
+const field = "input";
 
 /** Paste a block of text, one task per line or custom separator (D92). Mounted once in App. */
 export function ImportDialog() {

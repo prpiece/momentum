@@ -2,7 +2,8 @@ import { Play } from "lucide-react";
 import { SOUNDS, type SoundEvent, type SoundSettings } from "../../domain/types";
 import { playSound, SOUND_LABELS } from "../../lib/sounds";
 import { useSettings } from "../../stores/settings";
-import { Line, Switch } from "./NotificationSection";
+import { Switch } from "../../components/ui/Switch";
+import { Line } from "./NotificationSection";
 
 const EVENTS: [SoundEvent, string, string][] = [
   ["task", "Task completed", "Each time you tick a task off"],
@@ -49,7 +50,7 @@ export function SoundsSection() {
                   set({ picks: { ...s.picks, [e]: v } });
                   playSound(v, s.volume);
                 }}
-                className="h-8 rounded-control border border-border bg-surface px-2 text-sm outline-none focus:border-accent"
+                className="input w-auto"
               >
                 {SOUNDS.map((x) => (
                   <option key={x} value={x}>

@@ -21,7 +21,7 @@ export function NumField({ value, def, lo, hi, onCommit, label }: { value: numbe
         onCommit(Number.isNaN(n) ? def : Math.min(hi, Math.max(lo, n)));
         setDraft(null);
       }}
-      className="h-7 w-14 rounded-control border border-border bg-surface px-1.5 text-fg outline-none focus:border-accent"
+      className="input h-[var(--control-sm)] w-14 px-1.5 tabular-nums"
     />
   );
 }
