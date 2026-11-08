@@ -1,3 +1,4 @@
+import { keyLabel } from "../../lib/platform";
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   ChevronRight,
@@ -311,7 +312,7 @@ export function Sidebar() {
         <button type="button" data-tour="search" onClick={() => setPalette(true)} className="btn btn-secondary w-full justify-start text-muted">
           <Search size={16} strokeWidth={1.75} />
           <span className="flex-1 text-left">Search</span>
-          <kbd className="kbd">Ctrl K</kbd>
+          <kbd className="kbd">{keyLabel("Ctrl K")}</kbd>
         </button>
       )}
 

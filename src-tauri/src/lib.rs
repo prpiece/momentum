@@ -263,6 +263,13 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // webkit2gtk's DMA-BUF renderer shows a blank window under many Linux GPU/driver combinations
+    // (AppImage especially); the software path is fast enough for this UI. Respect an explicit choice.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        // SAFETY: still single-threaded, before the runtime and any webview exist.
+        unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+    }
     let migrations = migrations();
     let latest = migrations.iter().map(|m| m.version).max().unwrap_or(0);
     tauri::Builder::default()
@@ -347,8 +354,15 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Momentum");
+        .build(tauri::generate_context!())
+        .expect("error while building Momentum")
+        .run(|_app, _event| {
+            // Clicking the Dock icon while the window is hidden in the menu bar (close-to-tray).
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                show_main(_app);
+            }
+        });
 }
 
 #[cfg(test)]

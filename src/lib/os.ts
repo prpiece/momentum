@@ -26,6 +26,7 @@ import { openVoiceSettings, refreshVoiceModel, voiceCancel, voiceErrorText, voic
 import { useSettings } from "../stores/settings";
 import { go, openEvent, openTask, toast, useUi } from "../stores/ui";
 import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderScheduler";
+import { keyLabel } from "./platform";
 import { checkForUpdate } from "./updater";
 import { playEvent, playSound } from "./sounds";
 import { checkLastWeek, checkTrophies, onCheckin, onLongBreak, onTaskDone } from "./celebrate";
@@ -199,7 +200,7 @@ export async function initOs() {
         bound = accel;
       } catch (err) {
         console.error("Global shortcut registration failed", err);
-        toast(`Couldn't register ${accel.replace("CommandOrControl", "Ctrl")}: another app may be using it. Pick another in Settings.`);
+        toast(`Couldn't register ${keyLabel(accel.replace("CommandOrControl", "Ctrl"))}: another app may be using it. Pick another in Settings.`);
       }
     };
   };

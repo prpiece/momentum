@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyParts } from "./keys";
+import { keyParts, macKeys } from "./keys";
 
 const show = (k: string) => keyParts(k).map((p) => (p.kind === "key" ? `[${p.value}]` : p.value)).join(" ");
 
@@ -16,5 +16,13 @@ describe("keyParts", () => {
   it("treats a + that ends a binding as a key", () => {
     expect(show("Ctrl + / Ctrl − / Ctrl 0")).toBe("[Ctrl] [+] / [Ctrl] [−] / [Ctrl] [0]");
     expect(show("?")).toBe("[?]");
+  });
+});
+
+describe("macKeys", () => {
+  it("swaps modifiers for their Mac symbols and leaves the rest", () => {
+    expect(macKeys("Ctrl Alt Space")).toBe("⌘ ⌥ Space");
+    expect(macKeys("Ctrl + Shift + A")).toBe("⌘ + ⇧ + A");
+    expect(macKeys("G M / click")).toBe("G M / click");
   });
 });

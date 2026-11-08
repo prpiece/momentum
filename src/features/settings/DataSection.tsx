@@ -4,6 +4,7 @@ import { Logo } from "../../components/Logo";
 import { isTauri } from "../../db/client";
 import { exportBackup, importIcs, pickFile, readBackup, restoreBackup } from "../../db/backup";
 import { ACCENT_PRESETS } from "../../domain/color";
+import { dataDirLabel } from "../../lib/platform";
 import { useAppVersion } from "../../lib/updater";
 import { confirm, toast } from "../../stores/ui";
 
@@ -64,7 +65,7 @@ export function DataSection() {
         </button>
       </div>
       <p className="text-xs text-muted">
-        Everything lives on this computer in <span className="tabular-nums">%APPDATA%\com.momentum.planner</span>. The database is copied to its <span className="tabular-nums">backups</span> folder automatically before every upgrade.
+        Everything lives on this computer in <span className="tabular-nums">{dataDirLabel}</span>. The database is copied to its <span className="tabular-nums">backups</span> folder automatically before every upgrade.
       </p>
     </div>
   );

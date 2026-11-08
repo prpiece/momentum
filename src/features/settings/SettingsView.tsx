@@ -7,6 +7,7 @@ import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
 import { UpdatesSection } from "./UpdatesSection";
 import { VoiceSection } from "./VoiceSection";
+import { keyLabel } from "../../lib/platform";
 import { VOICE_SECTION_ID } from "../../lib/voice";
 import { TagsSection } from "./TagsSection";
 import { HelpSection } from "../help/HelpSection";
@@ -74,7 +75,7 @@ function Toggle({ checked, onChange, text }: { checked: boolean; onChange: (v: b
 /** Click, then press a combination (Ctrl/Alt plus a key) to record it. */
 function ShortcutInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [recording, setRecording] = useState(false);
-  const label = value.replace("CommandOrControl", "Ctrl").split("+").join(" + ");
+  const label = keyLabel(value.replace("CommandOrControl", "Ctrl").split("+").join(" + "));
   return (
     <button
       type="button"
@@ -267,7 +268,7 @@ export function SettingsView() {
         </Row>
         <Row label="Zoom">
           <div className="flex items-center gap-3">
-            <span className="text-[length:var(--fs-xs)] text-muted">Ctrl + / Ctrl − / Ctrl 0</span>
+            <span className="text-[length:var(--fs-xs)] text-muted">{keyLabel("Ctrl + / Ctrl − / Ctrl 0")}</span>
             <Segmented name="zoom" label="Zoom" value={s.zoom} onChange={set("zoom")} options={ZOOMS.map((z) => ({ value: z, label: `${Math.round(z * 100)}%` }))} />
           </div>
         </Row>

@@ -71,7 +71,7 @@ jobs:
           | **macOS, Intel** | `Momentum___VERSION___x64.dmg` |
           | **Linux** | `.AppImage`, `.deb` or `.rpm` |
 
-          The installers aren't code-signed yet. On Windows, if SmartScreen says "Windows protected your PC", click **More info → Run anyway**. On macOS, right-click the app and choose **Open** the first time.
+          The installers aren't code-signed yet. On Windows, if SmartScreen says "Windows protected your PC", click **More info → Run anyway**. On macOS the app is signed ad hoc but not notarized: right-click it and choose **Open** the first time, or if it says "damaged", run `xattr -cr /Applications/Momentum.app` once.
           BODY_EOF
           python3 - "$version" <<'PY'
           import os, sys

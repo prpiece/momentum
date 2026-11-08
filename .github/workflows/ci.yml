@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
   pull_request:
 
 jobs:
@@ -19,3 +19,52 @@ jobs:
       - run: npm test
       # TypeScript typecheck + production frontend build
       - run: npm run build
+
+  # Rust tests on the platforms the app ships to besides Windows (PLAN D201): they compile the
+  # sherpa-onnx / cpal / tauri stack and run the unit tests there. Linux also launches the real app.
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev xvfb xdotool
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test
+
+      # Smoke test: build the release binary (no installer) and start it under a virtual display.
+      # Passes when it is still running after 20 s, shows a window titled "Momentum" and logged no panic.
+      - name: Launch under xvfb
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          npx tauri build --no-bundle
+          xvfb-run -a --server-args="-screen 0 1280x1024x24" bash -c '
+            ./src-tauri/target/release/momentum > app.log 2>&1 &
+            pid=$!
+            sleep 20
+            kill -0 $pid || { echo "app exited early"; cat app.log; exit 1; }
+            xdotool search --onlyvisible --name "^Momentum$" | grep -q . || { echo "no Momentum window"; cat app.log; exit 1; }
+            kill $pid
+          '
+          ! grep -iE "panicked|error while" app.log || { cat app.log; exit 1; }

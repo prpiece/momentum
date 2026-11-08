@@ -88,8 +88,8 @@ Download the latest installer from the **[Releases](../../releases)** page. Afte
 
 - **Windows:** `Momentum_x.y.z_x64-setup.exe` (or the `.msi`).
   > **SmartScreen warning:** Momentum isn't code-signed, so Windows may show *"Windows protected your PC"*. Click **More info → Run anyway**. This is normal for open-source apps without a paid certificate.
-- **macOS:** the `.dmg` for your Mac (`aarch64` = Apple Silicon, `x64` = Intel). The app is unsigned, so the first time you open it, right-click it and choose **Open**.
-- **Linux:** the `.AppImage` (make it executable) or the `.deb`.
+- **macOS:** the `.dmg` for your Mac (`aarch64` = Apple Silicon, `x64` = Intel); drag Momentum to Applications. The app is signed ad hoc, not notarized by Apple (that needs a paid developer account), so the first launch is blocked. Either right-click the app and choose **Open** (then **Open** again), or allow it under **System Settings → Privacy & Security → Open Anyway**. If macOS says *"Momentum is damaged and can't be opened"*, that is the same block on a downloaded app: run `xattr -cr /Applications/Momentum.app` in Terminal, then open it again. After the first launch it opens normally, and updates install without this step. Voice quick-add asks for microphone access the first time you use it.
+- **Linux:** the `.AppImage` (make it executable) or the `.deb` / `.rpm`. The tray icon needs `libayatana-appindicator3` or `libappindicator3`, and voice needs ALSA (`libasound2`).
 
 Your data lives in `%APPDATA%\com.momentum.planner\` on Windows (`~/Library/Application Support/com.momentum.planner/` on macOS, `~/.config/com.momentum.planner/` on Linux). The database is backed up automatically before every update that changes its structure. You can also export or restore a JSON backup from **Settings → Data**.
 

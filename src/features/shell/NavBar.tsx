@@ -6,6 +6,7 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { fitItems } from "../../domain/dockFit";
 import { GO } from "../../domain/features";
 import type { BarPosition, ViewId } from "../../domain/types";
+import { keyLabel } from "../../lib/platform";
 import type { DropData } from "../../lib/dnd";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
@@ -138,7 +139,7 @@ export function NavBar({ position }: { position: BarPosition }) {
           </button>
         </nav>
         <button type="button" data-tour="search" onClick={() => setPalette(true)} className="btn btn-secondary shrink-0 text-muted">
-          <Search size={16} strokeWidth={1.75} /> Search <kbd className="kbd">Ctrl K</kbd>
+          <Search size={16} strokeWidth={1.75} /> Search <kbd className="kbd">{keyLabel("Ctrl K")}</kbd>
         </button>
         <span data-tour="settings" className="contents">
           <BarItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={<SETTINGS_NAV.icon size={ICON} strokeWidth={1.75} />} />

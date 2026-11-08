@@ -88,7 +88,15 @@
     ],
     "publisher": "Momentum",
     "shortDescription": "Offline planner: tasks, calendar, habits and Eisenhower Matrix",
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "signingIdentity": "-",
+      "entitlements": "./Entitlements.plist"
+    },
+    "linux": {
+      "deb": { "depends": ["libasound2"] },
+      "rpm": { "depends": ["alsa-lib"] }
+    }
   },
   "plugins": {
     "updater": {

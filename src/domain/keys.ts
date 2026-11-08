@@ -16,3 +16,10 @@ export function keyParts(keys: string): KeyPart[] {
     return [{ kind: "key", value: t }];
   });
 }
+
+const MAC_KEYS: Record<string, string> = { Ctrl: "⌘", Alt: "⌥", Shift: "⇧" };
+
+/** The macOS spelling of a binding written for Windows/Linux: Ctrl is Cmd (the app treats both as the modifier), Alt is Option. */
+export function macKeys(keys: string): string {
+  return keys.replace(/\b(Ctrl|Alt|Shift)\b/g, (k) => MAC_KEYS[k]);
+}
