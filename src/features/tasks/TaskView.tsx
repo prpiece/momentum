@@ -85,7 +85,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col" style={tint}>
-      <div className={`${page} px-8 pb-4 pt-6`}>
+      <div className={`${page} px-[var(--gutter)] pb-4 pt-6`}>
         <PageHead
           title={spec.title}
           lead={list?.icon && list.id !== "inbox" ? <ListGlyph icon={list.icon} color={list.color} size={20} /> : undefined}
@@ -104,20 +104,20 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         <div role="radiogroup" aria-label="View mode" className="seg">
           {MODES.filter((m) => m.id !== "kanban" || list).map((l) => (
             <button key={l.id} type="button" role="radio" aria-checked={layout === l.id} onClick={() => setMode(l.id)} className={`seg-item ${layout === l.id ? "is-on" : ""}`}>
-              <l.icon size={16} strokeWidth={1.75} /> {l.label}
+              <l.icon size={16} strokeWidth={1.75} /> <span className="max-[719px]:sr-only">{l.label}</span>
             </button>
           ))}
         </div>
         <span className="tb-sep" aria-hidden />
         {spec.splitCompleted && (
           <button type="button" aria-pressed={options.showCompleted} title="Show completed" onClick={() => setOptions({ showCompleted: !options.showCompleted })} className="btn btn-ghost">
-            <CircleCheckBig size={16} strokeWidth={1.75} /> Completed
+            <CircleCheckBig size={16} strokeWidth={1.75} /> <span className="max-[719px]:sr-only">Completed</span>
           </button>
         )}
         {layout === "list" && (
           <button ref={menu.anchor} type="button" onClick={menu.toggle} aria-haspopup="menu" aria-expanded={menu.open} className="btn btn-ghost">
             <ListFilter size={16} strokeWidth={1.75} />
-            {options.groupBy !== "none" ? `Group: ${GROUPS.find((g) => g.id === options.groupBy)?.label}` : `Sort: ${SORTS.find((s) => s.id === options.sortBy)?.label}`}
+            <span className="max-[719px]:sr-only">{options.groupBy !== "none" ? `Group: ${GROUPS.find((g) => g.id === options.groupBy)?.label}` : `Sort: ${SORTS.find((s) => s.id === options.sortBy)?.label}`}</span>
           </button>
         )}
         {menu.open && (
@@ -146,18 +146,18 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         )}
         </div>
       </ToolbarActions>
-      <div className={`${page} px-8 pb-3`}>
+      <div className={`${page} px-[var(--gutter)] pb-3`}>
         <FilterBar view={spec.id} />
       </div>
       {spec.id === "today" && (
-        <div className={`${page} px-8`}>
+        <div className={`${page} px-[var(--gutter)]`}>
           <GettingStartedCard />
           <CountdownChips />
         </div>
       )}
 
       {spec.canAdd && layout !== "kanban" && layout !== "matrix" && (
-        <div data-tour="quickadd" className={`${page} px-8 pb-3`}>
+        <div data-tour="quickadd" className={`${page} px-[var(--gutter)] pb-3`}>
           <QuickAdd
             defaults={spec.defaults(today)}
             isVisible={(t) => {
@@ -169,7 +169,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
       )}
 
       {spec.id === "today" && (
-        <div className={`${page} px-8`}>
+        <div className={`${page} px-[var(--gutter)]`}>
           <TodayHabits />
         </div>
       )}

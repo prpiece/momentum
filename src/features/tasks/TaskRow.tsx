@@ -71,7 +71,7 @@ export const TaskRow = memo(function TaskRow(props: {
           toggleDone(t.id, vm.key);
         }
       }}
-      className={`group relative flex h-[var(--row)] cursor-default items-center gap-3 rounded-control pr-2 text-[length:var(--fs-base)] outline-none transition-opacity duration-[var(--dur)] focus-visible:shadow-[inset_0_0_0_2px_var(--accent-text)] focus-visible:outline-none ${
+      className={`group relative flex h-[var(--row)] cursor-default items-center gap-3 rounded-control pr-2 text-[length:var(--fs-base)] max-[719px]:h-auto max-[719px]:min-h-[var(--row-touch)] max-[719px]:items-start max-[719px]:rounded-none max-[719px]:border-b max-[719px]:border-border max-[719px]:py-3 max-[719px]:[&>.check]:mt-0.5 outline-none transition-opacity duration-[var(--dur)] focus-visible:shadow-[inset_0_0_0_2px_var(--accent-text)] focus-visible:outline-none ${
         isDragging ? "opacity-40" : ""
       } ${selected || open ? "bg-accent-soft" : "hover:bg-surface-2"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
     >
@@ -93,9 +93,12 @@ export const TaskRow = memo(function TaskRow(props: {
         )}
       </div>
       <TaskCheckbox status={leaving ? "done" : t.status} priority={t.priority} onToggle={complete} label={`Complete ${t.title}`} />
+      {/* One line on desktop; below 720px the title, then a second line with the due date first (D200). */}
+      <div className="flex min-w-0 flex-1 items-center gap-3 max-[719px]:flex-col max-[719px]:items-stretch max-[719px]:gap-0.5">
       <div className={`min-w-0 flex-1 truncate ${done || leaving ? "font-normal text-muted line-through decoration-1" : "font-medium"}`}>
         {t.title || <span className="text-muted">Untitled</span>}
       </div>
+      <div className="contents max-[719px]:flex max-[719px]:items-center max-[719px]:gap-2.5 max-[719px]:overflow-hidden">
       {/* Meta, right of the title (D198): markers, counts, tags, the parent and the list. */}
       <div className={`flex min-w-0 shrink items-center gap-2.5 overflow-hidden text-[length:var(--fs-sm)] text-muted ${done ? "opacity-70" : ""}`}>
         {t.pinned && <Pin size={14} className="shrink-0 text-accent-text" aria-label="Pinned" />}
@@ -144,9 +147,11 @@ export const TaskRow = memo(function TaskRow(props: {
           </span>
         )}
       </div>
-      <span className={`min-w-16 shrink-0 whitespace-nowrap text-right text-[length:var(--fs-sm)] tabular-nums ${overdue ? "text-danger" : "text-fg-2"} ${done ? "opacity-70" : ""}`}>
+      <span className={`min-w-16 shrink-0 whitespace-nowrap text-right text-[length:var(--fs-sm)] tabular-nums max-[719px]:order-first max-[719px]:min-w-0 max-[719px]:text-left ${overdue ? "text-danger" : "text-fg-2"} ${done ? "opacity-70" : ""}`}>
         {vm.date && (vm.date === today ? (time ?? "Today") : `${relativeDayLabel(vm.date, today)}${time ? ` ${time}` : ""}`)}
       </span>
+      </div>
+      </div>
     </div>
   );
 });

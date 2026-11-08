@@ -45,7 +45,7 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto px-8 pb-6">
+    <div className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto px-[var(--gutter)] pb-6">
       <SortableContext items={sections.map((s) => `col:${s.id}`)} strategy={horizontalListSortingStrategy}>
         {columns.map((c) => (
           <Column key={c.section?.id ?? "none"} list={list} section={c.section} items={c.items} index={c.section ? sections.indexOf(c.section) : -1} count={sections.length} />

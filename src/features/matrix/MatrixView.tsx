@@ -47,7 +47,7 @@ export function MatrixView({ vms, defaults }: { vms: readonly TaskVM[]; defaults
   }, [vms, rules, today]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-8 pb-6">
+    <div className="flex h-full min-h-0 flex-col px-[var(--gutter)] pb-6">
       <div className="flex items-center justify-end pb-2">
         <RulesEditor />
       </div>

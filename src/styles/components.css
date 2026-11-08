@@ -91,13 +91,6 @@
   .empty .btn { margin-top: 8px; }
 }
 
-/* Phone: controls and the checkbox hit area grow to the 44px touch target. */
-@media (max-width: 719px) {
-  @layer components {
-    .seg-item { height: 36px; }
-    .check::before { inset: -13px; }
-  }
-}
 
 /* An input with an icon or affix inside one bordered box (search, the list name with its icon). */
 @layer components {
@@ -172,4 +165,15 @@
 @layer components {
   .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw); }
   [data-theme="dark"] .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw-d); }
+}
+
+/* Phone overrides last, so they win over the base rules above in the same layer (D200). */
+/* Phone: controls and the checkbox hit area grow to the 44px touch target. */
+@media (max-width: 719px) {
+  @layer components {
+    .seg-item { height: 36px; }
+    .check::before { inset: -13px; }
+    .menu-item, .nav-item { height: 44px; }
+    .prop { min-height: 44px; }
+  }
 }

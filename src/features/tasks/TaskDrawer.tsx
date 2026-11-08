@@ -89,8 +89,8 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         </IconButton>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-      <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto px-6 py-5 anim-stagger [&>*]:shrink-0">
+      <div className="flex min-h-0 flex-1 max-[719px]:flex-col max-[719px]:overflow-y-auto">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto px-6 py-5 max-[719px]:flex-none max-[719px]:overflow-visible max-[719px]:px-[var(--gutter)] anim-stagger [&>*]:shrink-0">
         <div className="flex items-start gap-3">
           <div className="pt-1.5">
             <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, key)} label="Complete" />
@@ -105,7 +105,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
       </div>
 
       {/* The property rail (D198): one row per property, each opening its editor. */}
-      <div className="flex w-[212px] shrink-0 flex-col gap-px overflow-y-auto border-l border-border p-3">
+      <div className="flex w-[212px] shrink-0 flex-col gap-px overflow-y-auto border-l border-border p-3 max-[719px]:w-full max-[719px]:overflow-visible max-[719px]:border-l-0 max-[719px]:border-t">
           {!parent && (
             <Prop label="List" text={list?.name ?? "None"} value={list ? <><ListGlyph icon={list.icon} color={list.color} size={14} />{list.name}</> : null}>
               {(close) => (

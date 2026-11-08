@@ -14,7 +14,7 @@ export function AgendaView({ days, items }: { days: string[]; items: CalItem[] }
   const groups = days.map((d) => ({ day: d, items: itemsOnDay(items, d) })).filter((g) => g.items.length);
   if (!groups.length) return <p className="p-10 text-center text-[length:var(--fs-sm)] text-muted">Nothing scheduled in the next 30 days.</p>;
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-10">
+    <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-10">
       {groups.map((g) => (
         <section key={g.day} className="flex gap-6 border-b border-border py-4">
           <div className="w-28 shrink-0">

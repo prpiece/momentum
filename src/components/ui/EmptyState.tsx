@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export function EmptyState({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children?: ReactNode }) {
   return (
-    <div className="flex h-full items-center justify-center px-8">
+    <div className="flex h-full items-center justify-center px-[var(--gutter)]">
       <div className="empty">
         <span className="eic">
           <Icon size={18} strokeWidth={1.75} />

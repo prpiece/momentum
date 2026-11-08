@@ -59,7 +59,7 @@ export function ProgressView() {
   const from30 = addDaysLocal(today, -29);
 
   return (
-    <div className="h-full overflow-y-auto px-8 pb-10 pt-6">
+    <div className="h-full overflow-y-auto px-[var(--gutter)] pb-10 pt-6">
       {sharing && <ShareDialog onClose={() => setSharing(false)} />}
       <ToolbarActions>
         <Button variant="secondary" onClick={() => setSharing(true)}>

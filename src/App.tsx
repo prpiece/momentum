@@ -20,6 +20,7 @@ import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dial
 import { ImportDialog } from "./features/tasks/ImportDialog";
 import { navFor } from "./features/shell/nav";
 import { NavBar } from "./features/shell/NavBar";
+import { PhoneBar } from "./features/shell/PhoneBar";
 import { Sidebar } from "./features/shell/Sidebar";
 import { Tour } from "./features/shell/Tour";
 import { WindowControls } from "./features/shell/WindowControls";
@@ -57,7 +58,7 @@ function crumbParent(view: ViewId, spec: TaskViewSpec | null, folders: Record<st
   return null;
 }
 
-function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | null; controls: boolean }) {
+function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | null; controls: "always" | "phone" }) {
   const folders = useData((s) => s.folders);
   const parent = crumbParent(view, spec, folders);
   return (
@@ -73,9 +74,9 @@ function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | n
         <b className="truncate font-semibold text-fg">{spec?.title ?? navFor(view).label}</b>
       </h1>
       <span className="pointer-events-none flex-1" />
-      <div id={TOOLBAR_SLOT_ID} className="flex shrink-0 items-center gap-1.5" />
-      {/* The top bar layout has them in the bar. */}
-      {controls && <WindowControls />}
+      <div id={TOOLBAR_SLOT_ID} className="flex shrink-0 items-center gap-1.5 max-[719px]:min-w-0 max-[719px]:shrink max-[719px]:overflow-x-auto max-[719px]:[scrollbar-width:none]" />
+      {/* With the bar at the top, the controls are in the bar, except below 720px where the bar hides. */}
+      {controls === "always" ? <WindowControls /> : <span className="contents min-[720px]:hidden"><WindowControls /></span>}
     </header>
   );
 }
@@ -96,16 +97,22 @@ export default function App() {
 
   return (
     <DndRoot>
-      <div className={`relative isolate flex h-full ${layout === "bar" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
-        {layout === "sidebar" ? <Sidebar /> : topBar && <NavBar position="top" />}
-        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface border-border ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : topBar ? "border-t" : "border-b"}`}>
-          <Header view={view} spec={spec} controls={!topBar} />
+      {/* Below 720px the sidebar or bar hides and the phone bar sits under the content (D200). */}
+      <div className="flex h-full flex-col">
+      <div className={`relative isolate flex min-h-0 flex-1 ${layout === "bar" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
+        <div className="contents max-[719px]:hidden">{layout === "sidebar" ? <Sidebar /> : topBar && <NavBar position="top" />}</div>
+        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface border-border max-[719px]:border-0 ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : topBar ? "border-t" : "border-b"}`}>
+          <Header view={view} spec={spec} controls={topBar ? "phone" : "always"} />
           <div key={view} className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
             <View view={view} spec={spec} />
           </div>
         </main>
-        {layout === "bar" && !topBar && <NavBar position="bottom" />}
+        <div className="contents max-[719px]:hidden">{layout === "bar" && !topBar && <NavBar position="bottom" />}</div>
         <TaskDrawer />
+      </div>
+      <div className="min-[720px]:hidden">
+        <PhoneBar />
+      </div>
       </div>
       <CommandPalette />
       <ShortcutSheet />

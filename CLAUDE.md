@@ -46,7 +46,8 @@ The source is `docs/design/momentum-tokens.css`. The screen mocks are `docs/mock
   - Dark mode (`html[data-theme=dark]`) uses layered surfaces (`#141519` → `#1b1d22` → `#24262c`), never pure black. Inside a raised layer in dark, `.layer-raised` steps the fills up one level.
 - **Radii:** `rounded-xs` 4px (keycaps, inline tokens), `rounded-control` 6px (buttons, inputs, chips, rows), `rounded-card` 10px (cards, menus, quadrants), `rounded-panel` 14px (dialogs, palette, sheets), `rounded-full` (checkboxes, toggles, pills).
 - **Shadow:** one, `shadow-float`, for floating layers only. Cards sit on borders or a surface step.
-- **Spacing and sizes:** a 4px grid (`--space-*`). `--row` is 36px (32px compact), `--control` 32px, `--touch` 44px below 720px. Panel widths are in the Sizes block.
+- **Spacing and sizes:** a 4px grid (`--space-*`). `--row` is 36px (32px compact), `--control` 32px, `--touch` 44px below 720px. Panel widths are in the Sizes block. Pages pad with `px-[var(--gutter)]` (32px, 16px below 720px).
+- **Phone layout (below 720px, PLAN D200):** use `max-[719px]:` / `min-[720px]:` variants. The sidebar or bar hides for `PhoneBar`; rows go two-line; Tailwind `text-xs/sm/base` follow `--fs-xs/base/lg`, so they step up with the tokens.
 - **Motion:** `--dur-fast` 150ms (fades, menus), `--dur` 180ms, `--dur-slow` 220ms (panels); `--ease-out` entering, `--ease-in` leaving, `--ease-move` moving. Hover and press are instant. Nothing moves under reduced motion.
 - **Type:**
   - UI font: Inter Variable with `cv05`, `cv08`. Scale: `--fs-xs` 12, `--fs-sm` 13, `--fs-base` 14, `--fs-lg` 16, `--fs-xl` 24, `--fs-display` 44 (rem at a 16px root, one step larger below 720px).

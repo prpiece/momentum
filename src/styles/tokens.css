@@ -4,6 +4,14 @@
 /* Tailwind utilities map onto the runtime variables below, e.g. bg-raised, text-fg-2, rounded-card.
    The values are the v1.0 design tokens (docs/design/momentum-tokens.css, PLAN D198). */
 @theme inline {
+  /* Tailwind's text sizes follow the type tokens, so they step up below 720px (D200). Desktop values are unchanged. */
+  --text-xs: var(--fs-xs);
+  --text-xs--line-height: var(--lh-xs);
+  --text-sm: var(--fs-base);
+  --text-sm--line-height: var(--lh-base);
+  --text-base: var(--fs-lg);
+  --text-base--line-height: var(--lh-lg);
+
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -270,6 +278,9 @@
 /* ---------- Density ---------- */
 :root[data-density="compact"] { --row: var(--row-compact); }
 
+/* Page side padding (D200): 32px, 16px below 720px. */
+:root { --gutter: 32px; }
+
 /* ---------- Phone (below 720px): type steps up, rows grow ---------- */
 @media (max-width: 719px) {
   :root {
@@ -281,6 +292,9 @@
     --fs-display: 2.375rem; --lh-display: 2.625rem; /* 38/42 */
     --fs-timer: 3.5rem;                       /* 56 */
     --control: 44px; --control-lg: 44px;
+    /* App additions (D200): a 16px page gutter and 36px small controls. */
+    --gutter: 16px;
+    --control-sm: 36px;
   }
 }
 

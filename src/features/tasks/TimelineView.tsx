@@ -26,7 +26,7 @@ export function TimelineView({ vms }: { vms: TaskVM[] }) {
   const cols = { gridTemplateColumns: `repeat(${DAYS}, 1fr)` };
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto px-8 pb-10">
+    <div className="min-h-0 flex-1 overflow-auto px-[var(--gutter)] pb-10">
       <div className="mb-3 flex items-center gap-1.5">
         <button type="button" onClick={() => setStart(addDaysLocal(today, -2))} className="btn btn-secondary">
           Today
