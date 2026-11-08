@@ -23,6 +23,7 @@ step-by-step tour. Screenshot lines are left out of the GitHub notes.
 - **Settings, reorganised.** General, Appearance, Notifications & sounds, Voice, Data, Help, and About & updates, with a section list to jump between them.
 - **Starts with your computer.** New installs open Momentum (in the tray) when you log in. Turn it off in Settings → General → Launch at login.
 - **Background images are gone.** The new look keeps content on plain surfaces, so the background image setting was removed.
+- **Opens on Mac and Linux.** The Mac app is now signed, so it no longer says it's "damaged" (it isn't notarized yet: the first time, right-click it and choose Open). It asks before using the microphone for voice, shows ⌘ shortcuts, and reopens from the Dock. On Linux, the window no longer opens blank on newer graphics drivers, and the `.deb` and `.rpm` install what voice needs.
 
 ## v0.9.1
 

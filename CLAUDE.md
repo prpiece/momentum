@@ -18,6 +18,10 @@ Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/C
 ## Gotchas
 - **Restart race in `tauri dev`:** editing `src-tauri/` (Rust, migrations, icons) makes `tauri dev` restart the app. The new process can fail with WebView2 `0x800700AA` ("resource in use") while the old one still holds the profile. Just run it again. Release builds are unaffected.
 - **Windows and data access:** only the main window may write. The popups (`quickadd`, `reminder`) have no SQL permission and talk to the main window through events (PLAN D33).
+- **macOS builds are ad-hoc signed, not notarized** (`bundle.macOS.signingIdentity: "-"`, PLAN D201). Without a signature the downloaded app shows "damaged"; with one, the first launch needs right-click → Open or `xattr -cr /Applications/Momentum.app`. `src-tauri/Info.plist` carries `NSMicrophoneUsageDescription` and `Entitlements.plist` the audio-input entitlement: without them macOS kills the app when voice opens the mic.
+- **Linux:** the app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` at startup (blank windows on newer GPU stacks). The tray needs libappindicator / libayatana-appindicator and voice needs ALSA; the `.deb`/`.rpm` declare ALSA, but the bundler hard-codes `libappindicator3-1`, which newer Ubuntu lacks.
+- **Platform text:** shortcuts are written Windows-style ("Ctrl K"); render them through `<Keys>` or `keyLabel()` (`src/lib/platform.ts`) so macOS shows ⌘ ⌥ ⇧. Paths shown to the user come from `dataDirLabel`, never a hard-coded `%APPDATA%`.
+- **Port 1420:** `npm run tauri dev` fails if the browser preview (`npm run dev`) still holds the port. Stop it first.
 - **Testing the real app:** set `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>` before `npm run tauri dev`, then drive it over the DevTools protocol. Port 9222 may already be taken by other WebView2 apps on the machine, so pick another.
 
 ## Architecture rules
@@ -59,4 +63,6 @@ The source is `docs/design/momentum-tokens.css`. The screen mocks are `docs/mock
 - **Zustand selectors return stable references.** Select the raw map (`useData((s) => s.lists)`) and derive arrays with `useMemo`. A selector that builds a new array/object on every call loops React ("getSnapshot should be cached"). `npm run lint:selectors` greps for it.
 - Small components, one per file, under `src/features/<area>/`. Shared primitives go in `src/components/ui/`.
 - Every interactive element gets a visible focus ring (`--accent-text`) and a keyboard path.
+- **Visual rules (PLAN D172, D198):** no glass or blur, no gradients, no glows, no emoji in the chrome (only in names the user typed), one shadow (`shadow-float`) for floating layers. Reuse the component classes in `src/styles/components.css` (`.btn`, `.input`, `.seg`, `.check`, `.layer`, `.menu-item`, `.nav-item`, `.card`, `.kbd`, `.token`…) before writing new class strings; a view's controls go in the toolbar through `<ToolbarActions>`, a page title through `<PageHead>`.
+- **Feature registry:** every user-facing feature has an entry in `FEATURES` (`src/domain/features.ts`: title, how-to line, commands/shortcuts/tokens, done-detector). The palette, the `?` sheet, Settings → Help, Getting started and the tour all read it, and a test fails when a command has no help text. Add the entry with the feature.
 - Commit once per phase. Stage files by explicit path.

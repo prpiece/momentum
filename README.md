@@ -5,7 +5,7 @@
 <h1 align="center">Momentum</h1>
 
 <p align="center">
-  An all-in-one, offline desktop planner: tasks, a drag-and-drop calendar, habits, an Eisenhower Matrix, focus timer and countdowns.<br />
+  An all-in-one, offline desktop planner: tasks, a drag-and-drop calendar, habits, an Eisenhower Matrix, a focus timer and your progress.<br />
   Local-first. No account, no cloud, no telemetry. Your data never leaves your computer.
 </p>
 
@@ -16,16 +16,16 @@
 ## Features
 
 **Tasks**
-- Quick-add bar with natural language: `Study chem tomorrow 5pm !high #school ~Uni every mon` sets the date, time, priority, tag, list and repeat, with each recognised piece shown as a chip. Press <kbd>Esc</kbd> to keep the text literal.
-- Bulk import: paste a whole list (split by line or your own separator) and each item becomes a task, read like quick add. One undo removes the lot.
-- Smart Lists are live queries, not copies: Inbox, Today (including overdue), Upcoming (grouped by day) and a Logbook of finished tasks.
+- Quick-add bar with natural language: `Study chem tomorrow 5pm !high #school ~Uni every mon` sets the date, time, priority, tag, list and repeat, with each recognised piece shown as a chip. Typing `#` or `~` suggests your tags and lists. Press <kbd>Esc</kbd> to keep the text literal.
+- Bulk import: paste a whole list (split by line or your own separator) and each item becomes a task, read like quick add. Indented lines become subtasks. One undo removes the lot.
+- Smart Lists are live queries, not copies: Inbox, Today (including overdue) and Upcoming (grouped by day). Show completed brings finished tasks back into any view.
 - Filter any view with the quick-add syntax (`#work !high ~Uni tomorrow`, plus `overdue`, `nodate`, `done`, `wontdo`), and pin a filter to the sidebar to keep it. Click a tag on a task to filter by it.
 - Lists with colours and icons, folders nested up to three deep, tags, and subtasks up to 5 levels. Drag to reorder, or drag onto a list, Today or Upcoming in the sidebar.
-- Subtasks belong to their task: they nest under it in lists, while the Matrix, Calendar and Focus timer show the parent with its progress. Completing a task completes its open subtasks, and the Focus timer lists the subtasks so you can tick them off as you go.
-- A quiet sidebar: Calendar up top, the other tools (Matrix, Habits, Focus, Countdown, Statistics) under a collapsible More.
-- Each list can be shown as a list, a Kanban board (sections you can drag to reorder) or a timeline. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
+- Subtasks nest under their parent when both are in a view, and stand alone with the parent's name when only the subtask is (a dated subtask in Today, say). Completing a task completes its open subtasks, and the Focus timer lists the subtasks so you can tick them off as you go.
+- A quiet sidebar: Inbox, Today, Upcoming, Calendar, Habits, Focus and Progress, then your folders and lists. Or use a single bar at the top or bottom of the window instead.
+- One view switch on every task view: List, Board (a list's sections as columns you can drag to reorder), Timeline or Matrix. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
 - Task drawer:
-  - A row of chips for priority, date, list and tags, each opening its editor.
+  - A property column for list, due date, priority and tags, each opening its editor.
   - Markdown notes with images: paste, drop or add a picture, hover one to copy it back out. Removing an image from the note deletes its file too.
   - Date, time and duration, multiple reminders, repeat rules (presets or custom).
   - Priority, tags, subtasks (delete one from its parent with the hover bin), checklist, pin, duplicate, won't-do.
@@ -34,7 +34,7 @@
 - Multi-select with <kbd>Ctrl</kbd>/<kbd>Shift</kbd>-click opens a bulk toolbar (complete, date, priority, move, tag, delete). There's undo for everything: a toast button or <kbd>Ctrl Z</kbd>.
 - <kbd>Ctrl K</kbd> command palette to search tasks, lists, tags and habits, or run commands.
 - Keyboard-first: <kbd>G</kbd> then a letter jumps to a view, <kbd>J</kbd>/<kbd>K</kbd> move between tasks, <kbd>1</kbd>–<kbd>3</kbd> set priority, <kbd>T</kbd> schedules for today, <kbd>C</kbd> completes, <kbd>/</kbd> filters. <kbd>?</kbd> lists them all.
-- A guided tour on first launch spotlights each part of the app with tips. Replay it from Settings → System or search "tour" in <kbd>Ctrl K</kbd>.
+- A Getting started card on Today ticks itself off as you try things, and a short guided tour spotlights each part of the app. Replay the tour from Settings → Help or search "tour" in <kbd>Ctrl K</kbd>. Settings → Help lists every command, shortcut and token.
 - After an update, What's new walks you through every release you missed, not just the latest.
 - Calm motion throughout: menus and dialogs ease in, and new rows rise into place. Settings → Animations follows your system setting, or turn it on or off.
 
@@ -47,29 +47,31 @@
 - Colour items by list, priority or tag. Show or hide completed tasks, habits and focus records.
 - One-time, read-only `.ics` import (e.g. a Google Calendar export). Re-importing the same file updates the events instead of duplicating them.
 
-**Eisenhower Matrix**: four quadrants derived from priority and due date, with adjustable rules (default: *important* = Medium/High priority, *urgent* = due within 2 days or overdue) and colours you can change. Dragging a task to another quadrant changes its attributes to match.
+**Eisenhower Matrix**: a view mode on any list, Today or Upcoming. Four quadrants derived from priority and due date, with adjustable rules (default: *important* = Medium/High priority, *urgent* = due within 2 days or overdue) and colours you can change. Dragging a task to another quadrant changes its attributes to match.
 
 **Habits**:
 - Goal types: complete once, count up (e.g. 8 glasses), or enter an amount (e.g. 5 km).
 - Frequency: daily, specific weekdays, or X times a week. Streaks follow the frequency.
 - Notes and mood for each check-in, groups, current and best streak, a monthly grid, a yearly heatmap, and weekly/monthly reviews.
 
-**Focus & countdowns**: Pomodoro and stopwatch timers linked to a task, with a set number of cycles or ∞, focus statistics, and countdowns that can repeat yearly or monthly.
+**Focus**: Pomodoro and stopwatch timers linked to a task, with a set number of cycles or ∞ and today's sessions alongside.
 
-**Progress**: statistics, perfect days and weeks, streaks and trophy ladders, with optional sounds and celebrations. Statistics → Share turns your week or month into an image card (numbers only, never task names) to save or copy.
+**Countdowns** are calendar events: pin one and Today shows "23 days until …".
+
+**Progress**: your week (tasks done, focus time, perfect days), your perfect-day streak, trophies with levels to climb, 14-day and 12-week charts, an activity heatmap and habit consistency, with optional sounds and celebrations. Share turns your week or month into an image card (numbers only, never task names) to save or copy.
 
 **Voice (optional)**: hold <kbd>Ctrl Alt Space</kbd> (changeable) and speak a task, e.g. "call mom tomorrow at 5 priority high list family". Speech recognition runs on your computer with NVIDIA Parakeet after a one-time 482 MB download from Settings → Voice. Say commands too: "open inbox", "pause focus", "open mini window", or "finished <task>" (confirmed before it ticks anything).
 
 **System**:
 - Native notifications plus a reminder popup with *Done / Snooze / Open*, sized exactly to its cards.
 - Runs in the tray, so reminders still fire after you close the window.
-- Optional launch at login.
+- Starts with your computer (in the tray); turn it off in Settings → General.
 - Global <kbd>Ctrl Shift A</kbd> opens quick add from anywhere.
 - A mini always-on-top window (<kbd>Ctrl Alt M</kbd>, the tray or the header) shows your current task, the focus timer or the matrix while you work in other apps.
 - Backups are a single `.zip` with your data and note images; restore from `.zip` or older `.json` backups.
-- Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click; you can turn this off in Settings → System. The only other network request is the optional voice model download, which happens only when you start it.
+- Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click; you can turn this off in Settings → About & updates. The only other network request is the optional voice model download, which happens only when you start it.
 
-**Design**: four layouts (Classic sidebar, Flat edge-to-edge, Top bar, or a labelled floating Dock), a custom background (8 gradients or your own image, with dim and blur), light, dark and system themes, 9 accent presets with Ocean blue as the default (the taskbar and tray icons take the same colour), comfortable or compact density, adjustable font size and zoom, and the sidebar on the left or right. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
+**Design**: a calm, warm look in light, dark or system themes; 10 accent colours tuned for both themes, with Indigo as the default (the taskbar and tray icons take the same colour); a sidebar (left or right) or a single bar at the top or bottom; comfortable or compact density; adjustable text size and zoom; and a phone-style layout with a bottom bar when the window is narrow. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
 
 ## Screenshots
 
@@ -77,10 +79,11 @@
 |---|---|
 | ![Today](docs/screenshots/today.png) | ![Task drawer](docs/screenshots/list-drawer.png) |
 | ![Today, dark](docs/screenshots/today-dark.png) | ![Month view](docs/screenshots/calendar-month.png) |
-| ![Eisenhower Matrix](docs/screenshots/matrix.png) | ![Habits](docs/screenshots/habits.png) |
-| ![Focus](docs/screenshots/focus.png) | ![Statistics](docs/screenshots/stats.png) |
-| ![Top bar layout](docs/screenshots/layout-topbar.png) | ![Dock layout](docs/screenshots/layout-dock.png) |
-| ![Guided tour](docs/screenshots/tour.png) | |
+| ![A list in Matrix mode](docs/screenshots/matrix.png) | ![Habits](docs/screenshots/habits.png) |
+| ![Focus](docs/screenshots/focus.png) | ![Progress](docs/screenshots/progress.png) |
+| ![Bar at the top](docs/screenshots/layout-bar-top.png) | ![Bar at the bottom](docs/screenshots/layout-bar-bottom.png) |
+| ![Settings](docs/screenshots/settings.png) | ![Guided tour](docs/screenshots/tour.png) |
+| ![Narrow window](docs/screenshots/today-phone.png) | |
 
 ## Install
 
