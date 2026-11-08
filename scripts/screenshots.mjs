@@ -45,10 +45,19 @@ try {
   );
   await shot("calendar", view("light", '"calendar"', 'set({ calendar: { ...s().calendar, view: "week" } });'));
   await shot("calendar-month", view("light", '"calendar"', 'set({ calendar: { ...s().calendar, view: "month" } });'));
-  await shot("matrix", view("light", '"matrix"'));
+  // Matrix is a view mode since D164/D193: Chemistry in Matrix mode.
+  await shot(
+    "matrix",
+    view(
+      "light",
+      '"list:" + Object.values(useData.getState().lists).find((l) => l.name === "Chemistry").id',
+      'const vo = await import("/src/features/tasks/viewOptions.ts"); vo.setViewOptions(ui.useUi.getState().view, { mode: "matrix" });',
+    ),
+  );
   await shot("habits", view("light", '"habits"'));
   await shot("focus", view("light", '"focus"'));
-  await shot("stats", view("light", '"stats"'));
+  await shot("progress", view("light", '"progress"'));
+  await shot("settings", view("light", '"settings"'));
   await shot("layout-bar-top", view("light", '"today"', 'set({ layout: "bar", barPosition: "top" });'));
   await shot("layout-bar-bottom", view("light", '"calendar"', 'set({ layout: "bar", barPosition: "bottom", calendar: { ...s().calendar, view: "week" } });'));
   // The guided tour on its quick-add step: restart it, then step forward.
@@ -56,6 +65,10 @@ try {
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   await shot("tour", () => {});
+  // The phone layout (D200), then back to the desktop size.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await shot("today-phone", view("light", '"today"', 'ui.useUi.setState({ tourOpen: false });'));
+  await page.setViewportSize({ width: 1280, height: 800 });
   // Last, so the theme switch doesn't bleed into a light shot.
   await shot("today-dark", view("dark", '"today"', 'useSettings.setState({}); ui.useUi.setState({ tourOpen: false });'));
 } finally {

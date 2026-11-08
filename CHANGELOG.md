@@ -5,6 +5,25 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.0.0
+
+- **A new, calmer look.** Every screen is redrawn: warm neutrals, the Inter typeface, one radius scale, quiet borders instead of shadows, and the accent kept for what you act on. Ten accent colours are tuned for light and dark. Your accent carries over.
+  ![Today in the new look](whats-new/1.0.0/today.png)
+- **One switch for every view.** Any list, Today or Upcoming can show as List, Board, Timeline or Matrix from the toolbar, and Show completed replaces the Logbook. The Matrix is a mode now, so it holds just that view's tasks.
+  ![A list in Matrix mode](whats-new/1.0.0/matrix.png)
+- **Progress replaces Statistics.** Your week, your perfect-day streak, trophies as medals with levels to climb, and the charts, on one page. Friends will appear here once accounts arrive.
+  ![The Progress page](whats-new/1.0.0/progress.png)
+- **Countdowns live in the calendar.** Each countdown became an all-day event, and pinned ones still show as chips on Today.
+- **Sidebar or bar.** Keep the sidebar (left or right), or switch to a single bar at the top or bottom of the window in Settings → Appearance.
+- **Works in a narrow window.** Below about 720px wide, Momentum switches to a phone-style layout with a bottom bar, two-line rows and bigger touch targets.
+  ![The narrow layout](whats-new/1.0.0/today-phone.png)
+- **Quick add finishes your tags and lists.** Type `#` or `~` and pick from matching tags or lists with the arrow keys and Tab.
+- **Subtasks show where they belong.** A subtask sits under its parent when both are in view, and on its own with its parent's name when only it is (a dated subtask in Today, for example).
+- **Help, Getting started and the tour know every feature.** The command palette, the `?` sheet, Settings → Help and Getting started all list the same commands, shortcuts and tokens. Getting started ticks items off as you use them.
+- **Settings, reorganised.** General, Appearance, Notifications & sounds, Voice, Data, Help, and About & updates, with a section list to jump between them.
+- **Starts with your computer.** New installs open Momentum (in the tray) when you log in. Turn it off in Settings → General → Launch at login.
+- **Background images are gone.** The new look keeps content on plain surfaces, so the background image setting was removed.
+
 ## v0.9.1
 
 - **Catch up on everything you missed.** Skipped a few updates? What's new now walks you through every one since your last, newest first. The guided tour covers every feature so far, and you can replay it from Settings or by searching "tour".
