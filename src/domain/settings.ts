@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   matrix: { importantPriorities: [2, 3], urgentDays: 2 },
   matrixColors: [null, null, null, null],
   closeToTray: true,
-  launchAtStartup: false,
+  launchAtStartup: true,
   checkUpdates: true,
   notify: {
     enabled: true,
