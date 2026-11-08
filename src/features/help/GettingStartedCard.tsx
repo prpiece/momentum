@@ -11,18 +11,18 @@ function Item({ f, done }: { f: Feature; done?: boolean }) {
   return (
     <li className="flex items-start gap-2.5 py-1.5">
       {done === undefined ? (
-        <Icon size={15} className="mt-0.5 shrink-0 text-fg-2" />
+        <Icon size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-fg-2" />
       ) : (
         <span
           aria-label={done ? "Done" : "Not done yet"}
-          className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border ${done ? "border-accent bg-accent text-accent-fg" : "border-border"}`}
+          className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border-[1.5px] ${done ? "border-muted bg-muted text-surface" : "border-control-border"}`}
         >
-          {done && <Check size={11} strokeWidth={3} />}
+          {done && <Check size={10} strokeWidth={2.75} />}
         </span>
       )}
       <div className="min-w-0">
-        <div className={`text-sm ${done ? "text-muted line-through" : "font-medium"}`}>{f.title}</div>
-        {!done && <p className="text-xs text-fg-2">{f.howTo}</p>}
+        <div className={done ? "text-muted line-through" : "font-medium"}>{f.title}</div>
+        {!done && <p className="text-[length:var(--fs-sm)] text-muted">{f.howTo}</p>}
       </div>
     </li>
   );
@@ -42,8 +42,8 @@ export function GettingStartedCard() {
   return (
     <section aria-label="Getting started" className="mb-3 rounded-card border border-border bg-surface p-4">
       <div className="mb-1 flex items-center gap-2">
-        <h2 className="text-sm font-semibold">Getting started</h2>
-        <span className="tabular-nums text-xs text-muted">
+        <h2 className="text-[length:var(--fs-lg)] font-semibold">Getting started</h2>
+        <span className="text-[length:var(--fs-sm)] tabular-nums text-muted">
           {doneCount} of {items.core.length}
         </span>
         <div className="flex-1" />
@@ -51,7 +51,7 @@ export function GettingStartedCard() {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss Getting started"
-          className="btn btn-ghost btn-sm icon-btn text-muted focus-visible:ring-2 focus-visible:ring-accent"
+          className="btn btn-ghost btn-sm icon-btn text-muted"
         >
           <X size={15} />
         </button>
@@ -60,10 +60,10 @@ export function GettingStartedCard() {
         <ul aria-label="New" className="mb-2 border-b border-border pb-2">
           {items.fresh.map((f) => (
             <li key={f.id} className="flex items-start gap-2.5 py-1.5">
-              <span className="mt-0.5 rounded-control bg-accent-soft px-1.5 text-[length:var(--fs-xs)] font-semibold uppercase leading-4 text-fg">New</span>
+              <span className="t-label mt-0.5 rounded-xs bg-accent-soft px-1.5 text-fg">New</span>
               <div className="min-w-0">
-                <div className="text-sm font-medium">{f.title}</div>
-                <p className="text-xs text-fg-2">{f.howTo}</p>
+                <div className="font-medium">{f.title}</div>
+                <p className="text-[length:var(--fs-sm)] text-muted">{f.howTo}</p>
               </div>
             </li>
           ))}
@@ -78,9 +78,9 @@ export function GettingStartedCard() {
         type="button"
         aria-expanded={moreOpen}
         onClick={() => setMoreOpen((o) => !o)}
-        className="mt-2 flex items-center gap-1 text-xs text-fg-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+        className="btn btn-ghost btn-sm mt-1 -ml-2"
       >
-        <ChevronDown size={14} className={`transition-transform duration-[var(--dur)] ${moreOpen ? "" : "-rotate-90"}`} /> More to try
+        <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform duration-[var(--dur)] ${moreOpen ? "" : "-rotate-90"}`} /> More to try
       </button>
       <Collapse open={moreOpen}>
         <ul className="grid gap-x-6 pt-1 sm:grid-cols-2">

@@ -76,7 +76,7 @@ export function CelebrationOverlay() {
       key={c.id}
       role="status"
       aria-live="polite"
-      className={`anim-fade pointer-events-none fixed inset-0 z-50 grid place-items-center ${big ? "bg-[color-mix(in_oklch,var(--bg)_55%,transparent)]" : ""}`}
+      className={`anim-fade pointer-events-none fixed inset-0 z-50 grid place-items-center ${big ? "bg-[var(--scrim)]" : ""}`}
     >
       <div className="flex flex-col items-center gap-5">
         <div className="relative grid size-40 place-items-center">
@@ -91,12 +91,12 @@ export function CelebrationOverlay() {
             />
           ))}
           <div className={big ? "anim-hero-spin" : "anim-hero-bob"}>
-            <Logo size={c.tier === "year" ? 112 : 92} draw className="anim-hero drop-shadow-xl" />
+            <Logo size={c.tier === "year" ? 112 : 92} draw className="anim-hero" />
           </div>
         </div>
-        <div className="anim-card rounded-panel border border-border bg-raised px-7 py-4 text-center shadow-float">
-          <div className={`text-2xl font-extrabold tracking-tight ${gold ? "bg-gradient-to-r from-[#e8a317] via-[#f5c542] to-[#e8a317] bg-clip-text text-transparent" : ""}`}>{c.title}</div>
-          {c.detail && <div className="mt-1 whitespace-pre-line text-sm text-fg-2">{c.detail}</div>}
+        <div className="layer layer-raised anim-card rounded-panel px-7 py-4 text-center">
+          <div className={`font-[family-name:var(--font-head)] text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] ${gold ? "text-streak" : ""}`}>{c.title}</div>
+          {c.detail && <div className="mt-1 whitespace-pre-line text-[length:var(--fs-sm)] text-fg-2">{c.detail}</div>}
         </div>
       </div>
     </div>

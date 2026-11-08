@@ -1,16 +1,17 @@
 import { ArrowLeft, ArrowRight, Check, Lightbulb, X } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Logo } from "../../components/Logo";
+import { Keys } from "../../components/ui/Keys";
 import type { ViewId } from "../../domain/types";
 import { useSettings } from "../../stores/settings";
 import { useAppVersion } from "../../lib/updater";
 import { go, useUi } from "../../stores/ui";
 
-const Kbd = ({ children }: { children: ReactNode }) => <kbd className="rounded-xs border border-border bg-bg px-1.5 py-0.5 tabular-nums text-[length:var(--fs-xs)] text-fg">{children}</kbd>;
-const Token = ({ children }: { children: ReactNode }) => <code className="rounded-full bg-accent-soft px-2 py-0.5 tabular-nums text-[length:var(--fs-xs)] text-fg">{children}</code>;
+const Kbd = ({ children }: { children: string }) => <Keys keys={children} />;
+const Token = ({ children }: { children: ReactNode }) => <code className="token">{children}</code>;
 const Tip = ({ children }: { children: ReactNode }) => (
-  <p className="flex gap-1.5 rounded-control bg-accent-soft/60 px-2.5 py-1.5 text-xs leading-relaxed text-fg-2">
-    <Lightbulb size={13} className="mt-0.5 shrink-0" aria-hidden />
+  <p className="flex gap-2 rounded-control bg-surface-2 px-2.5 py-2 text-[length:var(--fs-sm)] text-fg-2">
+    <Lightbulb size={16} strokeWidth={1.75} className="shrink-0 text-accent-text" aria-hidden />
     <span>{children}</span>
   </p>
 );
@@ -204,7 +205,7 @@ export function Tour() {
       {/* The dim with a soft-edged hole, which glides from target to target. */}
       <div
         className="tour-ring pointer-events-none absolute rounded-card"
-        style={{ ...ring, boxShadow: `0 0 0 9999px rgb(0 0 0 / ${box ? 0.55 : 0.6})`, outline: box ? "2px solid var(--accent)" : "none", outlineOffset: 2 }}
+        style={{ ...ring, boxShadow: box ? "0 0 0 8px var(--surface), 0 0 0 9999px var(--scrim)" : "0 0 0 9999px var(--scrim)" }}
       />
       <div
         ref={card}
@@ -212,31 +213,34 @@ export function Tour() {
         role="dialog"
         aria-modal="true"
         aria-label={step.title}
-        className="tour-card anim-rise pointer-events-auto absolute flex flex-col gap-3 rounded-panel border border-border bg-raised p-5 shadow-float"
+        className="layer layer-raised tour-card anim-rise pointer-events-auto absolute flex flex-col gap-3 rounded-panel p-5"
         style={{ width: CARD_W, ...place(box, cardH) }}
       >
         <div className="flex items-start gap-3">
           {i === 0 && <Logo size={36} />}
           <div className="min-w-0 flex-1">
-            <div className="text-[0.68rem] font-semibold uppercase tracking-wider text-muted">{i === 0 ? "Quick tour" : `${i} of ${last}`}</div>
-            <h2 className="text-base font-bold tracking-tight">{step.title}</h2>
+            <div className="t-label text-muted">{i === 0 ? "Quick tour" : `${i} of ${last}`}</div>
+            <h2 className="text-[length:var(--fs-lg)] font-semibold leading-[var(--lh-lg)]">{step.title}</h2>
           </div>
           <button type="button" onClick={close} aria-label="Skip the tour" title="Skip the tour" className="-mr-1.5 -mt-1 btn btn-ghost btn-sm icon-btn text-muted">
-            <X size={15} />
+            <X size={16} strokeWidth={1.75} />
           </button>
         </div>
-        <div className="space-y-2.5 text-sm leading-relaxed text-fg-2">{step.body}</div>
-        <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-          <div className="h-full rounded-full bg-accent transition-[width] duration-[var(--dur)]" style={{ width: `${(i / last) * 100}%` }} />
+        <div className="space-y-2.5 text-fg-2">{step.body}</div>
+        {/* Step dots, as in the mock. */}
+        <div className="mt-1 flex gap-1.5" aria-hidden>
+          {Array.from({ length: last + 1 }, (_, n) => (
+            <span key={n} className={`size-1.5 rounded-full ${n <= i ? "bg-accent" : "bg-border-strong"}`} />
+          ))}
         </div>
         <div className="flex items-center gap-2">
           {i === 0 ? (
-            <button type="button" onClick={close} className="h-9 rounded-control px-3 text-sm text-muted hover:bg-surface-2 hover:text-fg">
+            <button type="button" onClick={close} className="btn btn-ghost">
               Skip tour
             </button>
           ) : (
-            <button type="button" onClick={() => to(i - 1)} className="flex h-9 items-center gap-1.5 rounded-control px-3 text-sm text-fg-2 hover:bg-surface-2">
-              <ArrowLeft size={15} /> Back
+            <button type="button" onClick={() => to(i - 1)} className="btn btn-ghost">
+              <ArrowLeft size={16} strokeWidth={1.75} /> Back
             </button>
           )}
           <div className="flex-1" />
@@ -244,19 +248,19 @@ export function Tour() {
             type="button"
             data-primary
             onClick={() => (i < last ? to(i + 1) : close())}
-            className="flex h-9 items-center gap-1.5 rounded-control bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-raised"
+            className="btn btn-primary"
           >
             {i === 0 ? (
               <>
-                Show me around <ArrowRight size={15} />
+                Show me around <ArrowRight size={16} strokeWidth={1.75} />
               </>
             ) : i < last ? (
               <>
-                Next <ArrowRight size={15} />
+                Next <ArrowRight size={16} strokeWidth={1.75} />
               </>
             ) : (
               <>
-                <Check size={15} /> Start planning
+                <Check size={16} strokeWidth={1.75} /> Start planning
               </>
             )}
           </button>

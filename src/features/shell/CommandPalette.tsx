@@ -2,6 +2,7 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { CornerDownLeft, Hash, Search, ListFilter, CheckCircle2, Circle } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Dialog } from "../../components/ui/Dialog";
+import { Keys } from "../../components/ui/Keys";
 import { matchScore } from "../../domain/taskViews";
 import { FEATURES, type PaletteId } from "../../domain/features";
 import type { ViewId } from "../../domain/types";
@@ -120,9 +121,9 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
   const pick = (i: number) => items[i]?.run();
 
   return (
-    <Dialog label="Command palette" onClose={close} width="max-w-xl" top>
-      <div className="flex items-center gap-3 border-b border-border px-4">
-        <Search size={18} className="text-muted" />
+    <Dialog label="Command palette" onClose={close} width="max-w-[var(--palette)]" top>
+      <div className="flex h-14 items-center gap-3 border-b border-border px-4">
+        <Search size={18} strokeWidth={1.75} className="text-muted" />
         <input
           autoFocus
           value={q}
@@ -138,28 +139,39 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
           aria-expanded="true"
           aria-controls="palette-results"
           aria-activedescendant={items[cursor] ? `pi-${items[cursor].id}` : undefined}
-          className="h-14 flex-1 bg-transparent text-base outline-none placeholder:text-muted"
+          className="h-full flex-1 bg-transparent text-[length:var(--fs-lg)] outline-none placeholder:text-muted focus-visible:outline-none"
         />
       </div>
-      <ul id="palette-results" role="listbox" className="max-h-[50vh] overflow-y-auto p-2">
-        {items.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">No matches for “{q}”.</li>}
+      <ul id="palette-results" role="listbox" className="max-h-[50vh] overflow-y-auto px-2 pb-2 pt-1">
+        {items.length === 0 && <li className="px-3 py-6 text-center text-[length:var(--fs-sm)] text-muted">No matches for “{q}”.</li>}
         {items.map((it, i) => (
           <li key={it.id} id={`pi-${it.id}`} role="option" aria-selected={i === cursor}>
-            {(i === 0 || items[i - 1].group !== it.group) && <div className="px-3 pb-1 pt-2 t-label text-muted">{it.group}</div>}
+            {(i === 0 || items[i - 1].group !== it.group) && <div className="t-label px-3 pb-1 pt-2.5 text-muted">{it.group}</div>}
             <button
               type="button"
               onMouseMove={() => setCursor(i)}
               onClick={() => pick(i)}
-              className={`flex w-full items-center gap-3 rounded-control px-3 py-2 text-left text-sm ${i === cursor ? "bg-accent-soft text-fg" : "text-fg-2"}`}
+              className={`flex h-9 w-full items-center gap-2.5 rounded-control px-3 text-left ${i === cursor ? "bg-surface-2" : ""}`}
             >
-              <span className="text-muted">{it.icon}</span>
+              <span className="text-fg-2">{it.icon}</span>
               <span className="flex-1 truncate">{it.label}</span>
-              {it.hint && <span className="truncate text-xs text-muted">{it.hint}</span>}
-              {i === cursor && <CornerDownLeft size={14} className="text-muted" />}
+              {it.hint && <span className="truncate text-[length:var(--fs-sm)] text-muted">{it.hint}</span>}
+              {i === cursor && <CornerDownLeft size={14} strokeWidth={1.75} className="text-muted" />}
             </button>
           </li>
         ))}
       </ul>
+      <div className="flex h-10 items-center gap-4 border-t border-border px-4 text-[length:var(--fs-xs)] text-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <Keys keys="↑ ↓" /> move
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Keys keys="Enter" /> open
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Keys keys="Esc" /> close
+        </span>
+      </div>
     </Dialog>
   );
 }
