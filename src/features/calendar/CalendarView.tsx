@@ -1,3 +1,4 @@
+import { Tip } from "../../components/ui/Tip";
 import { ChevronDown, ChevronLeft, ChevronRight, PanelRight, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
@@ -73,12 +74,16 @@ export function CalendarView() {
           <button type="button" onClick={() => setCalAnchor(todayLocal())} className="btn btn-secondary" title="Today (T)">
             Today
           </button>
-          <button type="button" aria-label="Previous" title="Previous (←)" onClick={() => setCalAnchor(step(anchor, -1))} className="btn btn-ghost icon-btn">
+          <Tip label="Previous (←)">
+          <button type="button" aria-label="Previous" onClick={() => setCalAnchor(step(anchor, -1))} className="btn btn-ghost icon-btn">
             <ChevronLeft size={18} strokeWidth={1.75} />
           </button>
-          <button type="button" aria-label="Next" title="Next (→)" onClick={() => setCalAnchor(step(anchor, 1))} className="btn btn-ghost icon-btn">
+          </Tip>
+          <Tip label="Next (→)">
+          <button type="button" aria-label="Next" onClick={() => setCalAnchor(step(anchor, 1))} className="btn btn-ghost icon-btn">
             <ChevronRight size={18} strokeWidth={1.75} />
           </button>
+          </Tip>
           <h2 className="ml-1 mr-3 whitespace-nowrap text-[length:var(--fs-lg)] font-semibold leading-[var(--lh-lg)] max-[1100px]:mr-1 max-[1100px]:text-[length:var(--fs-base)] max-[799px]:hidden">{rangeTitle(span ? "5day" : view, days, anchor)}</h2>
           {span && (
             <button type="button" onClick={() => setCalSpan(null)} title="Back to the selected view" aria-pressed="true" className="anim-pop btn btn-ghost btn-sm max-[1100px]:hidden">
@@ -114,12 +119,16 @@ export function CalendarView() {
             </Popover>
           )}
           <span className="tb-sep" aria-hidden />
-          <button ref={options.anchor} type="button" aria-label="View options" title="View options" onClick={options.toggle} className="btn btn-ghost icon-btn">
+          <Tip label="View options">
+          <button ref={options.anchor} type="button" aria-label="View options" onClick={options.toggle} className="btn btn-ghost icon-btn">
             <SlidersHorizontal size={16} strokeWidth={1.75} />
           </button>
-          <button type="button" aria-label="Toggle side panel" aria-pressed={cal.arrangeOpen} title="Arrange tasks" onClick={() => setCal({ arrangeOpen: !cal.arrangeOpen })} className={`btn btn-ghost icon-btn ${cal.arrangeOpen ? "is-on" : ""}`}>
+          </Tip>
+          <Tip label="Arrange tasks">
+          <button type="button" aria-label="Toggle side panel" aria-pressed={cal.arrangeOpen} onClick={() => setCal({ arrangeOpen: !cal.arrangeOpen })} className={`btn btn-ghost icon-btn ${cal.arrangeOpen ? "is-on" : ""}`}>
             <PanelRight size={16} strokeWidth={1.75} />
           </button>
+          </Tip>
           {options.open && (
             <Popover anchor={options.anchor} onClose={options.close} align="end" className="w-60 p-2">
               <MenuLabel>Color by</MenuLabel>

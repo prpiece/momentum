@@ -135,6 +135,7 @@
   --ease-out:  cubic-bezier(.2, 0, 0, 1);   /* things entering */
   --ease-in:   cubic-bezier(.4, 0, 1, 1);   /* things leaving */
   --ease-move: cubic-bezier(.4, 0, .2, 1);  /* moving between positions */
+  --ease-smooth: cubic-bezier(.22, 1, .36, 1); /* open and close of floating layers (transitions.dev) */
   --toast-info: 4s;
   --toast-undo: 10s;
   /* Hover and press are instant (no transition). */
@@ -387,15 +388,26 @@
 }
 .anim-step { animation: step-in 240ms var(--ease-out); }
 
-/* Popovers and menus scale in from their anchor; dialogs settle in (D102). */
+/* Popovers and menus grow from their anchor and shrink away; dialogs scale in and out (D102, D208).
+   Values adapted from transitions.dev's "Menu dropdown" and "Modal open/close" recipes (free licence,
+   https://transitions.dev/terms.html). The exits run on the inert copy `exitGhost` leaves behind. */
 @keyframes pop-in {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.97); }
 }
-.anim-pop-in { animation: pop-in var(--dur-fast) var(--ease-out); transform-origin: top; }
+@keyframes pop-out {
+  to { opacity: 0; transform: scale(0.99); }
+}
 @keyframes dialog-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  from { opacity: 0; transform: scale(0.96); }
 }
-.anim-dialog { animation: dialog-in var(--dur-slow) var(--ease-out); }
+@keyframes dialog-out {
+  to { opacity: 0; transform: scale(0.96); }
+}
+.anim-pop-in { animation: pop-in 250ms var(--ease-smooth); transform-origin: top; }
+.anim-dialog { animation: dialog-in 250ms var(--ease-smooth); }
+.layer.is-closing { animation: pop-out var(--dur-fast) var(--ease-smooth) forwards; }
+.dialog-scrim.is-closing { animation: fade-out var(--dur-fast) var(--ease-smooth) forwards; }
+.dialog-scrim.is-closing .anim-dialog { animation: dialog-out var(--dur-fast) var(--ease-smooth) forwards; }
 /* Children rise in one after another (the task drawer's sections). */
 .anim-stagger > * { animation: rise 260ms var(--ease-out) backwards; }
 .anim-stagger > :nth-child(2) { animation-delay: 30ms; }
@@ -510,3 +522,28 @@ html.vt-rows::view-transition-old(*):only-child { animation: fade-out var(--dur-
 html [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button] { position: static; transform: none; order: 9; width: 28px; height: 28px; border: 0; border-radius: var(--r-control); background: transparent; color: var(--muted); }
 html [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button]:hover { background: var(--surface-2); color: var(--fg); }
 html [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button]:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 1px; }
+
+/* The tick draws along its stroke (transitions.dev "Checkbox check", D208). Lucide's check path is ~23 units long. */
+@keyframes check-draw {
+  from { stroke-dashoffset: 23; }
+}
+.anim-draw path { stroke-dasharray: 23; animation: check-draw 250ms var(--ease-smooth) 40ms both; }
+
+/* Settings pages slide in from the side they come from (transitions.dev "Page side-by-side", D208). */
+@keyframes page-in {
+  from { opacity: 0; transform: translateX(var(--page-from, 8px)); filter: blur(3px); }
+}
+.anim-page { animation: page-in 250ms var(--ease-smooth); }
+.anim-page[data-dir="back"] { --page-from: -8px; }
+
+/* A changed count slides its new value in (transitions.dev "Number subtle change", D208). */
+@keyframes count-in {
+  from { opacity: 0; transform: translateY(4px); filter: blur(2px); }
+}
+.anim-count { display: inline-block; animation: count-in 250ms var(--ease-smooth); }
+
+/* Tooltips appear after Radix's delay with a small scale, and leave at once (transitions.dev "Tooltip", D208). */
+@keyframes tip-in {
+  from { opacity: 0; transform: scale(0.98); }
+}
+.tip { transform-origin: var(--radix-tooltip-content-transform-origin); animation: tip-in var(--dur-fast) ease-out; }

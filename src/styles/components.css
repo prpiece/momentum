@@ -201,3 +201,20 @@
   option:checked { font-weight: 600; }
   option::checkmark { order: 1; margin-left: auto; color: var(--accent-text); }
 }
+
+/* The selected segment's background slides to the new choice (transitions.dev "Tabs sliding", D208): one pill per
+   .seg, anchored to the .is-on item, so every segmented control gets it with no JS. Without anchor positioning
+   (older WebKit) the item keeps its own background. */
+@supports (anchor-name: --a) {
+  @layer components {
+    .seg { position: relative; anchor-scope: --seg-on; }
+    .seg .seg-item { position: relative; z-index: 1; }
+    .seg .seg-item.is-on { anchor-name: --seg-on; background: transparent; border-color: transparent; }
+    .seg::before {
+      content: ""; position: absolute; position-anchor: --seg-on; position-visibility: anchors-valid;
+      top: anchor(top); left: anchor(left); width: anchor-size(width); height: anchor-size(height);
+      border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--surface);
+      transition: left 250ms var(--ease-smooth), width 250ms var(--ease-smooth);
+    }
+  }
+}

@@ -18,3 +18,21 @@ export function withTransition(change: () => void, scope?: string) {
   const vt = document.startViewTransition(() => flushSync(change));
   if (scope) void vt.finished.finally(() => root.classList.remove(scope));
 }
+
+/**
+ * Plays a floating layer's exit after React has removed it (D208): a short-lived, inert copy of the element
+ * stays where it was with `is-closing`, which the CSS animates out (adapted from transitions.dev's menu dropdown
+ * and modal recipes). Works however the layer was closed, so callers don't change. Skipped under reduced motion.
+ */
+export function exitGhost(el: HTMLElement | null | undefined, ms = 150) {
+  if (!el || reducedMotion() || document.hidden) return;
+  const ghost = el.cloneNode(true) as HTMLElement;
+  ghost.inert = true;
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.removeAttribute("id");
+  ghost.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+  ghost.style.pointerEvents = "none";
+  ghost.classList.add("is-closing");
+  document.body.appendChild(ghost);
+  setTimeout(() => ghost.remove(), ms);
+}

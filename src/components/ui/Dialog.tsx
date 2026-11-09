@@ -1,10 +1,18 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { exitGhost } from "../../lib/motion";
+import { Tip } from "./Tip";
 
 /** Modal with backdrop. Escape and backdrop click close; focus moves inside and returns on close. */
 export function Dialog(props: { onClose: () => void; children: ReactNode; label: string; width?: string; top?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const { onClose } = props;
+
+  // The scrim and panel animate out after unmount (D208).
+  useLayoutEffect(() => {
+    const scrim = ref.current?.parentElement;
+    return () => exitGhost(scrim);
+  }, []);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -32,7 +40,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
 
   return createPortal(
     <div
-      className={`anim-fade fixed inset-0 z-50 flex justify-center bg-[var(--scrim)] p-4 backdrop-blur-[6px] ${props.top ? "items-start pt-[12vh]" : "items-center"}`}
+      className={`dialog-scrim anim-fade fixed inset-0 z-50 flex justify-center bg-[var(--scrim)] p-4 backdrop-blur-[6px] ${props.top ? "items-start pt-[12vh]" : "items-center"}`}
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -80,15 +88,16 @@ export function IconButton(props: {
   buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
   return (
+    <Tip label={props.label}>
     <button
       ref={props.buttonRef}
       type="button"
       aria-label={props.label}
-      title={props.label}
       onClick={props.onClick}
       className={`btn btn-ghost icon-btn ${props.active ? "is-on" : ""} ${props.className ?? ""}`}
     >
       {props.children}
     </button>
+    </Tip>
   );
 }

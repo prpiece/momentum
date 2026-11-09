@@ -92,7 +92,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
           sub={
             <span className="tabular-nums">
               {spec.id === "today" && `${format(new Date(), "EEEE d MMMM")} · `}
-              {openCount} open
+              <span key={openCount} className="anim-count">{openCount}</span> open
             </span>
           }
         >

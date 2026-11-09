@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { ContextMenu } from "./components/ui/ContextMenu";
 import { EmptyState } from "./components/ui/EmptyState";
 import { Toaster } from "./components/ui/Toaster";
+import { TipProvider } from "./components/ui/Tip";
 import { TOOLBAR_SLOT_ID } from "./components/ui/Toolbar";
 import { CelebrationOverlay } from "./features/celebrate/CelebrationOverlay";
 import { UpdatePrompt } from "./features/shell/UpdatePrompt";
@@ -96,6 +97,7 @@ export default function App() {
   const spec = taskViewSpec(view, lists, tags, savedFilters);
 
   return (
+    <TipProvider delayDuration={400} skipDelayDuration={300} disableHoverableContent>
     <DndRoot>
       {/* Below 720px the sidebar or bar hides and the phone bar sits under the content (D200). */}
       <div className="flex h-full flex-col">
@@ -128,5 +130,6 @@ export default function App() {
       <WhatsNew />
       <UpdatePrompt />
     </DndRoot>
+    </TipProvider>
   );
 }

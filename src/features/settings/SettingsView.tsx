@@ -386,7 +386,8 @@ export function SettingsView() {
 
   return (
     <div ref={pane} className="h-full min-h-0 overflow-y-auto">
-      <div className="mx-auto flex max-w-[640px] flex-col gap-5 px-[var(--gutter)] py-8">
+      {/* Keyed by page, so each one slides in from the side it comes from (D208). */}
+      <div key={current?.id ?? "home"} data-dir={current ? "fwd" : "back"} className="anim-page mx-auto flex max-w-[640px] flex-col gap-5 px-[var(--gutter)] py-8">
         {current ? (
           <>
             <button type="button" onClick={() => open(null)} className="btn btn-ghost -ml-2 w-fit self-start text-accent-text">

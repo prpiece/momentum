@@ -32,7 +32,7 @@ export function TaskCheckbox(props: {
       className={`check ${done ? "" : RING[props.priority]} ${wont ? "is-wont" : ""}`}
       style={props.size ? { width: props.size, height: props.size } : undefined}
     >
-      {wont ? <X strokeWidth={2.75} /> : <Check key={done ? "done" : "open"} strokeWidth={2.75} className={done ? "anim-pop" : undefined} />}
+      {wont ? <X strokeWidth={2.75} /> : <Check key={done ? "done" : "open"} strokeWidth={2.75} className={done ? "anim-draw" : undefined} />}
       {burst > 0 && (
         <span key={burst} className="anim-badge pointer-events-none absolute -top-1 left-1/2 z-10" onAnimationEnd={() => setBurst(0)}>
           <Logo size={20} />

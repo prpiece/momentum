@@ -27,7 +27,8 @@ export function Collapse({ open, children }: { open: boolean; children: ReactNod
       onTransitionEnd={(e) => e.target === e.currentTarget && !open && setMounted(false)}
       className={`grid transition-[grid-template-rows] duration-[var(--dur)] ease-[var(--ease-out)] ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
     >
-      <div className="min-h-0 overflow-hidden">{mounted && children}</div>
+      {/* The content fades with the height (transitions.dev "Accordion", D208). */}
+      <div className={`min-h-0 overflow-hidden transition-[opacity,filter] duration-[var(--dur)] ease-[var(--ease-smooth)] ${expanded ? "opacity-100" : "opacity-0 blur-[2px]"}`}>{mounted && children}</div>
     </div>
   );
 }

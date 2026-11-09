@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { type ReactNode, useState, useSyncExternalStore } from "react";
+import { Tip } from "../../components/ui/Tip";
 import { Logo } from "../../components/Logo";
 import { Collapse } from "../../components/ui/Collapse";
 import { ListGlyph } from "../../components/ui/AppIcon";
@@ -95,18 +96,14 @@ function NavItem(props: {
 }) {
   const active = useUi((s) => s.view === props.id);
   const { setNodeRef, isOver } = useDroppable({ id: `nav:${props.id}`, data: props.drop, disabled: !props.drop });
-  const [tip, setTip] = useState<DOMRect | null>(null);
-  const show = (e: { currentTarget: HTMLElement }) => props.collapsed && setTip(e.currentTarget.getBoundingClientRect());
   return (
     <li ref={setNodeRef} className="group/nav relative">
+      {/* The rail names each icon in a tooltip (D208). */}
+      <Tip label={props.label} side={props.side === "left" ? "right" : "left"} disabled={!props.collapsed}>
       <button
         type="button"
         onClick={props.onClick ?? (() => isViewId(props.id) && go(props.id))}
         onContextMenu={(e) => props.menu && openContextMenu(e, props.menu())}
-        onMouseEnter={show}
-        onMouseLeave={() => setTip(null)}
-        onFocus={show}
-        onBlur={() => setTip(null)}
         aria-current={active ? "page" : undefined}
         aria-label={props.collapsed ? props.label : undefined}
         className={`nav-item w-full ${props.indent ? "pl-6" : ""} ${isOver ? "is-drop" : ""} ${props.collapsed ? "is-rail" : ""}`}
@@ -116,11 +113,12 @@ function NavItem(props: {
         {!props.collapsed && props.badge}
         {!props.collapsed && props.hint && <kbd className="kbd">{props.hint}</kbd>}
         {!props.collapsed && props.count ? (
-          <span key={props.count} className={`ni-n anim-pop ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>
+          <span key={props.count} className={`ni-n anim-count ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>
             {props.count}
           </span>
         ) : null}
       </button>
+      </Tip>
       {props.menu && !props.collapsed && (
         <button
           type="button"
@@ -130,15 +128,6 @@ function NavItem(props: {
         >
           <MoreHorizontal size={15} />
         </button>
-      )}
-      {tip && (
-        <span
-          role="tooltip"
-          className="layer pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-control px-2 py-1 text-xs font-medium"
-          style={{ top: tip.top + tip.height / 2, ...(props.side === "left" ? { left: tip.right + 10 } : { right: window.innerWidth - tip.left + 10 }) }}
-        >
-          {props.label}
-        </span>
       )}
     </li>
   );
@@ -451,7 +440,7 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
           <ChevronRight size={14} className={`size-3.5 text-muted transition-transform duration-[var(--dur)] ${folder.collapsed ? "" : "rotate-90"}`} />
         </span>
         <span className="ni-label">{folder.name}</span>
-        {count > 0 && <span className="ni-n group-focus-within/nav:opacity-0 group-hover/nav:opacity-0">{count}</span>}
+        {count > 0 && <span key={count} className="ni-n anim-count group-focus-within/nav:opacity-0 group-hover/nav:opacity-0">{count}</span>}
       </button>
       <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center opacity-0 focus-within:opacity-100 group-hover/nav:opacity-100">
         <button type="button" aria-label={`New list in ${folder.name}`} title="New list" onClick={() => setNewList(true)} className={iconBtn}>

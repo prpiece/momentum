@@ -1,3 +1,4 @@
+import { Tip } from "../../components/ui/Tip";
 import { Copy, Minus, PictureInPicture2, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isTauri } from "../../db/client";
@@ -35,18 +36,26 @@ export function WindowControls() {
   const btn = "grid h-8 w-10 place-items-center rounded-control text-muted transition-colors duration-[var(--dur)] hover:bg-surface-2 hover:text-fg";
   return (
     <div className="ml-auto flex shrink-0 items-center gap-0.5">
-      <button type="button" aria-label="Mini window" title="Mini window" onClick={() => void invoke("toggle_mini")} className={btn}>
+      <Tip label="Mini window">
+      <button type="button" aria-label="Mini window" onClick={() => void invoke("toggle_mini")} className={btn}>
         <PictureInPicture2 size={16} />
       </button>
-      <button type="button" aria-label="Minimize" title="Minimize" onClick={() => void win.minimize()} className={btn}>
+      </Tip>
+      <Tip label="Minimize">
+      <button type="button" aria-label="Minimize" onClick={() => void win.minimize()} className={btn}>
         <Minus size={16} />
       </button>
-      <button type="button" aria-label={maximized ? "Restore" : "Maximize"} title={maximized ? "Restore" : "Maximize"} onClick={() => void win.toggleMaximize()} className={btn}>
+      </Tip>
+      <Tip label={maximized ? "Restore" : "Maximize"}>
+      <button type="button" aria-label={maximized ? "Restore" : "Maximize"} onClick={() => void win.toggleMaximize()} className={btn}>
         {maximized ? <Copy size={13} className="-scale-x-100" /> : <Square size={13} />}
       </button>
-      <button type="button" aria-label="Close" title="Close" onClick={() => void win.close()} className={`${btn} hover:bg-danger! hover:text-white!`}>
+      </Tip>
+      <Tip label="Close">
+      <button type="button" aria-label="Close" onClick={() => void win.close()} className={`${btn} hover:bg-danger! hover:text-white!`}>
         <X size={17} />
       </button>
+      </Tip>
     </div>
   );
 }
