@@ -387,7 +387,7 @@ export async function initOs() {
     }
   };
   await syncIcon(settings().accent);
-  await getCurrentWebview().setZoom(settings().zoom);
+  await getCurrentWebview().setZoom(settings().scale);
 
   // --- close to tray & launch at login -------------------------------------
   await invoke("set_close_to_tray", { enabled: settings().closeToTray });
@@ -414,6 +414,6 @@ export async function initOs() {
     if (a.closeToTray !== b.closeToTray) void invoke("set_close_to_tray", { enabled: a.closeToTray });
     if (a.launchAtStartup !== b.launchAtStartup) void syncAutostart(a.launchAtStartup);
     if (a.accent !== b.accent) void syncIcon(a.accent);
-    if (a.zoom !== b.zoom) void getCurrentWebview().setZoom(a.zoom);
+    if (a.scale !== b.scale) void getCurrentWebview().setZoom(a.scale);
   });
 }

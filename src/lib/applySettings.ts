@@ -4,12 +4,10 @@ import { parseSettings } from "../domain/settings";
 import type { Settings } from "../domain/types";
 import { useSettings } from "../stores/settings";
 
-// The design tokens are rem at a 16px root, so the default size is 16px (D198).
-const FONT_PX: Record<Settings["fontSize"], string> = { sm: "15px", md: "16px", lg: "17.5px", xl: "19px", xxl: "21px" };
 const QUADRANT_PROPS = ["--q-do", "--q-schedule", "--q-delegate", "--q-drop"] as const;
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "fontSize" | "timeFormat" | "smartParse" | "matrixColors">;
+export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "timeFormat" | "smartParse" | "matrixColors">;
 
 export function apply(s: Appearance) {
   const root = document.documentElement;
@@ -23,7 +21,6 @@ export function apply(s: Appearance) {
   root.dataset.density = s.density;
   root.dataset.motion = s.motion;
   root.dataset.accent = s.accent;
-  root.style.fontSize = FONT_PX[s.fontSize];
 }
 
 export const APPEARANCE_KEY = "momentum:appearance";
@@ -45,8 +42,8 @@ export function useApplySettings() {
   useEffect(() => {
     apply(settings);
     try {
-      const { theme, accent, density, motion, fontSize, timeFormat, smartParse, matrixColors } = settings;
-      localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ theme, accent, density, motion, fontSize, timeFormat, smartParse, matrixColors }));
+      const { theme, accent, density, motion, timeFormat, smartParse, matrixColors } = settings;
+      localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ theme, accent, density, motion, timeFormat, smartParse, matrixColors }));
     } catch {
       // Storage unavailable: popups fall back to default appearance.
     }

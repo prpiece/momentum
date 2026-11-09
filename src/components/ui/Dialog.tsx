@@ -32,7 +32,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
 
   return createPortal(
     <div
-      className={`anim-fade fixed inset-0 z-50 flex justify-center bg-[var(--scrim)] p-4 ${props.top ? "items-start pt-[12vh]" : "items-center"}`}
+      className={`anim-fade fixed inset-0 z-50 flex justify-center bg-[var(--scrim)] p-4 backdrop-blur-[6px] ${props.top ? "items-start pt-[12vh]" : "items-center"}`}
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div

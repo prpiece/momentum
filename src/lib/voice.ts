@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { isTauri } from "../db/client";
 import { parseModelStatus, type ModelStatus } from "../domain/voice";
-import { useSettings } from "../stores/settings";
+import { openSettingsPage, useSettings } from "../stores/settings";
 import { go, toast } from "../stores/ui";
 
 /** The voice model download (D81); Rust does the work and reports through `voice:model`. */
@@ -35,8 +35,8 @@ export const removeVoiceModel = () => invoke("voice_remove").catch((e) => setSta
 export const VOICE_SECTION_ID = "settings-voice";
 /** Where the hotkey and mic button lead while the model isn't installed. */
 export function openVoiceSettings() {
+  openSettingsPage(VOICE_SECTION_ID);
   go("settings");
-  setTimeout(() => document.getElementById(VOICE_SECTION_ID)?.scrollIntoView({ block: "start" }), 50);
 }
 
 /** Starts the mic (the saved one, else the system default) and tells the user if it fell back. */

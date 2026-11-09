@@ -26,7 +26,7 @@ describe("parseSettings", () => {
 
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
-      theme: "dark", accent: "teal", density: "compact", motion: "on", fontSize: "xxl", zoom: 1.25, layout: "bar", barPosition: "bottom", sidebarSide: "right",
+      theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", sidebarSide: "right",
       sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline", showCompleted: false } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
@@ -36,6 +36,16 @@ describe("parseSettings", () => {
       onboarded: true, gettingStarted: { dismissed: true, done: ["habits", "tokens"], seenVersion: "1.0.0" }, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
+  });
+
+  it("migrates zoom and text size into one scale, snapped to a step", () => {
+    expect(parseSettings({ zoom: 1.25, fontSize: "md" }).scale).toBe(1.25);
+    expect(parseSettings({ zoom: 1, fontSize: "xxl" }).scale).toBe(1.25);
+    expect(parseSettings({ zoom: 1.1, fontSize: "lg" }).scale).toBe(1.25);
+    expect(parseSettings({ zoom: 0.9, fontSize: "sm" }).scale).toBe(0.8);
+    expect(parseSettings({ fontSize: "bogus", zoom: "x" }).scale).toBe(1);
+    expect(parseSettings({ scale: 1.5, zoom: 0.8 }).scale).toBe(1.5);
+    expect(parseSettings({ scale: 2 }).scale).toBe(1);
   });
 
   it("keeps the voice shortcut apart from the quick-add one", () => {

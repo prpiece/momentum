@@ -25,8 +25,9 @@ import { Logo } from "../../components/Logo";
 import { Collapse } from "../../components/ui/Collapse";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
+import { isViewId } from "../../domain/settings";
 import { scheduleForKey } from "../../domain/recurrence";
-import type { Folder, SavedFilter, TaskList, ViewId } from "../../domain/types";
+import type { Folder, SavedFilter, TaskList } from "../../domain/types";
 import { canAddChild, canNest, childFolders } from "../../domain/folders";
 import { justDragged, onDrop, type DragData, type DropData } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
@@ -76,12 +77,16 @@ onDrop("smart", (drag, drop) => {
 });
 
 function NavItem(props: {
-  id: ViewId;
+  /** A view to open, or the key of an action row that brings its own onClick. */
+  id: string;
   label: string;
   icon: ReactNode;
   collapsed: boolean;
   side: Side;
   count?: number;
+  onClick?: () => void;
+  /** A shortcut shown in the count slot. */
+  hint?: string;
   /** Live content in the count slot (e.g. the running focus timer). */
   badge?: ReactNode;
   drop?: DropData;
@@ -96,7 +101,7 @@ function NavItem(props: {
     <li ref={setNodeRef} className="group/nav relative">
       <button
         type="button"
-        onClick={() => go(props.id)}
+        onClick={props.onClick ?? (() => isViewId(props.id) && go(props.id))}
         onContextMenu={(e) => props.menu && openContextMenu(e, props.menu())}
         onMouseEnter={show}
         onMouseLeave={() => setTip(null)}
@@ -104,11 +109,12 @@ function NavItem(props: {
         onBlur={() => setTip(null)}
         aria-current={active ? "page" : undefined}
         aria-label={props.collapsed ? props.label : undefined}
-        className={`nav-item w-full ${props.indent ? "pl-6" : ""} ${isOver ? "is-drop" : ""}`}
+        className={`nav-item w-full ${props.indent ? "pl-6" : ""} ${isOver ? "is-drop" : ""} ${props.collapsed ? "is-rail" : ""}`}
       >
         <span className="ni-icon">{props.icon}</span>
-        <span className={`ni-label transition-opacity duration-[var(--dur)] ${props.collapsed ? "opacity-0" : ""}`}>{props.label}</span>
+        <span className="ni-label">{props.label}</span>
         {!props.collapsed && props.badge}
+        {!props.collapsed && props.hint && <kbd className="kbd">{props.hint}</kbd>}
         {!props.collapsed && props.count ? (
           <span key={props.count} className={`ni-n anim-pop ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>
             {props.count}
@@ -290,33 +296,20 @@ export function Sidebar() {
 
   return (
     <aside aria-label="Navigation" className={`flex shrink-0 flex-col gap-3 px-2 py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease-out)] ${collapsed ? "w-14" : "w-[var(--sidebar)]"}`}>
-      <div data-tauri-drag-region className={`flex h-8 select-none items-center ${collapsed ? "justify-center" : "justify-between pl-2"}`}>
-        {!collapsed && (
+      {/* Top and bottom blocks mirror each other: two 32px rows, a hairline toward the lists (D202). */}
+      <div className="flex flex-col gap-px">
+        <div data-tauri-drag-region className={`flex h-8 select-none items-center ${collapsed ? "justify-center" : "pl-2"}`}>
           <div className="pointer-events-none flex items-center gap-2">
             <Logo size={22} />
-            <span className="font-semibold">Momentum</span>
+            {!collapsed && <span className="font-semibold">Momentum</span>}
           </div>
-        )}
-        <button
-          type="button"
-          onClick={() => update({ sidebarCollapsed: !collapsed })}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!collapsed}
-          className="btn btn-ghost btn-sm icon-btn text-muted"
-        >
-          <Toggle size={16} strokeWidth={1.75} />
-        </button>
+        </div>
+        <ul data-tour="search">
+          <NavItem id="search" label="Search" icon={icon(Search)} collapsed={collapsed} side={side} onClick={() => setPalette(true)} hint={keyLabel("Ctrl K")} />
+        </ul>
       </div>
 
-      {!collapsed && (
-        <button type="button" data-tour="search" onClick={() => setPalette(true)} className="btn btn-secondary w-full justify-start text-muted">
-          <Search size={16} strokeWidth={1.75} />
-          <span className="flex-1 text-left">Search</span>
-          <kbd className="kbd">{keyLabel("Ctrl K")}</kbd>
-        </button>
-      )}
-
-      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+      <nav className="-mx-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden border-y border-border px-2 py-2">
         <ul data-tour="nav" className="space-y-px">
           {SIDEBAR_SMART_NAV.map((n) => (
             <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} count={counts.smart[n.id] || undefined} drop={smartDrop[n.id]} />
@@ -379,8 +372,9 @@ export function Sidebar() {
         )}
       </nav>
 
-      <ul data-tour="settings">
+      <ul data-tour="settings" className="space-y-px">
         <NavItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={icon(SETTINGS_NAV.icon)} collapsed={collapsed} side={side} />
+        <NavItem id="collapse" label={collapsed ? "Expand sidebar" : "Collapse sidebar"} icon={icon(Toggle)} collapsed={collapsed} side={side} onClick={() => update({ sidebarCollapsed: !collapsed })} />
       </ul>
       {editList && <ListDialog list={editList} onClose={() => setEditList(null)} />}
     </aside>
@@ -446,7 +440,7 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
         className="nav-item w-full font-medium text-fg-2"
       >
         <span className="ni-icon">
-          <ChevronRight size={14} className={`text-muted transition-transform duration-[var(--dur)] ${folder.collapsed ? "" : "rotate-90"}`} />
+          <ChevronRight size={14} className={`size-3.5 text-muted transition-transform duration-[var(--dur)] ${folder.collapsed ? "" : "rotate-90"}`} />
         </span>
         <span className="ni-label">{folder.name}</span>
         {count > 0 && <span className="ni-n group-focus-within/nav:opacity-0 group-hover/nav:opacity-0">{count}</span>}

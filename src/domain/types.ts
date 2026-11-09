@@ -170,9 +170,8 @@ export const THEMES = ["light", "dark", "system"] as const;
 export const DENSITIES = ["comfortable", "compact"] as const;
 /** "system" follows the OS reduced-motion setting (Windows: Animation effects). */
 export const MOTIONS = ["system", "on", "off"] as const;
-export const FONT_SIZES = ["sm", "md", "lg", "xl", "xxl"] as const;
-/** Whole-window zoom, as a webview zoom factor. */
-export const ZOOMS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75] as const;
+/** Scale (D202): one factor for the whole window, applied as the webview zoom. */
+export const SCALES = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75] as const;
 export const SIDES = ["left", "right"] as const;
 /** Window layouts (D114): a sidebar, or one navigation bar across the top or bottom. */
 export const LAYOUTS = ["sidebar", "bar"] as const;
@@ -226,8 +225,7 @@ export type Settings = {
   accent: AccentId;
   density: (typeof DENSITIES)[number];
   motion: (typeof MOTIONS)[number];
-  fontSize: (typeof FONT_SIZES)[number];
-  zoom: (typeof ZOOMS)[number];
+  scale: (typeof SCALES)[number];
   layout: Layout;
   barPosition: BarPosition;
   sidebarSide: (typeof SIDES)[number];

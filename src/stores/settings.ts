@@ -20,6 +20,10 @@ export const useSettings = create<SettingsStore>((set, get) => ({
   },
 }));
 
+/** Which Settings category page is open; null is the category list. Set before `go("settings")` to deep-link (D202). */
+export const useSettingsPage = create<{ page: string | null }>(() => ({ page: null }));
+export const openSettingsPage = (page: string | null) => useSettingsPage.setState({ page });
+
 /** Ticks the Getting started item for `event`; writes only the first time (D168). */
 export function trackDone(event: DoneEvent) {
   const { settings, update } = useSettings.getState();

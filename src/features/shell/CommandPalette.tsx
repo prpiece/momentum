@@ -7,7 +7,7 @@ import { matchScore } from "../../domain/taskViews";
 import { FEATURES, type PaletteId } from "../../domain/features";
 import type { ViewId } from "../../domain/types";
 import { useData } from "../../stores/data";
-import { trackDone, useSettings } from "../../stores/settings";
+import { openSettingsPage, trackDone, useSettings } from "../../stores/settings";
 import { go, openTask, setImport, setPalette, setShortcuts, useUi } from "../../stores/ui";
 import { ListDialog } from "../tasks/ListDialog";
 import { openTour } from "./Tour";
@@ -68,7 +68,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       "theme-system": () => (update({ theme: "system" }), close()),
       sidebar: () => (update({ sidebarCollapsed: !collapsed }), close()),
       tour: () => (close(), openTour()),
-      help: () => (navTo("settings")(), setTimeout(() => document.getElementById(HELP_SECTION_ID)?.scrollIntoView({ block: "start" }), 50)),
+      help: () => (openSettingsPage(HELP_SECTION_ID), navTo("settings")()),
       shortcuts: () => (close(), setShortcuts(true)),
     };
     // Every static command comes from the feature registry (D167), so each has help text.
