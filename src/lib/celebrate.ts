@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { addDaysLocal, todayLocal } from "../domain/dates";
 import { bestStreak, currentStreak, isDone, type Habit } from "../domain/habits";
-import { bestDayRun, dayOf, dayRun, levelOf, perfectDays, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, trophyCounts, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyCounts } from "../domain/perfect";
+import { bestDayRun, countsForProgress, dayOf, dayRun, levelOf, perfectDays, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, trophyCounts, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyCounts } from "../domain/perfect";
 import { LEVEL_LOOKS } from "../features/celebrate/trophyLooks";
 import type { LocalDate, SoundEvent } from "../domain/types";
 import { derive } from "../features/tasks/selectors";
@@ -113,7 +113,7 @@ export function allTime(today: LocalDate) {
   const { habits, checkins } = useHabits.getState();
   const ws = useSettings.getState().settings.weekStart;
   return {
-    doneTasks: tasks.filter((t) => !t.deletedAt && t.status === "done").length,
+    doneTasks: tasks.filter((t) => !t.deletedAt && t.status === "done" && countsForProgress(t)).length,
     focusMinutes: Object.values(useFocus.getState().sessions).reduce((n, s) => n + s.seconds / 60, 0),
     bestHabitDays: Math.max(0, ...Object.values(habits).map((h) => ((s) => (s.unit === "day" ? s.count : 0))(bestStreak(h, valuesOf(checkins[h.id]), today, ws)))),
   };
@@ -168,16 +168,18 @@ export function onCheckin(h: Habit, date: LocalDate, before: number, after: numb
 /** Reaching the long break in the focus timer. */
 export const onLongBreak = () => celebrate("day", "Long break earned!", "A full set of focus rounds. Stretch, breathe, hydrate.", "longBreak");
 
-// Runs after the store update settles, and once for a burst of completions.
-let queued = false;
+/** Big moments wait this long and are re-checked, so ticking a task and undoing it right away earns nothing. */
+export const CELEBRATE_GRACE_MS = 5000;
+
+// Runs once, CELEBRATE_GRACE_MS after the last completion in a burst. Every check recomputes from the
+// stores and only then persists (markCelebrated), so an undo in the window cancels the moment.
+let pending: ReturnType<typeof setTimeout> | undefined;
 function queueCheck() {
-  if (queued) return;
-  queued = true;
-  setTimeout(() => {
-    queued = false;
+  clearTimeout(pending);
+  pending = setTimeout(() => {
     if (!useProgress.getState().ready) return;
     checkToday();
     checkLastWeek();
     checkTrophies();
-  }, 50);
+  }, CELEBRATE_GRACE_MS);
 }

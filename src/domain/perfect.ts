@@ -36,6 +36,20 @@ export type Day = {
   active: boolean;
 };
 
+/** A task finished sooner than this after it was created is ignored by progress (create-and-tick farming). */
+export const MIN_OPEN_MS = 2 * 60_000;
+
+/**
+ * Whether a task counts toward trophies, perfect days and the done charts. An excluded task is
+ * ignored as if it didn't exist. Open tasks and series occurrences (detached copies are created
+ * at completion) always count; a negative age means imported or odd data and counts too.
+ */
+export function countsForProgress(t: Pick<Task, "createdAt" | "completedAt" | "recurrenceParentId">): boolean {
+  if (!t.completedAt || t.recurrenceParentId) return true;
+  const open = Date.parse(t.completedAt) - Date.parse(t.createdAt);
+  return !(open >= 0 && open < MIN_OPEN_MS);
+}
+
 const localOf = (instant: string | null) => (instant ? toLocalDate(new Date(instant)) : null);
 export const weekStartOf = (d: LocalDate, ws: WeekStart): LocalDate => toLocalDate(startOfWeek(fromLocalDate(d), { weekStartsOn: ws }));
 
@@ -51,6 +65,7 @@ export function prepare(input: ProgressInput, from: LocalDate): Prepared {
   const series: Prepared["series"] = [];
   const end = fromLocalDate(addDaysLocal(input.today, 1));
   for (const t of input.tasks) {
+    if (!countsForProgress(t)) continue;
     const created = localOf(t.createdAt) ?? input.today;
     if (t.recurrence) {
       const dueDays = new Map<LocalDate, number>();

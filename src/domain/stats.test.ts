@@ -39,6 +39,11 @@ describe("completedPerDay", () => {
     ]);
   });
 
+  it('skips tasks completed within 2 minutes of creation', () => {
+    const quick = done('2026-10-25', { createdAt: atLocalTime('2026-10-25', '12:00').toISOString() });
+    expect(completedPerDay([quick, done('2026-10-25')], TODAY, 1)[0].value).toBe(1);
+  });
+
   it("sums weeks by the week-start setting", () => {
     const tasks = [done("2026-10-19"), done("2026-10-25"), done("2026-10-18")];
     expect(completedPerWeek(tasks, TODAY, 2, 1).map((b) => [b.start, b.value])).toEqual([
