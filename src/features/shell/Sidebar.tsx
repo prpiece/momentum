@@ -20,7 +20,7 @@ import {
   ArchiveRestore,
   Trash2,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useState, useSyncExternalStore } from "react";
 import { Logo } from "../../components/Logo";
 import { Collapse } from "../../components/ui/Collapse";
 import { ListGlyph } from "../../components/ui/AppIcon";
@@ -174,8 +174,16 @@ function InlineName({ initial, onDone }: { initial: string; onDone: (v: string |
   );
 }
 
+const narrowQuery = window.matchMedia("(max-width: 959px)");
+
 export function Sidebar() {
-  const { sidebarCollapsed: collapsed, sidebarSide: side } = useSettings((s) => s.settings);
+  const { sidebarCollapsed, sidebarSide: side } = useSettings((s) => s.settings);
+  // Narrow windows get the icon rail, so the page and its toolbar keep their room (D203).
+  const narrow = useSyncExternalStore(
+    (cb) => (narrowQuery.addEventListener("change", cb), () => narrowQuery.removeEventListener("change", cb)),
+    () => narrowQuery.matches,
+  );
+  const collapsed = sidebarCollapsed || narrow;
   const savedFilters = useSettings((s) => s.settings.savedFilters);
   const update = useSettings((s) => s.update);
   const lists = useData((s) => s.lists);
@@ -374,7 +382,7 @@ export function Sidebar() {
 
       <ul data-tour="settings" className="space-y-px">
         <NavItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={icon(SETTINGS_NAV.icon)} collapsed={collapsed} side={side} />
-        <NavItem id="collapse" label={collapsed ? "Expand sidebar" : "Collapse sidebar"} icon={icon(Toggle)} collapsed={collapsed} side={side} onClick={() => update({ sidebarCollapsed: !collapsed })} />
+        {!narrow && <NavItem id="collapse" label={collapsed ? "Expand sidebar" : "Collapse sidebar"} icon={icon(Toggle)} collapsed={collapsed} side={side} onClick={() => update({ sidebarCollapsed: !collapsed })} />}
       </ul>
       {editList && <ListDialog list={editList} onClose={() => setEditList(null)} />}
     </aside>

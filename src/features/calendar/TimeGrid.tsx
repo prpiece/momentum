@@ -54,9 +54,9 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         {days.map((d) => {
           const date = fromLocalDate(d);
           return (
-            <button key={d} type="button" onClick={() => onViewDay(d)} className="flex h-16 min-w-0 items-center justify-center gap-2 border-l border-border px-3 hover:bg-surface-2">
-              <span className={`t-label ${d === today ? "text-accent-text" : "text-muted"}`}>{format(date, "EEE")}</span>
-              <span className={`grid size-7 place-items-center rounded-full text-[length:var(--fs-lg)] font-semibold tabular-nums ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
+            <button key={d} type="button" onClick={() => onViewDay(d)} className="@container flex h-16 min-w-0 items-center justify-center gap-1.5 border-l border-border px-1 hover:bg-surface-2">
+              <span className={`t-label hidden @min-[4.25rem]:inline ${d === today ? "text-accent-text" : "text-muted"}`}>{format(date, "EEE")}</span>
+              <span className={`grid size-7 shrink-0 place-items-center rounded-full text-[length:var(--fs-lg)] font-semibold tabular-nums ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
             </button>
           );
         })}

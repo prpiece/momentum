@@ -106,9 +106,10 @@ export default function App() {
           <div key={view} className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
             <View view={view} spec={spec} />
           </div>
+          {/* Below the toolbar, so the window controls stay reachable while a task is open. */}
+          <TaskDrawer />
         </main>
         <div className="contents max-[719px]:hidden">{layout === "bar" && !topBar && <NavBar position="bottom" />}</div>
-        <TaskDrawer />
       </div>
       <div className="min-[720px]:hidden">
         <PhoneBar />

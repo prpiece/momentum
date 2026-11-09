@@ -57,12 +57,12 @@ The source is `docs/design/momentum-tokens.css`. The screen mocks are `docs/mock
   - UI font: Inter Variable with `cv05`, `cv08`. Scale: `--fs-xs` 12, `--fs-sm` 13, `--fs-base` 14, `--fs-lg` 16, `--fs-xl` 24, `--fs-display` 44 (rem at a 16px root, one step larger below 720px).
   - Bricolage Grotesque only through `.t-title` (page titles) and `.t-display` (big numbers): 24px and up, at most two per screen. `.t-label` is the 12px uppercase label.
   - JetBrains Mono (`font-mono`, `.t-timer`) only for the focus timer digits. Every other count, date, time or stat uses `tabular-nums` (`.t-count`).
-  - Density: `html[data-density=compact]` sets `--row` to `--row-compact`. The text-size setting sets the root `font-size` (16px by default), so every rem value scales with it.
+  - Density: `html[data-density=compact]` sets `--row` to `--row-compact`. The Scale setting is the webview zoom (PLAN D202), so every size scales and the breakpoints reflow.
 
 ## Conventions
 - **Zustand selectors return stable references.** Select the raw map (`useData((s) => s.lists)`) and derive arrays with `useMemo`. A selector that builds a new array/object on every call loops React ("getSnapshot should be cached"). `npm run lint:selectors` greps for it.
 - Small components, one per file, under `src/features/<area>/`. Shared primitives go in `src/components/ui/`.
 - Every interactive element gets a visible focus ring (`--accent-text`) and a keyboard path.
-- **Visual rules (PLAN D172, D198):** no glass or blur, no gradients, no glows, no emoji in the chrome (only in names the user typed), one shadow (`shadow-float`) for floating layers. Reuse the component classes in `src/styles/components.css` (`.btn`, `.input`, `.seg`, `.check`, `.layer`, `.menu-item`, `.nav-item`, `.card`, `.kbd`, `.token`…) before writing new class strings; a view's controls go in the toolbar through `<ToolbarActions>`, a page title through `<PageHead>`.
+- **Visual rules (PLAN D172, D198):** no glass or blur (except the 6px blur on the Dialog scrim, D202), no gradients, no glows, no emoji in the chrome (only in names the user typed), one shadow (`shadow-float`) for floating layers. Reuse the component classes in `src/styles/components.css` (`.btn`, `.input`, `.seg`, `.check`, `.layer`, `.menu-item`, `.nav-item`, `.card`, `.kbd`, `.token`…) before writing new class strings; a view's controls go in the toolbar through `<ToolbarActions>`, a page title through `<PageHead>`.
 - **Feature registry:** every user-facing feature has an entry in `FEATURES` (`src/domain/features.ts`: title, how-to line, commands/shortcuts/tokens, done-detector). The palette, the `?` sheet, Settings → Help, Getting started and the tour all read it, and a test fails when a command has no help text. Add the entry with the feature.
 - Commit once per phase. Stage files by explicit path.
