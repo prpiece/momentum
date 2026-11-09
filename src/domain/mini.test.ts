@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_POMODORO, pause, start, type TimerState } from "./focus";
 import { DEFAULT_RULES } from "./matrix";
-import { buildSnapshot, miniClockMs, parseMiniAction, parseMiniSnapshot } from "./mini";
+import { buildSnapshot, miniClockMs, parseMiniAction, parseMiniSnapshot, stepMinutes } from "./mini";
 import { toVM, type TaskVM } from "./taskViews";
 import type { Priority, Schedule, Task } from "./types";
 
@@ -44,6 +44,17 @@ describe("buildSnapshot", () => {
     expect(s.timer).toMatchObject({ status: "running", phase: "focus", elapsedMs: 60_000, remainingMs: 24 * 60_000 });
   });
 
+  it("shows the chosen open subtasks instead of the task", () => {
+    const sub = [vm("s1", 0, { kind: "none" }), vm("s2", 0, { kind: "none" }), vm("s3", 0, { kind: "none" }, "done")];
+    const s = snap([...vms, ...sub], start("pomodoro", "c", 0, { kind: "infinite" }, ["s1", "s2", "s3"]));
+    expect(s.tasks.map((t) => t.id)).toEqual(["s1", "s2"]);
+    expect(snap([...vms, ...sub], start("pomodoro", "c", 0, { kind: "infinite" }, ["s3"])).tasks.map((t) => t.id)).toEqual(["c"]);
+  });
+
+  it("carries the configured focus length", () => {
+    expect(snap(vms).focusMin).toBe(25);
+  });
+
   it("falls back to Today when the focused task is done or unknown", () => {
     expect(snap(vms, start("pomodoro", "e", 0)).focusing).toBe(false);
     expect(snap(vms, start("pomodoro", "zzz", 0)).tasks.map((t) => t.id)).toEqual(["b", "a"]);
@@ -59,15 +70,26 @@ describe("parsers", () => {
   it("accepts valid actions", () => {
     expect(parseMiniAction({ type: "toggle", id: "a", key: null })).toEqual({ type: "toggle", id: "a", key: null });
     expect(parseMiniAction({ type: "open", id: "a", key: "k" })).toEqual({ type: "open", id: "a", key: "k" });
-    expect(parseMiniAction({ type: "focus", op: "start", taskId: null })).toEqual({ type: "focus", op: "start", taskId: null });
+    expect(parseMiniAction({ type: "focus", op: "start", taskId: null, minutes: 45 })).toEqual({ type: "focus", op: "start", taskId: null, minutes: 45 });
     expect(parseMiniAction({ type: "focus", op: "skip" })).toEqual({ type: "focus", op: "skip" });
   });
   it("rejects malformed actions and snapshots", () => {
-    for (const bad of [null, "x", {}, { type: "toggle" }, { type: "toggle", id: 3 }, { type: "focus", op: "nuke" }, { type: "focus", op: "start" }, { type: "toggle", id: "a", key: 1 }])
+    for (const bad of [null, "x", {}, { type: "toggle" }, { type: "toggle", id: 3 }, { type: "focus", op: "nuke" }, { type: "focus", op: "start", taskId: null }, { type: "focus", op: "start", taskId: null, minutes: 0 }, { type: "focus", op: "start", taskId: null, minutes: 999 }, { type: "toggle", id: "a", key: 1 }])
       expect(parseMiniAction(bad)).toBeNull();
     expect(parseMiniSnapshot({})).toBeNull();
     expect(parseMiniSnapshot({ ...snap([]), matrix: [] })).toBeNull();
     expect(parseMiniSnapshot({ ...snap([]), timer: { status: "running" } })).toBeNull();
+  });
+});
+
+describe("stepMinutes", () => {
+  it("moves in 5-minute steps on multiples of 5 and stays in range", () => {
+    expect(stepMinutes(25, 1)).toBe(30);
+    expect(stepMinutes(25, -1)).toBe(20);
+    expect(stepMinutes(23, 1)).toBe(25);
+    expect(stepMinutes(23, -1)).toBe(20);
+    expect(stepMinutes(5, -1)).toBe(5);
+    expect(stepMinutes(180, 1)).toBe(180);
   });
 });
 

@@ -1,8 +1,8 @@
-import { Check, Pause, Play, SkipForward, X } from "lucide-react";
+import { Check, Minus, Pause, Play, Plus, SkipForward, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatClock } from "../domain/focus";
 import { QUADRANT_INFO, QUADRANT_VAR, QUADRANTS } from "../domain/matrix";
-import { miniClockMs, parseMiniSnapshot, type MiniAction, type MiniSnapshot, type MiniTask } from "../domain/mini";
+import { miniClockMs, parseMiniSnapshot, stepMinutes, type MiniAction, type MiniSnapshot, type MiniTask } from "../domain/mini";
 import { apply, readAppearance } from "../lib/applySettings";
 
 const TABS = ["task", "focus", "matrix"] as const;
@@ -160,17 +160,42 @@ function TaskTab({ snap }: { snap: MiniSnapshot }) {
   );
 }
 
+const PRESETS = [15, 25, 45, 60];
+
 function FocusTab({ snap, now }: { snap: MiniSnapshot; now: number }) {
   const t = snap.timer;
+  // The length chosen here; the main window stores it as the focus length when Start arrives (D33).
+  const [chosen, setChosen] = useState<number | null>(null);
+  const minutes = chosen ?? snap.focusMin;
   const active = t.status === "running" || t.status === "paused";
   const startTask = snap.tasks[0] ?? null;
   return (
     <div className="flex flex-col items-center gap-3 px-2 py-4">
       <p className="t-label text-muted">{active ? (t.mode === "stopwatch" ? "Stopwatch" : PHASE[t.phase]) : t.status === "done" ? "Session done" : "Ready"}</p>
       <p className="t-timer text-[length:var(--fs-timer-sm)] leading-[var(--lh-timer-sm)]" aria-live="off">
-        {formatClock(active ? miniClockMs(t, snap.at, now) : 0)}
+        {formatClock(active ? miniClockMs(t, snap.at, now) : minutes * 60_000)}
       </p>
-      <p className="max-w-full truncate text-[length:var(--fs-sm)] text-fg-2">{snap.focusing ? snap.tasks[0].title : !active && startTask ? `On: ${startTask.title}` : " "}</p>
+      <p className="max-w-full truncate text-[length:var(--fs-sm)] text-fg-2">{snap.focusing ? (snap.tasks.length > 1 ? `${snap.tasks.length} subtasks` : snap.tasks[0].title) : !active && startTask ? `On: ${startTask.title}` : " "}</p>
+      {!active && (
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label="5 minutes shorter" onClick={() => setChosen(stepMinutes(minutes, -1))} className="btn btn-ghost btn-sm icon-btn">
+              <Minus size={14} strokeWidth={1.75} />
+            </button>
+            <span className="w-14 text-center text-[length:var(--fs-sm)] tabular-nums" aria-live="polite">{minutes} min</span>
+            <button type="button" aria-label="5 minutes longer" onClick={() => setChosen(stepMinutes(minutes, 1))} className="btn btn-ghost btn-sm icon-btn">
+              <Plus size={14} strokeWidth={1.75} />
+            </button>
+          </div>
+          <div role="radiogroup" aria-label="Focus length" className="seg">
+            {PRESETS.map((p) => (
+              <button key={p} type="button" role="radio" aria-checked={minutes === p} onClick={() => setChosen(p)} className={`seg-item tabular-nums ${minutes === p ? "is-on" : ""}`}>
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex gap-2">
         {active ? (
           <>
@@ -184,7 +209,10 @@ function FocusTab({ snap, now }: { snap: MiniSnapshot; now: number }) {
             </button>
           </>
         ) : (
-          <button type="button" className="btn btn-primary h-9 px-6" onClick={() => void send({ type: "focus", op: "start", taskId: startTask?.id ?? null })}>
+          <button type="button" className="btn btn-primary h-9 px-6" onClick={() => {
+              void send({ type: "focus", op: "start", taskId: startTask?.id ?? null, minutes });
+              setChosen(null);
+            }}>
             <Play size={16} strokeWidth={1.75} />
             Start
           </button>

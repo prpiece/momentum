@@ -19,17 +19,26 @@ export type MiniSnapshot = {
   /** The focused task alone, or the top Today tasks. */
   tasks: MiniTask[];
   focusing: boolean;
+  /** The focus length in minutes the next Start uses. */
+  focusMin: number;
   /** Indexed by quadrant - 1. */
   matrix: MiniQuadrant[];
 };
 export type MiniAction =
   | { type: "toggle"; id: string; key: string | null }
   | { type: "open"; id: string; key: string | null }
-  | { type: "focus"; op: "start"; taskId: string | null }
+  | { type: "focus"; op: "start"; taskId: string | null; minutes: number }
   | { type: "focus"; op: "pause" | "resume" | "skip" };
 
 export const MINI_TODAY_LIMIT = 5;
 export const MINI_MATRIX_TOP = 3;
+export const MINI_MIN_RANGE = { lo: 5, hi: 180 } as const;
+
+/** One 5-minute step up or down, landing on a multiple of 5 and staying in range. */
+export function stepMinutes(m: number, dir: 1 | -1): number {
+  const n = dir > 0 ? (Math.floor(m / 5) + 1) * 5 : (Math.ceil(m / 5) - 1) * 5;
+  return Math.min(MINI_MIN_RANGE.hi, Math.max(MINI_MIN_RANGE.lo, n));
+}
 
 const mini = (vm: TaskVM): MiniTask => ({ id: vm.task.id, key: vm.key, title: vm.task.title });
 
@@ -42,15 +51,18 @@ export function buildSnapshot(roots: readonly TaskVM[], byId: ReadonlyMap<string
   const active = timer.status === "running" || timer.status === "paused";
   const focused = active && timer.taskId ? byId.get(timer.taskId) : undefined;
   const isFocusing = !!focused && focused.task.status === "open";
-  const tasks = isFocusing && focused ? [mini(focused)] : sortVMs(open.filter((v) => inSmartList("today", v, today)), "date").slice(0, MINI_TODAY_LIMIT).map(mini);
+  // Chosen subtasks that are still open stand in for the task; once they're all done, the task shows.
+  const steps = active ? timer.subIds.flatMap((id) => { const v = byId.get(id); return v && v.task.status === "open" ? [mini(v)] : []; }) : [];
+  const tasks = isFocusing && focused ? (steps.length ? steps : [mini(focused)]) : sortVMs(open.filter((v) => inSmartList("today", v, today)), "date").slice(0, MINI_TODAY_LIMIT).map(mini);
   const t: MiniTimer = active
     ? { status: timer.status, mode: timer.mode, phase: timer.phase, elapsedMs: elapsedMs(timer, now), remainingMs: remainingMs(timer, now, cfg) }
     : { status: timer.status === "done" ? "done" : "idle" };
-  return { at: now, timer: t, tasks, focusing: isFocusing, matrix };
+  return { at: now, timer: t, tasks, focusing: isFocusing, focusMin: cfg.focusMin, matrix };
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown): v is string => typeof v === "string" && v.length > 0;
+const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const keyOf = (v: unknown): string | null | undefined => (v === null || v === undefined ? null : typeof v === "string" ? v : undefined);
 
 export function parseMiniAction(raw: unknown): MiniAction | null {
@@ -60,7 +72,12 @@ export function parseMiniAction(raw: unknown): MiniAction | null {
     return str(raw.id) && key !== undefined ? { type: raw.type, id: raw.id, key } : null;
   }
   if (raw.type !== "focus") return null;
-  if (raw.op === "start") return raw.taskId === null || str(raw.taskId) ? { type: "focus", op: "start", taskId: raw.taskId } : null;
+  if (raw.op === "start") {
+    const { lo, hi } = MINI_MIN_RANGE;
+    const { minutes, taskId } = raw;
+    if (!num(minutes) || !Number.isInteger(minutes) || minutes < lo || minutes > hi) return null;
+    return taskId === null || str(taskId) ? { type: "focus", op: "start", taskId, minutes } : null;
+  }
   return raw.op === "pause" || raw.op === "resume" || raw.op === "skip" ? { type: "focus", op: raw.op } : null;
 }
 
@@ -76,8 +93,6 @@ function parseTasks(raw: unknown): MiniTask[] | null {
   return out.every((t): t is MiniTask => !!t) ? out : null;
 }
 
-const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-
 function parseTimer(raw: unknown): MiniTimer | null {
   if (!isObj(raw)) return null;
   if (raw.status === "idle" || raw.status === "done") return { status: raw.status };
@@ -89,7 +104,7 @@ function parseTimer(raw: unknown): MiniTimer | null {
 }
 
 export function parseMiniSnapshot(raw: unknown): MiniSnapshot | null {
-  if (!isObj(raw) || !num(raw.at) || typeof raw.focusing !== "boolean" || !Array.isArray(raw.matrix) || raw.matrix.length !== QUADRANTS.length) return null;
+  if (!isObj(raw) || !num(raw.at) || !num(raw.focusMin) || typeof raw.focusing !== "boolean" || !Array.isArray(raw.matrix) || raw.matrix.length !== QUADRANTS.length) return null;
   const timer = parseTimer(raw.timer);
   const tasks = parseTasks(raw.tasks);
   const matrix = raw.matrix.map((q): MiniQuadrant | null => {
@@ -97,7 +112,7 @@ export function parseMiniSnapshot(raw: unknown): MiniSnapshot | null {
     return isObj(q) && num(q.count) && top ? { count: q.count, top } : null;
   });
   if (!timer || !tasks || !matrix.every((q): q is MiniQuadrant => !!q)) return null;
-  return { at: raw.at, timer, tasks, focusing: raw.focusing, matrix };
+  return { at: raw.at, timer, tasks, focusing: raw.focusing, focusMin: raw.focusMin, matrix };
 }
 
 /** The clock the mini window shows `now`, given a snapshot taken at `snap.at`. */
