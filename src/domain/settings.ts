@@ -6,7 +6,6 @@ import {
   type Cycles,
   COLOR_BYS,
   DENSITIES,
-  FONT_SIZES,
   LAYOUTS,
   GROUP_BYS,
   MODULE_VIEWS,
@@ -17,7 +16,7 @@ import {
   SIDES,
   SMART_LISTS,
   SOUNDS,
-  ZOOMS,
+  SCALES,
   SORT_BYS,
   THEMES,
   TIME_FORMATS,
@@ -34,8 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   accent: "indigo",
   density: "comfortable",
   motion: "system",
-  fontSize: "md",
-  zoom: 1,
+  scale: 1,
   layout: "sidebar",
   barPosition: "top",
   sidebarSide: "left",
@@ -255,6 +253,17 @@ function parseLayout(layout: unknown, barPosition: unknown): Pick<Settings, "lay
   };
 }
 
+/** Text-size steps from before Scale (D202), as the factor on a 16px root. */
+const LEGACY_TEXT: Record<string, number> = { sm: 15 / 16, md: 1, lg: 17.5 / 16, xl: 19 / 16, xxl: 21 / 16 };
+
+/** Before Scale there were two settings, `zoom` and `fontSize`. Their product, snapped to the nearest step, keeps the old look. */
+function parseScale(r: Record<string, unknown>): Settings["scale"] {
+  if (oneOf(SCALES, r.scale)) return r.scale;
+  const zoom = typeof r.zoom === "number" && r.zoom >= 0.5 && r.zoom <= 3 ? r.zoom : 1;
+  const want = zoom * (typeof r.fontSize === "string" ? (LEGACY_TEXT[r.fontSize] ?? 1) : 1);
+  return SCALES.reduce((best, s) => (Math.abs(s - want) < Math.abs(best - want) ? s : best));
+}
+
 const accelerator = (v: unknown, fallback: string) => (typeof v === "string" && /^[\w+]+$/.test(v) ? v : fallback);
 
 /** Boundary parser: anything from disk or an import file becomes a valid Settings, field by field. */
@@ -267,8 +276,7 @@ export function parseSettings(raw: unknown): Settings {
     accent: parseAccent(r.accent) ?? d.accent,
     density: oneOf(DENSITIES, r.density) ? r.density : d.density,
     motion: oneOf(MOTIONS, r.motion) ? r.motion : d.motion,
-    fontSize: oneOf(FONT_SIZES, r.fontSize) ? r.fontSize : d.fontSize,
-    zoom: oneOf(ZOOMS, r.zoom) ? r.zoom : d.zoom,
+    scale: parseScale(r),
     ...parseLayout(r.layout, r.barPosition),
     sidebarSide: oneOf(SIDES, r.sidebarSide) ? r.sidebarSide : d.sidebarSide,
     sidebarCollapsed: typeof r.sidebarCollapsed === "boolean" ? r.sidebarCollapsed : d.sidebarCollapsed,

@@ -64,7 +64,7 @@ function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | n
   return (
     // The toolbar (D198). Also the window's title bar: drag to move, double-click to maximize (children pass clicks through).
     <header data-tauri-drag-region className="flex h-12 shrink-0 select-none items-center gap-1.5 border-b border-border pl-6 pr-3">
-      <h1 className="pointer-events-none flex min-w-0 shrink items-center gap-1 text-[length:var(--fs-sm)] text-muted">
+      <h1 className="pointer-events-none flex max-w-[50%] shrink-0 items-center gap-1 text-[length:var(--fs-sm)] text-muted">
         {parent && (
           <>
             <span className="truncate">{parent}</span>
@@ -73,8 +73,8 @@ function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | n
         )}
         <b className="truncate font-semibold text-fg">{spec?.title ?? navFor(view).label}</b>
       </h1>
-      <span className="pointer-events-none flex-1" />
-      <div id={TOOLBAR_SLOT_ID} className="flex shrink-0 items-center gap-1.5 max-[719px]:min-w-0 max-[719px]:shrink max-[719px]:overflow-x-auto max-[719px]:[scrollbar-width:none]" />
+      {/* The slot takes what the title and the window controls leave and scrolls when its content is wider (D202). */}
+      <div id={TOOLBAR_SLOT_ID} className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [justify-content:safe_flex-end] [scrollbar-width:none]" />
       {/* With the bar at the top, the controls are in the bar, except below 720px where the bar hides. */}
       {controls === "always" ? <WindowControls /> : <span className="contents min-[720px]:hidden"><WindowControls /></span>}
     </header>

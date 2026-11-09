@@ -1,5 +1,6 @@
-import { Bell, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Settings2, Wrench } from "lucide-react";
-import { type CSSProperties, type ReactNode, useRef, useState } from "react";
+import { Bell, ChevronLeft, ChevronRight, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Search, Settings2, Wrench } from "lucide-react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+import { PageHead } from "../../components/ui/PageHead";
 import { Switch } from "../../components/ui/Switch";
 import { Segmented } from "../../components/ui/Segmented";
 import { AboutSection, DataSection } from "./DataSection";
@@ -14,23 +15,18 @@ import { HelpSection } from "../help/HelpSection";
 import { HELP_SECTION_ID } from "../help/featureIcons";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENTS, type AccentId } from "../../domain/color";
-import { ZOOMS, type Settings, type ViewId } from "../../domain/types";
+import { SCALES, type Settings, type ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
 import { hydrate } from "../../stores/data";
 import { hydrateFocus, saveSessions } from "../../stores/focus";
 import { hydrateHabits, saveHabitData } from "../../stores/habits";
-import { useSettings } from "../../stores/settings";
-import { toast } from "../../stores/ui";
+import { openSettingsPage, useSettings, useSettingsPage } from "../../stores/settings";
+import { toast, useUi } from "../../stores/ui";
 import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
 
-/** A settings group (D198): a small label over one bordered card; each direct child is a row with a hairline above it. */
-function Section({ title, id, children }: { title: string; id: string; children: ReactNode }) {
-  return (
-    <section id={id} data-settings-section className="scroll-mt-8">
-      <h2 className="t-label mb-1.5 ml-0.5 text-muted">{title}</h2>
-      <div className="overflow-hidden rounded-card border border-border bg-surface [&>*]:px-3.5 [&>*]:py-3 [&>*+*]:border-t [&>*+*]:border-border">{children}</div>
-    </section>
-  );
+/** One bordered card per page (D198); each direct child is a row with a hairline above it. */
+function Card({ children }: { children: ReactNode }) {
+  return <div className="overflow-hidden rounded-card border border-border bg-surface [&>*]:px-3.5 [&>*]:py-3 [&>*+*]:border-t [&>*+*]:border-border">{children}</div>;
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -100,38 +96,108 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (v: strin
 
 const DEFAULT_VIEWS: { id: ViewId; label: string }[] = [...SMART_LIST_NAV, ...MODULE_NAV];
 
+type Page = { id: string; title: string; icon: LucideIcon };
+const PAGES: Page[] = [
+  { id: "settings-general", title: "General", icon: Settings2 },
+  { id: "settings-appearance", title: "Appearance", icon: Palette },
+  { id: "settings-notifications", title: "Notifications & sounds", icon: Bell },
+  { id: VOICE_SECTION_ID, title: "Voice", icon: Mic },
+  { id: "settings-data", title: "Data", icon: Database },
+  { id: HELP_SECTION_ID, title: "Help", icon: LifeBuoy },
+  { id: "settings-about", title: "About & updates", icon: Info },
+  ...(import.meta.env.DEV ? [{ id: "settings-developer", title: "Developer", icon: Wrench }] : []),
+];
+/** Pages the list shows together, like the groups on a phone's settings screen. */
+const GROUPS = [["settings-general", "settings-appearance", "settings-notifications"], [VOICE_SECTION_ID, "settings-data"], [HELP_SECTION_ID, "settings-about"], ["settings-developer"]];
+
+/** Searchable settings: [page, label as shown on that page]. The label is found in the page text to scroll to it. */
+const INDEX: [string, string][] = [
+  ["settings-general", "Start view"], ["settings-general", "Week starts on"], ["settings-general", "Time format"], ["settings-general", "Smart parsing in quick add"],
+  ["settings-general", "Closing the window"], ["settings-general", "Launch at login"], ["settings-general", "Global quick add"], ["settings-general", "Mini window"], ["settings-general", "Tags"],
+  ["settings-appearance", "Theme"], ["settings-appearance", "Accent"], ["settings-appearance", "Layout"], ["settings-appearance", "Sidebar position"], ["settings-appearance", "Animations"],
+  ["settings-appearance", "Density"], ["settings-appearance", "Scale"],
+  ["settings-notifications", "Notifications"], ["settings-notifications", "Task reminders"], ["settings-notifications", "When things start"], ["settings-notifications", "Habit reminders"],
+  ["settings-notifications", "Daily summary"], ["settings-notifications", "Focus timer"], ["settings-notifications", "Style"], ["settings-notifications", "Popup position"], ["settings-notifications", "Chime"],
+  ["settings-notifications", "Sound effects"], ["settings-notifications", "Volume"],
+  [VOICE_SECTION_ID, "Voice model"], [VOICE_SECTION_ID, "Microphone"], [VOICE_SECTION_ID, "Push to talk"],
+  ["settings-data", "Export backup"], ["settings-data", "Restore from backup"], ["settings-data", "Import calendar"],
+  ["settings-about", "Check at launch"], ["settings-about", "Check now"],
+];
+
+/** The row whose label is `label`: the smallest element starting with that text, and the flex row around it. */
+function findRow(root: HTMLElement, label: string): HTMLElement | null {
+  const want = label.toLowerCase();
+  const hit = [...root.querySelectorAll<HTMLElement>("span, div, button")].find((el) => el.children.length <= 1 && (el.textContent ?? "").trim().toLowerCase().startsWith(want) && (el.textContent ?? "").trim().length < want.length + 24);
+  return hit ? (hit.closest<HTMLElement>("div.flex") ?? hit) : null;
+}
+
+function Group({ children }: { children: ReactNode }) {
+  return <ul className="overflow-hidden rounded-card border border-border bg-surface [&>li+li]:border-t [&>li+li]:border-border">{children}</ul>;
+}
+
+function PageRow({ icon: Icon, title, hint, onClick }: { icon: LucideIcon; title: string; hint?: string; onClick: () => void }) {
+  return (
+    <li>
+      <button type="button" onClick={onClick} className="flex h-[var(--row)] w-full items-center gap-3 px-3.5 text-left hover:bg-surface-2">
+        <span className="grid size-[1.625rem] shrink-0 place-items-center rounded-control bg-accent-soft text-accent-text">
+          <Icon size={16} strokeWidth={1.75} />
+        </span>
+        <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
+        {hint && <span className="shrink-0 truncate text-[length:var(--fs-sm)] text-muted">{hint}</span>}
+        <ChevronRight size={16} className="shrink-0 text-muted" aria-hidden />
+      </button>
+    </li>
+  );
+}
+
 export function SettingsView() {
   const s = useSettings((st) => st.settings);
   const update = useSettings((st) => st.update);
   const set = <K extends keyof Settings>(key: K) => (value: Settings[K]) => update({ [key]: value });
 
-  const sections = SECTIONS.filter((x) => x.id !== "settings-developer" || import.meta.env.DEV);
+  const page = useSettingsPage((st) => st.page);
+  const [query, setQuery] = useState("");
+  /** The label a search result led to; scrolled to and marked once its page is on screen. */
+  const [target, setTarget] = useState<string | null>(null);
   const pane = useRef<HTMLDivElement>(null);
-  const [current, setCurrent] = useState(sections[0].id);
-  // The nav marks the last group whose top has scrolled past the top of the pane.
-  const onScroll = () => {
+  const current = PAGES.find((p) => p.id === page) ?? null;
+  const open = (id: string | null, label: string | null = null) => (openSettingsPage(id), setTarget(label), setQuery(""));
+
+  // Leaving Settings returns to the category list next time. (Not on a React dev remount: the view is still Settings then.)
+  useEffect(() => () => (useUi.getState().view !== "settings" ? openSettingsPage(null) : undefined), []);
+  // Escape or Alt+Left go back (D202). Escape inside a field that handled it (the shortcut recorder) stays there.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !(e.key === "Escape" || (e.altKey && e.key === "ArrowLeft"))) return;
+      if (query) return setQuery("");
+      if (current) (e.preventDefault(), open(null));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+  useEffect(() => {
     const root = pane.current;
     if (!root) return;
-    const edge = root.getBoundingClientRect().top + 40;
-    const passed = [...root.querySelectorAll<HTMLElement>("[data-settings-section]")].filter((el) => el.getBoundingClientRect().top <= edge);
-    setCurrent(passed[passed.length - 1]?.id ?? sections[0].id);
-  };
+    const row = target && current ? findRow(root, target) : null;
+    if (!row) return void root.scrollTo({ top: 0 });
+    row.scrollIntoView({ block: "center" });
+    row.classList.add("settings-hit");
+    const t = setTimeout(() => row.classList.remove("settings-hit"), 1800);
+    return () => (clearTimeout(t), row.classList.remove("settings-hit"));
+  }, [page, target]);
 
-  return (
-    <div className="flex h-full min-h-0">
-      <nav aria-label="Settings sections" className="hidden w-[var(--side-panel)] shrink-0 flex-col gap-px border-r border-border px-2 py-4 md:flex">
-        {sections.map((x) => (
-          <button key={x.id} type="button" aria-current={current === x.id ? "true" : undefined} onClick={() => (document.getElementById(x.id)?.scrollIntoView({ block: "start" }), setCurrent(x.id))} className="nav-item w-full">
-            <span className="ni-icon">
-              <x.icon size={16} strokeWidth={1.75} />
-            </span>
-            <span className="ni-label">{x.title}</span>
-          </button>
-        ))}
-      </nav>
-      <div ref={pane} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
-    <div className="flex max-w-[640px] flex-col gap-6 px-6 py-8 md:px-12">
-      <Section title="General" id="settings-general">
+  const q = query.trim().toLowerCase();
+  const pageOf = (id: string) => PAGES.find((p) => p.id === id);
+  const results = q
+    ? [
+        ...PAGES.filter((p) => p.title.toLowerCase().includes(q)).map((p) => ({ page: p.id, label: p.title, jump: null as string | null })),
+        ...INDEX.filter(([id, label]) => label.toLowerCase().includes(q) && pageOf(id)).map(([id, label]) => ({ page: id, label, jump: label })),
+      ]
+    : [];
+
+  const bodies: Record<string, ReactNode> = {
+    "settings-general": (
+      <Card>
         <Row label="Start view">
           <select
             value={s.defaultView}
@@ -192,9 +258,10 @@ export function SettingsView() {
           <span className="font-medium">Tags</span>
           <TagsSection />
         </div>
-      </Section>
-
-      <Section title="Appearance" id="settings-appearance">
+      </Card>
+    ),
+    "settings-appearance": (
+      <Card>
         <Row label="Theme">
           <Segmented
             name="theme"
@@ -211,7 +278,10 @@ export function SettingsView() {
         <Row label="Accent">
           <AccentPicker value={s.accent} onChange={set("accent")} />
         </Row>
-        <LayoutPicker />
+        <div className="space-y-2">
+          <span className="font-medium">Layout</span>
+          <LayoutPicker />
+        </div>
         {s.layout === "sidebar" && (
           <Row label="Sidebar position">
             <Segmented
@@ -251,89 +321,114 @@ export function SettingsView() {
             ]}
           />
         </Row>
-        <Row label="Text size">
-          <Segmented
-            name="fontSize"
-            label="Text size"
-            value={s.fontSize}
-            onChange={set("fontSize")}
-            options={[
-              { value: "sm", label: "Small" },
-              { value: "md", label: "Default" },
-              { value: "lg", label: "Large" },
-              { value: "xl", label: "Larger" },
-              { value: "xxl", label: "Largest" },
-            ]}
-          />
-        </Row>
-        <Row label="Zoom">
-          <div className="flex items-center gap-3">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+            <span className="font-medium">Scale</span>
             <span className="text-[length:var(--fs-xs)] text-muted">{keyLabel("Ctrl + / Ctrl − / Ctrl 0")}</span>
-            <Segmented name="zoom" label="Zoom" value={s.zoom} onChange={set("zoom")} options={ZOOMS.map((z) => ({ value: z, label: `${Math.round(z * 100)}%` }))} />
           </div>
-        </Row>
-      </Section>
-
-      <Section title="Notifications & sounds" id="settings-notifications">
+          <Segmented name="scale" label="Scale" value={s.scale} onChange={set("scale")} options={SCALES.map((z) => ({ value: z, label: `${Math.round(z * 100)}%` }))} />
+        </div>
+      </Card>
+    ),
+    "settings-notifications": (
+      <Card>
         <NotificationSection />
         <SoundsSection />
-      </Section>
-
-      <Section title="Voice" id={VOICE_SECTION_ID}>
+      </Card>
+    ),
+    [VOICE_SECTION_ID]: (
+      <Card>
         <VoiceSection />
         <Row label="Push to talk">
           <ShortcutInput value={s.voiceShortcut} onChange={(v) => (v === s.quickAddShortcut ? toast("That shortcut already opens quick add.") : update({ voiceShortcut: v }))} />
         </Row>
         <p className="text-[length:var(--fs-sm)] text-muted">Hold the shortcut, say a task, let go, then press Enter. Or say “start focus”, “stop focus”, “open today”, “show matrix”, “show completed” or “open calendar”.</p>
-      </Section>
-
-      <Section title="Data" id="settings-data">
+      </Card>
+    ),
+    "settings-data": (
+      <Card>
         <DataSection />
-      </Section>
-
-      <Section title="Help" id={HELP_SECTION_ID}>
+      </Card>
+    ),
+    [HELP_SECTION_ID]: (
+      <Card>
         <HelpSection />
-      </Section>
-
-      <Section title="About & updates" id="settings-about">
+      </Card>
+    ),
+    "settings-about": (
+      <Card>
         <UpdatesSection />
         <AboutSection />
-      </Section>
+      </Card>
+    ),
+    "settings-developer": (
+      <Card>
+        <Row label="Sample data">
+          <button
+            type="button"
+            onClick={async () => {
+              const seed = await import("../../dev/seed");
+              const ws = seed.sampleWorkspace();
+              await saveWorkspace(ws);
+              await saveHabitData(seed.sampleHabits());
+              await saveSessions(seed.sampleFocus(ws.tasks));
+              await Promise.all([hydrate(), hydrateHabits(), hydrateFocus()]);
+              toast("Sample data loaded");
+            }}
+            className="btn btn-secondary"
+          >
+            Load sample data
+          </button>
+        </Row>
+      </Card>
+    ),
+  };
 
-      {import.meta.env.DEV && (
-        <Section title="Developer" id="settings-developer">
-          <Row label="Sample data">
-            <button
-              type="button"
-              onClick={async () => {
-                const seed = await import("../../dev/seed");
-                const ws = seed.sampleWorkspace();
-                await saveWorkspace(ws);
-                await saveHabitData(seed.sampleHabits());
-                await saveSessions(seed.sampleFocus(ws.tasks));
-                await Promise.all([hydrate(), hydrateHabits(), hydrateFocus()]);
-                toast("Sample data loaded");
-              }}
-              className="btn btn-secondary"
-            >
-              Load sample data
+  return (
+    <div ref={pane} className="h-full min-h-0 overflow-y-auto">
+      <div className="mx-auto flex max-w-[640px] flex-col gap-5 px-[var(--gutter)] py-8">
+        {current ? (
+          <>
+            <button type="button" onClick={() => open(null)} className="btn btn-ghost -ml-2 w-fit self-start text-accent-text">
+              <ChevronLeft size={16} aria-hidden /> Settings
             </button>
-          </Row>
-        </Section>
-      )}
-    </div>
+            <PageHead title={current.title} />
+            {bodies[current.id]}
+          </>
+        ) : (
+          <>
+            <PageHead title="Settings" />
+            <label className="relative block">
+              <Search size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search settings" aria-label="Search settings" className="input pl-9" />
+            </label>
+            {q ? (
+              results.length ? (
+                <Group>
+                  {results.map((r) => (
+                    <PageRow key={`${r.page}:${r.label}`} icon={pageOf(r.page)?.icon ?? Settings2} title={r.label} hint={r.jump ? pageOf(r.page)?.title : undefined} onClick={() => open(r.page, r.jump)} />
+                  ))}
+                </Group>
+              ) : (
+                <p className="py-6 text-center text-muted">No settings match “{query.trim()}”.</p>
+              )
+            ) : (
+              GROUPS.map((ids) => {
+                const pages = ids.flatMap((id) => PAGES.filter((p) => p.id === id));
+                return (
+                  pages.length > 0 && (
+                    <Group key={ids[0]}>
+                      {pages.map((p) => (
+                        <PageRow key={p.id} icon={p.icon} title={p.title} onClick={() => open(p.id)} />
+                      ))}
+                    </Group>
+                  )
+                );
+              })
+            )}
+          </>
+        )}
       </div>
     </div>
   );
 }
-
-const SECTIONS: { id: string; title: string; icon: LucideIcon }[] = [
-  { id: "settings-general", title: "General", icon: Settings2 },
-  { id: "settings-appearance", title: "Appearance", icon: Palette },
-  { id: "settings-notifications", title: "Notifications & sounds", icon: Bell },
-  { id: VOICE_SECTION_ID, title: "Voice", icon: Mic },
-  { id: "settings-data", title: "Data", icon: Database },
-  { id: HELP_SECTION_ID, title: "Help", icon: LifeBuoy },
-  { id: "settings-about", title: "About & updates", icon: Info },
-  { id: "settings-developer", title: "Developer", icon: Wrench },
-];

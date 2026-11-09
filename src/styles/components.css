@@ -105,14 +105,23 @@
 /* Navigation rows (sidebar, bar, settings sections). The current item: soft accent, 600, accent icon. */
 @layer components {
   .nav-item { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: var(--r-control); font-size: var(--fs-sm); color: var(--fg); white-space: nowrap; }
-  .nav-item > .ni-icon { width: 16px; display: grid; place-items: center; color: var(--fg-2); flex: none; }
+  .nav-item > .ni-icon { width: 1.25rem; display: grid; place-items: center; color: var(--fg-2); flex: none; }
+  /* Icons size in rem so they track the text and the Scale setting (18px at 100%). */
+  .nav-item > .ni-icon > svg { width: 1.125rem; height: 1.125rem; }
   .nav-item > .ni-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
   .nav-item > .ni-n { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
   .nav-item:hover { background: var(--surface-2); }
   .nav-item[aria-current] { background: var(--accent-soft); font-weight: 600; }
   .nav-item[aria-current] > .ni-icon { color: var(--accent-text); }
+  .nav-item.is-rail { justify-content: center; padding: 0; gap: 0; }
+  .nav-item.is-rail > .ni-label, .nav-item.is-rail > .ni-n { display: none; }
   .nav-item.is-drop { background: var(--accent); color: var(--accent-fg); }
   .nav-item.is-drop > .ni-icon, .nav-item.is-drop > .ni-n { color: inherit; }
+}
+
+/* Settings (Scale/search jumps): the row a search result led to, until the next click. */
+@layer components {
+  .settings-hit { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: var(--r-control); }
 }
 
 /* Quick add: the inline field (.qa) and the parsed-token chips under it (.pchip). */

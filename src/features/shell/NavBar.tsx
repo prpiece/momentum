@@ -99,7 +99,7 @@ export function NavBar({ position }: { position: BarPosition }) {
       <div data-tauri-drag-region className="flex h-12 shrink-0 select-none items-center gap-2 bg-bg px-3">
         <div className="pointer-events-none flex shrink-0 items-center gap-2 pl-1 pr-2">
           <Logo size={22} />
-          <span className="font-semibold">Momentum</span>
+          <span className="font-semibold max-[999px]:hidden">Momentum</span>
         </div>
         <nav ref={navRef} aria-label="Navigation" data-tour="nav" className="relative flex min-w-0 flex-1 items-center gap-0.5">
           <div className="relative flex min-w-0 items-center gap-0.5 overflow-hidden">
@@ -139,7 +139,7 @@ export function NavBar({ position }: { position: BarPosition }) {
           </button>
         </nav>
         <button type="button" data-tour="search" onClick={() => setPalette(true)} className="btn btn-secondary shrink-0 text-muted">
-          <Search size={16} strokeWidth={1.75} /> Search <kbd className="kbd">{keyLabel("Ctrl K")}</kbd>
+          <Search size={16} strokeWidth={1.75} aria-label="Search" /> <span className="max-[999px]:hidden">Search</span> <kbd className="kbd max-[999px]:hidden">{keyLabel("Ctrl K")}</kbd>
         </button>
         <span data-tour="settings" className="contents">
           <BarItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={<SETTINGS_NAV.icon size={ICON} strokeWidth={1.75} />} />

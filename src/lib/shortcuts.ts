@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { addDaysLocal, moveToDate, todayLocal } from "../domain/dates";
 import { GO } from "../domain/features";
-import { ZOOMS, type Priority } from "../domain/types";
+import { SCALES, type Priority } from "../domain/types";
 import { focusFilter } from "../features/tasks/FilterBar";
 import { bulkEdit, deleteTasks, toggleDone } from "../features/tasks/actions";
 import { focusQuickAdd } from "../features/tasks/QuickAdd";
@@ -85,13 +85,13 @@ export function useGlobalShortcuts() {
         e.preventDefault();
         return go("settings");
       }
-      // Zoom (Settings → Appearance): Ctrl + / Ctrl − step through ZOOMS, Ctrl 0 resets.
+      // Scale (Settings → Appearance): Ctrl + / Ctrl − step through SCALES, Ctrl 0 resets.
       if (mod && ["=", "+", "-", "0"].includes(e.key)) {
         e.preventDefault();
         const { settings, update } = useSettings.getState();
-        const i = ZOOMS.indexOf(settings.zoom);
-        const next = e.key === "0" ? 1 : ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, i + (e.key === "-" ? -1 : 1)))];
-        return update({ zoom: next });
+        const i = SCALES.indexOf(settings.scale);
+        const next = e.key === "0" ? 1 : SCALES[Math.min(SCALES.length - 1, Math.max(0, i + (e.key === "-" ? -1 : 1)))];
+        return update({ scale: next });
       }
       if (typing(e)) return;
       if (mod && e.key.toLowerCase() === "z") {
