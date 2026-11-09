@@ -394,7 +394,7 @@
 @keyframes pop-in {
   from { opacity: 0; transform: scale(0.97); }
 }
-@keyframes pop-out {
+@keyframes layer-out {
   to { opacity: 0; transform: scale(0.99); }
 }
 @keyframes dialog-in {
@@ -405,7 +405,7 @@
 }
 .anim-pop-in { animation: pop-in 250ms var(--ease-smooth); transform-origin: top; }
 .anim-dialog { animation: dialog-in 250ms var(--ease-smooth); }
-.layer.is-closing { animation: pop-out var(--dur-fast) var(--ease-smooth) forwards; }
+.layer.is-closing { animation: layer-out var(--dur-fast) var(--ease-smooth) forwards; }
 .dialog-scrim.is-closing { animation: fade-out var(--dur-fast) var(--ease-smooth) forwards; }
 .dialog-scrim.is-closing .anim-dialog { animation: dialog-out var(--dur-fast) var(--ease-smooth) forwards; }
 /* Children rise in one after another (the task drawer's sections). */

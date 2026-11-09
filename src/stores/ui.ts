@@ -32,7 +32,8 @@ type UiStore = {
   eventDialog: { id: string; key: string | null } | null;
   /** Calendar showing a day range dragged out on the mini month (days from calAnchor); null = the view's own range. */
   calSpan: number | null;
-  contextMenu: { x: number; y: number; items: MenuEntry[] } | null;
+  /** `from` is the button that opened it, if any: clicks on it toggle the menu rather than count as outside. */
+  contextMenu: { x: number; y: number; items: MenuEntry[]; from?: HTMLElement } | null;
   /** Guided tour reopened from Settings (first run is driven by settings.onboarded). */
   tourOpen: boolean;
   /** Filter-bar query per task view (session-only). */
@@ -80,8 +81,9 @@ export function openContextMenu(e: { clientX: number; clientY: number; preventDe
 }
 /** The same menu, opened under a "…" button. */
 export function openMenuAt(el: HTMLElement, items: MenuEntry[]) {
+  if (useUi.getState().contextMenu?.from === el) return closeContextMenu();
   const r = el.getBoundingClientRect();
-  set({ contextMenu: { x: r.left, y: r.bottom, items } });
+  set({ contextMenu: { x: r.left, y: r.bottom, items, from: el } });
 }
 export const closeContextMenu = () => set({ contextMenu: null });
 export const openEvent = (id: string, key: string | null = null) => set({ eventDialog: { id, key } });

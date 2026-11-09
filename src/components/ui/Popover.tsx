@@ -7,7 +7,8 @@ import { exitGhost } from "../../lib/motion";
  * flips/clamps to stay on screen; closes on outside click and Escape.
  */
 export function Popover(props: {
-  anchor: RefObject<HTMLElement | null> | { x: number; y: number };
+  /** An element, or a point; a point may name the element that opened it (`from`), which then isn't "outside". */
+  anchor: RefObject<HTMLElement | null> | { x: number; y: number; from?: HTMLElement };
   onClose: () => void;
   children: ReactNode;
   align?: "start" | "end";
@@ -44,7 +45,7 @@ export function Popover(props: {
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
       const target = e.target as Node;
-      const anchorEl = "current" in anchor ? anchor.current : null;
+      const anchorEl = "current" in anchor ? anchor.current : anchor.from;
       if (!ref.current?.contains(target) && !anchorEl?.contains(target)) onClose();
     };
     const onKey = (e: KeyboardEvent) => {

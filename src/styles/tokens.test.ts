@@ -61,3 +61,12 @@ it("indigo, the default, matches :root and the dark block", () => {
   expect(light.accent).toBe(ACCENTS[0].light);
   expect(dark.accent).toBe(ACCENTS[0].dark);
 });
+
+describe("keyframes", () => {
+  // A later @keyframes with the same name silently replaces the earlier one (a menu's exit once played the confetti dots).
+  it("have unique names across the style sheets", () => {
+    const all = css + readFileSync(new URL("./components.css", import.meta.url), "utf8");
+    const names = [...all.matchAll(/@keyframes\s+([\w-]+)/g)].map((m) => m[1]);
+    expect(names.filter((n, i) => names.indexOf(n) !== i)).toEqual([]);
+  });
+});
