@@ -72,7 +72,7 @@ export function ProgressView() {
         </PageHead>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3">
         <Stat label="Tasks done" value={weeks[weeks.length - 1]?.value ?? 0} />
         <Stat label="Focus" value={`${Math.floor(focusMinutes / 60)}h ${Math.round(focusMinutes % 60)}m`} />
         <Stat label="Perfect days" value={perfect.thisWeek} />

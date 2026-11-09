@@ -120,7 +120,7 @@ function ArrangeTasks() {
   return (
     <div ref={setNodeRef} className={`flex min-h-0 flex-1 flex-col transition-colors ${isOver ? "bg-accent-soft" : ""}`}>
       <div className="px-3 pt-3">
-        <h3 className="t-label text-muted">Arrange tasks <span className="tabular-nums">{tasks.length}</span></h3>
+        <h3 className="flex items-center gap-2"><span className="t-label text-muted">Arrange tasks</span><span className="t-count inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-surface-2 px-1.5 text-[length:var(--fs-xs)] font-semibold tabular-nums text-fg-2">{tasks.length}</span></h3>
         <p className="mt-0.5 text-[length:var(--fs-xs)] text-muted">Drag onto the calendar to schedule; drag a block here to unschedule.</p>
         <div className="mt-2 flex gap-1.5">
           <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Filter by list" className="input h-7 min-w-0 flex-1 px-1.5 text-xs">

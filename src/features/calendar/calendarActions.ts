@@ -11,7 +11,7 @@ import { askScope, toast } from "../../stores/ui";
 import { editTask } from "../tasks/actions";
 import { derive } from "../tasks/selectors";
 
-export const HOUR_PX = { comfortable: 56, compact: 40 } as const;
+export const HOUR_PX = { comfortable: 64, compact: 44 } as const;
 export const pxPerMinute = () => HOUR_PX[useSettings.getState().settings.calendar.density] / 60;
 
 type Ref = Pick<CalItem, "source" | "id" | "key">;

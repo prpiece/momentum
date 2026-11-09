@@ -76,7 +76,7 @@ export const TaskRow = memo(function TaskRow(props: {
       } ${selected || open ? "bg-accent-soft" : "hover:bg-surface-2"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
     >
       {/* A fixed toggle gutter keeps every checkbox in a column, with or without subtasks. */}
-      <div style={{ width: 12 + depth * 20 }} className="-mr-1 flex shrink-0 items-center justify-end">
+      <div style={{ width: 20 + depth * 20 }} className="-mr-1.5 flex shrink-0 items-center justify-end self-stretch max-[719px]:mt-0.5 max-[719px]:h-[var(--checkbox)] max-[719px]:self-start">
         {shownKids > 0 && (
           <button
             type="button"
@@ -147,9 +147,12 @@ export const TaskRow = memo(function TaskRow(props: {
           </span>
         )}
       </div>
-      <span className={`min-w-16 shrink-0 whitespace-nowrap text-right text-[length:var(--fs-sm)] tabular-nums max-[719px]:order-first max-[719px]:min-w-0 max-[719px]:text-left ${overdue ? "text-danger" : "text-fg-2"} ${done ? "opacity-70" : ""}`}>
-        {vm.date && (vm.date === today ? (time ?? "Today") : `${relativeDayLabel(vm.date, today)}${time ? ` ${time}` : ""}`)}
-      </span>
+      {/* Only dated rows get a date, so the meta sits against the row's right edge when there is none. */}
+      {vm.date && (
+        <span className={`shrink-0 whitespace-nowrap text-right text-[length:var(--fs-sm)] tabular-nums max-[719px]:order-first max-[719px]:text-left ${overdue ? "text-danger" : "text-fg-2"} ${done ? "opacity-70" : ""}`}>
+          {vm.date === today ? (time ?? "Today") : `${relativeDayLabel(vm.date, today)}${time ? ` ${time}` : ""}`}
+        </span>
+      )}
       </div>
       </div>
     </div>

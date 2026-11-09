@@ -85,7 +85,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col" style={tint}>
-      <div className={`${page} px-[var(--gutter)] pb-4 pt-6`}>
+      <div className={`${page} px-[var(--gutter)] pb-5 pt-6`}>
         <PageHead
           title={spec.title}
           lead={list?.icon && list.id !== "inbox" ? <ListGlyph icon={list.icon} color={list.color} size={20} /> : undefined}
@@ -97,6 +97,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
           }
         >
           {spec.id === "today" && <TodayStreak />}
+          <FilterBar view={spec.id} />
         </PageHead>
       </div>
       <ToolbarActions>
@@ -146,9 +147,6 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         )}
         </div>
       </ToolbarActions>
-      <div className={`${page} px-[var(--gutter)] pb-3`}>
-        <FilterBar view={spec.id} />
-      </div>
       {spec.id === "today" && (
         <div className={`${page} px-[var(--gutter)]`}>
           <GettingStartedCard />

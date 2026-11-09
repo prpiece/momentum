@@ -1,7 +1,7 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { format } from "date-fns";
-import { Ban, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, ImagePlus, Pin, Trash2, X } from "lucide-react";
+import { Ban, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, ImagePlus, Pin, Plus, Trash2, X } from "lucide-react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { IconButton } from "../../components/ui/Dialog";
@@ -35,7 +35,7 @@ export function TaskDrawer() {
     <aside
       key={task.id}
       aria-label="Task details"
-      className={`layer layer-raised ${side === "right" ? "anim-slide-right right-0 border-y-0 border-r-0" : "anim-slide-left left-0 border-y-0 border-l-0"} absolute inset-y-0 z-40 flex w-[var(--drawer)] max-w-full flex-col`}
+      className={`layer layer-raised ${side === "right" ? "anim-slide-right right-0 border-y-0 border-r-0" : "anim-slide-left left-0 border-y-0 border-l-0"} absolute inset-y-0 z-40 flex w-[clamp(340px,36vw,440px)] max-w-full flex-col max-[719px]:w-full`}
       onKeyDown={(e) => {
         if (e.key === "Escape" && !(e.target instanceof HTMLTextAreaElement)) closeDrawer();
       }}
@@ -89,8 +89,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         </IconButton>
       </header>
 
-      <div className="flex min-h-0 flex-1 max-[719px]:flex-col max-[719px]:overflow-y-auto">
-      <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto px-6 py-5 max-[719px]:flex-none max-[719px]:overflow-visible max-[719px]:px-[var(--gutter)] anim-stagger [&>*]:shrink-0">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-6 py-5 max-[719px]:px-[var(--gutter)] anim-stagger [&>*]:shrink-0">
         <div className="flex items-start gap-3">
           <div className="pt-1.5">
             <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, key)} label="Complete" />
@@ -98,14 +97,8 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
           <TitleInput task={t} />
         </div>
 
-        <Description task={t} />
-        <Subtasks task={t} />
-        <Checklist task={t} />
-        <ActivityLog task={t} />
-      </div>
-
-      {/* The property rail (D198): one row per property, each opening its editor. */}
-      <div className="flex w-[212px] shrink-0 flex-col gap-px overflow-y-auto border-l border-border p-3 max-[719px]:w-full max-[719px]:overflow-visible max-[719px]:border-l-0 max-[719px]:border-t">
+        {/* Properties (D198): chips under the title, each opening its editor; they wrap instead of clipping. */}
+        <div className="flex flex-wrap gap-1.5 pl-[30px]">
           {!parent && (
             <Prop label="List" text={list?.name ?? "None"} value={list ? <><ListGlyph icon={list.icon} color={list.color} size={14} />{list.name}</> : null}>
               {(close) => (
@@ -154,7 +147,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
           <Prop
             label="Tags"
             text={t.tags.length ? t.tags.map((id) => tags[id]?.name).filter(Boolean).map((n) => `#${n}`).join(" ") : "None"}
-            value={t.tags.length ? t.tags.map((id) => tags[id] && <span key={id} className="chip">{tags[id].name}</span>) : null}
+            value={t.tags.length ? t.tags.map((id) => tags[id] && `#${tags[id].name}`).filter(Boolean).join(" ") : null}
           >
             {() => (
               <div className="w-72 max-w-full p-3">
@@ -162,21 +155,34 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
               </div>
             )}
           </Prop>
+        </div>
+
+        <Description task={t} />
+        <Subtasks task={t} />
+        <Checklist task={t} />
+        <ActivityLog task={t} />
       </div>
-      </div>
+
     </>
   );
 }
 
-/** One property row in the rail: label and value; opens its editor in a popover, and focus returns to the row on close. */
+/** One property chip under the title: its value (or its name, muted, when unset); opens its editor in a popover, and focus returns to the chip on close. */
 function Prop({ label, text, value, children }: { label: string; text: string; value: ReactNode; children: (close: () => void) => ReactNode }) {
   const m = useMenu();
   const close = () => (m.close(), m.anchor.current?.focus());
   return (
     <>
-      <button ref={m.anchor} type="button" aria-label={`${label}: ${text}`} aria-haspopup="dialog" aria-expanded={m.open} onClick={m.toggle} className="prop w-full">
-        <span className="prop-k">{label}</span>
-        <span className={`prop-v ${value ? "" : "is-empty"}`}>{value ?? "None"}</span>
+      <button
+        ref={m.anchor}
+        type="button"
+        aria-label={`${label}: ${text}`}
+        aria-haspopup="dialog"
+        aria-expanded={m.open}
+        onClick={m.toggle}
+        className={`chip h-auto min-h-8 max-w-full gap-1.5 whitespace-normal break-words rounded-control px-2.5 py-1 text-left text-[length:var(--fs-sm)] hover:bg-border max-[719px]:min-h-[var(--touch)] [&>svg]:shrink-0 ${value ? "" : "text-muted"}`}
+      >
+        {value ?? <><Plus size={14} strokeWidth={1.75} />{label}</>}
       </button>
       {m.open && (
         <Popover anchor={m.anchor} onClose={close}>

@@ -117,14 +117,14 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
       onContextMenu={onItemMenu(item)}
       onKeyDown={(e) => e.key === "Enter" && openItem(item)}
       aria-label={`${item.title}, ${label}`}
-      className={`group absolute overflow-hidden rounded-control border px-1.5 py-[3px] text-[length:var(--fs-xs)] leading-[var(--lh-xs)] transition-opacity duration-[var(--dur)] hover:z-10 ${
+      className={`group absolute overflow-hidden rounded-control border px-2 py-1 text-[length:var(--fs-xs)] leading-[var(--lh-xs)] transition-opacity duration-[var(--dur)] hover:z-10 ${
         item.readOnly ? "cursor-default" : "cursor-grab"
       } ${isDragging ? "opacity-30" : ""} ${item.done ? "opacity-60" : ""} ${preview ? "z-20 ring-2 ring-accent-text" : ""}`}
       style={{
         top: top * px,
         height: Math.max(height, 14),
         left: `calc(${(col / cols) * 100}% + 1px)`,
-        width: `calc(${100 / cols}% - 3px)`,
+        width: `calc(${100 / cols}% - 4px)`,
         ...tint(item.color, item.done),
       }}
     >

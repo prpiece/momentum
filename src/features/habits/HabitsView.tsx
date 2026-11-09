@@ -78,8 +78,8 @@ export function HabitsView() {
     );
 
   return (
-    <div className="flex h-full min-h-0 max-[719px]:flex-col max-[719px]:overflow-y-auto">
-      <div className="flex w-[26rem] shrink-0 flex-col border-r border-border max-[719px]:w-full max-[719px]:border-r-0">
+    <div className="flex h-full min-h-0 max-[1023px]:flex-col max-[1023px]:overflow-y-auto">
+      <div className="flex w-[26rem] shrink-0 flex-col border-r border-border max-[1023px]:w-full max-[1023px]:border-r-0">
         <ToolbarActions>
           <div className="flex items-center gap-1.5">
             <div role="tablist" className="seg">
@@ -155,7 +155,7 @@ export function HabitsView() {
           )}
         </div>
       </div>
-      <div className="min-w-0 flex-1 max-[719px]:flex-none max-[719px]:border-t max-[719px]:border-border">{tab === "review" ? <HabitReview habits={active} /> : current ? <HabitDetail habit={current} onEdit={() => setDialog({ habit: current })} /> : null}</div>
+      <div className="min-w-0 flex-1 max-[1023px]:flex-none max-[1023px]:border-t max-[1023px]:border-border">{tab === "review" ? <HabitReview habits={active} /> : current ? <HabitDetail habit={current} onEdit={() => setDialog({ habit: current })} /> : null}</div>
       {dialog && <HabitDialog habit={dialog.habit} onClose={() => setDialog(null)} />}
     </div>
   );

@@ -32,7 +32,7 @@ export function FilterBar({ view }: { view: ViewId }) {
   };
 
   return (
-    <div className="input-wrap h-[var(--control)] min-w-0 max-w-sm flex-1">
+    <div className={`input-wrap h-8 min-w-0 border-transparent bg-surface-2 transition-[width] duration-[var(--dur)] focus-within:w-60 max-[719px]:focus-within:w-40 ${query ? "w-60 max-[719px]:w-40" : "w-40 max-[719px]:w-28"}`}>
       <Search size={14} className="shrink-0 text-muted" />
       <input
         ref={input}
@@ -45,9 +45,9 @@ export function FilterBar({ view }: { view: ViewId }) {
             else e.currentTarget.blur();
           }
         }}
-        placeholder="Filter: #tag !high ~list tomorrow"
+        placeholder="Filter"
         aria-label="Filter tasks"
-        title="Filter with quick-add syntax. Also: overdue, nodate, done, wontdo"
+        title="Filter with quick-add syntax: #tag !high ~list tomorrow. Also: overdue, nodate, done, wontdo"
         className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted"
       />
       {chips.length > 0 && (

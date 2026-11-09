@@ -1,6 +1,6 @@
-import { ChevronLeft, ChevronRight, PanelRight, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, PanelRight, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useMemo } from "react";
-import { MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
+import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
 import { Switch } from "../../components/ui/Switch";
 import { ToolbarActions } from "../../components/ui/Toolbar";
 import { dayRange, rangeTitle, stepAnchor, viewDays } from "../../domain/calendar";
@@ -44,6 +44,7 @@ export function CalendarView() {
   const step = useCallback((from: string, dir: 1 | -1) => (span ? addDaysLocal(from, span * dir) : stepAnchor(view, from, dir)), [span, view]);
   const items = useCalendarItems(days[0], days[days.length - 1]);
   const options = useMenu();
+  const viewMenu = useMenu();
 
   useViewKeys(
     useCallback(
@@ -78,13 +79,13 @@ export function CalendarView() {
           <button type="button" aria-label="Next" title="Next (→)" onClick={() => setCalAnchor(step(anchor, 1))} className="btn btn-ghost icon-btn">
             <ChevronRight size={18} strokeWidth={1.75} />
           </button>
-          <h2 className="ml-1 mr-3 whitespace-nowrap text-[length:var(--fs-lg)] font-semibold leading-[var(--lh-lg)]">{rangeTitle(span ? "5day" : view, days, anchor)}</h2>
+          <h2 className="ml-1 mr-3 whitespace-nowrap text-[length:var(--fs-lg)] font-semibold leading-[var(--lh-lg)] max-[1100px]:mr-1 max-[1100px]:text-[length:var(--fs-base)]">{rangeTitle(span ? "5day" : view, days, anchor)}</h2>
           {span && (
-            <button type="button" onClick={() => setCalSpan(null)} title="Back to the selected view" aria-pressed="true" className="anim-pop btn btn-ghost btn-sm">
+            <button type="button" onClick={() => setCalSpan(null)} title="Back to the selected view" aria-pressed="true" className="anim-pop btn btn-ghost btn-sm max-[1100px]:hidden">
               {span} days <X size={14} strokeWidth={1.75} />
             </button>
           )}
-          <div role="radiogroup" aria-label="Calendar view" className="seg">
+          <div role="radiogroup" aria-label="Calendar view" className="seg max-[1100px]:hidden">
             {CAL_VIEWS.map((v) => (
               <button
                 key={v}
@@ -99,6 +100,19 @@ export function CalendarView() {
               </button>
             ))}
           </div>
+          {/* Narrow windows: the five views collapse to one menu button (it also shows a dragged day span). */}
+          <button ref={viewMenu.anchor} type="button" aria-label="Calendar view" aria-haspopup="menu" aria-expanded={viewMenu.open} onClick={viewMenu.toggle} className="btn btn-secondary min-[1101px]:hidden">
+            {span ? `${span} days` : LABEL[view][0]} <ChevronDown size={14} strokeWidth={1.75} />
+          </button>
+          {viewMenu.open && (
+            <Popover anchor={viewMenu.anchor} onClose={viewMenu.close} align="end">
+              {CAL_VIEWS.map((v) => (
+                <MenuItem key={v} active={!span && view === v} onSelect={() => (setCal({ view: v }), viewMenu.close())}>
+                  {LABEL[v][0]}
+                </MenuItem>
+              ))}
+            </Popover>
+          )}
           <span className="tb-sep" aria-hidden />
           <button ref={options.anchor} type="button" aria-label="View options" title="View options" onClick={options.toggle} className="btn btn-ghost icon-btn">
             <SlidersHorizontal size={16} strokeWidth={1.75} />

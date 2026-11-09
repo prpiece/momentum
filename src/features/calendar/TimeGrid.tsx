@@ -54,7 +54,7 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         {days.map((d) => {
           const date = fromLocalDate(d);
           return (
-            <button key={d} type="button" onClick={() => onViewDay(d)} className="flex h-14 min-w-0 items-center gap-2 border-l border-border px-2.5 hover:bg-surface-2">
+            <button key={d} type="button" onClick={() => onViewDay(d)} className="flex h-16 min-w-0 items-center justify-center gap-2 border-l border-border px-3 hover:bg-surface-2">
               <span className={`t-label ${d === today ? "text-accent-text" : "text-muted"}`}>{format(date, "EEE")}</span>
               <span className={`grid size-7 place-items-center rounded-full text-[length:var(--fs-lg)] font-semibold tabular-nums ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
             </button>
@@ -107,13 +107,13 @@ function AllDayCell({ day, items, onCreate }: { day: string; items: CalItem[]; o
     <div
       ref={setNodeRef}
       onClick={(e) => e.target === e.currentTarget && onCreate({ x: e.clientX, y: e.clientY })}
-      className={`min-h-8 space-y-0.5 border-l border-border p-0.5 transition-colors ${isOver ? "bg-accent-soft" : ""}`}
+      className={`min-h-9 space-y-1 border-l border-border p-1 transition-colors ${isOver ? "bg-accent-soft" : ""}`}
     >
       {shown.map((i) => (
         <Chip key={i.uid} item={i} scope={`allday:${day}`} />
       ))}
       {items.length > ALL_DAY_ROWS && (
-        <button type="button" onClick={() => setExpanded(!expanded)} className="px-1 text-[length:var(--fs-xs)] font-medium text-muted hover:text-fg">
+        <button type="button" onClick={() => setExpanded(!expanded)} className="px-1 pb-0.5 text-[length:var(--fs-xs)] font-medium text-muted hover:text-fg">
           {expanded ? "Show less" : `+${items.length - ALL_DAY_ROWS} more`}
         </button>
       )}

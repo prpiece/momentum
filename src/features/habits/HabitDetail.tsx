@@ -59,7 +59,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
         </button>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
         <Stat icon={<Flame size={15} className="text-streak" />} label="Current streak" value={cur.count} unit={`${cur.unit}${cur.count === 1 ? "" : "s"}`} />
         <Stat icon={<Trophy size={15} className="text-streak" />} label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
         <Stat label="Last 30 days" value={rate30 === null ? "–" : Math.round(rate30 * 100)} unit={rate30 === null ? "" : "%"} />
@@ -90,11 +90,11 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
 function Stat({ icon, label, value, unit }: { icon?: React.ReactNode; label: string; value: number | string; unit: string }) {
   return (
     <div className="card p-3">
-      <div className="flex items-center gap-1.5 text-xs text-muted">
+      <div className="flex items-center gap-1.5 whitespace-nowrap text-xs text-muted">
         {icon}
         {label}
       </div>
-      <div className="mt-1 text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] tabular-nums">
+      <div className="mt-1 whitespace-nowrap text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] tabular-nums">
         {value}
         <span className="ml-1 text-[length:var(--fs-sm)] font-normal text-muted">{unit}</span>
       </div>
@@ -111,7 +111,7 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
   return (
     <section>
       <div className="mb-2 flex items-center gap-1">
-        <h3 className="flex-1 t-label text-muted">
+        <h3 className="min-w-0 flex-1 truncate whitespace-nowrap t-label text-muted">
           {format(fromLocalDate(month), "MMMM yyyy")} {rate !== null && <span className="ml-1 tabular-nums normal-case">· {Math.round(rate * 100)}%</span>}
         </h3>
         <button type="button" aria-label="Previous month" onClick={() => setMonth(toLocalDate(addMonths(fromLocalDate(month), -1)))} className="btn btn-ghost btn-sm icon-btn text-muted">
