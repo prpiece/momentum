@@ -120,7 +120,7 @@ export const FEATURES: Feature[] = [
   // ---- Habits & focus
   { id: "habits", title: "Keep a habit", howTo: "Add a habit and check it in each day it's due.", icon: "target", group: "Habits & focus", since: OLD, core: true, done: "habit:checked",
     commands: [palette("go-habits", "Go to Habits"), keys("G H", "Habits")] },
-  { id: "focus", title: "Focus with a timer", howTo: "Start a Pomodoro, optionally on a task, and finish a session.", icon: "timer", group: "Habits & focus", since: OLD, core: true, done: "focus:completed",
+  { id: "focus", title: "Focus with a timer", howTo: "Start a Pomodoro, optionally on a task or some of its subtasks, and finish a session.", icon: "timer", group: "Habits & focus", since: OLD, core: true, done: "focus:completed",
     commands: [palette("go-focus", "Go to Focus"), keys("G F", "Focus")] },
   { id: "mini-window", title: "Keep the timer on top", howTo: "The mini window shows your next tasks, the timer and the matrix while you work elsewhere.", icon: "window", group: "Habits & focus", since: OLD, core: false,
     commands: [keys("Ctrl Alt M", "Show or hide the mini window")] },

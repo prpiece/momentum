@@ -1,5 +1,6 @@
 import { startOfWeek } from "date-fns";
 import { addDaysLocal, fromLocalDate, toLocalDate } from "./dates";
+import { countsForProgress } from "./perfect";
 import type { LocalDate, Task, WeekStart } from "./types";
 
 export type Bucket = { start: LocalDate; label: string; value: number };
@@ -9,7 +10,7 @@ const localDay = (iso: string) => toLocalDate(new Date(iso));
 /** Tasks completed per local day for the `n` days ending `today`. */
 export function completedPerDay(tasks: readonly Task[], today: LocalDate, n: number): Bucket[] {
   const counts = new Map<LocalDate, number>();
-  for (const t of tasks) if (t.status === "done" && t.completedAt && !t.deletedAt) counts.set(localDay(t.completedAt), (counts.get(localDay(t.completedAt)) ?? 0) + 1);
+  for (const t of tasks) if (t.status === "done" && t.completedAt && !t.deletedAt && countsForProgress(t)) counts.set(localDay(t.completedAt), (counts.get(localDay(t.completedAt)) ?? 0) + 1);
   return Array.from({ length: n }, (_, i) => {
     const d = addDaysLocal(today, i - n + 1);
     return { start: d, label: d, value: counts.get(d) ?? 0 };

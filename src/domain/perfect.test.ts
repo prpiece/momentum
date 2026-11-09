@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal, atLocalTime } from "./dates";
 import type { Habit, HabitFrequency } from "./habits";
-import { bestDayRun, dayOf, dayRun, levelOf, perfectDays, prepare, trophyCounts, TROPHIES, tierOfRun, weekQualifies, weekRun, type ProgressInput } from "./perfect";
+import { bestDayRun, countsForProgress, dayOf, dayRun, levelOf, perfectDays, prepare, trophyCounts, TROPHIES, tierOfRun, weekQualifies, weekRun, type ProgressInput } from "./perfect";
 import type { LocalDate, Task } from "./types";
 
 // A Monday, so with weekStart 1 the week is 2026-10-26 … 2026-11-01.
@@ -44,6 +44,25 @@ function input(p: Partial<ProgressInput> & { done?: Record<string, LocalDate[]> 
   return { tasks: [], habits: [], checkins: (id) => maps.get(id) ?? new Map(), restDays: new Set(), pushes: [], weekStart: 1, today: day(6), ...p };
 }
 const kind = (i: ProgressInput, d: LocalDate) => dayOf(prepare(i, MON), d).kind;
+
+describe("countsForProgress", () => {
+  const made = '2026-10-26T15:00:00.000Z';
+  const t = (completedAt: string | null, p: Partial<Task> = {}) => task(day(0), null, { createdAt: made, completedAt, ...p });
+  it('ignores a task finished within 2 minutes of creation', () => {
+    expect(countsForProgress(t('2026-10-26T15:01:59.000Z'))).toBe(false);
+    expect(countsForProgress(t('2026-10-26T15:02:00.000Z'))).toBe(true);
+  });
+  it('always counts open tasks, series occurrences and odd (negative) ages', () => {
+    expect(countsForProgress(t(null))).toBe(true);
+    expect(countsForProgress(t(made, { recurrenceParentId: 'series' }))).toBe(true);
+    expect(countsForProgress(t('2026-10-25T15:00:00.000Z'))).toBe(true);
+  });
+  it('drops excluded tasks from perfect days as if they did not exist', () => {
+    const quick = task(day(0), day(0), { createdAt: at(day(0)) });
+    expect(kind(input({ tasks: [task(day(0), day(0)), quick] }), day(0))).toBe('perfect');
+    expect(kind(input({ tasks: [quick] }), day(0))).toBe('neutral');
+  });
+});
 
 describe("perfect day", () => {
   it("is perfect when every due task is done that day", () => {
