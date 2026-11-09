@@ -104,21 +104,21 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         <div data-tour="toolbar" className="flex items-center gap-1.5">
         <div role="radiogroup" aria-label="View mode" className="seg">
           {MODES.filter((m) => m.id !== "kanban" || list).map((l) => (
-            <button key={l.id} type="button" role="radio" aria-checked={layout === l.id} onClick={() => setMode(l.id)} className={`seg-item ${layout === l.id ? "is-on" : ""}`}>
-              <l.icon size={16} strokeWidth={1.75} /> <span className="max-[719px]:sr-only">{l.label}</span>
+            <button key={l.id} type="button" role="radio" aria-checked={layout === l.id} title={l.label} onClick={() => setMode(l.id)} className={`seg-item ${layout === l.id ? "is-on" : ""}`}>
+              <l.icon size={16} strokeWidth={1.75} /> <span className="@max-[44rem]/tb:sr-only">{l.label}</span>
             </button>
           ))}
         </div>
         <span className="tb-sep" aria-hidden />
         {spec.splitCompleted && (
           <button type="button" aria-pressed={options.showCompleted} title="Show completed" onClick={() => setOptions({ showCompleted: !options.showCompleted })} className="btn btn-ghost">
-            <CircleCheckBig size={16} strokeWidth={1.75} /> <span className="max-[719px]:sr-only">Completed</span>
+            <CircleCheckBig size={16} strokeWidth={1.75} /> <span className="@max-[44rem]/tb:sr-only">Completed</span>
           </button>
         )}
         {layout === "list" && (
-          <button ref={menu.anchor} type="button" onClick={menu.toggle} aria-haspopup="menu" aria-expanded={menu.open} className="btn btn-ghost">
+          <button ref={menu.anchor} type="button" title="Sort and group" onClick={menu.toggle} aria-haspopup="menu" aria-expanded={menu.open} className="btn btn-ghost">
             <ListFilter size={16} strokeWidth={1.75} />
-            <span className="max-[719px]:sr-only">{options.groupBy !== "none" ? `Group: ${GROUPS.find((g) => g.id === options.groupBy)?.label}` : `Sort: ${SORTS.find((s) => s.id === options.sortBy)?.label}`}</span>
+            <span className="@max-[44rem]/tb:sr-only">{options.groupBy !== "none" ? `Group: ${GROUPS.find((g) => g.id === options.groupBy)?.label}` : `Sort: ${SORTS.find((s) => s.id === options.sortBy)?.label}`}</span>
           </button>
         )}
         {menu.open && (

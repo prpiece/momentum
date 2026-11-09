@@ -74,7 +74,7 @@ function Header({ view, spec, controls }: { view: ViewId; spec: TaskViewSpec | n
         <b className="truncate font-semibold text-fg">{spec?.title ?? navFor(view).label}</b>
       </h1>
       {/* The slot takes what the title and the window controls leave and scrolls when its content is wider (D202). */}
-      <div id={TOOLBAR_SLOT_ID} className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [justify-content:safe_flex-end] [scrollbar-width:none]" />
+      <div id={TOOLBAR_SLOT_ID} className="@container/tb flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [justify-content:safe_flex-end] [scrollbar-width:none]" />
       {/* With the bar at the top, the controls are in the bar, except below 720px where the bar hides. */}
       {controls === "always" ? <WindowControls /> : <span className="contents min-[720px]:hidden"><WindowControls /></span>}
     </header>
