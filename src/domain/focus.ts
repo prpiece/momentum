@@ -9,7 +9,7 @@ export type Phase = "focus" | "short" | "long";
 export type PomodoroConfig = { focusMin: number; shortMin: number; longMin: number; longEvery: number };
 export const DEFAULT_POMODORO: PomodoroConfig = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4 };
 
-type Common = { mode: FocusMode; phase: Phase; taskId: string | null; round: number; accumulatedMs: number; sessionStart: number; cycles: Cycles; focusMs: number };
+type Common = { mode: FocusMode; phase: Phase; taskId: string | null; /** Chosen subtasks of `taskId` (empty = the whole task). */ subIds: string[]; round: number; accumulatedMs: number; sessionStart: number; cycles: Cycles; focusMs: number };
 export type Active = (Common & { status: "running"; runStart: number }) | (Common & { status: "paused" });
 /** `done`: a finite pomodoro session ran all its cycles (D75). */
 export type TimerState = { status: "idle" } | Active | { status: "done"; taskId: string | null; cycles: number; focusMs: number };
@@ -34,11 +34,12 @@ export function remainingMs(s: TimerState, now: number, c: PomodoroConfig): numb
   return Math.max(0, phaseMs(s.phase, c) - elapsedMs(s, now));
 }
 
-export const start = (mode: FocusMode, taskId: string | null, now: number, cycles: Cycles = { kind: "infinite" }): TimerState => ({
+export const start = (mode: FocusMode, taskId: string | null, now: number, cycles: Cycles = { kind: "infinite" }, subIds: string[] = []): TimerState => ({
   status: "running",
   mode,
   phase: "focus",
   taskId,
+  subIds,
   round: 1,
   accumulatedMs: 0,
   sessionStart: now,
@@ -82,6 +83,35 @@ function sessionOf(s: Active, now: number, c: PomodoroConfig, id: string): Focus
   const ms = s.mode === "pomodoro" ? Math.min(raw, phaseMs("focus", c)) : raw;
   if (ms < 60_000) return null;
   return { id, taskId: s.taskId, mode: s.mode, startAt: new Date(s.sessionStart).toISOString(), endAt: new Date(now).toISOString(), seconds: Math.round(ms / 1000) };
+}
+
+/**
+ * What the timer is on: a top-level task and optionally some of its subtasks. Focus time is always
+ * credited to `taskId` (a session records one task); `subIds` only says which steps to show and check off.
+ */
+export type FocusPick = { taskId: string | null; subIds: string[] };
+export const NO_PICK: FocusPick = { taskId: null, subIds: [] };
+
+/** `order` ids from `a` to `b` inclusive, whichever comes first. */
+export function rangeBetween(order: readonly string[], a: string, b: string): string[] {
+  const i = order.indexOf(a);
+  const j = order.indexOf(b);
+  if (i < 0 || j < 0) return [b];
+  return order.slice(Math.min(i, j), Math.max(i, j) + 1);
+}
+
+/** `selected` with `ids` added (`on`) or removed, in list order. */
+export function withRange(order: readonly string[], selected: readonly string[], ids: readonly string[], on: boolean): string[] {
+  const sel = new Set(selected);
+  const rng = new Set(ids);
+  return order.filter((id) => (on ? sel.has(id) || rng.has(id) : sel.has(id) && !rng.has(id)));
+}
+
+/** The picker trigger's text: "Review topics · 3 subtasks". */
+export function pickLabel(title: string | null, subTitles: readonly string[]): string {
+  if (title === null) return "No specific task";
+  if (subTitles.length === 0) return title;
+  return subTitles.length === 1 ? `${title} › ${subTitles[0]}` : `${title} · ${subTitles.length} subtasks`;
 }
 
 export function formatClock(ms: number): string {

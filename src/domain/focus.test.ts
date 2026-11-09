@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advance, elapsedMs, formatClock, pause, remainingMs, resume, start, stop, DEFAULT_POMODORO as C } from "./focus";
+import { advance, elapsedMs, formatClock, pause, pickLabel, rangeBetween, remainingMs, resume, start, stop, withRange, DEFAULT_POMODORO as C } from "./focus";
 
 describe("focus timer", () => {
   const t0 = 1_000_000;
@@ -64,6 +64,24 @@ describe("focus timer", () => {
   it("a skipped final focus phase counts its partial time", () => {
     const s = start("pomodoro", null, t0, { kind: "finite", count: 1 });
     expect(advance(s, t0 + 10 * min, C, "x").state).toMatchObject({ status: "done", cycles: 1, focusMs: 10 * min });
+  });
+  it("keeps chosen subtasks on the timer and credits the session to the task", () => {
+    const s = start("stopwatch", "parent", t0, { kind: "infinite" }, ["a", "b"]);
+    expect(s).toMatchObject({ taskId: "parent", subIds: ["a", "b"] });
+    expect(stop(s, t0 + 30 * min, C, "id").session).toMatchObject({ taskId: "parent", seconds: 1800 });
+  });
+  it("selects subtask ranges in list order", () => {
+    const order = ["a", "b", "c", "d"];
+    expect(rangeBetween(order, "c", "a")).toEqual(["a", "b", "c"]);
+    expect(rangeBetween(order, "x", "b")).toEqual(["b"]);
+    expect(withRange(order, ["d"], ["b", "c"], true)).toEqual(["b", "c", "d"]);
+    expect(withRange(order, ["a", "b", "c"], ["b"], false)).toEqual(["a", "c"]);
+  });
+  it("summarises the pick", () => {
+    expect(pickLabel(null, [])).toBe("No specific task");
+    expect(pickLabel("Review", [])).toBe("Review");
+    expect(pickLabel("Review", ["Ch 1"])).toBe("Review › Ch 1");
+    expect(pickLabel("Review topics", ["a", "b", "c"])).toBe("Review topics · 3 subtasks");
   });
   it("formats the clock", () => {
     expect(formatClock(25 * min)).toBe("25:00");

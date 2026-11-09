@@ -5,9 +5,8 @@ import { BarChart } from "../../components/ui/BarChart";
 import { NumField } from "../../components/ui/NumField";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
-import { DEFAULT_POMODORO, elapsedMs, formatClock, phaseMs, remainingMs, type FocusMode, type Phase } from "../../domain/focus";
+import { DEFAULT_POMODORO, elapsedMs, formatClock, NO_PICK, phaseMs, remainingMs, type FocusMode, type FocusPick, type Phase } from "../../domain/focus";
 import { perWeek, type Bucket } from "../../domain/stats";
-import { sortVMs } from "../../domain/taskViews";
 import { addDaysLocal } from "../../domain/dates";
 import { useData } from "../../stores/data";
 import { deleteSession, pauseFocus, resumeFocus, setFocusTask, skipPhase, startFocus, stopFocus, useFocus } from "../../stores/focus";
@@ -15,6 +14,7 @@ import { useSettings } from "../../stores/settings";
 import { addProgressSection } from "../progress/ProgressView";
 import { toggleDone } from "../tasks/actions";
 import { useDerived } from "../tasks/selectors";
+import { TaskPicker } from "./TaskPicker";
 
 export function focusPhaseLabel(next: Phase | "done"): string {
   if (next === "done") return "Session done. Well played!";
@@ -86,13 +86,11 @@ export function FocusView() {
   const sessions = useFocus((s) => s.sessions);
   const cfg = useSettings((s) => s.settings.pomodoro);
   const update = useSettings((s) => s.update);
-  const derived = useDerived();
   const tasks = useData((s) => s.tasks);
   const [mode, setMode] = useState<FocusMode>("pomodoro");
-  const [taskId, setTaskId] = useState<string | null>(null);
+  const [pick, setPick] = useState<FocusPick>(NO_PICK);
   const now = useNow(t.status === "running");
 
-  const options = useMemo(() => sortVMs(derived.roots.filter((v) => v.task.status === "open"), "date").slice(0, 200), [derived]);
   const activeMode = t.status === "running" || t.status === "paused" ? t.mode : mode;
   const remaining = remainingMs(t, now, cfg);
   const elapsed = elapsedMs(t, now);
@@ -104,7 +102,7 @@ export function FocusView() {
     .filter((s) => toLocalDate(new Date(s.startAt)) === today)
     .sort((a, b) => b.startAt.localeCompare(a.startAt));
   const todayMin = Math.round(todays.reduce((n, s) => n + s.seconds, 0) / 60);
-  const boundTask = t.status === "idle" ? taskId : t.taskId;
+  const boundPick: FocusPick = t.status === "idle" ? pick : t.status === "done" ? { taskId: t.taskId, subIds: [] } : { taskId: t.taskId, subIds: t.subIds };
 
   return (
     // Narrow windows stack the timer above today's sessions and scroll; nothing may shrink under the ring.
@@ -120,21 +118,8 @@ export function FocusView() {
           </div>
         )}
 
-        <select
-          value={boundTask ?? ""}
-          onChange={(e) => (t.status === "idle" ? setTaskId(e.target.value || null) : setFocusTask(e.target.value || null))}
-          aria-label="Task to focus on"
-          className="input h-[var(--control-lg)] w-80 max-w-full rounded-card font-medium"
-        >
-          <option value="">No specific task</option>
-          {boundTask && !options.some((o) => o.task.id === boundTask) && tasks[boundTask] && <option value={boundTask}>{tasks[boundTask].title}</option>}
-          {options.map((o) => (
-            <option key={o.task.id} value={o.task.id}>
-              {o.task.title}
-            </option>
-          ))}
-        </select>
-        {boundTask && <Steps parentId={boundTask} />}
+        <TaskPicker value={boundPick} onChange={(p) => (t.status === "idle" ? setPick(p) : setFocusTask(p.taskId, p.subIds))} />
+        {boundPick.taskId && <Steps parentId={boundPick.taskId} only={boundPick.subIds} />}
 
         <div className="flex flex-col items-center" role="timer" aria-live="off">
           <div className="t-label text-muted">
@@ -166,7 +151,7 @@ export function FocusView() {
               </button>
             </>
           ) : t.status === "idle" ? (
-            <button type="button" onClick={() => startFocus(mode, taskId)} className="btn btn-primary btn-lg px-8">
+            <button type="button" onClick={() => startFocus(mode, pick.taskId, pick.subIds)} className="btn btn-primary btn-lg px-8">
               <Play size={18} strokeWidth={1.75} /> Start
             </button>
           ) : (
@@ -266,8 +251,8 @@ export function FocusView() {
 }
 
 /** The focused task's subtasks, checked off without leaving the timer (D58). */
-function Steps({ parentId }: { parentId: string }) {
-  const kids = useDerived().childrenOf(parentId);
+function Steps({ parentId, only }: { parentId: string; only: string[] }) {
+  const kids = useDerived().childrenOf(parentId).filter((k) => !only.length || only.includes(k.task.id));
   if (!kids.length) return null;
   return (
     <ul aria-label="Subtasks" className="-mt-2 w-80 max-w-full space-y-0.5">

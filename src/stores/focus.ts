@@ -34,12 +34,12 @@ function record(s: FocusSession | null) {
 
 const cfg = () => useSettings.getState().settings.pomodoro;
 
-export const startFocus = (mode: FocusMode, taskId: string | null) => set({ timer: timer.start(mode, taskId, Date.now(), cfg().cycles) });
+export const startFocus = (mode: FocusMode, taskId: string | null, subIds: string[] = []) => set({ timer: timer.start(mode, taskId, Date.now(), cfg().cycles, subIds) });
 export const pauseFocus = () => set({ timer: timer.pause(get().timer, Date.now()) });
 export const resumeFocus = () => set({ timer: timer.resume(get().timer, Date.now()) });
-export const setFocusTask = (taskId: string | null) => {
+export const setFocusTask = (taskId: string | null, subIds: string[] = []) => {
   const t = get().timer;
-  if (t.status !== "idle") set({ timer: { ...t, taskId } });
+  if (t.status === "running" || t.status === "paused") set({ timer: { ...t, taskId, subIds } });
 };
 
 export function stopFocus() {
