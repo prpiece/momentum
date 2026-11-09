@@ -5,6 +5,19 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.0.1
+
+- **Fits any window size.** The close, minimize and maximize buttons always stay visible, even with a task open. In narrow windows the sidebar shrinks to icons, and toolbars swap labels for icons with tooltips instead of getting cut off.
+- **One Scale setting.** Zoom and Text size are now a single Scale (80–175%) in Settings → Appearance, still on Ctrl + / Ctrl − / Ctrl 0. Your current size carries over.
+- **Settings, like a phone.** Settings opens to a list of categories you tap into and back out of, with a search box that jumps straight to any setting.
+- **A cleaner task panel.** The task panel is narrower, with List, Due, Priority and Tags as chips under the title. Tags wrap instead of being cut off.
+- **Focus on a task, a subtask or several.** The Focus page's task picker shows subtasks when you hover a task. Pick one, or tick several (click, Shift-click or drag).
+- **Set the length in the mini window.** Its Focus tab shows the real length, with − / + and 15 / 25 / 45 / 60 presets before you start.
+- **Fair progress.** A task finished within 2 minutes of being created no longer counts toward trophies, perfect days or charts, and unticking a task straight away cancels its celebration.
+- **Calmer calendar.** More room between hours, readable all-day items in narrow columns, a task-count badge on Arrange tasks, and a view menu when the window is narrow.
+- **Smoother motion.** Menus, dialogs and the task panel animate out as well as in, toasts stack and can be swiped away, the selected option slides in every switcher, and ticks draw themselves. Settings → Appearance → Animations still turns it all off.
+- **Small fixes.** Dropdowns match the app's look, the subtask arrow lines up with its checkbox, tags sit at the end of each row, the filter is now separate from Add a task, and icon buttons have tooltips.
+
 ## v1.0.0
 
 - **A new, calmer look.** Every screen is redrawn: warm neutrals, the Inter typeface, one radius scale, quiet borders instead of shadows, and the accent kept for what you act on. Ten accent colours are tuned for light and dark. Your accent carries over.
