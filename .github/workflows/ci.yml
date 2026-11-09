@@ -35,7 +35,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev xvfb xdotool
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev xvfb xdotool x11-utils dbus
 
       - uses: actions/setup-node@v4
         with:
@@ -54,17 +54,24 @@ jobs:
         run: cargo test
 
       # Smoke test: build the release binary (no installer) and start it under a virtual display.
-      # Passes when it is still running after 20 s, shows a window titled "Momentum" and logged no panic.
+      # Passes when it is still running after 20 s, shows a window titled "Momentum" within 40 s and logged no panic.
       - name: Launch under xvfb
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           npx tauri build --no-bundle
-          xvfb-run -a --server-args="-screen 0 1280x1024x24" bash -c '
+          # Its own session bus: without one, GTK's startup waits out a 25 s D-Bus timeout before any window exists.
+          xvfb-run -a --server-args="-screen 0 1280x1024x24" dbus-run-session -- bash -c '
             ./src-tauri/target/release/momentum > app.log 2>&1 &
             pid=$!
             sleep 20
             kill -0 $pid || { echo "app exited early"; cat app.log; exit 1; }
-            xdotool search --onlyvisible --name "^Momentum$" | grep -q . || { echo "no Momentum window"; cat app.log; exit 1; }
+            # Then up to 20 s more for the window.
+            for _ in $(seq 10); do xdotool search --onlyvisible --name "^Momentum$" | grep -q . && break; sleep 2; done
+            xdotool search --onlyvisible --name "^Momentum$" | grep -q . || {
+              echo "no Momentum window"; cat app.log
+              xwininfo -root -tree | head -60
+              exit 1
+            }
             kill $pid
           '
           ! grep -iE "panicked|error while" app.log || { cat app.log; exit 1; }
