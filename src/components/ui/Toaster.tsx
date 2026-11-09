@@ -1,34 +1,28 @@
-import { X } from "lucide-react";
-import { dismissToast, useUi } from "../../stores/ui";
+import { Toaster as Sonner } from "sonner";
+import { useSettings } from "../../stores/settings";
 
+/**
+ * Sonner (D207) for stacking, swipe-to-dismiss, hover pause and exit motion; unstyled, so the toast
+ * keeps the app's own `.toast` look. Its transitions obey the global reduced-motion rule in tokens.css.
+ */
 export function Toaster() {
-  const toasts = useUi((s) => s.toasts);
+  const theme = useSettings((s) => s.settings.theme);
   return (
-    <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex flex-col items-center gap-2">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          role="status"
-          className="layer layer-raised toast anim-rise pointer-events-auto"
-        >
-          <span>{t.message}</span>
-          {t.action && (
-            <button
-              type="button"
-              onClick={() => {
-                t.action?.run();
-                dismissToast(t.id);
-              }}
-              className="btn btn-ghost btn-sm toast-act"
-            >
-              {t.action.label}
-            </button>
-          )}
-          <button type="button" aria-label="Dismiss" onClick={() => dismissToast(t.id)} className="btn btn-ghost btn-sm icon-btn text-muted">
-            <X size={14} />
-          </button>
-        </div>
-      ))}
-    </div>
+    <Sonner
+      position="bottom-center"
+      visibleToasts={3}
+      gap={8}
+      theme={theme}
+      closeButton
+      toastOptions={{
+        unstyled: true,
+        classNames: {
+          toast: "layer layer-raised toast w-[min(420px,calc(100vw-32px))]",
+          title: "flex-1",
+          actionButton: "btn btn-ghost btn-sm toast-act",
+          closeButton: "btn btn-ghost btn-sm icon-btn order-last text-muted",
+        },
+      }}
+    />
   );
 }

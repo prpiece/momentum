@@ -483,3 +483,30 @@ html[data-motion="off"] ::after {
   transition-duration: 0ms !important;
   animation-duration: 0ms !important;
 }
+
+/* View Transitions (D207, lib/motion.ts withTransition): the drawer slides in and out, and when a task
+   is completed the other rows glide into place instead of jumping. Reduced motion skips them in JS. */
+@keyframes slide-to-right {
+  to { transform: translateX(100%); }
+}
+@keyframes slide-to-left {
+  to { transform: translateX(-100%); }
+}
+::view-transition-group(*) { animation-duration: var(--dur); animation-timing-function: var(--ease-move); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-fast); }
+.vt-drawer-right { view-transition-name: drawer-right; }
+.vt-drawer-left { view-transition-name: drawer-left; }
+::view-transition-new(drawer-right):only-child { animation: slide-from-right var(--dur-slow) var(--ease-out); }
+::view-transition-old(drawer-right):only-child { animation: slide-to-right var(--dur) var(--ease-in) forwards; }
+::view-transition-new(drawer-left):only-child { animation: slide-from-left var(--dur-slow) var(--ease-out); }
+::view-transition-old(drawer-left):only-child { animation: slide-to-left var(--dur) var(--ease-in) forwards; }
+html.vt-rows [data-task-id] { view-transition-name: match-element; }
+html.vt-rows::view-transition-old(*):only-child { animation: fade-out var(--dur-fast) var(--ease-in) forwards; }
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+
+/* Sonner's own CSS is unlayered and would beat the components layer: put its close button back in the row (D207). */
+html [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button] { position: static; transform: none; order: 9; width: 28px; height: 28px; border: 0; border-radius: var(--r-control); background: transparent; color: var(--muted); }
+html [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button]:hover { background: var(--surface-2); color: var(--fg); }
+html [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-button]:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 1px; }

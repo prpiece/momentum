@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
+import { toast as sonner } from "sonner";
 import { create } from "zustand";
+import { withTransition } from "../lib/motion";
 import { todayLocal } from "../domain/dates";
 import type { ViewId } from "../domain/types";
 import type { Scope } from "./data";
 
-export type Toast = { id: number; message: string; action?: { label: string; run: () => void } };
 type ScopeAsk = { verb: "edit" | "delete"; resolve: (s: Scope | null) => void };
 /** A right-click menu entry: an item, a labelled row of icon choices (dates, priority), or "sep" for a divider. */
 export type MenuEntry =
@@ -22,7 +23,6 @@ type UiStore = {
   shortcutsOpen: boolean;
   /** Bulk-import dialog (D92). */
   importOpen: boolean;
-  toasts: Toast[];
   scopeAsk: ScopeAsk | null;
   confirmAsk: ConfirmAsk | null;
   collapsed: Record<string, true>;
@@ -46,7 +46,6 @@ export const useUi = create<UiStore>(() => ({
   paletteOpen: false,
   shortcutsOpen: false,
   importOpen: false,
-  toasts: [],
   scopeAsk: null,
   confirmAsk: null,
   collapsed: {},
@@ -62,8 +61,12 @@ const set = useUi.setState;
 // Leaving a view closes what was opened from it (the task drawer would otherwise float over Settings).
 export const setFilter = (view: ViewId, query: string) => set((s) => ({ filters: { ...s.filters, [view]: query } }));
 export const go = (view: ViewId) => set({ view, selection: [], drawer: null, contextMenu: null });
-export const openTask = (id: string, key: string | null = null) => set({ drawer: { id, key } });
-export const closeDrawer = () => set({ drawer: null });
+// Opening and closing the drawer animate (D207); switching tasks inside an open drawer is instant.
+export const openTask = (id: string, key: string | null = null) => {
+  const change = () => set({ drawer: { id, key } });
+  return useUi.getState().drawer ? change() : withTransition(change);
+};
+export const closeDrawer = () => useUi.getState().drawer && withTransition(() => set({ drawer: null }));
 export const setSelection = (selection: string[]) => set({ selection });
 export const setPalette = (paletteOpen: boolean) => set({ paletteOpen });
 export const setShortcuts = (shortcutsOpen: boolean) => set({ shortcutsOpen });
@@ -89,13 +92,10 @@ export const toggleCollapsed = (id: string) =>
     return { collapsed: was ? rest : { ...rest, [id]: true } };
   });
 
-let toastId = 0;
-export function toast(message: string, action?: Toast["action"], ms = action ? 6000 : 3500) {
-  const id = ++toastId;
-  set((s) => ({ toasts: [...s.toasts.slice(-2), { id, message, action }] }));
-  setTimeout(() => dismissToast(id), ms);
+/** A transient toast through Sonner (D207): stacked, swipe or Esc to dismiss, paused on hover. Undo-style actions stay 6 s. */
+export function toast(message: string, action?: { label: string; run: () => void }, ms = action ? 6000 : 3500) {
+  sonner(message, { duration: ms, action: action && { label: action.label, onClick: action.run } });
 }
-export const dismissToast = (id: number) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
 
 /** Ask which occurrences a change to a recurring task applies to. Resolves null on cancel. */
 export const askScope = (verb: ScopeAsk["verb"]) =>

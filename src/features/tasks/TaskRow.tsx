@@ -5,7 +5,7 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import type { TreeRow } from "../../domain/taskViews";
-import { reducedMotion } from "../../lib/motion";
+import { reducedMotion, withTransition } from "../../lib/motion";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { openContextMenu, openTask, setFilter, toggleCollapsed, useUi } from "../../stores/ui";
@@ -50,7 +50,7 @@ export const TaskRow = memo(function TaskRow(props: {
   const complete = () => {
     if (t.status !== "open" || reducedMotion()) return toggleDone(t.id, vm.key);
     setLeaving(true);
-    setTimeout(() => (toggleDone(t.id, vm.key), setLeaving(false)), 300);
+    setTimeout(() => withTransition(() => (toggleDone(t.id, vm.key), setLeaving(false)), "vt-rows"), 300);
   };
 
   return (

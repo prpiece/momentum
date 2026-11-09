@@ -35,7 +35,7 @@ export function TaskDrawer() {
     <aside
       key={task.id}
       aria-label="Task details"
-      className={`layer layer-raised ${side === "right" ? "anim-slide-right right-0 border-y-0 border-r-0" : "anim-slide-left left-0 border-y-0 border-l-0"} absolute bottom-0 top-12 z-40 flex w-[clamp(340px,36vw,440px)] max-w-full flex-col max-[719px]:w-full`}
+      className={`layer layer-raised ${side === "right" ? "vt-drawer-right right-0 border-y-0 border-r-0" : "vt-drawer-left left-0 border-y-0 border-l-0"} absolute bottom-0 top-12 z-40 flex w-[clamp(340px,36vw,440px)] max-w-full flex-col max-[719px]:w-full`}
       onKeyDown={(e) => {
         if (e.key === "Escape" && !(e.target instanceof HTMLTextAreaElement)) closeDrawer();
       }}
