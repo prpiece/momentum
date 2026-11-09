@@ -156,13 +156,17 @@ export const Chip = memo(function Chip({ item, scope, showTime }: { item: CalIte
       onClick={() => openItem(item)}
       onContextMenu={onItemMenu(item)}
       onKeyDown={(e) => e.key === "Enter" && openItem(item)}
-      className={`flex h-5 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden rounded-xs border px-1.5 text-[length:var(--fs-xs)] leading-none hover:bg-surface-2 ${item.readOnly ? "" : "cursor-grab"} ${
+      title={item.title}
+      className={`@container flex h-5 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden rounded-xs border px-1.5 text-[length:var(--fs-xs)] leading-none hover:bg-surface-2 ${item.readOnly ? "" : "cursor-grab"} ${
         isDragging ? "opacity-30" : ""
       } ${item.done ? "opacity-60" : ""}`}
       style={item.allDay ? tint(item.color, item.done) : { borderColor: "transparent" }}
     >
       {!item.allDay && <span className="size-1.5 shrink-0 rounded-full" style={{ background: item.color }} />}
-      <DoneCheck item={item} />
+      {/* A narrow chip gives its room to the title (D206). */}
+      <span className="hidden @min-[6rem]:contents">
+        <DoneCheck item={item} />
+      </span>
       {showTime && item.start && <span className="shrink-0 tabular-nums text-muted">{formatTime(item.start, timeFormat)}</span>}
       <span className={`min-w-0 truncate ${item.allDay ? "font-medium" : ""} ${item.done ? "line-through" : ""}`}>{item.title}</span>
     </div>

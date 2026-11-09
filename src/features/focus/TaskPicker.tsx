@@ -52,7 +52,7 @@ function Panel({ value, onPick }: { value: FocusPick; onPick: (p: FocusPick) => 
   const [active, setActive] = useState(0);
   const [kbd, setKbd] = useState(false);
   const [zone, setZone] = useState<"main" | "sub">("main");
-  const [fly, setFly] = useState<{ id: string; top: number; left: boolean } | null>(null);
+  const [fly, setFly] = useState<{ id: string; top: number; x: number } | null>(null);
   const [draft, setDraft] = useState<string[]>([]);
   const [subActive, setSubActive] = useState(0);
   const wrap = useRef<HTMLDivElement>(null);
@@ -85,7 +85,10 @@ function Panel({ value, onPick }: { value: FocusPick; onPick: (p: FocusPick) => 
     const w = wrap.current.getBoundingClientRect();
     const est = Math.min(window.innerHeight * 0.6, 96 + r.kids.length * 32);
     const top = Math.max(0, Math.min(rowEl.getBoundingClientRect().top - w.top, window.innerHeight - 8 - w.top - est));
-    setFly({ id, top, left: w.right + 300 > window.innerWidth });
+    // Right of the picker, else left of it, else overlapping it inside the window (FLY = flyout width + gap).
+    const FLY = 288;
+    const x = w.right + FLY <= window.innerWidth - 8 ? w.width + 8 : w.left - FLY >= 8 ? -FLY : window.innerWidth - 8 - FLY - w.left;
+    setFly({ id, top, x });
     setDraft(value.taskId === id ? value.subIds : []);
     setSubActive(0);
     lastToggled.current = null;
@@ -204,7 +207,7 @@ function Panel({ value, onPick }: { value: FocusPick; onPick: (p: FocusPick) => 
       {fly && flyRow && (
         <div
           className="layer layer-raised anim-pop-in absolute z-10 w-[280px] select-none rounded-card p-1"
-          style={{ top: fly.top, ...(fly.left ? { right: "calc(100% + 8px)" } : { left: "calc(100% + 8px)" }) }}
+          style={{ top: fly.top, left: fly.x }}
           onPointerEnter={() => window.clearTimeout(hover.current)}
         >
           <div className="t-label truncate px-2 py-1 text-muted">{flyRow.t.title || "Untitled"}</div>
@@ -249,9 +252,14 @@ function Panel({ value, onPick }: { value: FocusPick; onPick: (p: FocusPick) => 
             })}
           </ul>
           <div className="mt-1 border-t border-border p-1">
-            <button type="button" disabled={!draft.length} onClick={() => commitSubs(draft)} className="btn btn-primary btn-sm w-full">
-              {draft.length ? `Focus on ${draft.length} subtask${draft.length === 1 ? "" : "s"}` : "Select subtasks"}
-            </button>
+            {/* A hint until something is ticked, rather than a disabled button that reads as active (D206). */}
+            {draft.length ? (
+              <button type="button" onClick={() => commitSubs(draft)} className="btn btn-primary btn-sm w-full">
+                Focus on {draft.length} subtask{draft.length === 1 ? "" : "s"}
+              </button>
+            ) : (
+              <p className="px-2 py-1 text-[length:var(--fs-xs)] text-muted">Tick circles to focus on several.</p>
+            )}
           </div>
         </div>
       )}

@@ -186,3 +186,18 @@
     .prop { min-height: 44px; }
   }
 }
+
+/* Every <select> (D206): Chromium's customizable select, so the open list is an app menu, not the OS list.
+   WebKit (macOS, Linux) ignores base-select and keeps its native list; the closed control is styled either way. */
+@layer components {
+  select, ::picker(select) { appearance: base-select; }
+  select { display: inline-flex; align-items: center; gap: 6px; cursor: default; }
+  /* Lucide's chevron-down, so the arrow matches the app's icons rather than the default triangle. */
+  select::picker-icon { content: ""; width: 14px; height: 14px; background: var(--muted); mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat; transition: rotate var(--dur-fast) var(--ease-out); }
+  select:open::picker-icon { rotate: 180deg; }
+  ::picker(select) { margin-block: 4px; padding: 4px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--raised); color: var(--fg); box-shadow: var(--shadow-float); }
+  option { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 10px; border-radius: var(--r-control); font-size: var(--fs-sm); white-space: nowrap; }
+  option:hover, option:focus-visible { background: var(--surface-2); outline: none; }
+  option:checked { font-weight: 600; }
+  option::checkmark { order: 1; margin-left: auto; color: var(--accent-text); }
+}

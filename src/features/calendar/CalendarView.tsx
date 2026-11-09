@@ -101,7 +101,7 @@ export function CalendarView() {
             ))}
           </div>
           {/* Narrow windows: the five views collapse to one menu button (it also shows a dragged day span). */}
-          <button ref={viewMenu.anchor} type="button" aria-label="Calendar view" aria-haspopup="menu" aria-expanded={viewMenu.open} onClick={viewMenu.toggle} className="btn btn-secondary min-[1101px]:hidden">
+          <button ref={viewMenu.anchor} type="button" aria-label="Calendar view" aria-haspopup="menu" aria-expanded={viewMenu.open} onClick={viewMenu.toggle} className="btn btn-secondary min-[1100px]:hidden">
             {span ? `${span} days` : LABEL[view][0]} <ChevronDown size={14} strokeWidth={1.75} />
           </button>
           {viewMenu.open && (

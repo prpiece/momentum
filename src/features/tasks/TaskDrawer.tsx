@@ -146,6 +146,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
           </Prop>
           <Prop
             label="Tags"
+            quiet
             text={t.tags.length ? t.tags.map((id) => tags[id]?.name).filter(Boolean).map((n) => `#${n}`).join(" ") : "None"}
             value={t.tags.length ? t.tags.map((id) => tags[id] && `#${tags[id].name}`).filter(Boolean).join(" ") : null}
           >
@@ -167,8 +168,11 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
   );
 }
 
-/** One property chip under the title: its value (or its name, muted, when unset); opens its editor in a popover, and focus returns to the chip on close. */
-function Prop({ label, text, value, children }: { label: string; text: string; value: ReactNode; children: (close: () => void) => ReactNode }) {
+/**
+ * One property chip under the title: its value (or its name, muted, when unset); opens its editor in a popover, and focus returns to the chip on close.
+ * Set properties are filled chips; unset ones and tags (`quiet`) have no fill until hovered, the way rows show tags as plain text (D206).
+ */
+function Prop({ label, text, value, quiet, children }: { label: string; text: string; value: ReactNode; quiet?: boolean; children: (close: () => void) => ReactNode }) {
   const m = useMenu();
   const close = () => (m.close(), m.anchor.current?.focus());
   return (
@@ -180,7 +184,7 @@ function Prop({ label, text, value, children }: { label: string; text: string; v
         aria-haspopup="dialog"
         aria-expanded={m.open}
         onClick={m.toggle}
-        className={`chip h-auto min-h-8 max-w-full gap-1.5 whitespace-normal break-words rounded-control px-2.5 py-1 text-left text-[length:var(--fs-sm)] hover:bg-border max-[719px]:min-h-[var(--touch)] [&>svg]:shrink-0 ${value ? "" : "text-muted"}`}
+        className={`chip h-auto min-h-8 max-w-full gap-1.5 whitespace-normal break-words rounded-control px-2.5 py-1 text-left text-[length:var(--fs-sm)] max-[719px]:min-h-[var(--touch)] [&>svg]:shrink-0 ${value && !quiet ? "hover:bg-border" : "bg-transparent text-muted hover:bg-surface-2 hover:text-fg"}`}
       >
         {value ?? <><Plus size={14} strokeWidth={1.75} />{label}</>}
       </button>

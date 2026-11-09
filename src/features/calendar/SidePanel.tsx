@@ -167,7 +167,7 @@ function ArrangeItem({ vm }: { vm: TaskVM }) {
       {...listeners}
       onClick={() => openTask(t.id)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, null))}
-      className={`flex h-[var(--row-compact)] cursor-grab items-center gap-2 rounded-control border border-border bg-surface px-2 text-[length:var(--fs-sm)] hover:border-border-strong ${isDragging ? "opacity-40" : ""}`}
+      className={`flex h-[var(--row)] cursor-grab items-center gap-2 rounded-control border border-border bg-surface px-2 text-[length:var(--fs-sm)] hover:border-border-strong ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id)} label={`Complete ${t.title}`} size={15} />
       <span className="truncate">{t.title}</span>
