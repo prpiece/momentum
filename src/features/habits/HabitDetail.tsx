@@ -1,6 +1,6 @@
 import { addMonths, format, startOfMonth, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Flame, Pencil, Trophy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { viewDays } from "../../domain/calendar";
 import { accentForeground } from "../../domain/color";
 import { addDaysLocal, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
@@ -154,23 +154,37 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
 }
 
 /** 53-week contribution-style heatmap ending this week. Fluid like the Progress heatmap: HTML cells with CSS fills, no fixed pixel width. */
+// Readable fixed cells; the map shows as many recent weeks as the panel fits (53 squeezed into a side panel became ~4px specks).
+const CELL = 11;
+const GAP = 3;
+
 function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws: WeekStart }) {
   const today = todayLocal();
-  const firstWeek = toLocalDate(startOfWeek(fromLocalDate(addDaysLocal(today, -364)), { weekStartsOn: ws }));
-  const weeks = Array.from({ length: 53 }, (_, w) => addDaysLocal(firstWeek, w * 7));
+  const [width, setWidth] = useState(0);
+  const ref = useCallback((el: HTMLElement | null) => {
+    if (!el) return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    setWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  const count = Math.max(8, Math.min(53, Math.floor((width + GAP) / (CELL + GAP))));
+  const firstWeek = toLocalDate(startOfWeek(fromLocalDate(addDaysLocal(today, -(count - 1) * 7)), { weekStartsOn: ws }));
+  const weeks = Array.from({ length: count }, (_, w) => addDaysLocal(firstWeek, w * 7));
   const quit = habit.goal.kind === "quit";
   return (
-    <section>
-      <h3 className="mb-2 t-label text-muted">Past year</h3>
-      <div className="grid gap-[3px]" style={{ gridTemplateColumns: "repeat(53, minmax(0, 1fr))" }} role="img" aria-label={`${habit.name}: daily check-ins over the past year`}>
+    <section ref={ref}>
+      <h3 className="mb-2 t-label text-muted">{count >= 53 ? "Past year" : `Last ${count} weeks`}</h3>
+      <div className="grid justify-end" style={{ gridTemplateColumns: `repeat(${count}, ${CELL}px)`, gap: GAP }} role="img" aria-label={`${habit.name}: daily check-ins, last ${count} weeks`}>
         {weeks.map((w) => (
-          <div key={w} className="flex flex-col gap-[3px]">
-            <span className="h-4 whitespace-nowrap text-[length:var(--fs-xs)] leading-4 text-muted">{fromLocalDate(w).getDate() <= 7 ? format(fromLocalDate(w), "MMM") : ""}</span>
+          <div key={w} className="flex flex-col" style={{ gap: GAP }}>
+            <span className="h-4 overflow-visible whitespace-nowrap text-[length:var(--fs-xs)] leading-4 text-muted">{fromLocalDate(w).getDate() <= 7 ? format(fromLocalDate(w), "MMM") : ""}</span>
             {Array.from({ length: 7 }, (_, di) => {
               const d = addDaysLocal(w, di);
-              if (d > today) return <span key={d} className="aspect-square" />;
+              if (d > today) return <span key={d} style={{ height: CELL }} />;
               const v = values.get(d);
-              return <span key={d} title={cellTitle(habit, d, v)} className="aspect-square rounded-[2px]" style={{ background: cellFill(habit, v, isScheduled(habit, d)) }} />;
+              const fill = d < habit.startDate ? "var(--surface-2)" : cellFill(habit, v, isScheduled(habit, d));
+              return <span key={d} title={cellTitle(habit, d, v)} className="rounded-[2px]" style={{ height: CELL, background: fill === "transparent" ? "var(--surface-2)" : fill }} />;
             })}
           </div>
         ))}
