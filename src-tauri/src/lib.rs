@@ -1,4 +1,5 @@
 mod files;
+mod secrets;
 mod voice;
 
 use std::{
@@ -305,6 +306,9 @@ pub fn run() {
         .manage(voice::Voice::default())
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
+            secrets::secret_get,
+            secrets::secret_set,
+            secrets::secret_delete,
             toggle_mini,
             write_text_file,
             write_png,

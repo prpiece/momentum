@@ -8,7 +8,7 @@ import type { Row } from "./rows";
 import { parseIcs } from "../domain/ics";
 import { saveEvents, saveWorkspace } from "./repo";
 
-const LATEST_SCHEMA = 8;
+const LATEST_SCHEMA = 9;
 
 async function invoke<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
   const { invoke: inv } = await import("@tauri-apps/api/core");

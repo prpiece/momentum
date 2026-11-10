@@ -28,9 +28,10 @@ export type Workspace = {
   tags: Tag[];
 };
 
-export async function loadWorkspace(): Promise<Workspace> {
+/** `purge`: drop soft-deleted rows first (at launch; not when sync refreshes mid-session, which would end undo). */
+export async function loadWorkspace(purge = true): Promise<Workspace> {
   // Soft-deleted rows only exist to make undo cheap within a session.
-  await write(["DELETE FROM tasks WHERE deleted_at IS NOT NULL"], ["DELETE FROM calendar_events WHERE deleted_at IS NOT NULL"]);
+  if (purge) await write(["DELETE FROM tasks WHERE deleted_at IS NOT NULL"], ["DELETE FROM calendar_events WHERE deleted_at IS NOT NULL"]);
   const [tasks, events, lists, folders, sections, tags] = await Promise.all(
     ["tasks", "calendar_events", "lists", "folders", "sections", "tags"].map((t) => select<Row>(`SELECT * FROM ${t}`)),
   );

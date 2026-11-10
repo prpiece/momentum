@@ -243,6 +243,16 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Uncomment to customize email template
+# Sign-in is a 6-digit code typed into the app (v1.1), so both emails show {{ .Token }}, not a link.
+# The hosted project needs the same two templates under Authentication → Email Templates.
+[auth.email.template.magic_link]
+subject = "Your Momentum code"
+content_path = "./supabase/templates/code.html"
+
+[auth.email.template.confirmation]
+subject = "Your Momentum code"
+content_path = "./supabase/templates/code.html"
+
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"

@@ -129,6 +129,7 @@ export const FEATURES: Feature[] = [
   { id: "progress", title: "See your progress", howTo: "Your week, streaks, trophies and trends in one place.", icon: "chart", group: "Progress", since: OLD, core: false,
     commands: [palette("go-progress", "Go to Progress"), keys("G S", "Progress")] },
   { id: "share-card", title: "Share your week", howTo: "Progress → Share makes an image of your numbers, never your task names.", icon: "share", group: "Progress", since: OLD, core: false, commands: [] },
+  { id: "sync", title: "Sync across your devices", howTo: "Settings → Account: sign in with your email and the same tasks, habits and settings appear on every device, even after offline edits.", icon: "window", group: "Progress", since: "1.1.0", core: false, commands: [] },
 
   // ---- Keyboard and app
   { id: "appearance", title: "Make it yours", howTo: "Theme, accent, layout and scale are in Settings → Appearance.", icon: "palette", group: "Keyboard", since: OLD, core: false,

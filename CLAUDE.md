@@ -22,7 +22,8 @@ Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/C
 - **Linux:** the app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` at startup (blank windows on newer GPU stacks). The tray needs libappindicator / libayatana-appindicator and voice needs ALSA; the `.deb`/`.rpm` declare ALSA, but the bundler hard-codes `libappindicator3-1`, which newer Ubuntu lacks.
 - **Platform text:** shortcuts are written Windows-style ("Ctrl K"); render them through `<Keys>` or `keyLabel()` (`src/lib/platform.ts`) so macOS shows ⌘ ⌥ ⇧. Paths shown to the user come from `dataDirLabel`, never a hard-coded `%APPDATA%`.
 - **Port 1420:** `npm run tauri dev` fails if the browser preview (`npm run dev`) still holds the port. Stop it first.
-- **Testing the real app:** set `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>` before `npm run tauri dev`, then drive it over the DevTools protocol. Port 9222 may already be taken by other WebView2 apps on the machine, so pick another.
+- **Sync (v1.1, PLAN D225/D226):** a migration that changes a synced table's columns must regenerate that table's triggers with `node scripts/sync-triggers.mjs` (a test fails otherwise). `npm run test:server` needs `supabase start` (Docker). To test sync without touching your own data, run the app with `--config '{"identifier":"com.momentum.planner.synctest"}'`; `.env.development.local` points dev builds at the local server, whose emails land in Mailpit (http://127.0.0.1:54324).
+- **Testing the real app:** set `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>` before `npm run tauri dev`, then drive it over the DevTools protocol. Port 9222 may already be taken by other WebView2 apps on the machine, so pick another. After a hot reload, Vite serves edited modules as `…?t=…`, so `import("/src/…")` from a test script gets a separate copy of the store: restart the dev server before driving stores directly.
 
 ## Architecture rules
 - **One source of truth:** Zustand stores hydrate from SQLite, and each action writes through to a `db/` repo. Smart Lists, Matrix quadrants, calendar blocks and search are *selectors* over task records. They are never stored.
@@ -35,7 +36,7 @@ Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/C
 - **Domain types are discriminated unions** (`status`, habit `frequency`, `goal`). Narrow them; never cast them.
 - **Validate at boundaries** (JSON import, .ics import, DB rows). Code inside the boundary trusts those types.
 - **Drag and drop:** dnd-kit pointer sensors only. `dragDropEnabled: false` is set in `tauri.conf.json` because Tauri's native file-drop handler would otherwise swallow drag events on Windows.
-- **Offline:** no network calls anywhere, except the update check (PLAN D59). Fonts come from `@fontsource`.
+- **Offline first:** the app works fully offline. Network calls are the update check (PLAN D59) and, when signed in, sync with Supabase (ADR 0001, PLAN D225). Fonts come from `@fontsource`.
 - **Subtasks:** a view shows a subtask inside its parent when both are in it, otherwise on its own with the parent's name: lists via `flattenTree`, cards via `topLevelIn` (PLAN D196). Date grids show dated subtasks; only the Arrange panel and focus picker read `Derived.roots`.
 - **New dependencies** need a one-line reason in PLAN.md §4.
 

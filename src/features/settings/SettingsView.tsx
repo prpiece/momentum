@@ -1,8 +1,9 @@
-import { Bell, ChevronLeft, ChevronRight, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Search, Settings2, Wrench } from "lucide-react";
+import { Bell, ChevronLeft, CircleUser, ChevronRight, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Search, Settings2, Wrench } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHead } from "../../components/ui/PageHead";
 import { Switch } from "../../components/ui/Switch";
 import { Segmented } from "../../components/ui/Segmented";
+import { AccountSection } from "./AccountSection";
 import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
@@ -99,6 +100,7 @@ const DEFAULT_VIEWS: { id: ViewId; label: string }[] = [...SMART_LIST_NAV, ...MO
 
 type Page = { id: string; title: string; icon: LucideIcon };
 const PAGES: Page[] = [
+  { id: "settings-account", title: "Account", icon: CircleUser },
   { id: "settings-general", title: "General", icon: Settings2 },
   { id: "settings-appearance", title: "Appearance", icon: Palette },
   { id: "settings-notifications", title: "Notifications & sounds", icon: Bell },
@@ -109,7 +111,7 @@ const PAGES: Page[] = [
   ...(import.meta.env.DEV ? [{ id: "settings-developer", title: "Developer", icon: Wrench }] : []),
 ];
 /** Pages the list shows together, like the groups on a phone's settings screen. */
-const GROUPS = [["settings-general", "settings-appearance", "settings-notifications"], [VOICE_SECTION_ID, "settings-data"], [HELP_SECTION_ID, "settings-about"], ["settings-developer"]];
+const GROUPS = [["settings-account"], ["settings-general", "settings-appearance", "settings-notifications"], [VOICE_SECTION_ID, "settings-data"], [HELP_SECTION_ID, "settings-about"], ["settings-developer"]];
 
 /** Searchable settings: [page, label as shown on that page]. The label is found in the page text to scroll to it. */
 const INDEX: [string, string][] = [
@@ -121,6 +123,7 @@ const INDEX: [string, string][] = [
   ["settings-notifications", "Daily summary"], ["settings-notifications", "Focus timer"], ["settings-notifications", "Style"], ["settings-notifications", "Popup position"], ["settings-notifications", "Chime"],
   ["settings-notifications", "Sound effects"], ["settings-notifications", "Volume"],
   [VOICE_SECTION_ID, "Voice model"], [VOICE_SECTION_ID, "Microphone"], [VOICE_SECTION_ID, "Push to talk"],
+  ["settings-account", "Sync now"], ["settings-account", "Sign out"],
   ["settings-data", "Export backup"], ["settings-data", "Restore from backup"], ["settings-data", "Import calendar"],
   ["settings-about", "Check at launch"], ["settings-about", "Check now"],
 ];
@@ -374,6 +377,11 @@ export function SettingsView() {
           <ShortcutInput value={s.voiceShortcut} onChange={(v) => (v === s.quickAddShortcut ? toast("That shortcut already opens quick add.") : update({ voiceShortcut: v }))} />
         </Row>
         <p className="text-[length:var(--fs-sm)] text-muted">Hold the shortcut, say a task, let go, then press Enter. Or say “start focus”, “stop focus”, “open today”, “show matrix”, “show completed” or “open calendar”.</p>
+      </Card>
+    ),
+    "settings-account": (
+      <Card>
+        <AccountSection />
       </Card>
     ),
     "settings-data": (

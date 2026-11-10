@@ -37,6 +37,7 @@ if (popup === "mini") {
     habits.replaceHabits(seed.sampleHabits());
     focus.replaceSessions(seed.sampleFocus(Object.values(data.useData.getState().tasks)));
   }
+  if (isTauri) void import("./lib/sync/engine").then((s) => s.startSync());
   // Old unreferenced note images are cleaned up in the background (D78).
   void import("./lib/appFiles").then((f) => f.sweepAttachments(Object.values(data.useData.getState().tasks).map((t) => t.description))).catch(console.error);
   go(useSettings.getState().settings.defaultView);

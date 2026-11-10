@@ -100,8 +100,8 @@ const siblings = (listId: string, parentId: string | null) =>
 
 // ---------- hydrate ----------
 
-export async function hydrate() {
-  const ws = await repo.loadWorkspace();
+export async function hydrate(purge = true) {
+  const ws = await repo.loadWorkspace(purge);
   const lists = byId(ws.lists);
   lists[INBOX_ID] ??= INBOX;
   set({

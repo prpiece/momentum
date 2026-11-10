@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pendingFields, planApply, pushBatches, tagWinner, type OutboxRow, type RemoteRow, type SyncTable } from "./sync";
+import { keyFromId, pendingFields, planApply, pushBatches, tagWinner, type OutboxRow, type RemoteRow, type SyncTable } from "./sync";
 
 const COLS = {
   folders: ["id", "name", "parent_id"],
@@ -26,7 +26,7 @@ describe("planApply", () => {
 
   it("deletes tombstoned rows unless this device has a pending delete or re-create", () => {
     const tomb = { date: "2026-01-01", deleted_at: "2026-01-02T00:00:00.000Z" };
-    expect(planApply([rr("rest_days", "2026-01-01", tomb)], new Map(), COLS)).toEqual([{ kind: "delete", tbl: "rest_days", id: "2026-01-01" }]);
+    expect(planApply([rr("rest_days", "2026-01-01", tomb)], new Map(), COLS)).toEqual([{ kind: "delete", tbl: "rest_days", id: "2026-01-01", key: { date: "2026-01-01" } }]);
     const pending = pendingFields([ob(1, "rest_days", "2026-01-01", { date: "2026-01-01", deleted_at: null })]);
     expect(planApply([rr("rest_days", "2026-01-01", tomb)], pending, COLS)).toEqual([]);
   });
@@ -94,4 +94,9 @@ describe("pushBatches", () => {
 
 it("tagWinner picks the same id from either side", () => {
   expect(tagWinner("b", "a")).toBe(tagWinner("a", "b"));
+});
+
+it("keyFromId undoes the trigger's row naming", () => {
+  expect(keyFromId("habit_checkins", "a|b|2026-01-01")).toEqual({ habit_id: "a|b", date: "2026-01-01" });
+  expect(keyFromId("celebrations", "streak-7")).toEqual({ key: "streak-7" });
 });

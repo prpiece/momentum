@@ -32,7 +32,7 @@ export type RemoteRow = { tbl: SyncTarget; id: string; data: Record<string, unkn
 
 export type ApplyOp =
   | { kind: "upsert"; tbl: SyncTable; id: string; row: Record<string, unknown> }
-  | { kind: "delete"; tbl: SyncTable; id: string }
+  | { kind: "delete"; tbl: SyncTable; id: string; key: Record<string, string> }
   | { kind: "settings"; fields: Record<string, unknown> };
 
 const rowKey = (tbl: string, id: string) => `${tbl}\u0000${id}`;
@@ -80,18 +80,24 @@ export function planApply(remote: RemoteRow[], pending: Map<string, Set<string>>
       continue;
     }
     if (r.data.deleted_at != null) {
-      deletes.push({ kind: "delete", tbl: r.tbl, id: r.id });
+      deletes.push({ kind: "delete", tbl: r.tbl, id: r.id, key: keyFromId(r.tbl, r.id) });
       continue;
     }
     const cols = new Set(columns[r.tbl]);
     // Key columns always go in, so the upsert can find the row even when a key field is pending.
-    const row = Object.fromEntries(Object.entries({ ...fields, ...pick(r.data, SYNC_TABLES[r.tbl]) }).filter(([c]) => cols.has(c)));
+    const row = Object.fromEntries(Object.entries({ ...fields, ...keyFromId(r.tbl, r.id) }).filter(([c]) => cols.has(c)));
     upserts.push({ kind: "upsert", tbl: r.tbl, id: r.id, row });
   }
   return [...deletes, ...orderUpserts(upserts), ...(Object.keys(settings).length ? [{ kind: "settings" as const, fields: settings }] : [])];
 }
 
-const pick = (o: Record<string, unknown>, keys: readonly string[]) => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
+/** The key columns a row id stands for: the id itself, or `habit_id|date` for check-ins (as the triggers build it). */
+export function keyFromId(tbl: SyncTable, id: string): Record<string, string> {
+  const cols = SYNC_TABLES[tbl];
+  if (cols.length === 1) return { [cols[0]]: id };
+  const cut = id.lastIndexOf("|");
+  return { [cols[0]]: id.slice(0, cut), [cols[1]]: id.slice(cut + 1) };
+}
 
 const TABLE_ORDER = Object.keys(SYNC_TABLES) as SyncTable[];
 /** Columns that point at a row of the same table, so parents go first. */
