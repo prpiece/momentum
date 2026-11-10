@@ -5,6 +5,11 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.1.1
+
+- **Handles with an @.** Typing an @ at the start of your handle no longer stops it from saving. The @ is shown for you in the field.
+- **Your devices by name.** Settings → Account lists each device as Windows, macOS or Linux instead of just "Device". Devices already signed in are named the next time they sync.
+
 ## v1.1.0
 
 - **Sync across your devices.** Sign in under Settings → Account with your email and a 6-digit code, and your tasks, lists, habits, calendar, focus sessions and settings stay the same on every computer. Edits you make offline merge when you're back online, field by field, so changes on two devices don't overwrite each other.

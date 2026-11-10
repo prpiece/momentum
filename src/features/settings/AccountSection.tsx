@@ -152,7 +152,7 @@ function SignedIn({ account }: { account: string }) {
 
   const saveProfile = async () => {
     const h = handle.trim().toLowerCase();
-    if (!HANDLE.test(h)) return toast("A handle is 3–20 letters, digits or _.");
+    if (!HANDLE.test(h)) return toast(h.includes("@") ? "Leave out the @: use only letters, digits and _." : "A handle is 3–20 letters, digits or _.");
     const row = { id: account, handle: h, display_name: name.trim() || h };
     const { error } = await supabase.from("profiles").upsert(row);
     if (error) return toast(/reserved/.test(error.message) ? "That handle is reserved." : /duplicate|unique/i.test(error.message) ? "That handle is taken." : error.message);
@@ -179,7 +179,12 @@ function SignedIn({ account }: { account: string }) {
           <p className="font-medium">Choose your handle</p>
           <p className="text-[length:var(--fs-sm)] text-fg-2">Friends will find you by it later. You can change it once every 30 days.</p>
           <div className="flex flex-wrap gap-2">
-            <input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="handle" aria-label="Handle" className="input w-48" />
+            <label className="input-wrap w-48 gap-0.5">
+              <span className="text-muted" aria-hidden>
+                @
+              </span>
+              <input value={handle} onChange={(e) => setHandle(e.target.value.replace(/^\s*@+/, ""))} placeholder="handle" aria-label="Handle" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            </label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Display name" aria-label="Display name" className="input w-48" />
             <button type="submit" className="btn btn-primary">
               Save

@@ -222,6 +222,19 @@ export function syncNow(): Promise<void> {
   return running;
 }
 
+let named = false;
+/**
+ * Names this device's platform for the device list, once per launch. The row only exists after
+ * a push that carried patches, so this retries on later runs until the update finds it.
+ */
+async function namePlatform(device: string): Promise<boolean> {
+  const ua = navigator.userAgent;
+  const platform = /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : null;
+  if (!platform) return true;
+  const { data, error } = await supabase.from("devices").update({ platform }).eq("id", device).select("id");
+  return !error && !!data?.length;
+}
+
 async function runOnce() {
   if (!useSync.getState().account) return;
   if (!navigator.onLine) return useSync.setState({ status: { kind: "offline" } });
@@ -236,8 +249,10 @@ async function runOnce() {
   }
   useSync.setState({ status: { kind: "syncing" } });
   try {
-    if ((await push(await deviceId())) === "updateRequired") return useSync.setState({ status: { kind: "updateRequired" } });
+    const device = await deviceId();
+    if ((await push(device)) === "updateRequired") return useSync.setState({ status: { kind: "updateRequired" } });
     await pull();
+    if (!named) named = await namePlatform(device);
     useSync.setState({ status: { kind: "idle", at: new Date().toISOString() } });
   } catch (err) {
     // An access token the server no longer accepts: drop it, and the next run re-checks the session.
@@ -349,10 +364,6 @@ export async function enableSync(account: string, mode: "fresh" | "resume"): Pro
   const device = await deviceId();
   schedule(account, device);
   await syncNow();
-  // The first push created this device's row; name its platform for the device list.
-  const ua = navigator.userAgent;
-  const platform = /Mac/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : /Windows/.test(ua) ? "Windows" : null;
-  if (platform) await supabase.from("devices").update({ platform }).eq("id", device).eq("owner_id", account);
   return { counts };
 }
 
@@ -363,6 +374,7 @@ export async function enableSync(account: string, mode: "fresh" | "resume"): Pro
 export async function signOut(how: "keep" | "remove", everywhere = false) {
   stop?.();
   stop = null;
+  named = false;
   const account = useSync.getState().account;
   if (how === "keep" && account)
     await transact(async (d) => {

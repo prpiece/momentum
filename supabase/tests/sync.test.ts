@@ -102,6 +102,15 @@ describe("sync_push / sync_pull", () => {
     expect((await pull(a.db, last)).map((r) => r.id)).toEqual(["t1"]);
   });
 
+  it("lets a device name its platform once a push has created its row", async () => {
+    const d = randomUUID();
+    const name = () => a.db.from("devices").update({ platform: "Windows" }).eq("id", d).select("id");
+    expect((await name()).data).toEqual([]);
+    await push(a.db, d, [{ seq: 1, tbl: "rest_days", id: "2026-04-01", fields: { date: "2026-04-01", deleted_at: null } }]);
+    expect((await name()).data).toEqual([{ id: d }]);
+    expect((await b.db.from("devices").update({ platform: "x" }).eq("id", d).select("id")).data).toEqual([]);
+  });
+
   it("asks old clients to update", async () => {
     const admin = createClient(URL, SECRET, opts);
     await admin.from("server_meta").update({ min_client_schema: 10 }).eq("id", 1);
