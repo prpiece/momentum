@@ -5,7 +5,7 @@
  */
 import { create } from "zustand";
 import { addDaysLocal, todayLocal } from "../domain/dates";
-import { bestStreak, currentStreak, isDone, type Habit } from "../domain/habits";
+import { bestStreak, currentStreak, isBuild, isDone, type Habit } from "../domain/habits";
 import { bestDayRun, countsForProgress, dayOf, dayRun, levelOf, perfectDays, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, trophyCounts, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyCounts } from "../domain/perfect";
 import { LEVEL_LOOKS } from "../features/celebrate/trophyLooks";
 import type { LocalDate, SoundEvent } from "../domain/types";
@@ -154,6 +154,7 @@ export function onTaskDone() {
 
 /** A habit check-in went up. */
 export function onCheckin(h: Habit, date: LocalDate, before: number, after: number) {
+  if (!isBuild(h)) return; // logging a slip or time against a limit isn't a win
   playEvent("habit");
   const today = todayLocal();
   if (date === today && !isDone(h, before) && isDone(h, after)) {

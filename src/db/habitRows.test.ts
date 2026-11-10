@@ -28,6 +28,14 @@ describe("habit rows", () => {
     expect(parseHabit({ ...habitToRow(h), reminders: '["9am","10:30"]', color: "red" })).toMatchObject({ reminders: ["10:30"], color: "#5b5bd6" });
   });
 
+  it("parses limit and quit goals, and keeps them daily-or-weekday", () => {
+    expect(parseGoal({ kind: "limit", cap: 5, unit: "min" })).toEqual({ kind: "limit", cap: 5, unit: "min" });
+    expect(parseGoal({ kind: "limit", cap: -1 })).toEqual({ kind: "limit", cap: 0, unit: "" });
+    expect(parseGoal({ kind: "quit" })).toEqual({ kind: "quit" });
+    const q: Habit = { ...h, goal: { kind: "quit" }, frequency: { kind: "perWeek", count: 3 } };
+    expect(parseHabit(habitToRow(q))?.frequency).toEqual({ kind: "daily" });
+  });
+
   it("validates check-ins", () => {
     expect(parseCheckin({ habit_id: "h1", date: "2026-10-25", value: 3, note: "", mood: 9 })).toEqual({ habitId: "h1", date: "2026-10-25", value: 3, note: "", mood: null });
     expect(parseCheckin({ habit_id: "h1", date: "yesterday", value: 1 })).toBeNull();

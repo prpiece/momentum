@@ -1,6 +1,6 @@
 /* Habit row <-> domain mapping, validated at the DB boundary (pure; unit-tested). */
 import { isInstant, isLocalDate, todayLocal } from "../domain/dates";
-import type { Habit, HabitCheckin, HabitFrequency, HabitGoal, HabitGroup, Mood } from "../domain/habits";
+import { isBuild, type Habit, type HabitCheckin, type HabitFrequency, type HabitGoal, type HabitGroup, type Mood } from "../domain/habits";
 import { isRecord } from "../domain/settings";
 import type { Row } from "./rows";
 
@@ -20,6 +20,11 @@ export function parseGoal(v: unknown): HabitGoal {
     const target = typeof v.target === "number" && v.target > 0 && Number.isFinite(v.target) ? v.target : 1;
     return { kind: v.kind, target, unit: typeof v.unit === "string" ? v.unit.slice(0, 20) : "" };
   }
+  if (isRecord(v) && v.kind === "limit") {
+    const cap = typeof v.cap === "number" && v.cap >= 0 && Number.isFinite(v.cap) ? v.cap : 0;
+    return { kind: "limit", cap, unit: typeof v.unit === "string" ? v.unit.slice(0, 20) : "" };
+  }
+  if (isRecord(v) && v.kind === "quit") return { kind: "quit" };
   return { kind: "once" };
 }
 
@@ -38,13 +43,16 @@ export function parseFrequency(v: unknown): HabitFrequency {
 export function parseHabit(r: Row): Habit | null {
   if (typeof r.id !== "string" || typeof r.name !== "string") return null;
   const reminders = json(r.reminders);
+  const goal = parseGoal(json(r.goal));
+  const frequency = parseFrequency(json(r.frequency));
   return {
     id: r.id,
     name: r.name,
     icon: typeof r.icon === "string" && r.icon ? r.icon : "check",
     color: typeof r.color === "string" && /^#[0-9a-f]{6}$/i.test(r.color) ? r.color : "#5b5bd6",
-    goal: parseGoal(json(r.goal)),
-    frequency: parseFrequency(json(r.frequency)),
+    goal,
+    // "x per week" needs a target to reach, so avoid-habits are daily or on set days.
+    frequency: isBuild({ goal }) || frequency.kind !== "perWeek" ? frequency : { kind: "daily" },
     reminders: Array.isArray(reminders) ? reminders.filter((x): x is string => typeof x === "string" && /^\d{2}:\d{2}$/.test(x)) : [],
     groupId: typeof r.group_id === "string" ? r.group_id : null,
     sortOrder: typeof r.sort_order === "number" ? r.sort_order : 0,

@@ -5,7 +5,7 @@
  */
 import { startOfWeek } from "date-fns";
 import { addDaysLocal, fromLocalDate, scheduleDate, toLocalDate } from "./dates";
-import { isDone, isScheduled, type CheckinMap, type Habit } from "./habits";
+import { isBuild, isDone, isScheduled, type CheckinMap, type Habit } from "./habits";
 import { nextOccurrence, occurrencesBetween } from "./recurrence";
 import type { LocalDate, Task, WeekStart } from "./types";
 
@@ -110,9 +110,9 @@ export function dayOf(p: Prepared, d: LocalDate): Day {
   let hasHabits = false;
   for (const h of input.habits) {
     if (h.archived || !isScheduled(h, d)) continue;
-    hasHabits = true;
+    if (isBuild(h)) hasHabits = true;
     const doneToday = isDone(h, input.checkins(h.id).get(d));
-    if (doneToday) kept = true;
+    if (doneToday && isBuild(h)) kept = true; // staying under a limit is not a check-in
     if (h.frequency.kind === "perWeek") continue;
     habitsDue++;
     if (doneToday) habitsDone++;

@@ -118,7 +118,7 @@ export const FEATURES: Feature[] = [
   { id: "ics-import", title: "Import a calendar", howTo: "Settings → Data → Import an .ics file.", icon: "file", group: "Views", since: OLD, core: false, commands: [] },
 
   // ---- Habits & focus
-  { id: "habits", title: "Keep a habit", howTo: "Add a habit and check it in each day it's due.", icon: "target", group: "Habits & focus", since: OLD, core: true, done: "habit:checked",
+  { id: "habits", title: "Keep a habit", howTo: "Build a habit, limit something (at most 5 minutes of Instagram), or quit it. Check in each day: builds reach a goal, limits log what you used, quits log a slip.", icon: "target", group: "Habits & focus", since: OLD, core: true, done: "habit:checked",
     commands: [palette("go-habits", "Go to Habits"), keys("G H", "Habits")] },
   { id: "focus", title: "Focus with a timer", howTo: "Start a Pomodoro, optionally on a task or some of its subtasks, and finish a session.", icon: "timer", group: "Habits & focus", since: OLD, core: true, done: "focus:completed",
     commands: [palette("go-focus", "Go to Focus"), keys("G F", "Focus")] },

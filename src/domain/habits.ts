@@ -8,13 +8,21 @@ export type HabitFrequency =
   | { kind: "weekdays"; days: number[] }
   | { kind: "perWeek"; count: number };
 
+/**
+ * What a day asks for. once / count / amount build a habit (reach the target); `limit` and `quit`
+ * are the opposite: a day succeeds unless the logged value goes over the cap (limit) or is above 0 (quit).
+ */
 export type HabitGoal =
   /** Tap to complete. */
   | { kind: "once" }
   /** Fixed increments toward a target, e.g. 8 glasses. */
   | { kind: "count"; target: number; unit: string }
   /** Manually entered amount toward a target, e.g. 5 km. */
-  | { kind: "amount"; target: number; unit: string };
+  | { kind: "amount"; target: number; unit: string }
+  /** Stay at or under `cap` per day, e.g. 5 minutes. Unlogged days succeed. */
+  | { kind: "limit"; cap: number; unit: string }
+  /** Avoid entirely; the check-in value counts slips. Unlogged days succeed. */
+  | { kind: "quit" };
 
 export type Habit = {
   id: string;
@@ -41,8 +49,28 @@ export type HabitCheckin = { habitId: string; date: LocalDate; value: number; no
 /** value per date for one habit */
 export type CheckinMap = ReadonlyMap<LocalDate, number>;
 
-export const targetOf = (h: Pick<Habit, "goal">) => (h.goal.kind === "once" ? 1 : Math.max(1, h.goal.target));
-export const isDone = (h: Pick<Habit, "goal">, value: number | undefined) => (value ?? 0) >= targetOf(h);
+/** Build habits are done by reaching a target; limit and quit habits are "avoid" habits. */
+export const isBuild = (h: Pick<Habit, "goal">) => h.goal.kind === "once" || h.goal.kind === "count" || h.goal.kind === "amount";
+/** The number the day's value is measured against (cap for limit, 1 for quit). */
+export const targetOf = (h: Pick<Habit, "goal">) =>
+  h.goal.kind === "once" ? 1 : h.goal.kind === "quit" ? 1 : h.goal.kind === "limit" ? Math.max(0, h.goal.cap) : Math.max(1, h.goal.target);
+/** Whether the day succeeded: target reached (build), or not over the cap / no slip (limit, quit). */
+export function isDone(h: Pick<Habit, "goal">, value: number | undefined): boolean {
+  const v = value ?? 0;
+  if (h.goal.kind === "limit") return v <= h.goal.cap;
+  if (h.goal.kind === "quit") return v === 0;
+  return v >= targetOf(h);
+}
+/** Unit shown next to amounts ("min", "glasses"); empty when the goal has none. */
+export const unitOf = (h: Pick<Habit, "goal">) => (h.goal.kind === "once" || h.goal.kind === "quit" ? "" : h.goal.unit);
+
+/** Short goal text for headers: "5 km a day", "max 5 min a day", "none". Empty for plain once-habits. */
+export function goalLabel(g: HabitGoal): string {
+  if (g.kind === "once") return "";
+  if (g.kind === "quit") return "none";
+  const n = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
+  return (g.kind === "limit" ? `max ${n(g.cap)} ${g.unit} a day` : `${n(g.target)} ${g.unit} a day`).replace("  ", " ");
+}
 
 const weekStartOf = (d: LocalDate, ws: WeekStart) => toLocalDate(startOfWeek(fromLocalDate(d), { weekStartsOn: ws }));
 
@@ -89,7 +117,7 @@ export function currentStreak(h: Habit, checkins: CheckinMap, today: LocalDate, 
   }
   let count = 0;
   let d = today;
-  if (isScheduled(h, d) && !isDone(h, checkins.get(d))) d = addDaysLocal(d, -1);
+  if (isScheduled(h, d) && !isDone(h, checkins.get(d)) && isBuild(h)) d = addDaysLocal(d, -1);
   for (; d >= h.startDate; d = addDaysLocal(d, -1)) {
     if (!isScheduled(h, d)) continue;
     if (!isDone(h, checkins.get(d))) break;
@@ -112,7 +140,7 @@ export function bestStreak(h: Habit, checkins: CheckinMap, today: LocalDate, ws:
   for (let d = h.startDate; d <= today; d = addDaysLocal(d, 1)) {
     if (!isScheduled(h, d)) continue;
     if (isDone(h, checkins.get(d))) best = Math.max(best, ++run);
-    else if (d < today) run = 0;
+    else if (d < today || !isBuild(h)) run = 0;
   }
   return { count: best, unit: "day" };
 }
@@ -142,7 +170,7 @@ export function completionRate(h: Habit, checkins: CheckinMap, from: LocalDate, 
   for (let d = start; d <= end; d = addDaysLocal(d, 1)) {
     if (!isScheduled(h, d)) continue;
     const ok = isDone(h, checkins.get(d));
-    if (d === today && !ok) continue; // today still in progress
+    if (d === today && !ok && isBuild(h)) continue; // today still in progress
     total++;
     if (ok) done++;
   }

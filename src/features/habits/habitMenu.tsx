@@ -15,7 +15,12 @@ export function habitMenu(h: Habit, date: LocalDate, onEdit?: () => void): MenuE
   const value = checkinOf(h.id, date)?.value ?? 0;
   const day = date === todayLocal() ? "today" : format(fromLocalDate(date), "EEE d MMM");
   const checkins: MenuEntry[] =
-    h.goal.kind === "once"
+    h.goal.kind === "quit"
+      ? [
+          { label: `Log a slip (${day})`, icon: <Plus size={14} />, run: () => tapCheckin(h, date, 1) },
+          ...(value > 0 ? [{ label: "Undo slip", icon: <RotateCcw size={14} />, run: () => tapCheckin(h, date, -1) }] : []),
+        ]
+      : h.goal.kind === "once"
       ? [isDone(h, value) ? { label: `Undo check-in (${day})`, icon: <RotateCcw size={14} />, run: () => setCheckin(h.id, date, { value: 0 }) } : { label: `Check in (${day})`, icon: <Check size={14} />, run: () => tapCheckin(h, date) }]
       : [
           { label: `Add one (${day})`, icon: <Plus size={14} />, run: () => tapCheckin(h, date, 1) },
