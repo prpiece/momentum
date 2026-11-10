@@ -10,9 +10,3 @@ export const attachmentRefs = (texts: Iterable<string>): Set<string> => {
 /** Files nothing references and that are older than `days` (modified is unix seconds). */
 export const staleAttachments = (files: { name: string; modified: number }[], referenced: Set<string>, nowSec: number, days: number): string[] =>
   files.filter((f) => !referenced.has(f.name) && f.modified < nowSec - days * 86400).map((f) => f.name);
-
-/** Files `before` referenced that neither `after` nor any of `others` still reference (D100). */
-export const droppedAttachments = (before: string, after: string, others: Iterable<string>): string[] => {
-  const kept = attachmentRefs([after, ...others]);
-  return [...attachmentRefs([before])].filter((n) => !kept.has(n));
-};

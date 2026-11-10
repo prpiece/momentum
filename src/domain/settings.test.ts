@@ -19,6 +19,11 @@ describe("parseSettings", () => {
     expect(s.sidebarSide).toBe("right");
   });
 
+  it("falls back to the side panel for an unknown task-open mode", () => {
+    expect(parseSettings({ taskOpen: "popup" }).taskOpen).toBe("side");
+    expect(parseSettings({ taskOpen: "center" }).taskOpen).toBe("center");
+  });
+
   it("keeps preset and valid hex quadrant colours", () => {
     expect(parseSettings({ matrixColors: ["#2F6FED", "red", "#ABCDEF", "graphite"] }).matrixColors).toEqual(["ocean", null, "#abcdef", "graphite"]);
     expect(parseSettings({ matrixColors: "nope" }).matrixColors).toEqual([null, null, null, null]);
@@ -26,7 +31,7 @@ describe("parseSettings", () => {
 
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
-      theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", barStyle: "floating", sidebarSide: "right",
+      theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", barStyle: "floating", sidebarSide: "right", taskOpen: "center",
       sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false, showCompleted: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },

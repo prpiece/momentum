@@ -299,6 +299,18 @@ export function SettingsView() {
             />
           </Row>
         )}
+        <Row label="Open tasks in">
+          <Segmented
+            name="taskOpen"
+            label="Open tasks in"
+            value={s.taskOpen}
+            onChange={set("taskOpen")}
+            options={[
+              { value: "side", label: "Side panel" },
+              { value: "center", label: "Centered window" },
+            ]}
+          />
+        </Row>
         <Row label="Animations">
           <Segmented
             name="motion"

@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Ban, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, ImagePlus, Pin, Plus, Trash2, X } from "lucide-react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { IconButton } from "../../components/ui/Dialog";
+import { Dialog, IconButton } from "../../components/ui/Dialog";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { isTauri } from "../../db/client";
@@ -25,12 +25,22 @@ export function TaskDrawer() {
   const drawer = useUi((s) => s.drawer);
   const task = useData((s) => (drawer ? s.tasks[drawer.id] : undefined));
   const side = useSettings((s) => (s.settings.sidebarSide === "left" ? "right" : "left"));
+  const centered = useSettings((s) => s.settings.taskOpen === "center");
 
   useEffect(() => {
     if (drawer && (!task || task.deletedAt)) closeDrawer();
   }, [drawer, task]);
 
   if (!drawer || !task || task.deletedAt) return null;
+  // Centred (D215): the same editor body in a modal over the app. The global j/k/etc. keys pause while it is open.
+  if (centered)
+    return (
+      <Dialog label="Task details" width="max-w-[min(640px,100%)]" onClose={closeDrawer}>
+        <div className="flex max-h-[calc(100dvh-2rem)] min-h-[min(420px,calc(100dvh-2rem))] flex-col">
+          <DrawerBody key={task.id} task={task} occurrenceKey={drawer.key} />
+        </div>
+      </Dialog>
+    );
   return (
     <aside
       key={task.id}

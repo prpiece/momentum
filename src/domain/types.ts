@@ -174,6 +174,8 @@ export const SCALE_MIN = 0.8;
 export const SCALE_MAX = 1.5;
 export const SCALE_STEP = 0.05;
 export const SIDES = ["left", "right"] as const;
+/** Where a task opens (D215): the side panel, or a window centred over the app. */
+export const TASK_OPENS = ["side", "center"] as const;
 /** Window layouts (D114): a sidebar, or one navigation bar across the top or bottom. */
 export const LAYOUTS = ["sidebar", "bar"] as const;
 export type Layout = (typeof LAYOUTS)[number];
@@ -234,6 +236,7 @@ export type Settings = {
   barPosition: BarPosition;
   barStyle: BarStyle;
   sidebarSide: (typeof SIDES)[number];
+  taskOpen: (typeof TASK_OPENS)[number];
   sidebarCollapsed: boolean;
   defaultView: ViewId;
   weekStart: WeekStart;
