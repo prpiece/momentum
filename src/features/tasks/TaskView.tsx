@@ -1,9 +1,10 @@
-import { CalendarRange, CircleCheckBig, Columns3, Grid2x2, ListFilter, ListTodo, Settings2 } from "lucide-react";
+import { CalendarRange, Columns3, Grid2x2, ListFilter, ListTodo, Settings2 } from "lucide-react";
 import { format } from "date-fns";
 import { useMemo } from "react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { PageHead } from "../../components/ui/PageHead";
+import { Tip } from "../../components/ui/Tip";
 import { ToolbarActions } from "../../components/ui/Toolbar";
 import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
 import { todayLocal } from "../../domain/dates";
@@ -31,11 +32,11 @@ import type { TaskViewSpec } from "./viewSpec";
 
 /** What a view shows: a list's own layout, or Matrix (D164, D193). Board needs sections, so only lists offer it. */
 type Mode = ListLayout | "matrix";
-const MODES: { id: Mode; label: string; icon: typeof ListTodo }[] = [
-  { id: "list", label: "List", icon: ListTodo },
-  { id: "kanban", label: "Board", icon: Columns3 },
-  { id: "timeline", label: "Timeline", icon: CalendarRange },
-  { id: "matrix", label: "Matrix", icon: Grid2x2 },
+const MODES: { id: Mode; label: string; desc: string; keys?: string; icon: typeof ListTodo }[] = [
+  { id: "list", label: "List", desc: "tasks in a single column", icon: ListTodo },
+  { id: "kanban", label: "Board", desc: "tasks in columns by group", icon: Columns3 },
+  { id: "timeline", label: "Timeline", desc: "tasks on a date strip", icon: CalendarRange },
+  { id: "matrix", label: "Matrix", desc: "sort by urgency and importance", keys: "G M", icon: Grid2x2 },
 ];
 const GROUPS: { id: GroupBy; label: string }[] = [
   { id: "none", label: "None" },
@@ -70,7 +71,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
     setOptions({ mode: "list" });
   };
   // A view whose own filter picks a status (a saved "done" filter), or a typed `done`, ignores the toggle.
-  const showDone = options.showCompleted || !spec.splitCompleted || adhoc.status !== null;
+  const showDone = settings.showCompleted || !spec.splitCompleted || adhoc.status !== null;
   const menu = useMenu();
 
   const source = spec.list ? derived.vms : derived.active;
@@ -104,17 +105,14 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         <div data-tour="toolbar" className="flex items-center gap-1.5">
         <div role="radiogroup" aria-label="View mode" className="seg">
           {MODES.filter((m) => m.id !== "kanban" || list).map((l) => (
-            <button key={l.id} type="button" role="radio" aria-checked={layout === l.id} title={l.label} onClick={() => setMode(l.id)} className={`seg-item ${layout === l.id ? "is-on" : ""}`}>
-              <l.icon size={16} strokeWidth={1.75} /> <span className="@max-[44rem]/tb:sr-only">{l.label}</span>
-            </button>
+            <Tip key={l.id} label={l.label} desc={l.desc} keys={l.keys}>
+              <button type="button" role="radio" aria-checked={layout === l.id} aria-label={`${l.label}: ${l.desc}`} onClick={() => setMode(l.id)} className={`seg-item ${layout === l.id ? "is-on" : ""}`}>
+                <l.icon size={16} strokeWidth={1.75} /> <span className="@max-[44rem]/tb:sr-only">{l.label}</span>
+              </button>
+            </Tip>
           ))}
         </div>
         <span className="tb-sep" aria-hidden />
-        {spec.splitCompleted && (
-          <button type="button" aria-pressed={options.showCompleted} title="Show completed" onClick={() => setOptions({ showCompleted: !options.showCompleted })} className="btn btn-ghost">
-            <CircleCheckBig size={16} strokeWidth={1.75} /> <span className="@max-[44rem]/tb:sr-only">Completed</span>
-          </button>
-        )}
         {layout === "list" && (
           <button ref={menu.anchor} type="button" title="Sort and group" onClick={menu.toggle} aria-haspopup="menu" aria-expanded={menu.open} className="btn btn-ghost">
             <ListFilter size={16} strokeWidth={1.75} />

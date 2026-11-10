@@ -101,8 +101,8 @@ export const FEATURES: Feature[] = [
     commands: [keys("Ctrl Z", "Undo the last change")] },
   { id: "filter", title: "Filter a view", howTo: "Filter with the same words you add tasks with, and pin a filter to the navigation.", icon: "filter", group: "Tasks", since: OLD, core: false,
     commands: [keys("/", "Filter the current view"), token("overdue  nodate", "Overdue or undated"), token("done  wontdo", "Finished tasks, anywhere")] },
-  { id: "show-completed", title: "Show completed tasks", howTo: "Turn on Completed in a view's header to see what's finished there.", icon: "check", group: "Tasks", since: "1.0.0", core: false,
-    commands: [palette("show-completed", "Show completed tasks")] },
+  { id: "show-completed", title: "Show completed tasks", howTo: "Show or hide finished tasks in every view, in Settings or from the palette.", icon: "check", group: "Tasks", since: "1.0.0", core: false,
+    commands: [palette("show-completed", "Toggle completed tasks")] },
   { id: "lists", title: "Organise with lists and folders", howTo: "Make a list for each part of your life and group lists into folders.", icon: "list", group: "Tasks", since: OLD, core: false,
     commands: [palette("new-list", "New list")] },
 

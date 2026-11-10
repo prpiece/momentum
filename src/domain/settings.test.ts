@@ -27,8 +27,8 @@ describe("parseSettings", () => {
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
       theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", sidebarSide: "right",
-      sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
-      viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline", showCompleted: false } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
+      sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false, showCompleted: false,
+      viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
       matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["teal", null, null, "ocean"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
@@ -84,17 +84,23 @@ describe("parseSettings", () => {
     expect(parseSettings({ defaultView: "wontdo" }).defaultView).toBe("today");
     expect(parseSettings({ defaultView: "overdue" }).defaultView).toBe(DEFAULT_SETTINGS.defaultView);
     expect(parseSettings({ viewOptions: { tomorrow: { groupBy: "priority", sortBy: "title" } } }).viewOptions).toEqual({
-      upcoming: { groupBy: "priority", sortBy: "title", mode: "list", showCompleted: false },
+      upcoming: { groupBy: "priority", sortBy: "title", mode: "list" },
     });
   });
 
   it("lands retired start views on Today, set up like the page they replace", () => {
     const logbook = parseSettings({ defaultView: "logbook", viewOptions: { logbook: { groupBy: "list", sortBy: "title" } } });
-    expect([logbook.defaultView, logbook.viewOptions]).toEqual(["today", { today: { groupBy: "none", sortBy: "date", mode: "list", showCompleted: true } }]);
+    expect([logbook.defaultView, logbook.viewOptions]).toEqual(["today", {}]);
     const matrix = parseSettings({ defaultView: "matrix" });
     expect([matrix.defaultView, matrix.viewOptions.today.mode]).toEqual(["today", "matrix"]);
     expect(parseSettings({ defaultView: "countdown" }).defaultView).toBe("calendar");
     expect(parseSettings(matrix)).toEqual(matrix);
+  });
+
+  it("shows completed tasks by default, and keeps the global setting", () => {
+    expect(parseSettings({}).showCompleted).toBe(true);
+    expect(parseSettings({ showCompleted: false }).showCompleted).toBe(false);
+    expect("showCompleted" in parseSettings({ viewOptions: { today: { showCompleted: false } } }).viewOptions.today).toBe(false);
   });
 
   it("is idempotent", () => {
@@ -106,8 +112,8 @@ describe("parseSettings", () => {
 describe("parseSettings view options", () => {
   it("keeps valid per-view options and repairs bad fields", () => {
     const s = parseSettings({ viewOptions: { today: { groupBy: "priority", sortBy: "nope" }, x: 5 } });
-    expect(s.viewOptions).toEqual({ today: { groupBy: "priority", sortBy: "date", mode: "list", showCompleted: false } });
-    expect(parseSettings({ viewOptions: { "list:a": { mode: "kanban" } } }).viewOptions["list:a"]).toEqual({ groupBy: "none", sortBy: "manual", mode: "list", showCompleted: true });
+    expect(s.viewOptions).toEqual({ today: { groupBy: "priority", sortBy: "date", mode: "list" } });
+    expect(parseSettings({ viewOptions: { "list:a": { mode: "kanban" } } }).viewOptions["list:a"]).toEqual({ groupBy: "none", sortBy: "manual", mode: "list" });
   });
 
   it("accepts list and tag views as default view", () => {

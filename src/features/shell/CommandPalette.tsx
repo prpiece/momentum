@@ -44,6 +44,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
   const savedFilters = useSettings((s) => s.settings.savedFilters);
   const update = useSettings((s) => s.update);
   const collapsed = useSettings((s) => s.settings.sidebarCollapsed);
+  const showCompleted = useSettings((s) => s.settings.showCompleted);
   const close = () => setPalette(false);
   useEffect(() => trackDone("palette:opened"), []);
 
@@ -62,7 +63,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       "go-progress": navTo("progress"),
       "go-settings": navTo("settings"),
       "matrix-mode": () => (close(), showInCurrentView({ mode: "matrix" })),
-      "show-completed": () => (close(), showInCurrentView({ showCompleted: true })),
+      "show-completed": () => (update({ showCompleted: !showCompleted }), close()),
       "theme-light": () => (update({ theme: "light" }), close()),
       "theme-dark": () => (update({ theme: "dark" }), close()),
       "theme-system": () => (update({ theme: "system" }), close()),
@@ -116,7 +117,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       .sort((a, b) => a.score - b.score || order.indexOf(a.group) - order.indexOf(b.group))
       .slice(0, 40)
       .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
-  }, [q, derived, lists, tags, savedFilters, update, collapsed, onNewList]);
+  }, [q, derived, lists, tags, savedFilters, update, collapsed, showCompleted, onNewList]);
 
   const pick = (i: number) => items[i]?.run();
 

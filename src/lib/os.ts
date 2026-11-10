@@ -229,7 +229,7 @@ export async function initOs() {
         return showInCurrentView({ mode: "matrix" });
       case "showCompleted":
         void showMain();
-        return showInCurrentView({ showCompleted: true });
+        return useSettings.getState().update({ showCompleted: true });
       case "openList": {
         const list = Object.values(useData.getState().lists).find((l) => l.name === cmd.name);
         if (!list) return;
