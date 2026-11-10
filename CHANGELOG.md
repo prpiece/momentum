@@ -5,6 +5,21 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.0.2
+
+- **A better Day view.** The calendar's Day mode puts a brief beside the time grid: the date, how much is booked, what's on now or next, and the day as a list. With Arrange open, the grid fills the space instead.
+- **Habits for limits and quitting.** Besides building a habit, you can now limit something (say, at most 5 minutes of Instagram a day) or quit it. Limits log what you used; quits log a slip. Streaks, charts and Progress all understand both. The Past year map on each habit is fixed too.
+- **Your own background.** Put a colour or one of your images behind the app in Settings → Appearance, and dim it to keep text easy to read.
+- **A floating bar.** The bar at the top or bottom can float like a dock. Switch it on in Settings → Appearance → Layout.
+- **Open tasks in the middle.** Settings → Appearance → Open tasks in can show a task as a centred window instead of the side panel.
+- **See images properly.** Click an image in a task's notes to enlarge it, then zoom and pan. Moving an image's text to another task keeps the image.
+- **Tokens in every add box.** `!high`, `#tag`, `~list`, dates and `every day` work in Board columns, Matrix quadrants, the calendar and subtasks, not just the main add bar.
+- **Any Matrix colour.** Each quadrant gets a full colour picker.
+- **A tidier sidebar.** A bigger logo, the collapse button beside it, and a quieter search shortcut. Scale is now a slider.
+- **Show completed lives in Settings.** One switch in Settings → General (or the command palette) shows or hides completed tasks in every view. View tooltips explain List, Board, Timeline and Matrix.
+- **Mini window.** The Matrix tab lists every task, and the Focus tab can start a stopwatch.
+- **Small fixes.** Saying a priority twice no longer adds it twice, spoken tags drop the word "tag", the quick add text is larger, toasts are evenly spaced, What's new stays open until you close it, trophies fit one row, and Friends on Progress says "coming soon".
+
 ## v1.0.1
 
 - **Fits any window size.** The close, minimize and maximize buttons always stay visible, even with a task open. In narrow windows the sidebar shrinks to icons, and toolbars swap labels for icons with tooltips instead of getting cut off.
