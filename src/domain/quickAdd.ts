@@ -2,10 +2,11 @@ import { casual } from "chrono-node/en";
 import { addMinutes } from "date-fns";
 import { toLocalDate } from "./dates";
 import { bestName } from "./fuzzy";
-import type { Priority, Schedule } from "./types";
+import type { Priority, Recurrence, Schedule } from "./types";
 
 export type ChipKind = "date" | "priority" | "tag" | "list" | "repeat";
-export type Chip = { kind: ChipKind; text: string; start: number; end: number };
+/** `value` is the normalised token (the tag name), for chips whose text is spoken words. */
+export type Chip = { kind: ChipKind; text: string; start: number; end: number; value?: string };
 
 export type ParsedTask = {
   title: string;
@@ -50,7 +51,7 @@ const DAYS: Record<string, string> = {
 const DAY_WORD = "(?:mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(?:day|nesday|sday|urday|rsday)?s?";
 const dayCode = (w: string) => DAYS[w.toLowerCase().replace(/(day|nesday|sday|urday|rsday)?s?$/, "")];
 
-type Match = { kind: ChipKind; start: number; end: number; apply: (p: ParsedTask) => void };
+type Match = { kind: ChipKind; start: number; end: number; value?: string; apply: (p: ParsedTask) => void };
 
 function repeatMatches(text: string): Match[] {
   const out: Match[] = [];
@@ -86,12 +87,12 @@ function keywordMatches(text: string, listNames: readonly string[]): Match[] {
     const start = (m.index ?? 0) + m[1].length;
     out.push({ kind: "priority", start, end: (m.index ?? 0) + m[0].length, apply: (r) => void (r.priority = p) });
   }
-  for (const m of text.matchAll(/(^|\s)tag\s+([\p{L}\p{N}_\-/]+)/giu)) {
+  for (const m of text.matchAll(/(^|\s)(?:hash\s?tag|tag)[\s:,]+([\p{L}\p{N}_\-/]+)/giu)) {
     const start = (m.index ?? 0) + m[1].length;
     const tag = m[2];
-    out.push({ kind: "tag", start, end: (m.index ?? 0) + m[0].length, apply: (r) => void r.tags.push(tag) });
+    out.push({ kind: "tag", value: tag, start, end: (m.index ?? 0) + m[0].length, apply: (r) => void r.tags.push(tag) });
   }
-  for (const m of text.matchAll(/(^|\s)list\s+/gi)) {
+  for (const m of text.matchAll(/(^|\s)(?:in\s+)?list\s+/gi)) {
     const start = (m.index ?? 0) + m[1].length;
     const after = (m.index ?? 0) + m[0].length;
     const words = [...text.slice(after).matchAll(/[\p{L}\p{N}_-]+/gu)].slice(0, 4);
@@ -119,7 +120,7 @@ function tokenMatches(text: string): Match[] {
   for (const m of text.matchAll(/(^|\s)#([\p{L}\p{N}_\-/]+)/gu)) {
     const start = (m.index ?? 0) + m[1].length;
     const tag = m[2];
-    out.push({ kind: "tag", start, end: start + tag.length + 1, apply: (r) => void r.tags.push(tag) });
+    out.push({ kind: "tag", value: tag, start, end: start + tag.length + 1, apply: (r) => void r.tags.push(tag) });
   }
   for (const m of text.matchAll(/(^|\s)~([\p{L}\p{N}_\-]+)/gu)) {
     const start = (m.index ?? 0) + m[1].length;
@@ -185,9 +186,15 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
   }
 
   matches.sort((a, b) => a.start - b.start);
+  // Priority and list are single-valued and a tag is only worth one chip: the first of each wins,
+  // repeats ("high priority, high priority", "#a #A") are still blanked out of the title.
+  const seen = new Set<string>();
   for (const m of matches) {
+    const key = m.kind === "tag" ? `tag:${m.value?.toLowerCase()}` : m.kind === "priority" || m.kind === "list" ? m.kind : null;
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
     m.apply(result);
-    result.chips.push({ kind: m.kind, text: input.slice(m.start, m.end), start: m.start, end: m.end });
+    result.chips.push({ kind: m.kind, text: input.slice(m.start, m.end), start: m.start, end: m.end, ...(m.value ? { value: m.value } : {}) });
   }
   // A repeat with no explicit date starts today; rrule then picks the first matching day.
   if (result.rule && result.schedule.kind === "none") result.schedule = { kind: "day", date: toLocalDate(now) };
@@ -214,4 +221,24 @@ export function withToken(text: string, chips: readonly Chip[], kind: "priority"
 export function withoutToken(text: string, chips: readonly Chip[], kind: "priority" | "list"): string {
   const c = chips.find((x) => x.kind === kind);
   return c ? `${text.slice(0, c.start)} ${text.slice(c.end)}`.replace(/\s+/g, " ").trim() : text;
+}
+
+/**
+ * What a parsed entry sets on the new task once a view's context (column, quadrant, calendar slot, list)
+ * has had its say (D220): the context supplies defaults, any token the user typed wins, tags merge.
+ */
+export function withDefaults(
+  p: ParsedTask,
+  d: { schedule?: Schedule; priority?: Priority; tags?: readonly string[] },
+): { schedule?: Schedule; priority?: Priority; tags: string[]; recurrence: Recurrence | null } {
+  // A repeat's implied "today" is not a date the user typed, so it never beats the context's date.
+  const typedDate = p.chips.some((c) => c.kind === "date");
+  const schedule = typedDate || !d.schedule ? p.schedule : d.schedule;
+  const priority = p.priority ?? d.priority;
+  return {
+    ...(schedule.kind !== "none" ? { schedule } : {}),
+    ...(priority !== undefined ? { priority } : {}),
+    tags: [...new Set([...(d.tags ?? []), ...p.tags])],
+    recurrence: p.rule ? { rule: p.rule, exdates: [] } : null,
+  };
 }

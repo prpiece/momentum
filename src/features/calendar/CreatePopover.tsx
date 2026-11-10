@@ -1,9 +1,11 @@
 import { CalendarDays, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Popover } from "../../components/ui/Popover";
 import { formatTime, relativeDayLabel, scheduleDate, todayLocal } from "../../domain/dates";
 import type { Schedule } from "../../domain/types";
-import { addEvent, addTask } from "../../stores/data";
+import { addEvent } from "../../stores/data";
+import { useAddSuggest } from "../tasks/InlineAdd";
+import { createFromText } from "../tasks/quickAddSubmit";
 import { useSettings } from "../../stores/settings";
 import { openEvent, openTask } from "../../stores/ui";
 
@@ -18,10 +20,15 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
     draft.onClose?.();
     onClose();
   };
+  const smartParse = useSettings((s) => s.settings.smartParse);
+  const input = useRef<HTMLInputElement>(null);
+  const ac = useAddSuggest(title, setTitle, input, kind === "task");
   const create = (more: boolean) => {
     const name = title.trim() || (kind === "task" ? "New task" : "New event");
     if (kind === "task") {
-      const t = addTask({ title: name, schedule: draft.schedule });
+      // Tokens in the title (D220) win over the slot that was clicked; the slot is the default.
+      const t = createFromText(name, { schedule: draft.schedule }, smartParse, () => false);
+      if (!t) return;
       if (more) openTask(t.id);
     } else {
       const e = addEvent({ title: name, schedule: draft.schedule });
@@ -56,14 +63,19 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
         ))}
       </div>
       <input
+        ref={input}
         autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && create(false)}
-        placeholder={kind === "task" ? "Task title" : "Event title"}
+        {...ac.inputProps}
+        onKeyDown={(e) => {
+          if (!ac.onKeyDown(e) && e.key === "Enter") create(false);
+        }}
+        placeholder={kind === "task" ? "Task title, e.g. “Study chem !high #school”" : "Event title"}
         aria-label="Title"
         className="input w-full"
       />
+      {ac.open && <div className="mt-2">{ac.row}</div>}
       <div className="mt-1.5 tabular-nums text-[length:var(--fs-xs)] text-muted">{when}</div>
       <div className="mt-3 flex justify-between">
         <button type="button" onClick={() => create(true)} className="btn btn-ghost btn-sm">

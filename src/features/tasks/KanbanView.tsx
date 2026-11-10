@@ -8,9 +8,10 @@ import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
-import { addSection, addTask, moveSection, removeSection, updateSection, updateTask, useData } from "../../stores/data";
+import { addSection, moveSection, removeSection, updateSection, updateTask, useData } from "../../stores/data";
 import { confirm, openContextMenu, openTask, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
+import { InlineAdd } from "./InlineAdd";
 import { taskMenu } from "./taskMenu";
 
 onDrop("kanban-column", (drag, drop) => {
@@ -91,7 +92,6 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
   });
   const { isOver } = drop;
   const setNodeRef = (el: HTMLElement | null) => (drop.setNodeRef(el), sort.setNodeRef(el));
-  const [draft, setDraft] = useState("");
   const menu = useMenu();
   const [renaming, setRenaming] = useState(false);
 
@@ -153,17 +153,11 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
           <Card key={vm.task.id} vm={vm} />
         ))}
       </div>
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && draft.trim()) {
-            addTask({ title: draft.trim(), listId: list.id, sectionId: section?.id ?? null }, "bottom");
-            setDraft("");
-          }
-        }}
+      <InlineAdd
+        defaults={{ listId: list.id, sectionId: section?.id ?? null }}
+        position="bottom"
         placeholder="+ Add task"
-        aria-label={`Add task to ${section?.name ?? "Unsectioned"}`}
+        label={`Add task to ${section?.name ?? "Unsectioned"}`}
         className="mt-1 h-8 shrink-0 rounded-control border border-transparent bg-transparent px-2 text-[length:var(--fs-sm)] outline-none placeholder:text-muted hover:bg-surface-2 focus-visible:border-accent-text focus-visible:bg-surface focus-visible:shadow-[var(--focus-ring-input)] focus-visible:outline-none"
       />
     </section>

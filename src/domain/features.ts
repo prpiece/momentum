@@ -85,7 +85,7 @@ export const FEATURES: Feature[] = [
   // ---- Capture
   { id: "quick-add", title: "Add a task", howTo: "Type in the box at the top of a view and press Enter.", icon: "plus", group: "Capture", since: OLD, core: true, done: "task:created-quickadd",
     commands: [palette("new-task", "New task", "N"), keys("N", "Focus quick add"), keys("Ctrl Shift A", "Quick add from any app")] },
-  { id: "tokens", title: "Set details as you type", howTo: "Add a date, priority, tag or list to the task text and it's picked out for you.", icon: "token", group: "Capture", since: OLD, core: true, done: "task:token-used",
+  { id: "tokens", title: "Set details as you type", howTo: "Add a date, priority, tag or list to the task text, in any add box, and it's picked out for you.", icon: "token", group: "Capture", since: OLD, core: true, done: "task:token-used",
     commands: [token("tomorrow 5pm", "Date and time"), token("every mon", "Repeat"), token("!high  !2", "Priority"), token("#tag", "Tag"), token("~List", "List")] },
   { id: "bulk-import", title: "Paste many tasks at once", howTo: "Paste a list of lines and each one becomes a task.", icon: "paste", group: "Capture", since: OLD, core: false,
     commands: [palette("import", "Import tasks…")] },

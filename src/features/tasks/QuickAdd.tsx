@@ -7,6 +7,7 @@ import { describeRule } from "../../domain/recurrence";
 import { PRIORITY_LABEL, type Task } from "../../domain/types";
 import { useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
+import { useTokenNames } from "./InlineAdd";
 import { createFromText, listByName } from "./quickAddSubmit";
 
 const CHIP_ICON: Record<ChipKind, typeof Flag> = {
@@ -56,15 +57,13 @@ export function QuickAdd(props: {
   }, []);
 
   const lists = useData((s) => s.lists);
-  const tags = useData((s) => s.tags);
   const names = useMemo(() => Object.values(lists).map((l) => l.name), [lists]);
-  const openListNames = useMemo(() => Object.values(lists).filter((l) => !l.archived).sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.name), [lists]);
-  const tagNames = useMemo(() => Object.values(tags).map((t) => t.name).sort((a, b) => a.localeCompare(b)), [tags]);
+  const suggestNames = useTokenNames();
   const parsed = useMemo(() => parseQuickAdd(text, new Date(), parsing, names), [text, parsing, names]);
   const today = todayLocal();
-  const complete = useTokenSuggest({ text, setText, input, lists: parsing ? openListNames : [], tags: parsing ? tagNames : [] });
+  const complete = useTokenSuggest({ text, setText, input, lists: parsing ? suggestNames.lists : [], tags: parsing ? suggestNames.tags : [] });
 
-  const chipLabel = (kind: ChipKind, raw: string): string => {
+  const chipLabel = (kind: ChipKind, raw: string, value?: string): string => {
     const s = parsed.schedule;
     if (kind === "date") {
       if (s.kind === "day") return relativeDayLabel(s.date, today);
@@ -76,7 +75,7 @@ export function QuickAdd(props: {
     if (kind === "priority" && parsed.priority !== null) return PRIORITY_LABEL[parsed.priority];
     if (kind === "repeat" && parsed.rule) return describeRule(parsed.rule);
     if (kind === "list" && parsed.listName) return listByName(parsed.listName)?.name ?? `${parsed.listName} (no such list)`;
-    return raw;
+    return value ?? raw;
   };
 
   const submit = () => {
@@ -136,7 +135,7 @@ export function QuickAdd(props: {
             return (
               <span key={`${c.kind}-${c.start}`} className="pchip">
                 <Icon size={14} strokeWidth={1.75} />
-                {chipLabel(c.kind, c.text)}
+                {chipLabel(c.kind, c.text, c.value)}
               </span>
             );
           })}
