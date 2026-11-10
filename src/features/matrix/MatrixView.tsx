@@ -1,6 +1,6 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Check, ListTree, Settings2 } from "lucide-react";
-import { type CSSProperties, useMemo } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 import { Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { ColorPicker } from "../../components/ui/ColorPicker";

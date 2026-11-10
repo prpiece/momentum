@@ -10,13 +10,17 @@ type SettingsStore = {
   update: (patch: Partial<Settings>) => void;
 };
 
+// Sliders and colour drags call update() per pointer move; each save writes the whole object, so keep only the last one.
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+
 export const useSettings = create<SettingsStore>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   hydrate: async () => set({ settings: await loadSettings() }),
   update: (patch) => {
     const settings = { ...get().settings, ...patch };
     set({ settings });
-    void saveSettings(settings);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => void saveSettings(get().settings), 250);
   },
 }));
 
