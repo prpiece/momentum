@@ -18,9 +18,8 @@ export function Toaster() {
         unstyled: true,
         classNames: {
           toast: "layer layer-raised toast w-[min(420px,calc(100vw-32px))]",
-          title: "flex-1",
-          actionButton: "btn btn-ghost btn-sm toast-act",
-          closeButton: "btn btn-ghost btn-sm icon-btn order-last text-muted",
+          actionButton: "btn btn-ghost btn-sm toast-act shrink-0",
+          closeButton: "btn btn-ghost btn-sm icon-btn order-last shrink-0 text-muted",
         },
       }}
     />

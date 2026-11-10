@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 import { exitGhost } from "../../lib/motion";
 import { Tip } from "./Tip";
 
-/** Modal with backdrop. Escape and backdrop click close; focus moves inside and returns on close. */
-export function Dialog(props: { onClose: () => void; children: ReactNode; label: string; width?: string; top?: boolean }) {
+/** Modal with backdrop. Escape and backdrop click close (`modal` keeps it open on backdrop click); focus moves inside and returns on close. */
+export function Dialog(props: { onClose: () => void; children: ReactNode; label: string; width?: string; top?: boolean; modal?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const { onClose } = props;
 
@@ -41,7 +41,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
   return createPortal(
     <div
       className={`dialog-scrim anim-fade fixed inset-0 z-50 flex justify-center bg-[var(--scrim)] p-4 backdrop-blur-[6px] ${props.top ? "items-start pt-[12vh]" : "items-center"}`}
-      onPointerDown={(e) => e.target === e.currentTarget && onClose()}
+      onPointerDown={(e) => !props.modal && e.target === e.currentTarget && onClose()}
     >
       <div
         ref={ref}
