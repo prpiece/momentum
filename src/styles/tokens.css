@@ -332,6 +332,14 @@
   }
 }
 
+/* The window chrome and the content panel (D222). With a custom background (html[data-bg], BackgroundLayer)
+   they turn slightly translucent so the background shows at the edges; the dim veil keeps text at AA. */
+.shell-bg { background: var(--bg); }
+.shell-surface { background: var(--surface); }
+html[data-bg] .shell-bg { background: color-mix(in srgb, var(--bg) 78%, transparent); }
+html[data-bg] .shell-surface { background: color-mix(in srgb, var(--surface) 90%, transparent); }
+html[data-bg] body { background: transparent; }
+
 /* ---------- Text styles ---------- */
 .t-label   { font-size: var(--fs-xs); line-height: var(--lh-xs); font-weight: 500; letter-spacing: var(--tracking-label); text-transform: uppercase; }
 .t-title   { font-family: var(--font-head); font-size: var(--fs-xl); line-height: var(--lh-xl); font-weight: 600; }

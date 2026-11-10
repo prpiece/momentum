@@ -1,10 +1,13 @@
-import { parseAccent, parseQuadrantColor } from "./color";
+import { isHex, parseAccent, parseQuadrantColor } from "./color";
 import { FEATURES, type GettingStarted } from "./features";
 import {
   BAR_POSITIONS,
   BAR_STYLES,
   CAL_VIEWS,
+  type Background,
   type Cycles,
+  DIM_DEFAULT,
+  DIM_MAX,
   COLOR_BYS,
   DENSITIES,
   LAYOUTS,
@@ -41,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   layout: "sidebar",
   barPosition: "top",
   barStyle: "flat",
+  background: { kind: "none" },
   sidebarSide: "left",
   taskOpen: "side",
   sidebarCollapsed: false,
@@ -259,6 +263,19 @@ function parseLayout(layout: unknown, barPosition: unknown, barStyle: unknown): 
   };
 }
 
+/** The shape Rust accepts for a stored image name (files.rs valid_name). */
+const IMAGE_FILE = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|webp)$/i;
+
+function parseBackground(raw: unknown): Background {
+  if (!isRecord(raw)) return DEFAULT_SETTINGS.background;
+  if (raw.kind === "color" && isHex(raw.hex)) return { kind: "color", hex: raw.hex.toLowerCase() };
+  if (raw.kind === "image" && typeof raw.file === "string" && IMAGE_FILE.test(raw.file)) {
+    const dim = typeof raw.dim === "number" && Number.isFinite(raw.dim) ? Math.min(DIM_MAX, Math.max(0, Math.round(raw.dim))) : DIM_DEFAULT;
+    return { kind: "image", file: raw.file, dim };
+  }
+  return DEFAULT_SETTINGS.background;
+}
+
 /** Text-size steps from before Scale (D202), as the factor on a 16px root. */
 const LEGACY_TEXT: Record<string, number> = { sm: 15 / 16, md: 1, lg: 17.5 / 16, xl: 19 / 16, xxl: 21 / 16 };
 
@@ -288,6 +305,7 @@ export function parseSettings(raw: unknown): Settings {
     motion: oneOf(MOTIONS, r.motion) ? r.motion : d.motion,
     scale: parseScale(r),
     ...parseLayout(r.layout, r.barPosition, r.barStyle),
+    background: parseBackground(r.background),
     sidebarSide: oneOf(SIDES, r.sidebarSide) ? r.sidebarSide : d.sidebarSide,
     taskOpen: oneOf(TASK_OPENS, r.taskOpen) ? r.taskOpen : d.taskOpen,
     sidebarCollapsed: typeof r.sidebarCollapsed === "boolean" ? r.sidebarCollapsed : d.sidebarCollapsed,

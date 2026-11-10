@@ -184,6 +184,10 @@ export type BarPosition = (typeof BAR_POSITIONS)[number];
 /** The bar is a flat strip on the window edge, or a floating dock detached from it (D210). */
 export const BAR_STYLES = ["flat", "floating"] as const;
 export type BarStyle = (typeof BAR_STYLES)[number];
+/** Behind the whole app (D222): nothing, a colour, or an image file in the app's `backgrounds` folder, dimmed by `dim` percent. */
+export type Background = { kind: "none" } | { kind: "color"; hex: string } | { kind: "image"; file: string; dim: number };
+export const DIM_MAX = 80;
+export const DIM_DEFAULT = 40;
 export const TIME_FORMATS = ["12h", "24h"] as const;
 /** date-fns weekStartsOn: Sunday, Monday, Saturday. */
 export const WEEK_STARTS = [0, 1, 6] as const;
@@ -235,6 +239,7 @@ export type Settings = {
   layout: Layout;
   barPosition: BarPosition;
   barStyle: BarStyle;
+  background: Background;
   sidebarSide: (typeof SIDES)[number];
   taskOpen: (typeof TASK_OPENS)[number];
   sidebarCollapsed: boolean;

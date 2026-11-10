@@ -31,7 +31,7 @@ describe("parseSettings", () => {
 
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
-      theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", barStyle: "floating", sidebarSide: "right", taskOpen: "center",
+      theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", barStyle: "floating", background: { kind: "image", file: "a1-b2.webp", dim: 55 }, sidebarSide: "right", taskOpen: "center",
       sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false, showCompleted: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
@@ -179,6 +179,16 @@ describe("parseSettings layout", () => {
     expect(l("dock")).toEqual(["bar", "bottom"]);
     expect(l("bar")).toEqual(["bar", "bottom"]);
     expect(l("nope")).toEqual(["sidebar", "bottom"]);
+  });
+  it("validates the background at the boundary", () => {
+    const bg = (background: unknown) => parseSettings({ background }).background;
+    expect(bg({ kind: "color", hex: "#ABCDEF" })).toEqual({ kind: "color", hex: "#abcdef" });
+    expect(bg({ kind: "color", hex: "red" })).toEqual({ kind: "none" });
+    expect(bg({ kind: "image", file: "x.png", dim: 200 })).toEqual({ kind: "image", file: "x.png", dim: 80 });
+    expect(bg({ kind: "image", file: "x.png" })).toEqual({ kind: "image", file: "x.png", dim: 40 });
+    expect(bg({ kind: "image", file: "../x.png", dim: 10 })).toEqual({ kind: "none" });
+    expect(bg({ kind: "image", file: "x.svg", dim: 10 })).toEqual({ kind: "none" });
+    expect(bg("nope")).toEqual({ kind: "none" });
   });
   it("drops the retired background keys", () => {
     const s = parseSettings({ background: { kind: "gradient", id: "ocean" }, backgroundDim: 50, dockLabels: false });

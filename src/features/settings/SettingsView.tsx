@@ -13,6 +13,7 @@ import { VOICE_SECTION_ID } from "../../lib/voice";
 import { TagsSection } from "./TagsSection";
 import { HelpSection } from "../help/HelpSection";
 import { HELP_SECTION_ID } from "../help/featureIcons";
+import { BackgroundSection } from "./BackgroundSection";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENTS, type AccentId } from "../../domain/color";
 import { SCALE_MAX, SCALE_MIN, SCALE_STEP, type Settings, type ViewId } from "../../domain/types";
@@ -285,6 +286,12 @@ export function SettingsView() {
           <span className="block font-medium">Layout</span>
           <LayoutPicker />
         </div>
+        {s.layout === "bar" && (
+          <Row label="Floating bar">
+            <Switch checked={s.barStyle === "floating"} onChange={(v) => update({ barStyle: v ? "floating" : "flat" })} label="Floating bar" />
+          </Row>
+        )}
+        <BackgroundSection />
         {s.layout === "sidebar" && (
           <Row label="Sidebar position">
             <Segmented

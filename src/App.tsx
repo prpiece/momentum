@@ -24,6 +24,7 @@ import { NavBar } from "./features/shell/NavBar";
 import { PhoneBar } from "./features/shell/PhoneBar";
 import { Sidebar } from "./features/shell/Sidebar";
 import { Tour } from "./features/shell/Tour";
+import { BackgroundLayer } from "./features/shell/BackgroundLayer";
 import { WindowControls } from "./features/shell/WindowControls";
 import { TaskDrawer } from "./features/tasks/TaskDrawer";
 import { TaskView } from "./features/tasks/TaskView";
@@ -103,10 +104,11 @@ export default function App() {
     <TipProvider delayDuration={400} skipDelayDuration={300} disableHoverableContent>
     <DndRoot>
       {/* Below 720px the sidebar or bar hides and the phone bar sits under the content (D200). */}
+      <BackgroundLayer />
       <div className="flex h-full flex-col">
       <div className={`relative isolate flex min-h-0 flex-1 ${layout === "bar" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
         <div className="contents max-[719px]:hidden">{layout === "sidebar" ? <Sidebar /> : topBar && <NavBar position="top" style={barStyle} />}</div>
-        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface border-border max-[719px]:border-0 ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : barStyle === "floating" ? "" : topBar ? "border-t" : "border-b"}`}>
+        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden shell-surface border-border max-[719px]:border-0 ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : barStyle === "floating" ? "" : topBar ? "border-t" : "border-b"}`}>
           <Header view={view} spec={spec} controls={controlsInBar ? "phone" : "always"} />
           <div key={view} className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
             <View view={view} spec={spec} />
