@@ -72,7 +72,7 @@ export function ProgressView() {
         </PageHead>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3">
+      <div className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-4">
         <Stat label="Tasks done" value={weeks[weeks.length - 1]?.value ?? 0} />
         <Stat label="Focus" value={`${Math.floor(focusMinutes / 60)}h ${Math.round(focusMinutes % 60)}m`} />
         <Stat label="Perfect days" value={perfect.thisWeek} />
@@ -87,13 +87,13 @@ export function ProgressView() {
           </div>
         </section>
 
-        <Card title="Trophies" hint="levels to climb" className="sm:col-span-2 lg:col-span-4">
+        <Card title="Trophies" hint="levels to climb" className="min-[720px]:col-span-4">
           <TrophyShelf />
         </Card>
 
         <Card
           title="Tasks completed"
-          className="sm:col-span-2"
+          className="min-[720px]:col-span-2"
           action={
             <Segmented
               name="progress-range"
@@ -126,12 +126,12 @@ export function ProgressView() {
           )}
         </Card>
 
-        <Card title="Activity" hint={`last ${HEAT_WEEKS} weeks`} className="sm:col-span-2">
+        <Card title="Activity" hint={`last ${HEAT_WEEKS} weeks`} className="min-[720px]:col-span-2">
           <Heatmap values={heat} today={today} weeks={HEAT_WEEKS} weekStart={ws} />
         </Card>
 
         {habitList.length > 0 && (
-          <Card title="Habit consistency" hint="last 30 days" className="sm:col-span-2">
+          <Card title="Habit consistency" hint="last 30 days" className="min-[720px]:col-span-2">
             <ul className="flex flex-col gap-2.5">
               {habitList
                 .map((h) => ({ h, r: completionRate(h, valuesOf(checkins[h.id]), from30, today, today, ws) }))
@@ -153,22 +153,19 @@ export function ProgressView() {
         )}
 
         {sections.map((s) => (
-          <div key={s.id} className="sm:col-span-2 lg:col-span-4">
+          <div key={s.id} className="min-[720px]:col-span-4">
             {s.render()}
           </div>
         ))}
 
         {/* Friends arrive in v1.1/v1.2; until then this is the place they'll appear (D182). */}
-        <Card title="Friends" className="sm:col-span-2">
+        <Card title="Friends" className={habitList.length > 0 ? "min-[720px]:col-span-2" : "min-[720px]:col-span-4"}>
           <div className="empty py-4">
             <span className="eic">
               <Users size={18} strokeWidth={1.75} />
             </span>
-            <h2>Sign in to add friends and compare your week</h2>
-            <p>Friends see your streak, trophies and weekly total. Never your tasks. Accounts are coming in a later update.</p>
-            <Button variant="secondary" disabled>
-              Sign in
-            </Button>
+            <h2>Friends — coming soon</h2>
+            <p>Compare streaks, trophies and your weekly total with friends. Never your tasks.</p>
           </div>
         </Card>
       </div>
