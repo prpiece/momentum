@@ -19,6 +19,8 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
     const first = ref.current?.querySelector<HTMLElement>("[autofocus], input, textarea, select, button");
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
+      // Stacked dialogs (an image viewer over a task window): only the top one reacts.
+      if (ref.current !== [...document.querySelectorAll("[role=dialog]")].pop()) return;
       if (e.key === "Escape") {
         e.stopPropagation();
         onClose();

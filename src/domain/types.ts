@@ -173,6 +173,8 @@ export const MOTIONS = ["system", "on", "off"] as const;
 /** Scale (D202): one factor for the whole window, applied as the webview zoom. */
 export const SCALES = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75] as const;
 export const SIDES = ["left", "right"] as const;
+/** Where a task opens (D215): the side panel, or a window centred over the app. */
+export const TASK_OPENS = ["side", "center"] as const;
 /** Window layouts (D114): a sidebar, or one navigation bar across the top or bottom. */
 export const LAYOUTS = ["sidebar", "bar"] as const;
 export type Layout = (typeof LAYOUTS)[number];
@@ -229,6 +231,7 @@ export type Settings = {
   layout: Layout;
   barPosition: BarPosition;
   sidebarSide: (typeof SIDES)[number];
+  taskOpen: (typeof TASK_OPENS)[number];
   sidebarCollapsed: boolean;
   defaultView: ViewId;
   weekStart: WeekStart;

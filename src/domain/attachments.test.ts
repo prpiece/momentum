@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attachmentRefs, droppedAttachments, staleAttachments } from "./attachments";
+import { attachmentRefs, staleAttachments } from "./attachments";
 
 describe("attachmentRefs", () => {
   it("finds every attachment: image reference across notes", () => {
@@ -21,15 +21,5 @@ describe("staleAttachments", () => {
   ];
   it("lists unreferenced files older than the cutoff", () => {
     expect(staleAttachments(files, new Set(["keep.png"]), now, 30)).toEqual(["old.png"]);
-  });
-});
-
-describe("droppedAttachments", () => {
-  it("lists files removed from a note that no other note holds", () => {
-    const before = "![](attachment:a.png) ![](attachment:b.png) ![](attachment:c.png)";
-    expect(droppedAttachments(before, "![](attachment:a.png)", ["dup ![](attachment:b.png)"])).toEqual(["c.png"]);
-  });
-  it("is empty when nothing was removed", () => {
-    expect(droppedAttachments("![](attachment:a.png)", "x ![](attachment:a.png)", [])).toEqual([]);
   });
 });

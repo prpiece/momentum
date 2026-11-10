@@ -100,7 +100,7 @@ export function useGlobalShortcuts() {
       }
       if (mod || e.altKey) return;
       const ui = useUi.getState();
-      if (ui.paletteOpen || ui.scopeAsk || ui.confirmAsk || ui.shortcutsOpen || ui.tourOpen || !useSettings.getState().settings.onboarded) return;
+      if (ui.paletteOpen || (ui.drawer && useSettings.getState().settings.taskOpen === "center") || ui.scopeAsk || ui.confirmAsk || ui.shortcutsOpen || ui.tourOpen || !useSettings.getState().settings.onboarded) return;
 
       const key = e.key.toLowerCase();
       if (Date.now() - gPressedAt < G_WINDOW_MS) {

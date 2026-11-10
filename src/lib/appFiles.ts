@@ -1,6 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { isTauri } from "../db/client";
-import { attachmentRefs, droppedAttachments, staleAttachments } from "../domain/attachments";
+import { attachmentRefs, staleAttachments } from "../domain/attachments";
 
 /**
  * Images kept in the app's config dir (D78 attachments). Rust validates every
@@ -42,10 +42,4 @@ export async function sweepAttachments(descriptions: Iterable<string>): Promise<
   if (!isTauri) return;
   const refs = attachmentRefs(descriptions);
   for (const name of staleAttachments(await listImages("attachments"), refs, Date.now() / 1000, 1)) await deleteImage("attachments", name);
-}
-
-/** A note was saved: delete the images it dropped that no other note still holds (D100). */
-export function dropAttachments(before: string, after: string, others: Iterable<string>): void {
-  if (!isTauri) return;
-  for (const name of droppedAttachments(before, after, others)) void deleteImage("attachments", name).catch(console.error);
 }
