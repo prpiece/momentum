@@ -5,6 +5,13 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.1.0
+
+- **Sync across your devices.** Sign in under Settings → Account with your email and a 6-digit code, and your tasks, lists, habits, calendar, focus sessions and settings stay the same on every computer. Edits you make offline merge when you're back online, field by field, so changes on two devices don't overwrite each other.
+- **Optional, and still offline-first.** Without an account, Momentum works exactly as before and nothing leaves your device. When you first sign in, a backup is saved, and everything already on this computer is added to your account.
+- **Your account.** Pick an @handle, see your signed-in devices and when they last synced, sync on demand, and sign out on one device or everywhere. When you sign out you choose to keep a copy on this device or remove it.
+- **Terms and Privacy.** Read them from the sign-in form or Settings → About. In short: we never sell your data, there are no ads or analytics, and we only send emails with sign-in codes.
+
 ## v1.0.2
 
 - **A better Day view.** The calendar's Day mode puts a brief beside the time grid: the date, how much is booked, what's on now or next, and the day as a list. With Arrange open, the grid fills the space instead.
