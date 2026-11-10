@@ -47,15 +47,17 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
   const byDay = useMemo(() => days.map((d) => ({ day: d, placed: layoutDay(items, d), allDay: itemsOnDay(items, d).filter((i) => i.allDay) })), [days, items]);
   const cols = `3.5rem repeat(${days.length}, minmax(0, 1fr))`;
 
+  // One day: a readable column (not a page-wide slab), with a left-aligned date header (PLAN D209).
+  const single = days.length === 1;
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className={`flex min-h-0 flex-1 flex-col ${single ? "mx-auto w-full max-w-[44rem] border-x border-border" : ""}`}>
       <div className="grid border-b border-border pr-2" style={{ gridTemplateColumns: cols }}>
         <div />
         {days.map((d) => {
           const date = fromLocalDate(d);
           return (
-            <button key={d} type="button" onClick={() => onViewDay(d)} className="@container flex h-16 min-w-0 items-center justify-center gap-1.5 border-l border-border px-1 hover:bg-surface-2">
-              <span className={`t-label hidden @min-[4.25rem]:inline ${d === today ? "text-accent-text" : "text-muted"}`}>{format(date, "EEE")}</span>
+            <button key={d} type="button" onClick={() => onViewDay(d)} className={`@container flex min-w-0 items-center gap-1.5 border-l border-border px-1 hover:bg-surface-2 ${single ? "h-12 justify-start px-3" : "h-16 justify-center"}`}>
+              <span className={`t-label ${single ? "" : "hidden @min-[4.25rem]:inline"} ${d === today ? "text-accent-text" : "text-muted"}`}>{format(date, "EEE")}</span>
               <span className={`grid size-7 shrink-0 place-items-center rounded-full text-[length:var(--fs-lg)] font-semibold tabular-nums ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
             </button>
           );
