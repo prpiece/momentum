@@ -97,8 +97,8 @@ export function NavBar({ position, style }: { position: BarPosition; style: BarS
 
   return (
     <>
-      <div data-tauri-drag-region className={floating ? "shrink-0 bg-bg p-2" : "contents"}>
-      <div data-tauri-drag-region className={`flex shrink-0 select-none items-center gap-2 px-3 ${floating ? "mx-auto h-14 w-full max-w-[1100px] rounded-panel bg-raised shadow-float" : "h-14 bg-bg"}`}>
+      <div data-tauri-drag-region className={floating ? "shrink-0 shell-bg p-2" : "contents"}>
+      <div data-tauri-drag-region className={`flex shrink-0 select-none items-center gap-2 px-3 ${floating ? "mx-auto h-14 w-full max-w-[1100px] rounded-panel bg-raised shadow-float" : "h-14 shell-bg"}`}>
         <div className="pointer-events-none flex shrink-0 items-center gap-2.5 pl-1 pr-2">
           <Logo size={30} />
           <span className="text-[length:var(--fs-lg)] font-semibold tracking-tight max-[999px]:hidden">Momentum</span>

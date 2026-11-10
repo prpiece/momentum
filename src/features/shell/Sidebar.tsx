@@ -292,7 +292,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside aria-label="Navigation" className={`flex shrink-0 flex-col gap-3 px-2 py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease-out)] ${collapsed ? "w-14" : "w-[var(--sidebar)]"}`}>
+    <aside aria-label="Navigation" className={`shell-bg flex shrink-0 flex-col gap-3 px-2 py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease-out)] ${collapsed ? "w-14" : "w-[var(--sidebar)]"}`}>
       {/* The header is the logo, the wordmark and the collapse toggle; a hairline separates the lists (D202, D210). */}
       <div className="flex flex-col gap-1">
         <div data-tauri-drag-region className={`flex select-none items-center ${collapsed ? "flex-col gap-2" : "h-11 justify-between pl-2"}`}>
