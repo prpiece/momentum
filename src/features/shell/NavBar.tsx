@@ -5,7 +5,7 @@ import { Logo } from "../../components/Logo";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { fitItems } from "../../domain/dockFit";
 import { GO } from "../../domain/features";
-import type { BarPosition, ViewId } from "../../domain/types";
+import type { BarPosition, BarStyle, ViewId } from "../../domain/types";
 import { keyLabel } from "../../lib/platform";
 import type { DropData } from "../../lib/dnd";
 import { useData } from "../../stores/data";
@@ -44,14 +44,15 @@ function BarItem(props: { id: ViewId; label: string; icon: ReactNode; count?: nu
 /**
  * Navigation for the bar layout (D114, D198): one strip at the top or bottom, labels always shown.
  * Destinations that don't fit fold into "More" (D77), measured from each item's real width.
- * Lists and pinned filters sit behind a menu button.
+ * Lists and pinned filters sit behind a menu button. "floating" detaches it from the window edges as a dock (D210).
  */
-export function NavBar({ position }: { position: BarPosition }) {
+export function NavBar({ position, style }: { position: BarPosition; style: BarStyle }) {
   const counts = useCounts();
   const lists = useData((s) => s.lists);
   const savedFilters = useSettings((s) => s.settings.savedFilters);
   const view = useUi((s) => s.view);
   const [newList, setNewList] = useState(false);
+  const floating = style === "floating";
 
   const dests = [
     ...SIDEBAR_SMART_NAV.map((n) => ({ ...n, count: counts.smart[n.id] || undefined, drop: { type: "smart", id: n.id } as DropData, badge: undefined })),
@@ -96,12 +97,13 @@ export function NavBar({ position }: { position: BarPosition }) {
 
   return (
     <>
-      <div data-tauri-drag-region className="flex h-12 shrink-0 select-none items-center gap-2 bg-bg px-3">
-        <div className="pointer-events-none flex shrink-0 items-center gap-2 pl-1 pr-2">
-          <Logo size={22} />
-          <span className="font-semibold max-[999px]:hidden">Momentum</span>
+      <div data-tauri-drag-region className={floating ? "shrink-0 bg-bg p-2" : "contents"}>
+      <div data-tauri-drag-region className={`flex shrink-0 select-none items-center gap-2 px-3 ${floating ? "mx-auto h-14 w-full max-w-[1100px] rounded-panel bg-raised shadow-float" : "h-14 bg-bg"}`}>
+        <div className="pointer-events-none flex shrink-0 items-center gap-2.5 pl-1 pr-2">
+          <Logo size={30} />
+          <span className="text-[length:var(--fs-lg)] font-semibold tracking-tight max-[999px]:hidden">Momentum</span>
         </div>
-        <nav ref={navRef} aria-label="Navigation" data-tour="nav" className="relative flex min-w-0 flex-1 items-center gap-0.5">
+        <nav ref={navRef} aria-label="Navigation" data-tour="nav" className="relative flex min-w-0 flex-1 items-center justify-center gap-0.5">
           <div className="relative flex min-w-0 items-center gap-0.5 overflow-hidden">
             {dests.map((n, i) => (
               <BarItem
@@ -138,13 +140,18 @@ export function NavBar({ position }: { position: BarPosition }) {
             Lists <ChevronDown size={14} className="text-muted" />
           </button>
         </nav>
-        <button type="button" data-tour="search" onClick={() => setPalette(true)} className="btn btn-secondary shrink-0 text-muted">
-          <Search size={16} strokeWidth={1.75} aria-label="Search" /> <span className="max-[999px]:hidden">Search</span> <kbd className="kbd max-[999px]:hidden">{keyLabel("Ctrl K")}</kbd>
+        <button type="button" data-tour="search" onClick={() => setPalette(true)} className="nav-item shrink-0" aria-label="Search">
+          <span className="ni-icon">
+            <Search size={ICON} strokeWidth={1.75} />
+          </span>
+          <span className="max-[999px]:hidden">Search</span>
+          <span className="ni-n max-[999px]:hidden">{keyLabel("Ctrl K")}</span>
         </button>
         <span data-tour="settings" className="contents">
           <BarItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={<SETTINGS_NAV.icon size={ICON} strokeWidth={1.75} />} />
         </span>
-        {position === "top" && <WindowControls />}
+        {position === "top" && !floating && <WindowControls />}
+      </div>
       </div>
       {newList && <ListDialog onClose={() => setNewList(false)} />}
     </>

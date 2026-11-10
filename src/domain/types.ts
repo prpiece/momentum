@@ -170,14 +170,19 @@ export const THEMES = ["light", "dark", "system"] as const;
 export const DENSITIES = ["comfortable", "compact"] as const;
 /** "system" follows the OS reduced-motion setting (Windows: Animation effects). */
 export const MOTIONS = ["system", "on", "off"] as const;
-/** Scale (D202): one factor for the whole window, applied as the webview zoom. */
-export const SCALES = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75] as const;
+/** Scale (D202, D211): one factor for the whole window, applied as the webview zoom; any value from MIN to MAX in STEPs. */
+export const SCALE_MIN = 0.8;
+export const SCALE_MAX = 1.5;
+export const SCALE_STEP = 0.05;
 export const SIDES = ["left", "right"] as const;
 /** Window layouts (D114): a sidebar, or one navigation bar across the top or bottom. */
 export const LAYOUTS = ["sidebar", "bar"] as const;
 export type Layout = (typeof LAYOUTS)[number];
 export const BAR_POSITIONS = ["top", "bottom"] as const;
 export type BarPosition = (typeof BAR_POSITIONS)[number];
+/** The bar is a flat strip on the window edge, or a floating dock detached from it (D210). */
+export const BAR_STYLES = ["flat", "floating"] as const;
+export type BarStyle = (typeof BAR_STYLES)[number];
 export const TIME_FORMATS = ["12h", "24h"] as const;
 /** date-fns weekStartsOn: Sunday, Monday, Saturday. */
 export const WEEK_STARTS = [0, 1, 6] as const;
@@ -225,9 +230,10 @@ export type Settings = {
   accent: AccentId;
   density: (typeof DENSITIES)[number];
   motion: (typeof MOTIONS)[number];
-  scale: (typeof SCALES)[number];
+  scale: number;
   layout: Layout;
   barPosition: BarPosition;
+  barStyle: BarStyle;
   sidebarSide: (typeof SIDES)[number];
   sidebarCollapsed: boolean;
   defaultView: ViewId;

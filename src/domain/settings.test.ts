@@ -26,7 +26,7 @@ describe("parseSettings", () => {
 
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
-      theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", sidebarSide: "right",
+      theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", barStyle: "floating", sidebarSide: "right",
       sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline", showCompleted: false } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
@@ -38,14 +38,29 @@ describe("parseSettings", () => {
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
 
-  it("migrates zoom and text size into one scale, snapped to a step", () => {
+  it("migrates zoom and text size into one scale, clamped to the range", () => {
     expect(parseSettings({ zoom: 1.25, fontSize: "md" }).scale).toBe(1.25);
-    expect(parseSettings({ zoom: 1, fontSize: "xxl" }).scale).toBe(1.25);
-    expect(parseSettings({ zoom: 1.1, fontSize: "lg" }).scale).toBe(1.25);
-    expect(parseSettings({ zoom: 0.9, fontSize: "sm" }).scale).toBe(0.8);
+    expect(parseSettings({ zoom: 1, fontSize: "xxl" }).scale).toBe(1.3);
+    expect(parseSettings({ zoom: 1.1, fontSize: "lg" }).scale).toBe(1.2);
+    expect(parseSettings({ zoom: 0.9, fontSize: "sm" }).scale).toBe(0.85);
+    expect(parseSettings({ zoom: 3, fontSize: "xxl" }).scale).toBe(1.5);
     expect(parseSettings({ fontSize: "bogus", zoom: "x" }).scale).toBe(1);
     expect(parseSettings({ scale: 1.5, zoom: 0.8 }).scale).toBe(1.5);
-    expect(parseSettings({ scale: 2 }).scale).toBe(1);
+  });
+
+  it("clamps a saved scale to 0.8-1.5 in 0.05 steps", () => {
+    expect(parseSettings({ scale: 2 }).scale).toBe(1.5);
+    expect(parseSettings({ scale: 0.1 }).scale).toBe(0.8);
+    expect(parseSettings({ scale: 1.17 }).scale).toBe(1.15);
+    expect(parseSettings({ scale: 1.1500000000000001 }).scale).toBe(1.15);
+    expect(parseSettings({ scale: "big" }).scale).toBe(1);
+    expect(parseSettings({ scale: NaN }).scale).toBe(1);
+  });
+
+  it("parses the bar style, defaulting to flat", () => {
+    expect(parseSettings({ layout: "bar", barStyle: "floating" }).barStyle).toBe("floating");
+    expect(parseSettings({ barStyle: "glass" }).barStyle).toBe("flat");
+    expect(parseSettings({}).barStyle).toBe("flat");
   });
 
   it("keeps the voice shortcut apart from the quick-add one", () => {
