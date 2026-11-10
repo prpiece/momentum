@@ -20,6 +20,18 @@
         "--strictPort"
       ],
       "port": 1430
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "site",
+        "--port",
+        "5180",
+        "--strictPort"
+      ],
+      "port": 5180
     }
   ]
 }

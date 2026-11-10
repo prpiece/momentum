@@ -7,6 +7,7 @@ import { ACCENT_PRESETS } from "../../domain/color";
 import { dataDirLabel } from "../../lib/platform";
 import { useAppVersion } from "../../lib/updater";
 import { confirm, toast } from "../../stores/ui";
+import { SiteLink } from "./SiteLink";
 
 const btn = "btn btn-secondary";
 
@@ -79,7 +80,11 @@ export function AboutSection() {
       <div>
         <div className="text-base font-semibold">Momentum</div>
         <div className="tabular-nums text-xs text-muted">Version {version}</div>
-        <div className="mt-1 text-xs text-fg-2">An offline planner for tasks, calendar, habits and focus. Your data never leaves this device. MIT licensed.</div>
+        <div className="mt-1 text-xs text-fg-2">An offline planner for tasks, calendar, habits and focus. Your data stays on this device unless you sign in to sync it. MIT licensed.</div>
+        <div className="mt-1 flex gap-3 text-xs">
+          <SiteLink page="terms.html">Terms</SiteLink>
+          <SiteLink page="privacy.html">Privacy policy</SiteLink>
+        </div>
         <div className="mt-1 text-xs text-muted">Created by prpiece and d1.</div>
       </div>
     </div>

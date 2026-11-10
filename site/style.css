@@ -1,0 +1,54 @@
+/* Momentum's public pages (Terms, Privacy). Colours are the app's design tokens (docs/design/momentum-tokens.css). */
+:root {
+  --bg: #f6f5f2;
+  --surface: #fdfcfa;
+  --border: #e5e2dc;
+  --fg: #1f1d1a;
+  --fg-2: #4a4640;
+  --muted: #6b665e;
+  --accent-text: #5151cc;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141519;
+    --surface: #1b1d22;
+    --border: #2e3037;
+    --fg: #eceae5;
+    --fg-2: #bebbb5;
+    --muted: #8f8d88;
+    --accent-text: #9c9cf2;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+main {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+@media (max-width: 719px) {
+  main { margin: 0; border: 0; border-radius: 0; padding: 24px 16px; }
+}
+nav { display: flex; gap: 16px; margin-bottom: 24px; font-size: 14px; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 32px 0 8px; }
+p, li { color: var(--fg-2); }
+ul { padding-left: 20px; }
+li + li { margin-top: 4px; }
+strong { color: var(--fg); }
+a { color: var(--accent-text); }
+a:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 4px; }
+.meta { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+.summary { border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+.summary p { margin: 6px 0; }

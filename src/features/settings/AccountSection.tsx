@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { deviceId, enableSync, signInSituation, signOut, syncNow, useSync, wipeLocal, type SyncStatus } from "../../lib/sync/engine";
 import { supabase, syncConfigured } from "../../lib/sync/supabase";
+import { SiteLink } from "./SiteLink";
 import { confirm, toast } from "../../stores/ui";
 
 const btn = "btn btn-secondary";
@@ -71,7 +72,9 @@ function SignIn() {
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" aria-label="Email" className="input w-full max-w-sm" autoComplete="email" />
           <label className="flex items-start gap-2 text-[length:var(--fs-sm)] text-fg-2">
             <input type="checkbox" className="mt-0.5 size-4 accent-[var(--accent)]" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-            <span>I'm 13 or older and I accept the Terms and the Privacy policy.</span>
+            <span>
+              I'm 13 or older and I accept the <SiteLink page="terms.html">Terms</SiteLink> and the <SiteLink page="privacy.html">Privacy policy</SiteLink>.
+            </span>
           </label>
           <button type="submit" disabled={busy || !agreed || !email.includes("@")} className="btn btn-primary">
             Email me a code
