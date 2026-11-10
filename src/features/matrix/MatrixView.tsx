@@ -1,6 +1,6 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Check, ListTree, Settings2 } from "lucide-react";
-import { type CSSProperties, useMemo, useState } from "react";
+import { type CSSProperties, useMemo } from "react";
 import { Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { accentForeground, ACCENTS, ON_LIGHT, type AccentId } from "../../domain/color";
@@ -10,10 +10,11 @@ import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
 import { justDragged, onDrop } from "../../lib/dnd";
 import { withUndo } from "../../lib/undo";
-import { addTask, updateTask, useData, type NewTask } from "../../stores/data";
+import { updateTask, useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { openContextMenu, openTask, useUi } from "../../stores/ui";
 import { editTask, toggleDone } from "../tasks/actions";
+import { InlineAdd } from "../tasks/InlineAdd";
 import { taskMenu } from "../tasks/taskMenu";
 import { derive, useDerived } from "../tasks/selectors";
 
@@ -64,14 +65,8 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
   const info = QUADRANT_INFO[q];
   const rules = useSettings((s) => s.settings.matrix);
   const { setNodeRef, isOver } = useDroppable({ id: `quadrant:${q}`, data: { type: "quadrant", q } });
-  const [draft, setDraft] = useState("");
-  const add = () => {
-    const title = draft.trim();
-    if (!title) return;
-    // New tasks inherit the quadrant's attributes (same rule as dropping a blank task here).
-    addTask({ ...defaults, title, ...patchForQuadrant({ task: { priority: 0 }, date: null, schedule: { kind: "none" } }, q, todayLocal(), rules) });
-    setDraft("");
-  };
+  // New tasks inherit the quadrant's attributes (same rule as dropping a blank task here); tokens typed in the box win (D220).
+  const quadrantDefaults = { ...defaults, ...patchForQuadrant({ task: { priority: 0 }, date: null, schedule: { kind: "none" } }, q, todayLocal(), rules) };
   return (
     <section
       ref={setNodeRef}
@@ -90,12 +85,10 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
         ))}
         {!items.length && <li className="px-1 py-2 text-[length:var(--fs-sm)] text-muted">Drop tasks here</li>}
       </ul>
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && add()}
+      <InlineAdd
+        defaults={quadrantDefaults}
         placeholder={`+ Add to ${info.title}`}
-        aria-label={`Add task to ${info.title}`}
+        label={`Add task to ${info.title}`}
         className="mt-1 h-8 shrink-0 rounded-control border border-transparent bg-transparent px-2 text-[length:var(--fs-sm)] outline-none placeholder:text-muted hover:bg-surface-2 focus-visible:border-accent-text focus-visible:bg-surface focus-visible:shadow-[var(--focus-ring-input)] focus-visible:outline-none"
       />
     </section>

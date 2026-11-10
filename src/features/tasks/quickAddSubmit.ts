@@ -1,5 +1,5 @@
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
-import { parseQuickAdd, type InputOrigin } from "../../domain/quickAdd";
+import { parseQuickAdd, withDefaults, type InputOrigin } from "../../domain/quickAdd";
 import type { Task } from "../../domain/types";
 import { addTask, ensureTags, useData, type NewTask } from "../../stores/data";
 import { trackDone } from "../../stores/settings";
@@ -28,14 +28,14 @@ export function createFromText(
   const lists = useData.getState().lists;
   // A subtask lives in its parent's list, so a `~List` token is ignored there.
   const listId = defaults.parentId ? defaults.listId : (p.listName && listByName(p.listName)?.id) || defaults.listId;
+  const resolved = withDefaults(p, { schedule: defaults.schedule, priority: defaults.priority });
   const t = addTask({
     ...defaults,
     title: p.title,
     ...(listId ? { listId } : {}),
-    ...(p.schedule.kind !== "none" ? { schedule: p.schedule } : {}),
-    ...(p.priority !== null ? { priority: p.priority } : {}),
-    tags: [...new Set([...(defaults.tags ?? []), ...ensureTags(p.tags)])],
-    recurrence: p.rule ? { rule: p.rule, exdates: [] } : null,
+    ...resolved,
+    // The defaults' tags are ids already; the parsed ones are names.
+    tags: [...new Set([...(defaults.tags ?? []), ...ensureTags(resolved.tags)])],
   }, position);
   trackDone("task:created-quickadd");
   if (p.chips.length) trackDone("task:token-used");

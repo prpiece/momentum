@@ -147,14 +147,14 @@ export function QuickAddWindow() {
 
   const today = todayLocal();
   const ac = useTokenSuggest({ text, setText, input, lists: parsing ? lists : [], tags: parsing ? tags : [] });
-  const label = (kind: ChipKind, chipText: string) => {
+  const label = (kind: ChipKind, chipText: string, value?: string) => {
     const s = parsed.schedule;
     if (kind === "date" && s.kind === "day") return relativeDayLabel(s.date, today);
     if (kind === "date" && s.kind === "timed") return `${relativeDayLabel(todayLocal(new Date(s.start)), today)} ${formatTime(new Date(s.start), appearance?.timeFormat ?? "24h")}`;
     if (kind === "priority" && parsed.priority !== null) return PRIORITY_LABEL[parsed.priority];
     if (kind === "repeat" && parsed.rule) return describeRule(parsed.rule);
     if (kind === "list" && parsed.listName) return lists.find((n) => nameKey(n) === nameKey(parsed.listName ?? "")) ?? parsed.listName;
-    return chipText;
+    return value ?? chipText;
   };
   const picker = (kind: "priority" | "list", filled: string | null) => (
     <TokenPicker
@@ -171,13 +171,13 @@ export function QuickAddWindow() {
   );
   return (
     <div className="flex h-full flex-col border border-border-strong bg-raised">
-      <div className="flex h-14 shrink-0 items-center gap-3 pl-4 pr-2.5">
+      <div className="flex h-16 shrink-0 items-center gap-3 pl-4 pr-2.5">
         {voice.kind === "listening" ? (
           <span className="grid size-5 place-items-center" aria-hidden>
             <span className="size-2.5 rounded-full bg-danger transition-transform duration-75" style={{ transform: `scale(${1 + level * 1.2})` }} />
           </span>
         ) : (
-          <Plus size={18} strokeWidth={1.75} className="text-muted" />
+          <Plus size={20} strokeWidth={1.75} className="text-muted" />
         )}
         <input
           ref={input}
@@ -206,7 +206,7 @@ export function QuickAddWindow() {
           placeholder={voice.kind === "listening" ? "Listening… release the shortcut or click the mic when done" : voice.kind === "transcribing" ? "Transcribing…" : "Add a task to Momentum…"}
           readOnly={busy || confirm !== null}
           aria-label="Quick add task"
-          className="h-full min-w-0 flex-1 bg-transparent text-[length:var(--fs-lg)] outline-none placeholder:text-muted focus-visible:outline-none"
+          className="h-full min-w-0 flex-1 bg-transparent text-[length:var(--fs-xl)] outline-none placeholder:text-muted focus-visible:outline-none"
         />
         <button
           type="button"
@@ -220,7 +220,7 @@ export function QuickAddWindow() {
           <Mic size={18} strokeWidth={1.75} className={voice.kind === "transcribing" ? "animate-pulse" : ""} />
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden pb-3 pl-[46px] pr-4">
+      <div className="min-h-0 flex-1 overflow-hidden pb-3 pl-[48px] pr-4">
       {confirm && <CompleteConfirm candidates={confirm.candidates} picked={confirm.picked} onPick={(picked) => setConfirm({ ...confirm, picked })} onConfirm={(id) => void complete(id)} onCancel={backOut} />}
       {!confirm && ac.open && <div className="min-h-7">{ac.row}</div>}
       <div className={`min-h-7 flex-wrap items-center gap-1.5 ${confirm || ac.open ? "hidden" : "flex"}`}>
@@ -241,7 +241,7 @@ export function QuickAddWindow() {
           return (
             <span key={`${c.kind}-${c.start}`} className="pchip">
               <Icon size={14} strokeWidth={1.75} />
-              {label(c.kind, c.text)}
+              {label(c.kind, c.text, c.value)}
             </span>
           );
         })}

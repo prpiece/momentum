@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { durationMinutes, fromLocalDate, wallKey } from "./dates";
-import { parseQuickAdd, withoutToken, withToken } from "./quickAdd";
+import { parseQuickAdd, withDefaults, withoutToken, withToken } from "./quickAdd";
 
 // Sunday 25 Oct 2026, 10:00 local (TZ=America/New_York).
 const NOW = new Date(2026, 9, 25, 10, 0);
@@ -134,5 +134,52 @@ describe("withoutToken", () => {
     expect(withoutToken(text, p.chips, "priority")).toBe("study tomorrow");
     expect(withoutToken("!low", parseQuickAdd("!low", NOW).chips, "priority")).toBe("");
     expect(withoutToken("study", [], "list")).toBe("study");
+  });
+});
+
+describe("single-valued and duplicate tokens (D219)", () => {
+  const spoken = (t: string, lists: string[] = ["School"]) => parseQuickAdd(t, NOW, true, lists, "spoken");
+  it("collapses a repeated spoken priority and duplicate tags to one chip each", () => {
+    const p = spoken("Make a milkshake when I get home. High priority, high priority. Tag economics. Tag English. Tag economics");
+    expect(p.priority).toBe(3);
+    expect(p.tags).toEqual(["economics", "English"]);
+    expect(p.chips.map((c) => c.kind)).toEqual(["priority", "tag", "tag"]);
+    expect(p.title).toBe("Make a milkshake when I get home");
+  });
+  it("collapses typed !high !high; the first priority wins", () => {
+    const p = parseQuickAdd("call mom !high !low #a #A", NOW);
+    expect(p).toMatchObject({ title: "call mom", priority: 3, tags: ["a"] });
+    expect(p.chips.map((c) => c.kind)).toEqual(["priority", "tag"]);
+  });
+  it("labels a spoken tag chip by the tag, not the spoken words", () => {
+    expect(spoken("buy milk tag economics").chips[0]).toMatchObject({ kind: "tag", value: "economics" });
+    expect(parseQuickAdd("buy milk #econ", NOW).chips[0].value).toBe("econ");
+  });
+  it("reads 'hashtag X', 'tag: X' and 'in list X'", () => {
+    expect(spoken("buy milk hashtag economics")).toMatchObject({ title: "buy milk", tags: ["economics"] });
+    expect(spoken("buy milk. Tag: economics.")).toMatchObject({ title: "buy milk", tags: ["economics"] });
+    expect(spoken("buy milk in list school")).toMatchObject({ title: "buy milk", listName: "School" });
+    expect(spoken("buy milk, medium priority").priority).toBe(2);
+  });
+});
+
+describe("withDefaults: a view's context vs explicit tokens (D220)", () => {
+  const ctx = { schedule: { kind: "day", date: "2026-11-02" } as const, priority: 1 as const, tags: ["ctx"] };
+  it("uses the defaults when the text has no tokens", () => {
+    expect(withDefaults(parseQuickAdd("write essay", NOW), ctx)).toEqual({ schedule: ctx.schedule, priority: 1, tags: ["ctx"], recurrence: null });
+  });
+  it("lets an explicit date, priority and recurrence win; tags merge", () => {
+    const r = withDefaults(parseQuickAdd("write essay tomorrow !high #school", NOW), ctx);
+    expect(r.schedule).toEqual({ kind: "day", date: "2026-10-26" });
+    expect(r.priority).toBe(3);
+    expect(r.tags).toEqual(["ctx", "school"]);
+  });
+  it("keeps the context date for a repeat with no date of its own", () => {
+    const r = withDefaults(parseQuickAdd("water plants every day", NOW), ctx);
+    expect(r.schedule).toEqual(ctx.schedule);
+    expect(r.recurrence).toEqual({ rule: "FREQ=DAILY", exdates: [] });
+  });
+  it("a repeat with no date and no context starts today", () => {
+    expect(withDefaults(parseQuickAdd("water plants every day", NOW), {}).schedule).toEqual({ kind: "day", date: "2026-10-25" });
   });
 });

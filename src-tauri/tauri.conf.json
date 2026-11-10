@@ -27,7 +27,7 @@
         "title": "Momentum Quick Add",
         "url": "index.html?window=quickadd",
         "width": 620,
-        "height": 170,
+        "height": 160,
         "resizable": false,
         "decorations": false,
         "alwaysOnTop": true,

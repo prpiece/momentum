@@ -12,11 +12,12 @@ import { loadActivity } from "../../db/repo";
 import { importImage, MAX_IMAGE_BYTES, newImageName, writeImage } from "../../lib/appFiles";
 import { scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
 import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type Activity, type Task } from "../../domain/types";
-import { addTask, depthOf, duplicateTask, ensureTags, reorderTask, uid, updateTask, useData } from "../../stores/data";
+import { depthOf, duplicateTask, ensureTags, reorderTask, uid, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { closeDrawer, openTask, toast, useUi } from "../../stores/ui";
 import { deleteTasks, editTask, setWontDo, toggleDone } from "./actions";
 import { NoteMarkdown } from "./NoteMarkdown";
+import { InlineAdd } from "./InlineAdd";
 import { ScheduleEditor } from "./ScheduleEditor";
 import { useDerived } from "./selectors";
 
@@ -356,7 +357,6 @@ function Description({ task }: { task: Task }) {
 function Subtasks({ task }: { task: Task }) {
   const derived = useDerived();
   const kids = derived.childrenOf(task.id);
-  const [draft, setDraft] = useState("");
   const canNest = depthOf(task.id) < MAX_SUBTASK_DEPTH;
   return (
     <section>
@@ -377,19 +377,7 @@ function Subtasks({ task }: { task: Task }) {
         ))}
       </Reorderable>
       {canNest ? (
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && draft.trim()) {
-              addTask({ title: draft.trim(), parentId: task.id, listId: task.listId }, "bottom");
-              setDraft("");
-            }
-          }}
-          placeholder="+ Add subtask"
-          aria-label="Add subtask"
-          className={addField}
-        />
+        <InlineAdd defaults={{ parentId: task.id, listId: task.listId }} position="bottom" placeholder="+ Add subtask" label="Add subtask" className={addField} />
       ) : (
         <p className="mt-1 pl-0.5 text-[length:var(--fs-xs)] text-muted">Subtasks can nest up to {MAX_SUBTASK_DEPTH} levels.</p>
       )}
