@@ -75,3 +75,35 @@ export const ON_LIGHT = "#15161a";
 export function accentForeground(accent: string): string {
   return contrast(accent, ON_DARK) >= contrast(accent, ON_LIGHT) ? ON_DARK : ON_LIGHT;
 }
+
+export type Hsv = { h: number; s: number; v: number };
+
+/** h in 0-360, s and v in 0-1. */
+export function hexToHsv(hex: string): Hsv {
+  const [r, g, b] = channels(hex).map((c) => c / 255);
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  let h = 0;
+  if (d > 0) h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: h * 60, s: max === 0 ? 0 : d / max, v: max };
+}
+
+export function hsvToHex({ h, s, v }: Hsv): string {
+  const f = (n: number) => {
+    const k = (n + h / 60) % 6;
+    return Math.round((v - v * s * Math.max(0, Math.min(k, 4 - k, 1))) * 255);
+  };
+  return "#" + [f(5), f(3), f(1)].map((c) => c.toString(16).padStart(2, "0")).join("");
+}
+
+/** A quadrant colour: an accent preset id, or a custom lowercase #rrggbb (D216). */
+export type QuadrantColor = AccentId | `#${string}`;
+
+export function parseQuadrantColor(v: unknown): QuadrantColor | null {
+  return parseAccent(v) ?? (isHex(v) ? (v.toLowerCase() as QuadrantColor) : null);
+}
+
+/** The colour to draw: a custom hex as is, a preset per theme. */
+export function quadrantHex(c: QuadrantColor, theme: Theme): string {
+  return isHex(c) ? c : accentHex(c as AccentId, theme);
+}
