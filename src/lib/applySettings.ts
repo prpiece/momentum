@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { accentHex } from "../domain/color";
+import { quadrantHex } from "../domain/color";
 import { parseSettings } from "../domain/settings";
 import type { Settings } from "../domain/types";
 import { useSettings } from "../stores/settings";
@@ -15,7 +15,7 @@ export function apply(s: Appearance) {
   root.dataset.theme = theme;
   // A picked quadrant colour replaces the theme default with that preset's colour for this theme (D85, D198).
   s.matrixColors.forEach((c, i) => {
-    if (c) root.style.setProperty(QUADRANT_PROPS[i], accentHex(c, theme));
+    if (c) root.style.setProperty(QUADRANT_PROPS[i], quadrantHex(c, theme));
     else root.style.removeProperty(QUADRANT_PROPS[i]);
   });
   root.dataset.density = s.density;

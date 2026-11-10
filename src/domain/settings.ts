@@ -1,4 +1,4 @@
-import { parseAccent } from "./color";
+import { parseAccent, parseQuadrantColor } from "./color";
 import { FEATURES, type GettingStarted } from "./features";
 import {
   BAR_POSITIONS,
@@ -182,9 +182,9 @@ function parseMatrix(raw: unknown): Settings["matrix"] {
   return { importantPriorities: valid ? prios : d.importantPriorities, urgentDays: days };
 }
 
-/** Anything but an accent preset (or null) falls back to the theme default for that quadrant. */
+/** Anything but an accent preset, a #rrggbb (or null) falls back to the theme default for that quadrant. */
 function parseMatrixColors(raw: unknown): Settings["matrixColors"] {
-  const at = (i: number) => parseAccent(Array.isArray(raw) ? raw[i] : null);
+  const at = (i: number) => parseQuadrantColor(Array.isArray(raw) ? raw[i] : null);
   return [at(0), at(1), at(2), at(3)];
 }
 

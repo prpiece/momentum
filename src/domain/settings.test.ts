@@ -19,8 +19,8 @@ describe("parseSettings", () => {
     expect(s.sidebarSide).toBe("right");
   });
 
-  it("keeps only preset quadrant colours", () => {
-    expect(parseSettings({ matrixColors: ["#2F6FED", "red", 3, "graphite"] }).matrixColors).toEqual(["ocean", null, null, "graphite"]);
+  it("keeps preset and valid hex quadrant colours", () => {
+    expect(parseSettings({ matrixColors: ["#2F6FED", "red", "#ABCDEF", "graphite"] }).matrixColors).toEqual(["ocean", null, "#abcdef", "graphite"]);
     expect(parseSettings({ matrixColors: "nope" }).matrixColors).toEqual([null, null, null, null]);
   });
 

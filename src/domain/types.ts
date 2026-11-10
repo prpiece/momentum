@@ -1,4 +1,4 @@
-import type { AccentId } from "./color";
+import type { AccentId, QuadrantColor } from "./color";
 import type { GettingStarted } from "./features";
 
 /** Local calendar date, `YYYY-MM-DD`. Never converted to an instant. */
@@ -216,7 +216,7 @@ export type SoundSettings = {
 /** How many focus phases a pomodoro session runs: until stopped, or exactly `count` (D75). */
 export type Cycles = { kind: "infinite" } | { kind: "finite"; count: number };
 
-export type QuadrantColors = [AccentId | null, AccentId | null, AccentId | null, AccentId | null];
+export type QuadrantColors = [QuadrantColor | null, QuadrantColor | null, QuadrantColor | null, QuadrantColor | null];
 
 export type Settings = {
   theme: (typeof THEMES)[number];
