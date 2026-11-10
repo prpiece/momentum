@@ -48,13 +48,14 @@ describe("parseSettings", () => {
     expect(parseSettings({ zoom: 1, fontSize: "xxl" }).scale).toBe(1.3);
     expect(parseSettings({ zoom: 1.1, fontSize: "lg" }).scale).toBe(1.2);
     expect(parseSettings({ zoom: 0.9, fontSize: "sm" }).scale).toBe(0.85);
-    expect(parseSettings({ zoom: 3, fontSize: "xxl" }).scale).toBe(1.5);
+    expect(parseSettings({ zoom: 3, fontSize: "xxl" }).scale).toBe(1.75);
     expect(parseSettings({ fontSize: "bogus", zoom: "x" }).scale).toBe(1);
     expect(parseSettings({ scale: 1.5, zoom: 0.8 }).scale).toBe(1.5);
   });
 
-  it("clamps a saved scale to 0.8-1.5 in 0.05 steps", () => {
-    expect(parseSettings({ scale: 2 }).scale).toBe(1.5);
+  it("clamps a saved scale to 0.8-1.75 in 0.05 steps", () => {
+    expect(parseSettings({ scale: 2 }).scale).toBe(1.75);
+    expect(parseSettings({ scale: 1.75 }).scale).toBe(1.75);
     expect(parseSettings({ scale: 0.1 }).scale).toBe(0.8);
     expect(parseSettings({ scale: 1.17 }).scale).toBe(1.15);
     expect(parseSettings({ scale: 1.1500000000000001 }).scale).toBe(1.15);

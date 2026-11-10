@@ -171,7 +171,7 @@ export const DENSITIES = ["comfortable", "compact"] as const;
 export const MOTIONS = ["system", "on", "off"] as const;
 /** Scale (D202, D211): one factor for the whole window, applied as the webview zoom; any value from MIN to MAX in STEPs. */
 export const SCALE_MIN = 0.8;
-export const SCALE_MAX = 1.5;
+export const SCALE_MAX = 1.75; // v1.0.1 offered up to 175%; a lower max would shrink those users on update.
 export const SCALE_STEP = 0.05;
 export const SIDES = ["left", "right"] as const;
 /** Where a task opens (D215): the side panel, or a window centred over the app. */
