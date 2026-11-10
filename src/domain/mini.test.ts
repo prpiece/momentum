@@ -29,12 +29,12 @@ describe("buildSnapshot", () => {
     expect(s.matrix.map((q) => q.count)).toEqual([1, 1, 1, 1]); // a | c | b (overdue, low) | d
   });
 
-  it("caps Today at 5 and each quadrant's titles at 3", () => {
+  it("caps Today at 5 but lists every task in a quadrant", () => {
     const many = Array.from({ length: 8 }, (_, i) => vm(`x${i}`, 3, day(TODAY)));
     const s = snap(many);
     expect(s.tasks).toHaveLength(5);
     expect(s.matrix[0].count).toBe(8);
-    expect(s.matrix[0].top).toHaveLength(3);
+    expect(s.matrix[0].top).toHaveLength(8);
   });
 
   it("shows only the focused task while the timer runs on an open task", () => {
@@ -70,7 +70,9 @@ describe("parsers", () => {
   it("accepts valid actions", () => {
     expect(parseMiniAction({ type: "toggle", id: "a", key: null })).toEqual({ type: "toggle", id: "a", key: null });
     expect(parseMiniAction({ type: "open", id: "a", key: "k" })).toEqual({ type: "open", id: "a", key: "k" });
-    expect(parseMiniAction({ type: "focus", op: "start", taskId: null, minutes: 45 })).toEqual({ type: "focus", op: "start", taskId: null, minutes: 45 });
+    expect(parseMiniAction({ type: "focus", op: "start", taskId: null, minutes: 45 })).toEqual({ type: "focus", op: "start", mode: "pomodoro", taskId: null, minutes: 45 });
+    expect(parseMiniAction({ type: "focus", op: "start", mode: "stopwatch", taskId: null, minutes: 25 })).toMatchObject({ mode: "stopwatch" });
+    expect(parseMiniAction({ type: "focus", op: "start", mode: "x", taskId: null, minutes: 25 })).toBeNull();
     expect(parseMiniAction({ type: "focus", op: "skip" })).toEqual({ type: "focus", op: "skip" });
   });
   it("rejects malformed actions and snapshots", () => {

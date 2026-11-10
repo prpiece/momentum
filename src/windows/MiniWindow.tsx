@@ -1,6 +1,6 @@
 import { Check, Minus, Pause, Play, Plus, SkipForward, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { formatClock } from "../domain/focus";
+import { formatClock, type FocusMode } from "../domain/focus";
 import { QUADRANT_INFO, QUADRANT_VAR, QUADRANTS } from "../domain/matrix";
 import { miniClockMs, parseMiniSnapshot, stepMinutes, type MiniAction, type MiniSnapshot, type MiniTask } from "../domain/mini";
 import { apply, readAppearance } from "../lib/applySettings";
@@ -167,17 +167,26 @@ function FocusTab({ snap, now }: { snap: MiniSnapshot; now: number }) {
   // The length chosen here; the main window stores it as the focus length when Start arrives (D33).
   const [chosen, setChosen] = useState<number | null>(null);
   const minutes = chosen ?? snap.focusMin;
+  const [mode, setMode] = useState<FocusMode>("pomodoro");
   const active = t.status === "running" || t.status === "paused";
   const startTask = snap.tasks[0] ?? null;
   return (
     <div className="flex flex-col items-center gap-3 px-2 py-4">
       <p className="t-label text-muted">{active ? (t.mode === "stopwatch" ? "Stopwatch" : PHASE[t.phase]) : t.status === "done" ? "Session done" : "Ready"}</p>
       <p className="t-timer text-[length:var(--fs-timer-sm)] leading-[var(--lh-timer-sm)]" aria-live="off">
-        {formatClock(active ? miniClockMs(t, snap.at, now) : minutes * 60_000)}
+        {formatClock(active ? miniClockMs(t, snap.at, now) : mode === "stopwatch" ? 0 : minutes * 60_000)}
       </p>
       <p className="max-w-full truncate text-[length:var(--fs-sm)] text-fg-2">{snap.focusing ? (snap.tasks.length > 1 ? `${snap.tasks.length} subtasks` : snap.tasks[0].title) : !active && startTask ? `On: ${startTask.title}` : " "}</p>
       {!active && (
         <div className="flex flex-col items-center gap-2">
+          <div role="radiogroup" aria-label="Timer mode" className="seg">
+            {(["pomodoro", "stopwatch"] as const).map((m) => (
+              <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`seg-item ${mode === m ? "is-on" : ""}`}>
+                {m === "pomodoro" ? "Timer" : "Stopwatch"}
+              </button>
+            ))}
+          </div>
+          {mode === "pomodoro" && (<>
           <div className="flex items-center gap-1">
             <button type="button" aria-label="5 minutes shorter" onClick={() => setChosen(stepMinutes(minutes, -1))} className="btn btn-ghost btn-sm icon-btn">
               <Minus size={14} strokeWidth={1.75} />
@@ -194,6 +203,7 @@ function FocusTab({ snap, now }: { snap: MiniSnapshot; now: number }) {
               </button>
             ))}
           </div>
+          </>)}
         </div>
       )}
       <div className="flex gap-2">
@@ -210,7 +220,7 @@ function FocusTab({ snap, now }: { snap: MiniSnapshot; now: number }) {
           </>
         ) : (
           <button type="button" className="btn btn-primary h-9 px-6" onClick={() => {
-              void send({ type: "focus", op: "start", taskId: startTask?.id ?? null, minutes });
+              void send({ type: "focus", op: "start", mode, taskId: startTask?.id ?? null, minutes });
               setChosen(null);
             }}>
             <Play size={16} strokeWidth={1.75} />
@@ -224,7 +234,7 @@ function FocusTab({ snap, now }: { snap: MiniSnapshot; now: number }) {
 
 function MatrixTab({ snap }: { snap: MiniSnapshot }) {
   return (
-    <div className="grid h-full min-h-48 grid-cols-2 gap-1.5">
+    <div className="grid h-full min-h-48 grid-cols-2 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-1.5">
       {QUADRANTS.map((q) => {
         const { count, top } = snap.matrix[q - 1];
         return (
@@ -234,7 +244,7 @@ function MatrixTab({ snap }: { snap: MiniSnapshot }) {
               <span className="min-w-0 flex-1 truncate">{QUADRANT_INFO[q].title}</span>
               <span className="tabular-nums text-muted">{count}</span>
             </h3>
-            <ul className="mt-0.5 min-h-0 space-y-0.5">
+            <ul className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto" tabIndex={0} aria-label={`${QUADRANT_INFO[q].title} tasks`}>
               {top.map((t: MiniTask) => (
                 <li key={t.id} className="flex items-center gap-1 rounded-control px-0.5 hover:bg-surface-2">
                   <DoneBox t={t} small />
