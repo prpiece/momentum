@@ -78,85 +78,81 @@ export function TrophyShelf() {
     [tasks, checkins, sessions, restDays],
   );
   return (
-    // Five trophies: 2, 3 or 5 across by the shelf's own width, never 4 + 1 alone (D218).
-    <div className="@container">
-      <ul className="grid grid-cols-1 gap-3 @min-[26rem]:grid-cols-2 @min-[42rem]:grid-cols-3 @min-[62rem]:grid-cols-5">
-        {TROPHIES.map((t) => {
-          const count = counts[t.id];
-          const level = levelOf(t, count);
-          const top = level === t.levels.length;
-          const prev = level > 0 ? t.levels[level - 1] : 0;
-          const next = top ? prev : t.levels[level];
-          const pct = top
-            ? 100
-            : Math.min(100, ((count - prev) / (next - prev)) * 100);
-          const shown = Math.floor(count);
-          return (
-            <li
-              key={t.id}
-              className="flex flex-col gap-2.5 rounded-card border border-border bg-surface p-3"
-            >
-              <div className="flex items-center gap-3">
-                <Medal level={level} icon={ICON[t.id]} size={48} />
-                <div className="min-w-0">
-                  <p className="truncate text-[length:var(--fs-sm)] font-semibold">
-                    {t.name}
-                  </p>
-                  <p className="text-[length:var(--fs-xs)] text-muted">
-                    {level
-                      ? `${LEVEL_LOOKS[level - 1].name} · level ${level}`
-                      : "Not started"}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <div
-                  className="bar"
-                  role="progressbar"
-                  aria-label={`${t.name} progress`}
-                  aria-valuenow={shown}
-                  aria-valuemin={prev}
-                  aria-valuemax={next}
-                >
-                  <span
-                    style={
-                      {
-                        width: `${pct}%`,
-                        ...(level
-                          ? { "--c": LEVEL_LOOKS[level - 1].metal }
-                          : {}),
-                      } as CSSProperties
-                    }
-                  />
-                </div>
-                <p className="mt-1 tabular-nums text-[length:var(--fs-xs)] text-muted">
-                  {top
-                    ? `${shown} ${t.unit} · top level`
-                    : `${shown} / ${next} ${t.unit}`}
+    // Wrapping row whose last line stretches to fill: five trophies never leave an empty slot (D218).
+    <ul className="flex flex-wrap gap-3">
+      {TROPHIES.map((t) => {
+        const count = counts[t.id];
+        const level = levelOf(t, count);
+        const top = level === t.levels.length;
+        const prev = level > 0 ? t.levels[level - 1] : 0;
+        const next = top ? prev : t.levels[level];
+        const pct = top
+          ? 100
+          : Math.min(100, ((count - prev) / (next - prev)) * 100);
+        const shown = Math.floor(count);
+        return (
+          <li
+            key={t.id}
+            className="flex flex-[1_1_10.5rem] flex-col gap-2.5 rounded-card border border-border bg-surface p-3"
+          >
+            <div className="flex items-center gap-3">
+              <Medal level={level} icon={ICON[t.id]} size={48} />
+              <div className="min-w-0">
+                <p className="truncate text-[length:var(--fs-sm)] font-semibold">
+                  {t.name}
+                </p>
+                <p className="text-[length:var(--fs-xs)] text-muted">
+                  {level
+                    ? `${LEVEL_LOOKS[level - 1].name} · level ${level}`
+                    : "Not started"}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-1" aria-label="Levels">
-                {t.levels.map((l, i) => (
-                  <span
-                    key={l}
-                    title={`${LEVEL_LOOKS[i].name}: ${l} ${t.unit}`}
-                    className="h-1 w-3 rounded-[2px]"
-                    style={
-                      i < level
-                        ? { background: LEVEL_LOOKS[i].metal }
-                        : i === level
-                          ? {
-                              boxShadow: `inset 0 0 0 1px ${LEVEL_LOOKS[i].metal}`,
-                            }
-                          : { background: "var(--surface-2)" }
-                    }
-                  />
-                ))}
+            </div>
+            <div>
+              <div
+                className="bar"
+                role="progressbar"
+                aria-label={`${t.name} progress`}
+                aria-valuenow={shown}
+                aria-valuemin={prev}
+                aria-valuemax={next}
+              >
+                <span
+                  style={
+                    {
+                      width: `${pct}%`,
+                      ...(level ? { "--c": LEVEL_LOOKS[level - 1].metal } : {}),
+                    } as CSSProperties
+                  }
+                />
               </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+              <p className="mt-1 tabular-nums text-[length:var(--fs-xs)] text-muted">
+                {top
+                  ? `${shown} ${t.unit} · top level`
+                  : `${shown} / ${next} ${t.unit}`}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1" aria-label="Levels">
+              {t.levels.map((l, i) => (
+                <span
+                  key={l}
+                  title={`${LEVEL_LOOKS[i].name}: ${l} ${t.unit}`}
+                  className="h-1 w-3 rounded-[2px]"
+                  style={
+                    i < level
+                      ? { background: LEVEL_LOOKS[i].metal }
+                      : i === level
+                        ? {
+                            boxShadow: `inset 0 0 0 1px ${LEVEL_LOOKS[i].metal}`,
+                          }
+                        : { background: "var(--surface-2)" }
+                  }
+                />
+              ))}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
