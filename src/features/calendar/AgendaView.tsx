@@ -1,11 +1,8 @@
 import { format } from "date-fns";
-import { Repeat } from "lucide-react";
-import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { itemsOnDay, type CalItem } from "../../domain/calendar";
-import { formatTime, fromLocalDate, relativeDayLabel, todayLocal } from "../../domain/dates";
+import { fromLocalDate, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { useSettings } from "../../stores/settings";
-import { toggleDone } from "../tasks/actions";
-import { onItemMenu, openItem } from "./Blocks";
+import { AgendaRow } from "./AgendaRow";
 
 /** Upcoming 30 days as a list, grouped by day; empty days are skipped. */
 export function AgendaView({ days, items }: { days: string[]; items: CalItem[] }) {
@@ -24,18 +21,7 @@ export function AgendaView({ days, items }: { days: string[]; items: CalItem[] }
           <ul className="min-w-0 flex-1 space-y-1">
             {g.items.map((i) => (
               <li key={i.uid}>
-                <div role="button" tabIndex={0} onClick={() => openItem(i)} onContextMenu={onItemMenu(i)} onKeyDown={(e) => e.key === "Enter" && openItem(i)} className="flex items-center gap-3 rounded-control px-2 py-1.5 hover:bg-surface-2">
-                  <span className="w-28 shrink-0 tabular-nums text-[length:var(--fs-sm)] text-muted">
-                    {i.allDay || !i.start || !i.end ? "All day" : `${formatTime(i.start, timeFormat)} – ${formatTime(i.end, timeFormat)}`}
-                  </span>
-                  {i.source === "task" ? (
-                    <TaskCheckbox status={i.done ? "done" : "open"} priority={i.priority} onToggle={() => toggleDone(i.id, i.key)} label={`Complete ${i.title}`} size={16} />
-                  ) : (
-                    <span className="size-3 shrink-0 rounded-[4px]" style={{ background: i.color }} />
-                  )}
-                  <span className={`min-w-0 flex-1 truncate ${i.done ? "text-muted line-through" : ""}`}>{i.title}</span>
-                  {i.recurring && <Repeat size={16} strokeWidth={1.75} className="text-muted" />}
-                </div>
+                <AgendaRow item={i} timeFormat={timeFormat} />
               </li>
             ))}
           </ul>

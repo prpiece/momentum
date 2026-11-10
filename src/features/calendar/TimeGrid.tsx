@@ -47,10 +47,10 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
   const byDay = useMemo(() => days.map((d) => ({ day: d, placed: layoutDay(items, d), allDay: itemsOnDay(items, d).filter((i) => i.allDay) })), [days, items]);
   const cols = `3.5rem repeat(${days.length}, minmax(0, 1fr))`;
 
-  // One day: a readable column (not a page-wide slab), with a left-aligned date header (PLAN D209).
+  // One day: a left-aligned date header; the Day view puts the brief beside the grid (PLAN D209).
   const single = days.length === 1;
   return (
-    <div className={`flex min-h-0 flex-1 flex-col ${single ? "mx-auto w-full max-w-[44rem] border-x border-border" : ""}`}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="grid border-b border-border pr-2" style={{ gridTemplateColumns: cols }}>
         <div />
         {days.map((d) => {
@@ -204,7 +204,7 @@ function DayColumn(props: {
 }
 
 /** Re-render once a minute (moves the now-line). */
-function useMinuteTick(active: boolean) {
+export function useMinuteTick(active: boolean) {
   const [, setT] = useState(0);
   useEffect(() => {
     if (!active) return;

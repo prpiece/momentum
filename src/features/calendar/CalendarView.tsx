@@ -11,6 +11,7 @@ import { useViewKeys } from "../../lib/shortcuts";
 import { useSettings } from "../../stores/settings";
 import { setCalAnchor, setCalSpan, useUi } from "../../stores/ui";
 import { AgendaView } from "./AgendaView";
+import { DayBrief } from "./DayBrief";
 import { MonthView } from "./MonthView";
 import { SidePanel } from "./SidePanel";
 import { TimeGrid } from "./TimeGrid";
@@ -173,6 +174,12 @@ export function CalendarView() {
           <MonthView days={days} anchor={anchor} items={items} weekStart={settings.weekStart} onViewDay={openDay} />
         ) : view === "agenda" ? (
           <AgendaView days={days} items={items} />
+        ) : view === "day" ? (
+          // Grid plus the Day brief, or the grid up to the Arrange panel: both sides filled, never a centred island (D209).
+          <div className="flex min-h-0 flex-1">
+            <TimeGrid days={days} items={items} onViewDay={openDay} />
+            {!cal.arrangeOpen && <DayBrief day={days[0]} items={items} />}
+          </div>
         ) : (
           <TimeGrid days={days} items={items} onViewDay={openDay} />
         )}

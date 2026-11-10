@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarItems, dayRange, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, rangeTitle, resizedSchedule, snap, stepAnchor, viewDays, type CalItem } from "./calendar";
+import { calendarItems, dayRange, daySummary, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, rangeTitle, resizedSchedule, snap, stepAnchor, viewDays, type CalItem } from "./calendar";
 import { atLocalTime, timed, wallKey } from "./dates";
 import { toVM, type TaskVM } from "./taskViews";
 import type { CalendarEvent, Schedule, Task } from "./types";
@@ -209,5 +209,41 @@ describe("drop and resize math", () => {
   it("resizes on DST days by wall clock", () => {
     const s = timed(atLocalTime("2026-03-08", "01:00"), 60);
     expect(key(resizedSchedule(s, "end", 4 * 60, "2026-03-08"))).toBe("2026-03-08T01:00..2026-03-08T04:00");
+  });
+});
+
+describe("daySummary", () => {
+  const item = (p: Partial<CalItem>): CalItem => ({
+    uid: Math.random().toString(36), source: "event", id: "e", key: null, title: "E", allDay: false,
+    startDate: "2026-10-26", endDate: "2026-10-26", start: null, end: null, color: "#000", done: false, recurring: false, readOnly: false, priority: 0, ...p,
+  });
+  const at = (h: number, m = 0) => new Date(2026, 9, 26, h, m);
+
+  it("splits all-day from timed, counts scheduled minutes and finds the next open item", () => {
+    const items = [
+      item({ allDay: true, title: "Holiday" }),
+      item({ title: "Gym", start: at(7), end: at(8) }),
+      item({ title: "Call", start: at(13), end: at(13, 30), source: "task" }),
+      item({ title: "Done", start: at(15), end: at(16), source: "task", done: true }),
+      item({ title: "Habit", allDay: true, source: "habit" }),
+    ];
+    const s = daySummary(items, "2026-10-26", at(9));
+    expect(s.allDay.map((i) => i.title)).toEqual(["Habit", "Holiday"]);
+    expect(s.timed.map((i) => i.title)).toEqual(["Gym", "Call", "Done"]);
+    expect(s.scheduledMinutes).toBe(150);
+    expect(s.next?.title).toBe("Call");
+    expect(s.now).toBeNull();
+  });
+
+  it("reports the item in progress, and no next item on another day", () => {
+    const items = [item({ title: "Gym", start: at(7), end: at(8) })];
+    expect(daySummary(items, "2026-10-26", at(7, 30)).now?.title).toBe("Gym");
+    expect(daySummary(items, "2026-10-26", new Date(2026, 9, 25, 9)).next?.title).toBe("Gym");
+    expect(daySummary(items, "2026-10-26", new Date(2026, 9, 27, 9)).next).toBeNull();
+  });
+
+  it("only counts the part of an overnight item inside the day", () => {
+    const items = [item({ title: "Flight", startDate: "2026-10-25", start: new Date(2026, 9, 25, 23), end: at(1) })];
+    expect(daySummary(items, "2026-10-26", at(9)).scheduledMinutes).toBe(60);
   });
 });

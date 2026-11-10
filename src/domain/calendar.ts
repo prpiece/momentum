@@ -171,6 +171,22 @@ export function minutesInDay(d: Date, day: LocalDate): number {
   return d.getHours() * 60 + d.getMinutes();
 }
 
+export type DaySummary = { allDay: CalItem[]; timed: CalItem[]; scheduledMinutes: number; now: CalItem | null; next: CalItem | null };
+
+/** The Day view's brief (D209): the day's items split, time booked inside the day, and what's on now / next. */
+export function daySummary(items: readonly CalItem[], day: LocalDate, now: Date): DaySummary {
+  const on = itemsOnDay(items, day);
+  const timed = on.filter((i) => !i.allDay && i.start && i.end);
+  const open = timed.filter((i) => !i.done);
+  return {
+    allDay: on.filter((i) => i.allDay),
+    timed,
+    scheduledMinutes: timed.reduce((m, i) => m + minutesInDay(i.end!, day) - minutesInDay(i.start!, day), 0),
+    now: open.find((i) => i.start! <= now && i.end! > now) ?? null,
+    next: open.find((i) => i.start! > now) ?? null,
+  };
+}
+
 export type Placed = { item: CalItem; top: number; bottom: number; col: number; cols: number };
 
 /**
