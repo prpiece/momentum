@@ -86,7 +86,7 @@ function NavItem(props: {
   side: Side;
   count?: number;
   onClick?: () => void;
-  /** A shortcut shown in the count slot. */
+  /** A shortcut shown in the count slot, as quiet text (D210). */
   hint?: string;
   /** Live content in the count slot (e.g. the running focus timer). */
   badge?: ReactNode;
@@ -111,7 +111,7 @@ function NavItem(props: {
         <span className="ni-icon">{props.icon}</span>
         <span className="ni-label">{props.label}</span>
         {!props.collapsed && props.badge}
-        {!props.collapsed && props.hint && <kbd className="kbd">{props.hint}</kbd>}
+        {!props.collapsed && props.hint && <span className="ni-n">{props.hint}</span>}
         {!props.collapsed && props.count ? (
           <span key={props.count} className={`ni-n anim-count ${props.menu ? "group-hover/nav:opacity-0" : ""}`}>
             {props.count}
@@ -293,13 +293,20 @@ export function Sidebar() {
 
   return (
     <aside aria-label="Navigation" className={`flex shrink-0 flex-col gap-3 px-2 py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease-out)] ${collapsed ? "w-14" : "w-[var(--sidebar)]"}`}>
-      {/* Top and bottom blocks mirror each other: two 32px rows, a hairline toward the lists (D202). */}
-      <div className="flex flex-col gap-px">
-        <div data-tauri-drag-region className={`flex h-8 select-none items-center ${collapsed ? "justify-center" : "pl-2"}`}>
-          <div className="pointer-events-none flex items-center gap-2">
-            <Logo size={22} />
-            {!collapsed && <span className="font-semibold">Momentum</span>}
+      {/* The header is the logo, the wordmark and the collapse toggle; a hairline separates the lists (D202, D210). */}
+      <div className="flex flex-col gap-1">
+        <div data-tauri-drag-region className={`flex select-none items-center ${collapsed ? "flex-col gap-2" : "h-11 justify-between pl-2"}`}>
+          <div className="pointer-events-none flex items-center gap-2.5">
+            <Logo size={30} />
+            {!collapsed && <span className="text-[length:var(--fs-lg)] font-semibold tracking-tight">Momentum</span>}
           </div>
+          {!narrow && (
+            <Tip label={`${collapsed ? "Expand" : "Collapse"} sidebar (${keyLabel("[")})`} side={side === "left" ? "right" : "left"}>
+              <button type="button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => update({ sidebarCollapsed: !collapsed })} className="btn btn-ghost icon-btn size-8 text-muted">
+                <Toggle size={16} strokeWidth={1.75} />
+              </button>
+            </Tip>
+          )}
         </div>
         <ul data-tour="search">
           <NavItem id="search" label="Search" icon={icon(Search)} collapsed={collapsed} side={side} onClick={() => setPalette(true)} hint={keyLabel("Ctrl K")} />
@@ -371,7 +378,6 @@ export function Sidebar() {
 
       <ul data-tour="settings" className="space-y-px">
         <NavItem id={SETTINGS_NAV.id} label={SETTINGS_NAV.label} icon={icon(SETTINGS_NAV.icon)} collapsed={collapsed} side={side} />
-        {!narrow && <NavItem id="collapse" label={collapsed ? "Expand sidebar" : "Collapse sidebar"} icon={icon(Toggle)} collapsed={collapsed} side={side} onClick={() => update({ sidebarCollapsed: !collapsed })} />}
       </ul>
       {editList && <ListDialog list={editList} onClose={() => setEditList(null)} />}
     </aside>

@@ -89,7 +89,10 @@ export default function App() {
   const side = useSettings((s) => s.settings.sidebarSide);
   const layout = useSettings((s) => s.settings.layout);
   const barPosition = useSettings((s) => s.settings.barPosition);
+  const barStyle = useSettings((s) => s.settings.barStyle);
   const topBar = layout === "bar" && barPosition === "top";
+  // A floating bar leaves the window controls to the page header (D210).
+  const controlsInBar = topBar && barStyle === "flat";
   const view = useUi((s) => s.view);
   const lists = useData((s) => s.lists);
   const tags = useData((s) => s.tags);
@@ -102,16 +105,16 @@ export default function App() {
       {/* Below 720px the sidebar or bar hides and the phone bar sits under the content (D200). */}
       <div className="flex h-full flex-col">
       <div className={`relative isolate flex min-h-0 flex-1 ${layout === "bar" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
-        <div className="contents max-[719px]:hidden">{layout === "sidebar" ? <Sidebar /> : topBar && <NavBar position="top" />}</div>
-        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface border-border max-[719px]:border-0 ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : topBar ? "border-t" : "border-b"}`}>
-          <Header view={view} spec={spec} controls={topBar ? "phone" : "always"} />
+        <div className="contents max-[719px]:hidden">{layout === "sidebar" ? <Sidebar /> : topBar && <NavBar position="top" style={barStyle} />}</div>
+        <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface border-border max-[719px]:border-0 ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : barStyle === "floating" ? "" : topBar ? "border-t" : "border-b"}`}>
+          <Header view={view} spec={spec} controls={controlsInBar ? "phone" : "always"} />
           <div key={view} className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
             <View view={view} spec={spec} />
           </div>
           {/* Below the toolbar, so the window controls stay reachable while a task is open. */}
           <TaskDrawer />
         </main>
-        <div className="contents max-[719px]:hidden">{layout === "bar" && !topBar && <NavBar position="bottom" />}</div>
+        <div className="contents max-[719px]:hidden">{layout === "bar" && !topBar && <NavBar position="bottom" style={barStyle} />}</div>
       </div>
       <div className="min-[720px]:hidden">
         <PhoneBar />

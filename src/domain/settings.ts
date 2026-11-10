@@ -2,6 +2,7 @@ import { parseAccent, parseQuadrantColor } from "./color";
 import { FEATURES, type GettingStarted } from "./features";
 import {
   BAR_POSITIONS,
+  BAR_STYLES,
   CAL_VIEWS,
   type Cycles,
   COLOR_BYS,
@@ -16,7 +17,9 @@ import {
   SIDES,
   SMART_LISTS,
   SOUNDS,
-  SCALES,
+  SCALE_MAX,
+  SCALE_MIN,
+  SCALE_STEP,
   SORT_BYS,
   THEMES,
   TIME_FORMATS,
@@ -36,6 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   scale: 1,
   layout: "sidebar",
   barPosition: "top",
+  barStyle: "flat",
   sidebarSide: "left",
   sidebarCollapsed: false,
   defaultView: "today",
@@ -241,25 +245,31 @@ function parseGettingStarted(raw: unknown, onboarded: boolean): GettingStarted {
 }
 
 /** Before D114 there were four layouts: classic and flat had a sidebar, topbar and dock a bar. */
-function parseLayout(layout: unknown, barPosition: unknown): Pick<Settings, "layout" | "barPosition"> {
-  if (layout === "classic" || layout === "flat") return { layout: "sidebar", barPosition: DEFAULT_SETTINGS.barPosition };
-  if (layout === "topbar") return { layout: "bar", barPosition: "top" };
-  if (layout === "dock") return { layout: "bar", barPosition: "bottom" };
+function parseLayout(layout: unknown, barPosition: unknown, barStyle: unknown): Pick<Settings, "layout" | "barPosition" | "barStyle"> {
+  const style = oneOf(BAR_STYLES, barStyle) ? barStyle : DEFAULT_SETTINGS.barStyle;
+  if (layout === "classic" || layout === "flat") return { layout: "sidebar", barPosition: DEFAULT_SETTINGS.barPosition, barStyle: style };
+  if (layout === "topbar") return { layout: "bar", barPosition: "top", barStyle: style };
+  if (layout === "dock") return { layout: "bar", barPosition: "bottom", barStyle: style };
   return {
     layout: oneOf(LAYOUTS, layout) ? layout : DEFAULT_SETTINGS.layout,
     barPosition: oneOf(BAR_POSITIONS, barPosition) ? barPosition : DEFAULT_SETTINGS.barPosition,
+    barStyle: style,
   };
 }
 
 /** Text-size steps from before Scale (D202), as the factor on a 16px root. */
 const LEGACY_TEXT: Record<string, number> = { sm: 15 / 16, md: 1, lg: 17.5 / 16, xl: 19 / 16, xxl: 21 / 16 };
 
-/** Before Scale there were two settings, `zoom` and `fontSize`. Their product, snapped to the nearest step, keeps the old look. */
+/** Clamps to the Scale range and snaps to its step (rounded to dodge float noise such as 1.1500000000000001). */
+export function clampScale(v: number): number {
+  return Number((Math.round(Math.min(SCALE_MAX, Math.max(SCALE_MIN, v)) / SCALE_STEP) * SCALE_STEP).toFixed(2));
+}
+
+/** Before Scale there were two settings, `zoom` and `fontSize`. Their product, clamped to the range, keeps the old look. */
 function parseScale(r: Record<string, unknown>): Settings["scale"] {
-  if (oneOf(SCALES, r.scale)) return r.scale;
+  if (typeof r.scale === "number" && Number.isFinite(r.scale)) return clampScale(r.scale);
   const zoom = typeof r.zoom === "number" && r.zoom >= 0.5 && r.zoom <= 3 ? r.zoom : 1;
-  const want = zoom * (typeof r.fontSize === "string" ? (LEGACY_TEXT[r.fontSize] ?? 1) : 1);
-  return SCALES.reduce((best, s) => (Math.abs(s - want) < Math.abs(best - want) ? s : best));
+  return clampScale(zoom * (typeof r.fontSize === "string" ? (LEGACY_TEXT[r.fontSize] ?? 1) : 1));
 }
 
 const accelerator = (v: unknown, fallback: string) => (typeof v === "string" && /^[\w+]+$/.test(v) ? v : fallback);
@@ -275,7 +285,7 @@ export function parseSettings(raw: unknown): Settings {
     density: oneOf(DENSITIES, r.density) ? r.density : d.density,
     motion: oneOf(MOTIONS, r.motion) ? r.motion : d.motion,
     scale: parseScale(r),
-    ...parseLayout(r.layout, r.barPosition),
+    ...parseLayout(r.layout, r.barPosition, r.barStyle),
     sidebarSide: oneOf(SIDES, r.sidebarSide) ? r.sidebarSide : d.sidebarSide,
     sidebarCollapsed: typeof r.sidebarCollapsed === "boolean" ? r.sidebarCollapsed : d.sidebarCollapsed,
     defaultView: ((v) => (isViewId(v) ? v : d.defaultView))(renamed(r.defaultView)),

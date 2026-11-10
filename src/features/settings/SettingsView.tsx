@@ -15,7 +15,7 @@ import { HelpSection } from "../help/HelpSection";
 import { HELP_SECTION_ID } from "../help/featureIcons";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENTS, type AccentId } from "../../domain/color";
-import { SCALES, type Settings, type ViewId } from "../../domain/types";
+import { SCALE_MAX, SCALE_MIN, SCALE_STEP, type Settings, type ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
 import { hydrate } from "../../stores/data";
 import { hydrateFocus, saveSessions } from "../../stores/focus";
@@ -281,8 +281,8 @@ export function SettingsView() {
         <Row label="Accent">
           <AccentPicker value={s.accent} onChange={set("accent")} />
         </Row>
-        <div className="space-y-2">
-          <span className="font-medium">Layout</span>
+        <div className="space-y-3">
+          <span className="block font-medium">Layout</span>
           <LayoutPicker />
         </div>
         {s.layout === "sidebar" && (
@@ -324,13 +324,22 @@ export function SettingsView() {
             ]}
           />
         </Row>
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-            <span className="font-medium">Scale</span>
-            <span className="text-[length:var(--fs-xs)] text-muted">{keyLabel("Ctrl + / Ctrl − / Ctrl 0")}</span>
+        <Row label="Scale">
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={SCALE_MIN}
+              max={SCALE_MAX}
+              step={SCALE_STEP}
+              value={s.scale}
+              aria-label="Scale"
+              aria-valuetext={`${Math.round(s.scale * 100)}%`}
+              onChange={(e) => set("scale")(Number(e.target.value))}
+              className="w-48 accent-[var(--accent)]"
+            />
+            <span className="w-10 text-right tabular-nums">{Math.round(s.scale * 100)}%</span>
           </div>
-          <Segmented name="scale" label="Scale" value={s.scale} onChange={set("scale")} options={SCALES.map((z) => ({ value: z, label: `${Math.round(z * 100)}%` }))} />
-        </div>
+        </Row>
       </Card>
     ),
     "settings-notifications": (
