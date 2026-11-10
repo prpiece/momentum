@@ -71,7 +71,7 @@ jobs:
           | **macOS, Intel** | `Momentum___VERSION___x64.dmg` |
           | **Linux** | `.AppImage`, `.deb` or `.rpm` |
 
-          The installers aren't code-signed yet. On Windows, if SmartScreen says "Windows protected your PC", click **More info → Run anyway**. On macOS the app is signed ad hoc but not notarized: right-click it and choose **Open** the first time, or if it says "damaged", run `xattr -cr /Applications/Momentum.app` once.
+          The installers aren't code-signed yet. On Windows, if SmartScreen says "Windows protected your PC", click **More info → Run anyway**. On macOS the app isn't notarized yet, so the first launch says Apple can't verify it: open it once and click **Done**, then go to **System Settings → Privacy & Security** and click **Open Anyway** next to Momentum. If there's no such button, run `xattr -dr com.apple.quarantine /Applications/Momentum.app` in Terminal and open it again. Updates from inside the app skip this.
           BODY_EOF
           python3 - "$version" <<'PY'
           import os, sys
