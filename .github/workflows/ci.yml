@@ -45,6 +45,10 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          # sherpa-onnx-sys downloads its library here, outside what rust-cache keeps; without it a
+          # restored build-script output points at a missing library ("could not find sherpa-onnx-c-api").
+          cache-directories: src-tauri/target/sherpa-onnx-prebuilt
+          prefix-key: v1-rust
 
       - run: npm ci
       - run: npm test
