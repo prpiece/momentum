@@ -7,7 +7,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { PageHead } from "../../components/ui/PageHead";
 import { ToolbarActions } from "../../components/ui/Toolbar";
 import { addDaysLocal, fromLocalDate, todayLocal } from "../../domain/dates";
-import { currentStreak, frequencyLabel, isDone, isScheduled, type Habit } from "../../domain/habits";
+import { currentStreak, frequencyLabel, isBuild, isDone, isScheduled, type Habit } from "../../domain/habits";
 import { onDrop } from "../../lib/dnd";
 import { removeGroup, reorderHabit, updateHabit, useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
@@ -213,7 +213,7 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
         </div>
         <div className="mt-1.5 flex gap-2" aria-hidden="true">
           {props.week.map((d) => (
-            <span key={d} title={cellTitle(h, d, values.get(d))} className="size-3 rounded-full border-[1.5px] border-border-strong" style={{ background: cellFill(h, values.get(d), isScheduled(h, d)), borderColor: values.get(d) ? "transparent" : undefined }} />
+            <span key={d} title={cellTitle(h, d, values.get(d))} className="size-3 rounded-full border-[1.5px] border-border-strong" style={{ background: cellFill(h, values.get(d), isScheduled(h, d)), borderColor: values.get(d) || !isBuild(h) ? "transparent" : undefined }} />
           ))}
         </div>
       </div>

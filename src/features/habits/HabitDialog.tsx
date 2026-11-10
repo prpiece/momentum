@@ -3,11 +3,18 @@ import { Check, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button, Dialog } from "../../components/ui/Dialog";
 import { ACCENT_PRESETS } from "../../domain/color";
-import type { Habit, HabitFrequency, HabitGoal } from "../../domain/habits";
+import { isBuild, type Habit, type HabitFrequency, type HabitGoal } from "../../domain/habits";
 import { addGroup, addHabit, updateHabit, useHabits } from "../../stores/habits";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const field = "input";
+const KINDS = [
+  ["build", "Build a habit", { kind: "once" }],
+  ["limit", "Limit something", { kind: "limit", cap: 5, unit: "minutes" }],
+  ["quit", "Quit something", { kind: "quit" }],
+] as const satisfies readonly (readonly [string, string, HabitGoal])[];
+const LIMIT_UNITS = ["times", "minutes", "hours"];
+const PLACEHOLDER = { build: "e.g. Drink water", limit: "e.g. Instagram", quit: "e.g. Smoking" };
 
 export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => void }) {
   const groupMap = useHabits((s) => s.groups);
@@ -21,10 +28,18 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
   const [groupId, setGroupId] = useState<string | null>(habit?.groupId ?? null);
   const [newGroup, setNewGroup] = useState("");
 
+  const build = isBuild({ goal });
+  const kind = goal.kind === "limit" || goal.kind === "quit" ? goal.kind : "build";
+  const pickKind = (k: (typeof KINDS)[number]) => {
+    if (k[0] === kind) return;
+    setGoal(k[2]);
+    if (k[0] !== "build" && freq.kind === "perWeek") setFreq({ kind: "daily" }); // avoid-habits have no weekly target
+  };
+
   const save = () => {
     if (!name.trim()) return;
     const gid = newGroup.trim() ? addGroup(newGroup.trim()).id : groupId;
-    const data = { name: name.trim(), icon, color, goal, frequency: freq, reminders, groupId: gid };
+    const data = { name: name.trim(), icon, color, goal, frequency: freq, reminders: build ? reminders : [], groupId: gid };
     if (habit) updateHabit(habit.id, data);
     else addHabit(data);
     onClose();
@@ -42,7 +57,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
         <h2 className="text-lg font-semibold">{habit ? "Edit habit" : "New habit"}</h2>
         <div className="input-wrap h-[var(--control-lg)]">
           <AppIcon name={icon} size={20} color={color} />
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Drink water" aria-label="Name" />
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={PLACEHOLDER[kind]} aria-label="Name" />
         </div>
 
         <IconPicker value={icon} onChange={(k) => k && setIcon(k)} color={color} />
@@ -55,6 +70,39 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
           ))}
         </div>
 
+        <fieldset>
+          <legend className="mb-1.5 t-label text-muted">Type</legend>
+          <div className="flex gap-1.5">
+            {KINDS.map((k) => (
+              <button key={k[0]} type="button" aria-pressed={kind === k[0]} onClick={() => pickKind(k)} className={`h-8 flex-1 rounded-control text-xs ${kind === k[0] ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}>
+                {k[1]}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        {goal.kind === "limit" && (
+          <fieldset className="space-y-2">
+            <legend className="mb-1.5 t-label text-muted">Daily limit</legend>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              At most
+              <input type="number" min={0} step="any" value={goal.cap} onChange={(e) => setGoal({ ...goal, cap: Math.max(0, Number(e.target.value) || 0) })} aria-label="Daily limit" className={`${field} w-20`} />
+              <input value={goal.unit} onChange={(e) => setGoal({ ...goal, unit: e.target.value.slice(0, 20) })} placeholder="unit" aria-label="Unit" className={`${field} w-28`} />
+              a day
+            </div>
+            <div className="flex gap-1.5" role="group" aria-label="Common units">
+              {LIMIT_UNITS.map((u) => (
+                <button key={u} type="button" aria-pressed={goal.unit === u} onClick={() => setGoal({ ...goal, unit: u })} className={`h-7 rounded-control px-3 text-xs ${goal.unit === u ? "bg-accent-soft font-semibold text-fg" : "bg-surface-2 text-fg-2"}`}>
+                  {u}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted">Log what you use each day. Days you log nothing count as success.</p>
+          </fieldset>
+        )}
+        {goal.kind === "quit" && <p className="text-xs text-muted">Every day counts as a win until you log a slip.</p>}
+
+        {build && (
         <fieldset className="space-y-2">
           <legend className="mb-1.5 t-label text-muted">Goal</legend>
           <div className="flex gap-1.5">
@@ -69,14 +117,14 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
                 key={k}
                 type="button"
                 aria-pressed={goal.kind === k}
-                onClick={() => setGoal(k === "once" ? { kind: "once" } : { kind: k, target: goal.kind === "once" ? (k === "count" ? 8 : 5) : goal.target, unit: goal.kind === "once" ? (k === "count" ? "times" : "km") : goal.unit })}
+                onClick={() => setGoal(k === "once" ? { kind: "once" } : { kind: k, target: goal.kind === "count" || goal.kind === "amount" ? goal.target : k === "count" ? 8 : 5, unit: goal.kind === "count" || goal.kind === "amount" ? goal.unit : k === "count" ? "times" : "km" })}
                 className={`h-8 flex-1 rounded-control text-xs ${goal.kind === k ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
               >
                 {label}
               </button>
             ))}
           </div>
-          {goal.kind !== "once" && (
+          {(goal.kind === "count" || goal.kind === "amount") && (
             <div className="flex items-center gap-2 text-sm">
               Target
               <input type="number" min={0.1} step="any" value={goal.target} onChange={(e) => setGoal({ ...goal, target: Math.max(0.1, Number(e.target.value) || 1) })} aria-label="Target" className={`${field} w-20`} />
@@ -85,6 +133,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
             </div>
           )}
         </fieldset>
+        )}
 
         <fieldset className="space-y-2">
           <legend className="mb-1.5 t-label text-muted">Frequency</legend>
@@ -95,7 +144,9 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
                 ["weekdays", "Specific days"],
                 ["perWeek", "Times per week"],
               ] as const
-            ).map(([k, label]) => (
+            )
+              .filter(([k]) => build || k !== "perWeek")
+              .map(([k, label]) => (
               <button
                 key={k}
                 type="button"
@@ -134,6 +185,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
           )}
         </fieldset>
 
+        {build && (
         <fieldset>
           <legend className="mb-1.5 t-label text-muted">Reminders</legend>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -148,6 +200,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
             <input type="time" aria-label="Add reminder time" onChange={(e) => e.target.value && !reminders.includes(e.target.value) && setReminders([...reminders, e.target.value].sort())} className={`${field} h-8`} />
           </div>
         </fieldset>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 text-sm">
           Group

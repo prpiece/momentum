@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal } from "./dates";
-import { bestStreak, completionRate, currentStreak, frequencyLabel, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal } from "./habits";
+import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal } from "./habits";
 
 // 2026-10-25 is a Sunday. Weeks start Monday (weekStart = 1).
 const TODAY = "2026-10-25";
@@ -88,4 +88,43 @@ describe("frequencyLabel", () => {
     expect(frequencyLabel({ kind: "weekdays", days: [1, 2, 3, 4, 5] })).toBe("Weekdays");
     expect(frequencyLabel({ kind: "perWeek", count: 3 })).toBe("3× a week");
   });
+});
+
+describe("limit habits", () => {
+  const h = habit({ kind: "daily" }, { kind: "limit", cap: 5, unit: "min" });
+  it("succeeds at or under the cap, fails over it", () => {
+    expect(isDone(h, undefined)).toBe(true);
+    expect(isDone(h, 5)).toBe(true);
+    expect(isDone(h, 6)).toBe(false);
+  });
+  it("counts unlogged days as success and breaks on an over day", () => {
+    const m = new Map([[addDaysLocal(TODAY, -2), 9]]);
+    expect(currentStreak(h, m, TODAY, WS).count).toBe(2); // yesterday and today
+    expect(bestStreak(h, m, TODAY, WS).count).toBe(52); // 1 Sep .. the day before the over day
+  });
+  it("an over-limit today breaks the streak straight away", () => {
+    expect(currentStreak(h, new Map([[TODAY, 9]]), TODAY, WS).count).toBe(0);
+  });
+  it("completion rate includes today once it has failed", () => {
+    expect(completionRate(h, new Map([[TODAY, 9]]), addDaysLocal(TODAY, -3), TODAY, TODAY, WS)).toBe(0.75);
+    expect(completionRate(h, new Map(), addDaysLocal(TODAY, -3), TODAY, TODAY, WS)).toBe(1);
+  });
+});
+
+describe("quit habits", () => {
+  const h = habit({ kind: "daily" }, { kind: "quit" });
+  it("a slip fails the day", () => {
+    expect(isDone(h, undefined)).toBe(true);
+    expect(isDone(h, 1)).toBe(false);
+  });
+  it("streak counts days since the last slip", () => {
+    const m = new Map([[addDaysLocal(TODAY, -3), 1]]);
+    expect(currentStreak(h, m, TODAY, WS).count).toBe(3);
+  });
+});
+
+it("goalLabel describes each kind", () => {
+  expect(goalLabel({ kind: "limit", cap: 5, unit: "min" })).toBe("max 5 min a day");
+  expect(goalLabel({ kind: "quit" })).toBe("none");
+  expect(goalLabel({ kind: "once" })).toBe("");
 });

@@ -4,15 +4,19 @@ import { useMemo, useState } from "react";
 import { viewDays } from "../../domain/calendar";
 import { accentForeground } from "../../domain/color";
 import { addDaysLocal, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
-import { bestStreak, completionRate, currentStreak, frequencyLabel, isScheduled, targetOf, type CheckinMap, type Habit } from "../../domain/habits";
+import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isBuild, isDone, isScheduled, targetOf, unitOf, type CheckinMap, type Habit } from "../../domain/habits";
 import type { WeekStart } from "../../domain/types";
 import { useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { MoodFace } from "./NoteButton";
 import { IconTile } from "../../components/ui/AppIcon";
 
-/** Sequential single-hue fill: none → partial → done (habit color mixed into the surface). */
+/**
+ * Day fill. Build habits: none, partial, done (habit color mixed into the surface).
+ * Limit/quit: the habit color while the day is fine, danger once over the cap or slipped.
+ */
 export function cellFill(h: Habit, value: number | undefined, scheduled: boolean): string {
+  if (!isBuild(h)) return !scheduled && !value ? "transparent" : isDone(h, value) ? h.color : "var(--danger)";
   if (!value) return scheduled ? "var(--surface-2)" : "transparent";
   const ratio = Math.min(1, value / targetOf(h));
   return ratio >= 1 ? h.color : `color-mix(in oklch, ${h.color} ${Math.round(25 + ratio * 40)}%, var(--raised))`;
@@ -22,7 +26,8 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 export function cellTitle(h: Habit, date: string, value: number | undefined) {
   const d = format(fromLocalDate(date), "EEE, MMM d");
   if (h.goal.kind === "once") return `${d}: ${value ? "done" : "not done"}`;
-  return `${d}: ${fmt(value ?? 0)} / ${fmt(targetOf(h))} ${h.goal.unit}`;
+  if (h.goal.kind === "quit") return `${d}: ${value ? `${value} slip${value === 1 ? "" : "s"}` : "no slips"}`;
+  return `${d}: ${fmt(value ?? 0)} / ${fmt(targetOf(h))} ${unitOf(h)}`.trimEnd();
 }
 
 export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => void }) {
@@ -51,7 +56,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
           <h2 className="truncate text-[length:var(--fs-lg)] font-semibold">{habit.name}</h2>
           <p className="text-xs text-muted">
             {frequencyLabel(habit.frequency)}
-            {habit.goal.kind !== "once" && ` · ${fmt(habit.goal.target)} ${habit.goal.unit} a day`}
+            {goalLabel(habit.goal) && ` · ${goalLabel(habit.goal)}`}
           </p>
         </div>
         <button type="button" onClick={onEdit} aria-label="Edit habit" className="btn btn-ghost icon-btn text-muted">
@@ -63,7 +68,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
         <Stat icon={<Flame size={15} className="text-streak" />} label="Current streak" value={cur.count} unit={`${cur.unit}${cur.count === 1 ? "" : "s"}`} />
         <Stat icon={<Trophy size={15} className="text-streak" />} label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
         <Stat label="Last 30 days" value={rate30 === null ? "–" : Math.round(rate30 * 100)} unit={rate30 === null ? "" : "%"} />
-        <Stat label="Check-ins" value={total} unit="total" />
+        <Stat label={habit.goal.kind === "quit" ? "Slips" : habit.goal.kind === "limit" ? "Days logged" : "Check-ins"} value={total} unit="total" />
       </div>
 
       <MonthGrid habit={habit} values={values} ws={ws} />
@@ -130,13 +135,14 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
         {days.map((d) => {
           const inMonth = fromLocalDate(d).getMonth() === m;
           const v = values.get(d);
-          const done = !!v && v >= targetOf(habit);
+          const fill = d > today ? "transparent" : cellFill(habit, v, isScheduled(habit, d));
+          const ink = fill === habit.color ? accentForeground(habit.color) : fill === "var(--danger)" ? "var(--danger-fg)" : "var(--fg-2)";
           return (
             <div
               key={d}
               title={cellTitle(habit, d, v)}
               className={`grid aspect-square place-items-center rounded-control tabular-nums text-xs ${inMonth ? "" : "opacity-30"} ${d === today ? "ring-2 ring-accent-text" : ""}`}
-              style={{ background: d > today ? "transparent" : cellFill(habit, v, isScheduled(habit, d)), color: done ? accentForeground(habit.color) : "var(--fg-2)" }}
+              style={{ background: fill, color: ink }}
             >
               {format(fromLocalDate(d), "d")}
             </div>
@@ -147,52 +153,48 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
   );
 }
 
-const CELL = 11;
-const GAP = 2;
-
-/** 53-week contribution-style heatmap ending this week. */
+/** 53-week contribution-style heatmap ending this week. Fluid like the Progress heatmap: HTML cells with CSS fills, no fixed pixel width. */
 function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws: WeekStart }) {
   const today = todayLocal();
   const firstWeek = toLocalDate(startOfWeek(fromLocalDate(addDaysLocal(today, -364)), { weekStartsOn: ws }));
   const weeks = Array.from({ length: 53 }, (_, w) => addDaysLocal(firstWeek, w * 7));
-  const width = weeks.length * (CELL + GAP);
-  const height = 7 * (CELL + GAP) + 14;
+  const quit = habit.goal.kind === "quit";
   return (
     <section>
       <h3 className="mb-2 t-label text-muted">Past year</h3>
-      <div className="overflow-x-auto">
-        <svg width={width} height={height} role="img" aria-label={`${habit.name}: daily check-ins over the past year`}>
-          {weeks.map((w, wi) => {
-            const d0 = fromLocalDate(w);
-            const showMonth = d0.getDate() <= 7;
-            return (
-              <g key={w} transform={`translate(${wi * (CELL + GAP)}, 0)`}>
-                {showMonth && (
-                  <text y={9} className="fill-[var(--muted)] text-[9px]">
-                    {format(d0, "MMM")}
-                  </text>
-                )}
-                {Array.from({ length: 7 }, (_, di) => {
-                  const d = addDaysLocal(w, di);
-                  if (d > today) return null;
-                  const v = values.get(d);
-                  return (
-                    <rect key={d} y={14 + di * (CELL + GAP)} width={CELL} height={CELL} rx={2.5} fill={cellFill(habit, v, isScheduled(habit, d))}>
-                      <title>{cellTitle(habit, d, v)}</title>
-                    </rect>
-                  );
-                })}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      <div className="mt-2 flex items-center gap-1.5 text-[length:var(--fs-xs)] text-muted">
-        Less
-        {[undefined, 0.3, 0.7, 1].map((r, i) => (
-          <span key={i} className="size-2.5 rounded-[3px]" style={{ background: cellFill(habit, r === undefined ? undefined : r * targetOf(habit), true) }} />
+      <div className="grid gap-[3px]" style={{ gridTemplateColumns: "repeat(53, minmax(0, 1fr))" }} role="img" aria-label={`${habit.name}: daily check-ins over the past year`}>
+        {weeks.map((w) => (
+          <div key={w} className="flex flex-col gap-[3px]">
+            <span className="h-4 whitespace-nowrap text-[length:var(--fs-xs)] leading-4 text-muted">{fromLocalDate(w).getDate() <= 7 ? format(fromLocalDate(w), "MMM") : ""}</span>
+            {Array.from({ length: 7 }, (_, di) => {
+              const d = addDaysLocal(w, di);
+              if (d > today) return <span key={d} className="aspect-square" />;
+              const v = values.get(d);
+              return <span key={d} title={cellTitle(habit, d, v)} className="aspect-square rounded-[2px]" style={{ background: cellFill(habit, v, isScheduled(habit, d)) }} />;
+            })}
+          </div>
         ))}
-        More
+      </div>
+      <div className="mt-2 flex items-center justify-end gap-1.5 text-[length:var(--fs-xs)] text-muted">
+        {isBuild(habit) ? (
+          <>
+            Less
+            {[undefined, 0.3, 0.7, 1].map((r, i) => (
+              <span key={i} className="size-2.5 rounded-[3px]" style={{ background: cellFill(habit, r === undefined ? undefined : r * targetOf(habit), true) }} />
+            ))}
+            More
+          </>
+        ) : (
+          [
+            [quit ? "No slip" : "Within limit", habit.color],
+            [quit ? "Slipped" : "Over", "var(--danger)"],
+          ].map(([label, bg], i) => (
+            <span key={label} className={`inline-flex items-center gap-1.5 ${i ? "ml-2" : ""}`}>
+              <span className="size-2.5 rounded-[3px]" style={{ background: bg }} />
+              {label}
+            </span>
+          ))
+        )}
       </div>
     </section>
   );

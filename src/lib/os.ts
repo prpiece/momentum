@@ -11,7 +11,7 @@ import { createFromText } from "../features/tasks/quickAddSubmit";
 import { accentForeground, accentHex, type AccentId } from "../domain/color";
 import { todayLocal } from "../domain/dates";
 import type { NotifySettings } from "../domain/types";
-import { isDone, targetOf } from "../domain/habits";
+import { isBuild, isDone, targetOf } from "../domain/habits";
 import { checkinOf, setCheckin, setCheckinHandler, useHabits } from "../stores/habits";
 import { buildSnapshot, parseMiniAction } from "../domain/mini";
 import { toggleDone } from "../features/tasks/actions";
@@ -47,7 +47,7 @@ export function handleReminderAction(a: ReminderAction) {
       // "Done" from a habit reminder means today's goal is met.
       const h = useHabits.getState().habits[t.id];
       const today = todayLocal();
-      if (h && !isDone(h, checkinOf(h.id, today)?.value)) setCheckin(h.id, today, { value: targetOf(h) });
+      if (h && isBuild(h) && !isDone(h, checkinOf(h.id, today)?.value)) setCheckin(h.id, today, { value: targetOf(h) });
     }
   }
   if (a.action === "open") {

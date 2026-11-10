@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { calendarItems, hashColor, type CalItem } from "../../domain/calendar";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { addDaysLocal, toLocalDate } from "../../domain/dates";
-import { isDone, isScheduled } from "../../domain/habits";
+import { isBuild, isDone, isScheduled } from "../../domain/habits";
 import { PRIORITY_VAR, type LocalDate, type Task } from "../../domain/types";
 import { useData } from "../../stores/data";
 import { useFocus } from "../../stores/focus";
@@ -36,7 +36,7 @@ export function useCalendarItems(from: LocalDate, to: LocalDate): CalItem[] {
     if (cal.showHabits) {
       // One read-only all-day marker per scheduled habit day (per-week habits: days actually done).
       for (const h of Object.values(habits)) {
-        if (h.archived) continue;
+        if (h.archived || !isBuild(h)) continue; // limit/quit habits have nothing to tick off
         for (let d = from; d <= to; d = addDaysLocal(d, 1)) {
           const done = isDone(h, checkins[h.id]?.[d]?.value);
           if (h.frequency.kind === "perWeek" ? !done : !isScheduled(h, d)) continue;
