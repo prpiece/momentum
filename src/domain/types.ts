@@ -105,7 +105,7 @@ export type Section = { id: string; listId: string; name: string; sortOrder: num
 export type Tag = { id: string; name: string; color: string | null };
 
 export type ActivityKind = "created" | "completed" | "reopened" | "wont_do" | "moved" | "scheduled" | "priority" | "renamed";
-export type Activity = { id: number; taskId: string; at: Instant; kind: ActivityKind; detail: string };
+export type Activity = { id: string; taskId: string; at: Instant; kind: ActivityKind; detail: string };
 
 // ---------- Calendar ----------
 

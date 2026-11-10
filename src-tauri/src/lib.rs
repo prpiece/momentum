@@ -70,6 +70,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0008_countdowns_to_events.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 9,
+            description: "sync outbox, state and triggers",
+            sql: include_str!("../migrations/0009_sync.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

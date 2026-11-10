@@ -190,8 +190,8 @@ const ACTIVITY_KINDS: readonly ActivityKind[] = [
   "renamed",
 ];
 export const parseActivity = (r: Row): Activity | null =>
-  typeof r.id === "number" && typeof r.task_id === "string" && isInstant(r.at) && oneOf(ACTIVITY_KINDS, r.kind)
-    ? { id: r.id, taskId: r.task_id, at: r.at, kind: r.kind, detail: str(r.detail) }
+  (typeof r.id === "string" || typeof r.id === "number") && typeof r.task_id === "string" && isInstant(r.at) && oneOf(ACTIVITY_KINDS, r.kind)
+    ? { id: String(r.id), taskId: r.task_id, at: r.at, kind: r.kind, detail: str(r.detail) }
     : null;
 
 export function parseEvent(r: Row): CalendarEvent | null {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, parseSettings } from "./settings";
+import { DEFAULT_SETTINGS, DEVICE_SETTING_KEYS, USER_SETTING_KEYS, parseSettings, userSettingsPatch, withRemoteSettings } from "./settings";
 import type { Settings } from "./types";
 
 describe("parseSettings", () => {
@@ -194,5 +194,26 @@ describe("parseSettings layout", () => {
   it("drops the retired background keys", () => {
     const s = parseSettings({ background: { kind: "gradient", id: "ocean" }, backgroundDim: 50, dockLabels: false });
     expect(s).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+describe("user and device settings (v1.1)", () => {
+  it("puts every setting in exactly one group", () => {
+    const all = [...USER_SETTING_KEYS, ...DEVICE_SETTING_KEYS];
+    expect(new Set(all).size).toBe(all.length);
+    expect([...all].sort()).toEqual(Object.keys(DEFAULT_SETTINGS).sort());
+  });
+
+  it("patches only changed user settings", () => {
+    const after = { ...DEFAULT_SETTINGS, theme: "dark" as const, scale: 1.25, calendar: { ...DEFAULT_SETTINGS.calendar } };
+    expect(userSettingsPatch(DEFAULT_SETTINGS, after)).toEqual({ theme: "dark" });
+  });
+
+  it("takes remote user settings but keeps device settings and validates values", () => {
+    const local = { ...DEFAULT_SETTINGS, scale: 1.25 };
+    const next = withRemoteSettings(local, { theme: "dark", scale: 2, weekStart: "nonsense" });
+    expect(next.theme).toBe("dark");
+    expect(next.scale).toBe(1.25);
+    expect(next.weekStart).toBe(DEFAULT_SETTINGS.weekStart);
   });
 });

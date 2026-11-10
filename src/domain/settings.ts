@@ -333,3 +333,28 @@ export function parseSettings(raw: unknown): Settings {
     pomodoro: parsePomodoro(r.pomodoro),
   };
 }
+
+/** Settings that follow the account to every device (v1.1 spec, "What syncs"). */
+export const USER_SETTING_KEYS = [
+  "theme", "accent", "taskOpen", "defaultView", "weekStart", "timeFormat", "smartParse", "showCompleted", "viewOptions",
+  "savedFilters", "calendar", "matrix", "matrixColors", "pomodoro", "sounds", "onboarded", "gettingStarted",
+] as const satisfies readonly (keyof Settings)[];
+
+/** Settings that stay on this device: hardware, window and OS integration, and the local background image. */
+export const DEVICE_SETTING_KEYS = [
+  "density", "motion", "scale", "layout", "barPosition", "barStyle", "background", "sidebarSide", "sidebarCollapsed",
+  "closeToTray", "launchAtStartup", "checkUpdates", "notify", "quickAddShortcut", "miniShortcut", "voiceShortcut", "voiceMic",
+] as const satisfies readonly (keyof Settings)[];
+
+/** The user settings that differ between two snapshots: the synced patch for a settings save. */
+export function userSettingsPatch(before: Settings, after: Settings): Partial<Settings> {
+  const patch: Record<string, unknown> = {};
+  for (const k of USER_SETTING_KEYS) if (JSON.stringify(before[k]) !== JSON.stringify(after[k])) patch[k] = after[k];
+  return patch as Partial<Settings>;
+}
+
+/** Applies another device's user settings; device settings and unknown keys are ignored, values are re-validated. */
+export function withRemoteSettings(local: Settings, remote: Record<string, unknown>): Settings {
+  const picked = Object.fromEntries(USER_SETTING_KEYS.filter((k) => k in remote).map((k) => [k, remote[k]]));
+  return parseSettings({ ...local, ...picked });
+}

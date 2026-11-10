@@ -64,7 +64,7 @@ export const logActivity = (taskId: string, kind: ActivityKind, detail = "") =>
   ]);
 
 export async function loadActivity(taskId: string): Promise<Activity[]> {
-  const rows = await select<Row>("SELECT * FROM task_activity WHERE task_id = $1 ORDER BY id DESC LIMIT 100", [taskId]);
+  const rows = await select<Row>("SELECT * FROM task_activity WHERE task_id = $1 ORDER BY at DESC LIMIT 100", [taskId]);
   return parseAll(rows, parseActivity);
 }
 
