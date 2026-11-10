@@ -161,7 +161,6 @@ export type ViewOptions = {
   sortBy: SortBy;
   /** On a list, "matrix" overrides the list's own layout and "list" means "use the list's layout" (D193). */
   mode: ViewMode;
-  showCompleted: boolean;
 };
 
 // ---------- Settings ----------
@@ -235,6 +234,8 @@ export type Settings = {
   timeFormat: (typeof TIME_FORMATS)[number];
   /** Natural-language parsing in quick add. */
   smartParse: boolean;
+  /** Task views list finished tasks too (D213). The calendar has its own `calendar.showCompleted`. */
+  showCompleted: boolean;
   viewOptions: Record<string, ViewOptions>;
   savedFilters: SavedFilter[];
   calendar: CalendarSettings;

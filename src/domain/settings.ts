@@ -42,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   weekStart: 1,
   timeFormat: "24h",
   smartParse: true,
+  showCompleted: true,
   viewOptions: {},
   savedFilters: [],
   calendar: {
@@ -87,9 +88,8 @@ export const DEFAULT_SETTINGS: Settings = {
 
 /** A view's options before the user changes any. Today and Upcoming hide finished tasks; lists show them in a Completed group. */
 export function defaultViewOptions(view: string): ViewOptions {
-  const smart = view === "today" || view === "upcoming";
   const ordered = view === "inbox" || view.startsWith("list:");
-  return { groupBy: view === "upcoming" ? "date" : "none", sortBy: ordered ? "manual" : "date", mode: "list", showCompleted: !smart };
+  return { groupBy: view === "upcoming" ? "date" : "none", sortBy: ordered ? "manual" : "date", mode: "list" };
 }
 
 export function oneOf<T>(allowed: readonly T[], v: unknown): v is T {
@@ -131,7 +131,6 @@ function parseViewOptions(raw: unknown): Settings["viewOptions"] {
       groupBy: oneOf(GROUP_BYS, v.groupBy) ? v.groupBy : d.groupBy,
       sortBy: oneOf(SORT_BYS, v.sortBy) ? v.sortBy : d.sortBy,
       mode: oneOf(VIEW_MODES, v.mode) ? v.mode : d.mode,
-      showCompleted: typeof v.showCompleted === "boolean" ? v.showCompleted : d.showCompleted,
     };
   }
   return out;
@@ -140,7 +139,6 @@ function parseViewOptions(raw: unknown): Settings["viewOptions"] {
 /** A start view on a retired page lands on Today, set up to show what that page showed. */
 function carryRetiredStartView(defaultView: unknown, options: Settings["viewOptions"]): Settings["viewOptions"] {
   const today = options.today ?? defaultViewOptions("today");
-  if (defaultView === "logbook" || defaultView === "completed" || defaultView === "wontdo") return { ...options, today: { ...today, showCompleted: true } };
   if (defaultView === "matrix") return { ...options, today: { ...today, mode: "matrix" } };
   return options;
 }
@@ -284,6 +282,7 @@ export function parseSettings(raw: unknown): Settings {
     weekStart: oneOf(WEEK_STARTS, r.weekStart) ? r.weekStart : d.weekStart,
     timeFormat: oneOf(TIME_FORMATS, r.timeFormat) ? r.timeFormat : d.timeFormat,
     smartParse: typeof r.smartParse === "boolean" ? r.smartParse : d.smartParse,
+    showCompleted: typeof r.showCompleted === "boolean" ? r.showCompleted : d.showCompleted,
     viewOptions: carryRetiredStartView(r.defaultView, parseViewOptions(r.viewOptions)),
     savedFilters: parseSavedFilters(r.savedFilters),
     calendar: parseCalendar(r.calendar),

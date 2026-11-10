@@ -242,6 +242,9 @@ export function SettingsView() {
         <Row label="Smart parsing in quick add">
           <Toggle checked={s.smartParse} onChange={(v) => update({ smartParse: v })} text="Detect dates, !priority, #tags, ~lists" />
         </Row>
+        <Row label="Completed tasks">
+          <Toggle checked={s.showCompleted} onChange={(v) => update({ showCompleted: v })} text="Show completed tasks" />
+        </Row>
         <Row label="Closing the window">
           <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text="Keep running in the tray" />
         </Row>
