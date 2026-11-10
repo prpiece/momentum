@@ -27,7 +27,7 @@ export function WhatsNew() {
   const title = many ? `${notes.length} updates you missed` : `What's new in Momentum ${version}`;
 
   return (
-    <Dialog label={title} onClose={close} width={tour ? "max-w-2xl" : "max-w-lg"}>
+    <Dialog label={title} onClose={close} modal width={tour ? "max-w-2xl" : "max-w-lg"}>
       <div className="p-6">
         <div className="mb-4 flex items-center gap-3">
           <span className="grid size-10 place-items-center rounded-full bg-accent-soft text-accent">
