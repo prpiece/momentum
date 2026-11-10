@@ -368,8 +368,8 @@ export async function initOs() {
       const t = useFocus.getState().timer.status;
       if ((t === "idle" || t === "done") && (a.taskId === null || known(a.taskId))) {
         const pomodoro = settings().pomodoro;
-        if (pomodoro.focusMin !== a.minutes) useSettings.getState().update({ pomodoro: { ...pomodoro, focusMin: a.minutes } });
-        startFocus("pomodoro", a.taskId);
+        if (a.mode === "pomodoro" && pomodoro.focusMin !== a.minutes) useSettings.getState().update({ pomodoro: { ...pomodoro, focusMin: a.minutes } });
+        startFocus(a.mode, a.taskId);
       }
     } else if (a.op === "pause") pauseFocus();
     else if (a.op === "resume") resumeFocus();

@@ -11,6 +11,7 @@ export type MiniTask = { id: string; key: string | null; title: string };
 export type MiniTimer =
   | { status: "idle" | "done" }
   | { status: "running" | "paused"; mode: FocusMode; phase: Phase; elapsedMs: number; remainingMs: number | null };
+/** Every open task in the quadrant; the mini window scrolls them. */
 export type MiniQuadrant = { count: number; top: MiniTask[] };
 export type MiniSnapshot = {
   /** Wall-clock ms the timer values were taken at; the mini window ticks from there. */
@@ -27,11 +28,10 @@ export type MiniSnapshot = {
 export type MiniAction =
   | { type: "toggle"; id: string; key: string | null }
   | { type: "open"; id: string; key: string | null }
-  | { type: "focus"; op: "start"; taskId: string | null; minutes: number }
+  | { type: "focus"; op: "start"; mode: FocusMode; taskId: string | null; minutes: number }
   | { type: "focus"; op: "pause" | "resume" | "skip" };
 
 export const MINI_TODAY_LIMIT = 5;
-export const MINI_MATRIX_TOP = 3;
 export const MINI_MIN_RANGE = { lo: 5, hi: 180 } as const;
 
 /** One 5-minute step up or down, landing on a multiple of 5 and staying in range. */
@@ -46,7 +46,7 @@ export function buildSnapshot(roots: readonly TaskVM[], byId: ReadonlyMap<string
   const open = roots.filter((v) => v.task.status === "open");
   const matrix: MiniQuadrant[] = QUADRANTS.map((q) => {
     const items = sortVMs(open.filter((v) => quadrantOf(v, today, rules) === q), "date");
-    return { count: items.length, top: items.slice(0, MINI_MATRIX_TOP).map(mini) };
+    return { count: items.length, top: items.map(mini) };
   });
   const active = timer.status === "running" || timer.status === "paused";
   const focused = active && timer.taskId ? byId.get(timer.taskId) : undefined;
@@ -75,8 +75,10 @@ export function parseMiniAction(raw: unknown): MiniAction | null {
   if (raw.op === "start") {
     const { lo, hi } = MINI_MIN_RANGE;
     const { minutes, taskId } = raw;
+    const mode = raw.mode === undefined ? "pomodoro" : raw.mode;
+    if (mode !== "pomodoro" && mode !== "stopwatch") return null;
     if (!num(minutes) || !Number.isInteger(minutes) || minutes < lo || minutes > hi) return null;
-    return taskId === null || str(taskId) ? { type: "focus", op: "start", taskId, minutes } : null;
+    return taskId === null || str(taskId) ? { type: "focus", op: "start", mode, taskId, minutes } : null;
   }
   return raw.op === "pause" || raw.op === "resume" || raw.op === "skip" ? { type: "focus", op: raw.op } : null;
 }
