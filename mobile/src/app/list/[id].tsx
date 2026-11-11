@@ -55,7 +55,7 @@ export default function ListScreen() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={<AddBox defaults={defaults} placeholder={`Add to ${title}`} />}
         ListEmptyComponent={<Empty text="No open tasks here." />}
-        renderItem={({ item }) => (item.kind === "header" ? <Label>{`    ${item.title}`}</Label> : <TaskRow vm={item.vm} depth={item.depth} showList={id === "upcoming"} />)}
+        renderItem={({ item }) => (item.kind === "header" ? <Label inset>{item.title}</Label> : <TaskRow vm={item.vm} depth={item.depth} showList={id === "upcoming"} />)}
       />
     </>
   );

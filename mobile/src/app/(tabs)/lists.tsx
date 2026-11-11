@@ -36,7 +36,7 @@ export default function Lists() {
       <NavRow icon="inbox" title="Inbox" detail={n(inbox)} onPress={() => open("inbox")} />
       <NavRow icon="calendar" title="Upcoming" detail={n(upcoming)} onPress={() => open("upcoming")} />
       <NavRow icon="search" title="Search" onPress={() => router.push("/search")} />
-      <Label>{"  "}Lists</Label>
+      <Label inset>Lists</Label>
       {userLists.map((l) => (
         <NavRow key={l.id} icon="hash" color={resolveColor(c, l.color, c.fg2)} title={l.folderId && folders[l.folderId] ? `${folders[l.folderId].name} / ${l.name}` : l.name} detail={n(counts.get(l.id) ?? 0)} onPress={() => open(l.id)} />
       ))}

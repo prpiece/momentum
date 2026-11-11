@@ -73,7 +73,7 @@ function EditEvent({ id, occurrence }: { id: string; occurrence: string | null }
       <Field value={title} editable={!readOnly} onChangeText={setTitle} onEndEditing={() => title.trim() && title !== e.title && updateEvent(id, { title: title.trim() })} style={{ fontSize: 20, fontWeight: "600" }} />
       {readOnly ? <Text style={{ color: c.muted, marginTop: 8 }}>Imported events are read-only.</Text> : null}
       <Label>When</Label>
-      <Text style={{ color: c.fg, fontSize: 16, marginBottom: 8 }}>{summarizeSchedule(schedule, e.recurrence?.rule ?? null)}</Text>
+      <Text style={{ color: c.fg, fontSize: 16, marginBottom: 8 }}>{summarizeSchedule(schedule, e.recurrence?.rule ?? null).replace(/\d\d:\d\d/, (t) => (schedule.kind === "timed" ? `${t} – ${hhmm(new Date(schedule.end))}` : t))}</Text>
       {!readOnly ? (
         <>
           <View style={s.row}>

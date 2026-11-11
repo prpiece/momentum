@@ -28,9 +28,10 @@ export function Field(props: ComponentProps<typeof TextInput>) {
   return <TextInput placeholderTextColor={c.muted} {...props} style={[s.field, { color: c.fg, backgroundColor: c.surface, borderColor: c.border }, props.style]} />;
 }
 
-export const Label = ({ children }: { children: ReactNode }) => {
+/** `inset` lines it up with full-width rows, which pad 16 themselves. */
+export const Label = ({ children, inset }: { children: ReactNode; inset?: boolean }) => {
   const c = useColors();
-  return <Text style={[s.label, { color: c.muted }]}>{children}</Text>;
+  return <Text style={[s.label, { color: c.muted }, inset && { paddingHorizontal: 16 }]}>{children}</Text>;
 };
 
 /** A tappable row with an icon, a title, optional detail on the right and a chevron. */

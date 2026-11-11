@@ -56,7 +56,11 @@ export default function Calendar() {
             <Icon name="chevron-left" color={c.fg} />
           </Pressable>
           <Text style={[s.navTitle, { color: c.fg }]} numberOfLines={1}>
-            {view === "3day" ? rangeTitle("5day", days, anchor) : rangeTitle(view, days, anchor)}
+            {view === "3day"
+              ? rangeTitle("5day", days, anchor)
+              : view === "day"
+                ? fromLocalDate(anchor).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+                : rangeTitle(view, days, anchor)}
           </Text>
           <Pressable onPress={() => setAnchor(today)} hitSlop={8} style={s.navButton}>
             <Text style={{ color: c.accentText, fontWeight: "600" }}>Today</Text>
