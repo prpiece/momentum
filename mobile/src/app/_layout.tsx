@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ready } from "@/boot";
+import { startReminders } from "@/notify";
 import { useColors } from "@/theme";
 import { PickerHost } from "@/ui/pickDate";
 import { ToastHost } from "@/ui/Toast";
@@ -14,6 +15,10 @@ export default function RootLayout() {
   useEffect(() => {
     ready.then(() => setState("ok"), (e: unknown) => setState(e instanceof Error ? e : new Error(String(e))));
   }, []);
+  // After the Stack mounts, so a tapped notification can navigate.
+  useEffect(() => {
+    if (state === "ok") return startReminders();
+  }, [state]);
 
   if (state !== "ok")
     return (

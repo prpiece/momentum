@@ -1,8 +1,6 @@
 import { select, write } from "../db/client";
 import type { Row } from "../db/rows";
-import { calendarItems } from "../domain/calendar";
-import { toLocalDate } from "../domain/dates";
-import { dedupeFires, digestBetween, remindersBetween, startsBetween, type Fire, type ReminderTarget } from "../domain/reminders";
+import { upcomingFires, type Fire, type ReminderTarget } from "../domain/reminders";
 import { derive } from "../domain/taskViews";
 import { useData } from "../stores/data";
 import { useHabits, valuesOf } from "../stores/habits";
@@ -52,20 +50,14 @@ export async function startReminders(notify: (r: ReminderDTO) => void) {
     const now = Date.now();
     const { tasks, lists, events } = useData.getState();
     const { habits, checkins } = useHabits.getState();
-    const { timeFormat, weekStart, notify: n } = useSettings.getState().settings;
     const from = new Date(last);
-    const to = new Date(now);
     last = now;
-    if (!n.enabled) return;
-    const active = derive(tasks, lists).active;
-    const startFrom = new Date(Math.max(from.getTime(), now - START_GRACE_MS));
-    const items = n.starts ? calendarItems({ tasks: active, events: Object.values(events), colorOf: () => "", showCompleted: false }, toLocalDate(startFrom), toLocalDate(to)) : [];
-    const wanted = (f: Fire) => (f.key.startsWith("habit:") ? n.habitReminders : n.taskReminders);
-    const due = dedupeFires([
-      ...remindersBetween(active, Object.values(habits), (id) => valuesOf(checkins[id]), from, to, timeFormat, weekStart).filter(wanted),
-      ...startsBetween(items, startFrom, to, timeFormat),
-      ...(n.digest ? digestBetween(active, n.digestTime, from, to) : []),
-    ]);
+    const due = upcomingFires(
+      { active: derive(tasks, lists).active, events: Object.values(events), habits: Object.values(habits), habitValues: (id) => valuesOf(checkins[id]), settings: useSettings.getState().settings },
+      from,
+      new Date(now),
+      new Date(Math.max(from.getTime(), now - START_GRACE_MS)),
+    );
     for (const f of due) {
       if (fired.has(f.key)) continue;
       fired.add(f.key);

@@ -2,30 +2,11 @@ import { Bell, CalendarDays, Clock, Plus, Repeat, X } from "lucide-react";
 import { useState } from "react";
 import { addDaysLocal, atLocalTime, durationMinutes, hhmm, scheduleDate, timed, todayLocal } from "../../domain/dates";
 import { describeRule, REPEAT_PRESETS } from "../../domain/recurrence";
+import { BEFORE_PRESETS, DAY_PRESETS, reminderLabel } from "../../domain/reminders";
 import type { Recurrence, Reminder, Schedule } from "../../domain/types";
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240];
-const BEFORE_PRESETS = [
-  { label: "At start", minutes: 0 },
-  { label: "5 min before", minutes: 5 },
-  { label: "15 min before", minutes: 15 },
-  { label: "30 min before", minutes: 30 },
-  { label: "1 hour before", minutes: 60 },
-  { label: "1 day before", minutes: 1440 },
-];
-const DAY_PRESETS: { label: string; daysBefore: number; time: string }[] = [
-  { label: "On the day, 9:00", daysBefore: 0, time: "09:00" },
-  { label: "Day before, 9:00", daysBefore: 1, time: "09:00" },
-  { label: "Day before, 18:00", daysBefore: 1, time: "18:00" },
-  { label: "2 days before, 9:00", daysBefore: 2, time: "09:00" },
-];
 const WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
-
-export function reminderLabel(r: Reminder): string {
-  if (r.kind === "before") return BEFORE_PRESETS.find((p) => p.minutes === r.minutes)?.label ?? `${r.minutes} min before`;
-  const when = r.daysBefore === 0 ? "On the day" : r.daysBefore === 1 ? "Day before" : `${r.daysBefore} days before`;
-  return `${when}, ${r.time}`;
-}
 
 const sameReminder = (a: Reminder, b: Reminder) => JSON.stringify(a) === JSON.stringify(b);
 const field = "input";

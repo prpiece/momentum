@@ -3,8 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { atLocalTime, durationMinutes, fromLocalDate, hhmm, scheduleDate, timed, toLocalDate } from "@core/domain/dates";
 import { REPEAT_PRESETS, summarizeSchedule } from "@core/domain/recurrence";
+import { BEFORE_PRESETS, DAY_PRESETS, reminderLabel } from "@core/domain/reminders";
 import { derive, sortVMs } from "@core/domain/taskViews";
-import { INBOX_ID, PRIORITY_LABEL, type Priority, type Schedule } from "@core/domain/types";
+import { INBOX_ID, PRIORITY_LABEL, type Priority, type Reminder, type Schedule } from "@core/domain/types";
 import { ensureTags, moveTasks, updateTask, useData } from "@core/stores/data";
 import { deleteTasks, editTask, toggleDone } from "@core/stores/taskActions";
 import { useColors } from "@/theme";
@@ -95,6 +96,28 @@ export default function TaskScreen() {
         }}
       />
 
+      <Label>Remind me</Label>
+      {schedule.kind === "none" ? (
+        <Text style={{ color: c.muted, fontSize: 15 }}>Set a date to add a reminder.</Text>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
+          {reminderChoices(schedule, t.reminders).map((r) => {
+            const on = t.reminders.some((x) => sameReminder(x, r));
+            return (
+              <Text
+                key={reminderLabel(r)}
+                onPress={() => updateTask(t.id, { reminders: on ? t.reminders.filter((x) => !sameReminder(x, r)) : [...t.reminders, r] })}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on }}
+                style={[s.chip, { backgroundColor: on ? c.accent : c.surface2, color: on ? c.accentFg : c.fg }]}
+              >
+                {reminderLabel(r)}
+              </Text>
+            );
+          })}
+        </ScrollView>
+      )}
+
       <Label>Priority</Label>
       <Segmented value={String(t.priority)} options={PRIORITIES} onChange={(p) => updateTask(t.id, { priority: Number(p) as Priority })} />
 
@@ -134,6 +157,13 @@ export default function TaskScreen() {
       <Button label="Delete task" icon="trash-2" kind="danger" onPress={async () => (await deleteTasks([t.id], occurrence)) && router.back()} />
     </ScrollView>
   );
+}
+
+const sameReminder = (a: Reminder, b: Reminder) => JSON.stringify(a) === JSON.stringify(b);
+/** The presets that fit the schedule, plus any other reminder the task already has (set on the computer). */
+function reminderChoices(schedule: Schedule, current: Reminder[]): Reminder[] {
+  const presets: Reminder[] = schedule.kind === "timed" ? BEFORE_PRESETS.map((p) => ({ kind: "before", minutes: p.minutes })) : DAY_PRESETS.map((p) => ({ kind: "dayOf", daysBefore: p.daysBefore, time: p.time }));
+  return [...presets, ...current.filter((r) => !presets.some((p) => sameReminder(p, r)))];
 }
 
 const s = StyleSheet.create({

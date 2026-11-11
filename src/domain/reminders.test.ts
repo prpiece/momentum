@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { atLocalTime, timed, wallKey } from "./dates";
 import type { Habit } from "./habits";
 import type { CalItem } from "./calendar";
-import { dedupeFires, digestBetween, reminderAt, remindersBetween, startsBetween } from "./reminders";
+import { DEFAULT_SETTINGS } from "./settings";
+import { dedupeFires, digestBetween, reminderAt, remindersBetween, startsBetween, upcomingFires } from "./reminders";
 import { toVM, type TaskVM } from "./taskViews";
 import type { Reminder, Schedule, Task } from "./types";
 
@@ -59,5 +60,23 @@ describe("reminders", () => {
     expect(f.body).toBe("1 due today · 1 overdue");
     expect(digestBetween([today], "09:30", ...win)).toHaveLength(0);
     expect(digestBetween([], "09:00", ...win)).toHaveLength(0);
+  });
+
+  it("gathers upcoming fires from every source, soonest first, honouring the settings", () => {
+    const a = vm(timed(atLocalTime("2026-10-26", "10:00"), 30), [{ kind: "before", minutes: 0 }], { id: "a" });
+    const b = vm({ kind: "day", date: "2026-10-25" }, [{ kind: "dayOf", daysBefore: 0, time: "08:00" }], { id: "b" });
+    const src = { active: [a, b], events: [], habits: [], habitValues: () => new Map(), settings: DEFAULT_SETTINGS };
+    const win = [atLocalTime("2026-10-25", "07:00"), atLocalTime("2026-11-01", "07:00")] as const;
+    const fires = upcomingFires(src, ...win);
+    // b's 08:00 reminder, the digests, then a's reminder (its start alert is deduplicated).
+    expect(fires.map((f) => f.at.getTime())).toEqual([...fires.map((f) => f.at.getTime())].sort((x, y) => x - y));
+    expect(fires[0].target).toEqual({ kind: "task", id: "b", occurrenceKey: null });
+    expect(fires.filter((f) => f.target.kind === "task" && f.target.id === "a")).toHaveLength(1);
+    // Worded for the moment it fires, even with a week-long window.
+    expect(fires.find((f) => f.target.kind === "task" && f.target.id === "a")?.body).toBe("Today at 10:00");
+    expect(fires[0].body).toBe("Due today");
+    const quiet = { ...DEFAULT_SETTINGS, notify: { ...DEFAULT_SETTINGS.notify, digest: false, starts: false, taskReminders: false } };
+    expect(upcomingFires({ ...src, settings: quiet }, ...win)).toHaveLength(0);
+    expect(upcomingFires({ ...src, settings: { ...DEFAULT_SETTINGS, notify: { ...DEFAULT_SETTINGS.notify, enabled: false } } }, ...win)).toHaveLength(0);
   });
 });
