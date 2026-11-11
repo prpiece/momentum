@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Link, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColors } from "@/theme";
 
@@ -8,7 +8,18 @@ export default function RootLayout() {
     <>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerStyle: { backgroundColor: c.bg }, headerTintColor: c.fg, contentStyle: { backgroundColor: c.bg } }}>
-        <Stack.Screen name="index" options={{ title: "Momentum" }} />
+        <Stack.Screen
+          name="index"
+          options={{
+            title: "Momentum",
+            headerRight: () => (
+              <Link href="/account" style={{ color: c.accent, fontSize: 16, padding: 8 }}>
+                Account
+              </Link>
+            ),
+          }}
+        />
+        <Stack.Screen name="account" options={{ title: "Account" }} />
       </Stack>
     </>
   );

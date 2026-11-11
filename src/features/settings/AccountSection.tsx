@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
-import { deviceId, enableSync, signInSituation, signOut, syncNow, useSync, wipeLocal, type SyncStatus } from "../../lib/sync/engine";
-import { supabase, syncConfigured } from "../../lib/sync/supabase";
+import { loadAccount, saveHandle, sendCode, statusText, verifyCode, type Device, type Profile } from "../../lib/sync/account";
+import { signOut, syncNow, useSync } from "../../lib/sync/engine";
+import { syncConfigured } from "../../lib/sync/supabase";
 import { SiteLink } from "./SiteLink";
 import { confirm, toast } from "../../stores/ui";
 
 const btn = "btn btn-secondary";
-const HANDLE = /^[a-z0-9_]{3,20}$/;
-
-type Profile = { handle: string | null; display_name: string | null };
-type Device = { id: string; platform: string | null; last_seen: string };
 
 /** Settings → Account (v1.1): email-code sign-in, handle, sync status, devices, sign-out. */
 export function AccountSection() {
@@ -26,36 +23,23 @@ function SignIn() {
 
   const send = async () => {
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
+    const error = await sendCode(email);
     setBusy(false);
-    if (error) return toast(`Couldn't send the code: ${error.message}`);
+    if (error) return toast(error);
     setSent(true);
   };
 
   const verify = async () => {
     setBusy(true);
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
-      if (error || !data.user) return toast(error ? `That code didn't work: ${error.message}` : "That code didn't work.");
-      const uid = data.user.id;
-      const situation = await signInSituation(uid);
-      if (situation === "otherAccount") {
-        const add = await confirm(
-          "Add this device's data to your account?",
-          "The data here belongs to another account. Add it to the account you're signing in to, or remove it from this device (a backup is kept).",
-          "Add it",
-        );
-        if (!add) await wipeLocal();
-      }
-      const { counts } = await enableSync(uid, situation === "resume" ? "resume" : "fresh");
-      const total = Object.values(counts).reduce((a, b) => a + (b ?? 0), 0);
-      toast(situation === "resume" ? "Signed in. Sync is back on." : `Signed in. Added ${counts.tasks ?? 0} tasks, ${counts.lists ?? 0} lists and ${counts.habits ?? 0} habits (${total} items) to your account.`);
-    } catch (err) {
-      console.error(err);
-      toast(`Sign-in failed: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setBusy(false);
-    }
+    const { message } = await verifyCode(email, code, () =>
+      confirm(
+        "Add this device's data to your account?",
+        "The data here belongs to another account. Add it to the account you're signing in to, or remove it from this device (a backup is kept).",
+        "Add it",
+      ),
+    );
+    setBusy(false);
+    toast(message);
   };
 
   return (
@@ -104,23 +88,6 @@ function SignIn() {
   );
 }
 
-function statusText(s: SyncStatus): string {
-  switch (s.kind) {
-    case "off":
-      return "Sync is off.";
-    case "syncing":
-      return "Syncing…";
-    case "offline":
-      return "Offline. Changes sync when you're back online.";
-    case "updateRequired":
-      return "Update Momentum to keep syncing. Everything still works on this device.";
-    case "error":
-      return `Sync failed: ${s.message}`;
-    case "idle":
-      return s.at ? `Synced at ${new Date(s.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : "Ready to sync.";
-  }
-}
-
 function SignedIn({ account }: { account: string }) {
   const status = useSync((s) => s.status);
   const issues = useSync((s) => s.issues);
@@ -134,29 +101,20 @@ function SignedIn({ account }: { account: string }) {
 
   useEffect(() => {
     let live = true;
-    void (async () => {
-      const [{ data: user }, { data: p }, { data: d }, id] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.from("profiles").select("handle, display_name").eq("id", account).maybeSingle(),
-        supabase.from("devices").select("id, platform, last_seen").order("last_seen", { ascending: false }),
-        deviceId(),
-      ]);
+    void loadAccount(account).then((a) => {
       if (!live) return;
-      setEmail(user.user?.email ?? null);
-      setProfile((p as Profile | null) ?? { handle: null, display_name: null });
-      setDevices((d as Device[] | null) ?? []);
-      setMe(id);
-    })();
+      setEmail(a.email);
+      setProfile(a.profile);
+      setDevices(a.devices);
+      setMe(a.me);
+    });
     return () => void (live = false);
   }, [account, status.kind]);
 
   const saveProfile = async () => {
-    const h = handle.trim().toLowerCase();
-    if (!HANDLE.test(h)) return toast(h.includes("@") ? "Leave out the @: use only letters, digits and _." : "A handle is 3–20 letters, digits or _.");
-    const row = { id: account, handle: h, display_name: name.trim() || h };
-    const { error } = await supabase.from("profiles").upsert(row);
-    if (error) return toast(/reserved/.test(error.message) ? "That handle is reserved." : /duplicate|unique/i.test(error.message) ? "That handle is taken." : error.message);
-    setProfile({ handle: row.handle, display_name: row.display_name });
+    const res = await saveHandle(account, handle, name);
+    if (!res.ok) return toast(res.message);
+    setProfile(res.profile);
   };
 
   const leave = async (how: "keep" | "remove") => {
