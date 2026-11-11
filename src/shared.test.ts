@@ -5,6 +5,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vitest";
+// @ts-expect-error: plain .mjs script, no types
+import { OUT, render } from "../scripts/mobile-migrations.mjs";
 
 const SHARED = ["src/domain", "src/db", "src/stores", "src/lib/sync"];
 /** Desktop-only: file dialogs and Rust commands (backup), the desktop UI state with Sonner and view transitions (ui). */
@@ -21,4 +23,8 @@ it("keeps shared code free of desktop-only imports and browser globals", () => {
       for (const re of FORBIDDEN) if (re.test(text)) offenders.push(`${file}: ${re}`);
     }
   expect(offenders).toEqual([]);
+});
+
+it("bundles the current migrations for the phone (run scripts/mobile-migrations.mjs)", () => {
+  expect(readFileSync(OUT, "utf8")).toBe(render());
 });

@@ -31,7 +31,9 @@
           "imageWidth": 76
         }
       ],
-      "./plugins/with-cmake-version"
+      "./plugins/with-cmake-version",
+      "expo-sqlite",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

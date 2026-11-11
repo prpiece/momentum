@@ -3,7 +3,7 @@ import { useTokenSuggest } from "../../components/ui/TokenSuggest";
 import type { Task } from "../../domain/types";
 import { useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { createFromText } from "./quickAddSubmit";
+import { createFromText } from "../../stores/quickAddSubmit";
 
 /** Open list names and tag names for `~`/`#` autocomplete. */
 export function useTokenNames() {

@@ -8,7 +8,7 @@ import { PRIORITY_LABEL, type Task } from "../../domain/types";
 import { useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { useTokenNames } from "./InlineAdd";
-import { createFromText, listByName } from "./quickAddSubmit";
+import { createFromText, listByName } from "../../stores/quickAddSubmit";
 
 const CHIP_ICON: Record<ChipKind, typeof Flag> = {
   date: CalendarDays,

@@ -10,7 +10,7 @@ import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { setImport, toast, useUi } from "../../stores/ui";
 import { withUndo } from "../../lib/undo";
-import { createFromText } from "./quickAddSubmit";
+import { createFromText } from "../../stores/quickAddSubmit";
 
 const PREVIEW = 5;
 const field = "input";

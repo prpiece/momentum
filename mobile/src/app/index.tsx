@@ -1,59 +1,90 @@
-import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { parseQuickAdd } from "@core/domain/quickAdd";
-import { useColors } from "@/theme";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { todayLocal } from "@core/domain/dates";
+import { inSmartList, toVM, type TaskVM } from "@core/domain/taskViews";
+import { setStatus, useData } from "@core/stores/data";
+import { createFromText } from "@core/stores/quickAddSubmit";
+import { ready } from "@/boot";
+import { useColors, type Colors } from "@/theme";
 
-/** C1: proves the desktop's quick-add parser (src/domain) runs on the phone. Replaced by the real Today screen. */
+type Row = { kind: "header"; title: string } | { kind: "task"; vm: TaskVM; section: string };
+
+/** C3: Today and Inbox from the shared stores, saved in the phone's own SQLite. Plain on purpose; designed later. */
 export default function Index() {
   const c = useColors();
-  const [text, setText] = useState("Call mum tomorrow 5pm !high #family");
-  const parsed = useMemo(() => parseQuickAdd(text, new Date()), [text]);
-  const s = parsed.schedule;
-  const when = s.kind === "none" ? "No date" : s.kind === "day" ? s.date : `${new Date(s.start).toLocaleString()} – ${new Date(s.end).toLocaleTimeString()}`;
+  const [loaded, setLoaded] = useState<"loading" | "ok" | Error>("loading");
+  const [text, setText] = useState("");
+  const tasks = useData((s) => s.tasks);
+
+  useEffect(() => {
+    ready.then(() => setLoaded("ok"), (e: unknown) => setLoaded(e instanceof Error ? e : new Error(String(e))));
+  }, []);
+
+  const rows = useMemo<Row[]>(() => {
+    const today = todayLocal();
+    const vms = Object.values(tasks).flatMap((t) => toVM(t) ?? []);
+    const section = (title: string, id: "today" | "inbox") => {
+      const hits = vms.filter((vm) => inSmartList(id, vm, today));
+      return hits.length ? [{ kind: "header" as const, title }, ...hits.map((vm) => ({ kind: "task" as const, vm, section: id }))] : [];
+    };
+    return [...section("Today", "today"), ...section("Inbox", "inbox")];
+  }, [tasks]);
+
+  if (loaded === "loading") return <ActivityIndicator style={styles.center} color={c.accent} />;
+  if (loaded instanceof Error) return <Text style={[styles.center, { color: c.fg }]}>Couldn't open the database: {loaded.message}</Text>;
+
+  const add = () => {
+    if (createFromText(text, {}, true, () => false)) setText("");
+  };
 
   return (
-    <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        placeholder="Add a task"
-        placeholderTextColor={c.muted}
-        style={[styles.input, { color: c.fg, backgroundColor: c.surface, borderColor: c.border }]}
-      />
-      <View style={styles.chips}>
-        {parsed.chips.map((chip) => (
-          <Text key={`${chip.kind}${chip.start}`} style={[styles.chip, { backgroundColor: c.surface2, color: c.fg }]}>
-            {chip.kind}: {chip.value ?? chip.text}
-          </Text>
-        ))}
-      </View>
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-        <Row label="Title" value={parsed.title || "—"} c={c} />
-        <Row label="When" value={when} c={c} />
-        <Row label="Priority" value={parsed.priority ? String(parsed.priority) : "—"} c={c} />
-        <Row label="Tags" value={parsed.tags.join(", ") || "—"} c={c} />
-        <Row label="Repeat" value={parsed.rule ?? "—"} c={c} />
-      </View>
-    </ScrollView>
+    <FlatList
+      data={rows}
+      keyExtractor={(r) => (r.kind === "header" ? r.title : `${r.section}:${r.vm.task.id}`)}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={styles.page}
+      ListHeaderComponent={
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          onSubmitEditing={add}
+          submitBehavior="submit"
+          returnKeyType="done"
+          placeholder="Add a task: Call mum tomorrow 5pm !high"
+          placeholderTextColor={c.muted}
+          style={[styles.input, { color: c.fg, backgroundColor: c.surface, borderColor: c.border }]}
+        />
+      }
+      ListEmptyComponent={<Text style={{ color: c.muted }}>Nothing for today. Add something above.</Text>}
+      renderItem={({ item }) => (item.kind === "header" ? <Text style={[styles.header, { color: c.muted }]}>{item.title}</Text> : <TaskRow vm={item.vm} c={c} />)}
+    />
   );
 }
 
-function Row({ label, value, c }: { label: string; value: string; c: ReturnType<typeof useColors> }) {
+function TaskRow({ vm, c }: { vm: TaskVM; c: Colors }) {
+  const t = vm.task;
+  const done = t.status !== "open";
+  const s = t.schedule;
+  const when = s.kind === "none" ? "" : s.kind === "day" ? s.date : new Date(s.start).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
   return (
-    <View style={styles.row}>
-      <Text style={[styles.label, { color: c.muted }]}>{label}</Text>
-      <Text style={[styles.value, { color: c.fg }]}>{value}</Text>
-    </View>
+    <Pressable onPress={() => setStatus(t.id, done ? "open" : "done")} style={[styles.row, { borderColor: c.border }]} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
+      <View style={[styles.check, { borderColor: done ? c.accent : c.muted, backgroundColor: done ? c.accent : "transparent" }]} />
+      <View style={styles.rowText}>
+        <Text style={[styles.title, { color: done ? c.muted : c.fg, textDecorationLine: done ? "line-through" : "none" }]}>{t.title}</Text>
+        {when ? <Text style={[styles.meta, { color: c.muted }]}>{when}</Text> : null}
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 16, gap: 12 },
-  input: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 12, height: 48, fontSize: 16 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, fontSize: 13, overflow: "hidden" },
-  card: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
-  row: { flexDirection: "row", gap: 12 },
-  label: { width: 72, fontSize: 14 },
-  value: { flex: 1, fontSize: 14 },
+  center: { flex: 1, padding: 16 },
+  page: { padding: 16, gap: 4 },
+  input: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 12, height: 48, fontSize: 16, marginBottom: 8 },
+  header: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", marginTop: 16, marginBottom: 4 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth },
+  check: { width: 22, height: 22, borderRadius: 11, borderWidth: 2 },
+  rowText: { flex: 1, paddingVertical: 8 },
+  title: { fontSize: 16 },
+  meta: { fontSize: 13, marginTop: 2 },
 });

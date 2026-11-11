@@ -11,6 +11,12 @@ export type Driver = {
   execute(sql: string, params?: unknown[]): Promise<{ rowsAffected: number }>;
 };
 
+/**
+ * The shared SQL writes parameters as `$1, $2…`, which sqlx binds by number. Drivers that bind an
+ * array by order of appearance (expo-sqlite) need SQLite's explicit `?1, ?2…` instead.
+ */
+export const numberedParams = (sql: string) => sql.replace(/\$(\d+)/g, "?$1");
+
 let open: (() => Promise<Driver>) | undefined;
 let conn: Promise<Driver> | undefined;
 

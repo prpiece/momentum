@@ -7,7 +7,7 @@ import { isTauri } from "../db/client";
 import { focusPhaseLabel } from "../features/focus/FocusView";
 import { contextForView, parseQuickAddCreate, patchForContext, type QuickAddContext } from "../domain/quickAddContext";
 import { QUICK_ADD_POPUP_EVENT } from "../features/tasks/QuickAdd";
-import { createFromText } from "../features/tasks/quickAddSubmit";
+import { createFromText } from "../stores/quickAddSubmit";
 import { accentForeground, accentHex, type AccentId } from "../domain/color";
 import { todayLocal } from "../domain/dates";
 import type { NotifySettings } from "../domain/types";

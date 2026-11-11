@@ -1,9 +1,13 @@
-import { relativeDayLabel, todayLocal } from "../../domain/dates";
-import { parseQuickAdd, withDefaults, type InputOrigin } from "../../domain/quickAdd";
-import type { Task } from "../../domain/types";
-import { addTask, ensureTags, useData, type NewTask } from "../../stores/data";
-import { trackDone } from "../../stores/settings";
-import { openTask, toast } from "../../stores/ui";
+import { relativeDayLabel, todayLocal } from "../domain/dates";
+import { parseQuickAdd, withDefaults, type InputOrigin } from "../domain/quickAdd";
+import type { Task } from "../domain/types";
+import { addTask, ensureTags, useData, type NewTask } from "./data";
+import { trackDone } from "./settings";
+import { toast } from "./toast";
+
+/** Opens a task's details from the "Added to …" toast. Each app registers its own (desktop: stores/ui). */
+let openTask: (id: string) => void = () => undefined;
+export const setTaskOpener = (fn: typeof openTask) => void (openTask = fn);
 
 const nameKey = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 export const listByName = (name: string) => Object.values(useData.getState().lists).find((l) => nameKey(l.name) === nameKey(name));

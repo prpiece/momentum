@@ -5,7 +5,7 @@ import { formatTime, relativeDayLabel, scheduleDate, todayLocal } from "../../do
 import type { Schedule } from "../../domain/types";
 import { addEvent } from "../../stores/data";
 import { useAddSuggest } from "../tasks/InlineAdd";
-import { createFromText } from "../tasks/quickAddSubmit";
+import { createFromText } from "../../stores/quickAddSubmit";
 import { useSettings } from "../../stores/settings";
 import { openEvent, openTask } from "../../stores/ui";
 
