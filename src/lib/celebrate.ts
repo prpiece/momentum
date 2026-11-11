@@ -9,7 +9,7 @@ import { bestStreak, currentStreak, isBuild, isDone, type Habit } from "../domai
 import { bestDayRun, countsForProgress, dayOf, dayRun, levelOf, perfectDays, prepare, STREAK_MILESTONES, tierOfRun, TROPHIES, trophyCounts, weekQualifies, weekRun, weekStartOf, type Tier, type TrophyCounts } from "../domain/perfect";
 import { LEVEL_LOOKS } from "../features/celebrate/trophyLooks";
 import type { LocalDate, SoundEvent } from "../domain/types";
-import { derive } from "../features/tasks/selectors";
+import { derive } from "../domain/taskViews";
 import { useData } from "../stores/data";
 import { useFocus } from "../stores/focus";
 import { useHabits, valuesOf } from "../stores/habits";

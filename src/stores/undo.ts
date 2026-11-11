@@ -1,5 +1,5 @@
-import { undoable } from "../stores/data";
-import { toast } from "../stores/ui";
+import { undoable } from "./data";
+import { toast } from "./toast";
 
 const stack: (() => void)[] = [];
 

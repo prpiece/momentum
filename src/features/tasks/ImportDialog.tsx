@@ -9,7 +9,7 @@ import { PRIORITY_LABEL, type Task } from "../../domain/types";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { setImport, toast, useUi } from "../../stores/ui";
-import { withUndo } from "../../lib/undo";
+import { withUndo } from "../../stores/undo";
 import { createFromText } from "../../stores/quickAddSubmit";
 
 const PREVIEW = 5;

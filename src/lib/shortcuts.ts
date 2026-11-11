@@ -10,7 +10,7 @@ import { showInCurrentView } from "../features/tasks/viewOptions";
 import { setStatus, useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
 import { closeDrawer, go, setPalette, setSelection, setShortcuts, toast, useUi } from "../stores/ui";
-import { undoLast, withUndo } from "./undo";
+import { undoLast, withUndo } from "../stores/undo";
 
 type KeyHandler = (e: KeyboardEvent) => boolean;
 const scoped = new Set<KeyHandler>();

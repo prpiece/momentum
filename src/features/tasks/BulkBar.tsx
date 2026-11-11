@@ -3,7 +3,7 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { MenuItem, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
 import { addDaysLocal, todayLocal } from "../../domain/dates";
 import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type Schedule } from "../../domain/types";
-import { withUndo } from "../../lib/undo";
+import { withUndo } from "../../stores/undo";
 import { moveTasks, setStatus, useData } from "../../stores/data";
 import { setSelection, useUi } from "../../stores/ui";
 import { bulkEdit, deleteTasks } from "./actions";

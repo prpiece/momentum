@@ -7,6 +7,8 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 // @ts-expect-error: plain .mjs script, no types
 import { OUT, render } from "../scripts/mobile-migrations.mjs";
+// @ts-expect-error: plain .mjs script, no types
+import * as tokens from "../scripts/mobile-tokens.mjs";
 
 const SHARED = ["src/domain", "src/db", "src/stores", "src/lib/sync"];
 /** Desktop-only: file dialogs and Rust commands (backup), the desktop UI state with Sonner and view transitions (ui). */
@@ -27,4 +29,8 @@ it("keeps shared code free of desktop-only imports and browser globals", () => {
 
 it("bundles the current migrations for the phone (run scripts/mobile-migrations.mjs)", () => {
   expect(readFileSync(OUT, "utf8")).toBe(render());
+});
+
+it("gives the phone the current colour tokens (run scripts/mobile-tokens.mjs)", () => {
+  expect(readFileSync(tokens.OUT, "utf8")).toBe(tokens.render());
 });

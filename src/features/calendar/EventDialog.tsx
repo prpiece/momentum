@@ -7,7 +7,7 @@ import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, hhmm, schedule
 import { REPEAT_PRESETS, describeRule, scheduleForKey } from "../../domain/recurrence";
 import type { CalendarEvent, CountdownMode, Recurrence, Schedule } from "../../domain/types";
 import { editEventOccurrence, updateEvent, useData } from "../../stores/data";
-import { deleteEvent } from "./calendarActions";
+import { deleteEvent } from "../../stores/schedule";
 import { askScope, closeEvent, useUi } from "../../stores/ui";
 
 export function EventDialog() {

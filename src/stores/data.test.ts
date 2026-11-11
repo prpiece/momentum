@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { atLocalTime, timed, wallKey } from "../domain/dates";
 import { toVM } from "../domain/taskViews";
-import { derive } from "../features/tasks/selectors";
+import { derive } from "../domain/taskViews";
 import {
   addSection,
   addFolder,

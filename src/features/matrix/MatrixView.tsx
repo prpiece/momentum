@@ -10,14 +10,15 @@ import { patchForQuadrant, QUADRANT_INFO, QUADRANT_VAR, QUADRANTS, quadrantOf, t
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
 import { justDragged, onDrop } from "../../lib/dnd";
-import { withUndo } from "../../lib/undo";
+import { withUndo } from "../../stores/undo";
 import { updateTask, useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { openContextMenu, openTask, useUi } from "../../stores/ui";
 import { editTask, toggleDone } from "../tasks/actions";
 import { InlineAdd } from "../tasks/InlineAdd";
 import { taskMenu } from "../tasks/taskMenu";
-import { derive, useDerived } from "../tasks/selectors";
+import { derive } from "../../domain/taskViews";
+import { useDerived } from "../tasks/selectors";
 
 
 onDrop("quadrant", (drag, drop) => {

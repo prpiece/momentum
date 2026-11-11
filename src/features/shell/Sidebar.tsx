@@ -31,7 +31,7 @@ import { scheduleForKey } from "../../domain/recurrence";
 import type { Folder, SavedFilter, TaskList } from "../../domain/types";
 import { canAddChild, canNest, childFolders } from "../../domain/folders";
 import { justDragged, onDrop, type DragData, type DropData } from "../../lib/dnd";
-import { withUndo } from "../../lib/undo";
+import { withUndo } from "../../stores/undo";
 import { addFolder, moveFolder, moveTasks, removeFolder, removeList, updateFolder, updateList, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { confirm, go, openContextMenu, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";

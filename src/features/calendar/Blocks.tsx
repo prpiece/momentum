@@ -9,7 +9,8 @@ import { useSettings } from "../../stores/settings";
 import { go, openContextMenu, openEvent, openTask, type MenuEntry } from "../../stores/ui";
 import { toggleDone } from "../tasks/actions";
 import { taskMenu } from "../tasks/taskMenu";
-import { applySchedule, deleteEvent, minuteAt, pxPerMinute } from "./calendarActions";
+import { minuteAt, pxPerMinute } from "./calendarActions";
+import { applySchedule, deleteEvent } from "../../stores/schedule";
 
 export function openItem(item: CalItem) {
   if (justDragged()) return;

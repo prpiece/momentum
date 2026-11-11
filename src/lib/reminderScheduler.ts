@@ -3,7 +3,7 @@ import type { Row } from "../db/rows";
 import { calendarItems } from "../domain/calendar";
 import { toLocalDate } from "../domain/dates";
 import { dedupeFires, digestBetween, remindersBetween, startsBetween, type Fire, type ReminderTarget } from "../domain/reminders";
-import { derive } from "../features/tasks/selectors";
+import { derive } from "../domain/taskViews";
 import { useData } from "../stores/data";
 import { useHabits, valuesOf } from "../stores/habits";
 import { useSettings } from "../stores/settings";

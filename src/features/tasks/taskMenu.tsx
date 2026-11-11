@@ -2,7 +2,7 @@ import { Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, Flag, Fol
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
 import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type LocalDate, type Schedule } from "../../domain/types";
-import { withUndo } from "../../lib/undo";
+import { withUndo } from "../../stores/undo";
 import { duplicateTask, moveTasks, setStatus, useData } from "../../stores/data";
 import { openTask, useUi, type MenuEntry } from "../../stores/ui";
 import { bulkEdit, deleteTasks, editTask, setWontDo, toggleDone } from "./actions";

@@ -15,7 +15,7 @@ import { isBuild, isDone, targetOf } from "../domain/habits";
 import { checkinOf, setCheckin, setCheckinHandler, useHabits } from "../stores/habits";
 import { buildSnapshot, parseMiniAction } from "../domain/mini";
 import { toggleDone } from "../features/tasks/actions";
-import { derive } from "../features/tasks/selectors";
+import { derive } from "../domain/taskViews";
 import { pauseFocus, resumeFocus, setPhaseEndHandler, skipPhase, startFocus, stopFocus, tickFocus, useFocus } from "../stores/focus";
 import { matchTasks } from "../domain/fuzzy";
 import { isRecord } from "../domain/settings";

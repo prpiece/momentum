@@ -8,7 +8,7 @@ import type { ViewOptions } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
 import { reorderTask, useData } from "../../stores/data";
 import { openTask, setSelection, toggleCollapsed, useUi } from "../../stores/ui";
-import type { Derived } from "./selectors";
+import type { Derived } from "../../domain/taskViews";
 import { TaskRow, type RowClick } from "./TaskRow";
 import type { TaskViewSpec } from "./viewSpec";
 

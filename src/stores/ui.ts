@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { withTransition } from "../lib/motion";
 import { setToast, type ToastAction } from "./toast";
 import { setTaskOpener } from "./quickAddSubmit";
+import { setScopeAsker } from "./ask";
 import { todayLocal } from "../domain/dates";
 import type { ViewId } from "../domain/types";
 import type { Scope } from "./data";
@@ -103,6 +104,8 @@ export function toast(message: string, action?: ToastAction, ms = action ? 6000 
 // The shared stores and sync toast through stores/toast.ts; on desktop that's this one.
 setToast(toast);
 setTaskOpener((id) => openTask(id));
+// Shared actions ask "which occurrences?" through stores/ask.ts; on desktop that's this dialog.
+setScopeAsker((verb) => askScope(verb));
 
 /** Ask which occurrences a change to a recurring task applies to. Resolves null on cancel. */
 export const askScope = (verb: ScopeAsk["verb"]) =>

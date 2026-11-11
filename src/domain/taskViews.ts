@@ -184,3 +184,45 @@ export function matchScore(text: string, query: string): number | null {
   }
   return score;
 }
+
+export type Derived = {
+  /** Live (not deleted, not exhausted) tasks as view models. */
+  vms: TaskVM[];
+  byId: Map<string, TaskVM>;
+  childrenOf: (id: string) => TaskVM[];
+  /** Live tasks in non-archived lists: what smart lists, calendar and search see. */
+  active: TaskVM[];
+  /** Active top-level tasks: what the calendar's Arrange panel and the focus picker offer (D196). */
+  roots: TaskVM[];
+};
+
+let memo: { tasks: Record<string, Task>; lists: Record<string, TaskList>; out: Derived } | null = null;
+
+/** Derived once per store change, shared by every view. */
+export function derive(tasks: Record<string, Task>, lists: Record<string, TaskList>): Derived {
+  if (memo && memo.tasks === tasks && memo.lists === lists) return memo.out;
+  const vms: TaskVM[] = [];
+  const kids = new Map<string, TaskVM[]>();
+  for (const t of Object.values(tasks)) {
+    if (t.deletedAt) continue;
+    const vm = toVM(t);
+    if (!vm) continue;
+    vms.push(vm);
+    if (t.parentId) {
+      const arr = kids.get(t.parentId);
+      if (arr) arr.push(vm);
+      else kids.set(t.parentId, [vm]);
+    }
+  }
+  for (const arr of kids.values()) arr.sort((a, b) => a.task.sortOrder - b.task.sortOrder);
+  const out: Derived = {
+    vms,
+    byId: new Map(vms.map((v) => [v.task.id, v])),
+    childrenOf: (id) => kids.get(id) ?? [],
+    active: vms.filter((v) => !lists[v.task.listId]?.archived),
+    roots: [],
+  };
+  out.roots = out.active.filter((v) => !v.task.parentId);
+  memo = { tasks, lists, out };
+  return out;
+}

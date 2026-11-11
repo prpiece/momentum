@@ -1,64 +1,13 @@
 import type { DragEndEvent, DragMoveEvent } from "@dnd-kit/core";
-import { droppedSchedule, type CalItem } from "../../domain/calendar";
+import { droppedSchedule } from "../../domain/calendar";
 import { durationMinutes } from "../../domain/dates";
-import { scheduleForKey } from "../../domain/recurrence";
-import type { Schedule } from "../../domain/types";
 import { isDragData, onDrop, type DragData } from "../../lib/dnd";
-import { withUndo } from "../../lib/undo";
-import { deleteEventOccurrence, deleteEvents, editEventOccurrence, updateEvent, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
-import { askScope, toast } from "../../stores/ui";
-import { editTask } from "../tasks/actions";
-import { derive } from "../tasks/selectors";
+import { applySchedule, currentSchedule, type Ref } from "../../stores/schedule";
+import { toast } from "../../stores/toast";
 
 export const HOUR_PX = { comfortable: 64, compact: 44 } as const;
 export const pxPerMinute = () => HOUR_PX[useSettings.getState().settings.calendar.density] / 60;
-
-type Ref = Pick<CalItem, "source" | "id" | "key">;
-
-/** The schedule an item (or occurrence) has right now. */
-export function currentSchedule(ref: Ref): Schedule {
-  const s = useData.getState();
-  if (ref.source === "event") {
-    const e = s.events[ref.id];
-    if (!e) return { kind: "none" };
-    return ref.key && e.recurrence ? scheduleForKey(e.schedule, ref.key) : e.schedule;
-  }
-  const t = s.tasks[ref.id];
-  if (!t) return { kind: "none" };
-  if (ref.key && t.recurrence) return scheduleForKey(t.schedule, ref.key);
-  return derive(s.tasks, s.lists).byId.get(t.id)?.schedule ?? t.schedule;
-}
-
-/** Reschedule a task or event (occurrence), asking for scope on recurring series. */
-export async function applySchedule(ref: Ref, schedule: Schedule) {
-  const s = useData.getState();
-  if (ref.source === "task") {
-    const t = s.tasks[ref.id];
-    if (!t) return;
-    if (t.recurrence) return editTask(t.id, { schedule }, ref.key);
-    return withUndo(schedule.kind === "none" ? "Unscheduled" : "Rescheduled", () => updateTask(t.id, { schedule }));
-  }
-  const e = s.events[ref.id];
-  if (!e) return;
-  if (e.source === "ics") return toast("Imported events are read-only");
-  if (schedule.kind === "none") return toast("Events always have a time. Delete it instead.");
-  if (!e.recurrence) return withUndo("Event moved", () => updateEvent(e.id, { schedule }));
-  const scope = await askScope("edit");
-  if (scope && ref.key) editEventOccurrence(e.id, ref.key, scope, { schedule });
-}
-
-/** Delete an event, or (recurring) the occurrences the user picks. Resolves false on cancel. */
-export async function deleteEvent(id: string, key: string | null): Promise<boolean> {
-  const e = useData.getState().events[id];
-  if (!e) return false;
-  if (e.recurrence && key) {
-    const scope = await askScope("delete");
-    if (!scope) return false;
-    withUndo("Event deleted", () => deleteEventOccurrence(id, key, scope));
-  } else withUndo("Event deleted", () => deleteEvents([id]));
-  return true;
-}
 
 // ---------- pointer geometry ----------
 
