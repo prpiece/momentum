@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
-import { loadAccount, saveHandle, sendCode, statusText, verifyCode, type AccountInfo } from "@core/lib/sync/account";
+import { deleteAccount, keepAccount, loadAccount, saveHandle, sendCode, statusText, verifyCode, type AccountInfo } from "@core/lib/sync/account";
 import { signOut, syncNow, useSync } from "@core/lib/sync/engine";
 import { syncConfigured } from "@core/lib/sync/supabase";
 import { toast } from "@core/stores/toast";
@@ -102,8 +102,34 @@ function SignedIn({ account, c }: { account: string; c: Colors }) {
     toast(keep ? "Signed out. Your data stays on this phone." : "Signed out and removed this phone's data. A backup was kept.");
   };
 
+  const remove = async () => {
+    const yes = await ask(
+      "Delete your account?",
+      "Every device is signed out, and in 7 days your account and everything synced to it are deleted for good. Signing in before then lets you keep it. This phone keeps its own copy of your data.",
+      "Delete account",
+      "Cancel",
+    );
+    if (!yes) return;
+    const res = await deleteAccount();
+    toast(res.message);
+  };
+  const keep = async () => {
+    const err = await keepAccount(account);
+    if (err) return toast(err);
+    setInfo((i) => i && { ...i, deletesAt: null });
+    toast("Your account won't be deleted.");
+  };
+
   return (
     <View style={styles.stack}>
+      {info?.deletesAt ? (
+        <View style={[styles.banner, { backgroundColor: c.surface2 }]}>
+          <Text style={[styles.body, { color: c.fg }]}>
+            This account will be deleted on {info.deletesAt.toLocaleDateString([], { day: "numeric", month: "long" })}, with everything synced to it.
+          </Text>
+          <Button c={c} label="Keep my account" onPress={keep} />
+        </View>
+      ) : null}
       {info && !info.profile.handle ? (
         <>
           <Text style={[styles.heading, { color: c.fg }]}>Choose your handle</Text>
@@ -134,6 +160,11 @@ function SignedIn({ account, c }: { account: string; c: Colors }) {
         </Text>
       ))}
       <Button c={c} label="Sign out" onPress={leave} secondary />
+      {info && !info.deletesAt ? (
+        <Pressable onPress={() => void remove()} accessibilityRole="button" style={styles.danger}>
+          <Text style={{ color: c.danger, fontSize: 16, fontWeight: "600" }}>Delete account</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -158,6 +189,8 @@ function Button({ c, label, onPress, disabled, secondary }: { c: Colors; label: 
 const styles = StyleSheet.create({
   page: { padding: 16 },
   stack: { gap: 12 },
+  banner: { borderRadius: 10, padding: 12, gap: 12 },
+  danger: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: 12 },
   heading: { fontSize: 18, fontWeight: "600" },
   body: { fontSize: 15 },
   small: { fontSize: 13 },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadAccount, saveHandle, sendCode, statusText, verifyCode, type Device, type Profile } from "../../lib/sync/account";
+import { deleteAccount, keepAccount, loadAccount, saveHandle, sendCode, statusText, verifyCode, type Device, type Profile } from "../../lib/sync/account";
 import { signOut, syncNow, useSync } from "../../lib/sync/engine";
 import { syncConfigured } from "../../lib/sync/supabase";
 import { SiteLink } from "./SiteLink";
@@ -95,7 +95,8 @@ function SignedIn({ account }: { account: string }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [me, setMe] = useState<string | null>(null);
-  const [leaving, setLeaving] = useState<null | "here" | "everywhere">(null);
+  const [leaving, setLeaving] = useState<null | "here" | "everywhere" | "delete">(null);
+  const [deletesAt, setDeletesAt] = useState<Date | null>(null);
   const [handle, setHandle] = useState("");
   const [name, setName] = useState("");
 
@@ -107,6 +108,7 @@ function SignedIn({ account }: { account: string }) {
       setProfile(a.profile);
       setDevices(a.devices);
       setMe(a.me);
+      setDeletesAt(a.deletesAt);
     });
     return () => void (live = false);
   }, [account, status.kind]);
@@ -124,8 +126,29 @@ function SignedIn({ account }: { account: string }) {
     toast(how === "keep" ? "Signed out. Your data stays on this device." : "Signed out and removed this device's data. A backup was kept.");
   };
 
+  const remove = async () => {
+    setLeaving(null);
+    toast((await deleteAccount()).message);
+  };
+  const keep = async () => {
+    const err = await keepAccount(account);
+    if (err) return toast(err);
+    setDeletesAt(null);
+    toast("Your account won't be deleted.");
+  };
+
   return (
     <div className="space-y-4">
+      {deletesAt && (
+        <div className="card space-y-2 p-3" role="alert">
+          <p>
+            This account will be deleted on {deletesAt.toLocaleDateString([], { day: "numeric", month: "long" })}, with everything synced to it.
+          </p>
+          <button type="button" onClick={() => void keep()} className="btn btn-primary">
+            Keep my account
+          </button>
+        </div>
+      )}
       {profile && !profile.handle ? (
         <form
           className="space-y-2"
@@ -195,7 +218,22 @@ function SignedIn({ account }: { account: string }) {
         </div>
       )}
 
-      {leaving ? (
+      {leaving === "delete" ? (
+        <div className="space-y-2">
+          <p className="font-medium">Delete your account?</p>
+          <p className="text-[length:var(--fs-sm)] text-fg-2">
+            Every device is signed out, and in 7 days your account and everything synced to it are deleted for good. Signing in before then lets you keep it. This device keeps its own copy of your data.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => void remove()} className="btn btn-danger">
+              Delete account
+            </button>
+            <button type="button" onClick={() => setLeaving(null)} className={btn}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : leaving ? (
         <div className="space-y-2">
           <p className="font-medium">Keep a copy of your data on this device?</p>
           <div className="flex flex-wrap gap-2">
@@ -218,6 +256,11 @@ function SignedIn({ account }: { account: string }) {
           <button type="button" onClick={() => setLeaving("everywhere")} className={btn}>
             Sign out everywhere
           </button>
+          {!deletesAt && (
+            <button type="button" onClick={() => setLeaving("delete")} className="btn btn-ghost text-danger">
+              Delete account
+            </button>
+          )}
         </div>
       )}
     </div>

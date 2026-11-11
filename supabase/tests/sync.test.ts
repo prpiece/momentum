@@ -157,3 +157,50 @@ describe("profiles", () => {
     expect(change.error?.message).toContain("handle_changed_recently");
   });
 });
+
+describe("account deletion", () => {
+  const admin = () => createClient(URL, SECRET, opts);
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+
+  it("requests and cancels, signs out every session, and is invisible to other accounts", async () => {
+    const c = await user();
+    const { data: at, error } = await c.db.rpc("request_account_deletion");
+    expect(error).toBeNull();
+    expect(new Date(at as string).getTime()).toBeGreaterThan(Date.now() + 6.9 * 86_400_000);
+    expect((await c.db.from("account_deletions").select("owner_id")).data).toEqual([{ owner_id: c.id }]);
+    expect((await b.db.from("account_deletions").select("owner_id")).data).toEqual([]);
+    // Someone else can't cancel it, the owner can.
+    await b.db.from("account_deletions").delete().eq("owner_id", c.id);
+    expect((await admin().from("account_deletions").select("owner_id").eq("owner_id", c.id)).data).toHaveLength(1);
+    await c.db.from("account_deletions").delete().eq("owner_id", c.id);
+    expect((await admin().from("account_deletions").select("owner_id").eq("owner_id", c.id)).data).toHaveLength(0);
+    // The refresh token died with the request.
+    expect((await c.db.auth.refreshSession()).error).not.toBeNull();
+  });
+
+  it("deletes the account and its records only after the grace period, and only the job can run it", async () => {
+    const c = await user();
+    await push(c.db, randomUUID(), [{ seq: 1, tbl: "lists", id: "l1", fields: { id: "l1", name: "Mine" } }]);
+    await c.db.rpc("request_account_deletion");
+    expect((await a.db.rpc("purge_deleted")).error).not.toBeNull();
+    await admin().rpc("purge_deleted");
+    expect((await admin().auth.admin.getUserById(c.id)).data.user).not.toBeNull();
+    await admin().from("account_deletions").update({ requested_at: daysAgo(8) }).eq("owner_id", c.id);
+    expect((await admin().rpc("purge_deleted")).error).toBeNull();
+    expect((await admin().auth.admin.getUserById(c.id)).data.user).toBeNull();
+    expect((await admin().from("sync_rows").select("id").eq("owner_id", c.id)).data).toEqual([]);
+  });
+
+  it("strips records deleted over 30 days ago to their tombstone", async () => {
+    const dev = randomUUID();
+    await push(a.db, dev, [
+      { seq: 1, tbl: "tasks", id: "old", fields: { id: "old", title: "Secret plan", deleted_at: daysAgo(40) } },
+      { seq: 2, tbl: "tasks", id: "new", fields: { id: "new", title: "Recent", deleted_at: daysAgo(3) } },
+      { seq: 3, tbl: "tasks", id: "live", fields: { id: "live", title: "Still here", deleted_at: null } },
+    ]);
+    await admin().rpc("purge_deleted");
+    expect(Object.keys((await row(a.db, "tasks", "old")) ?? {})).toEqual(["deleted_at"]);
+    expect((await row(a.db, "tasks", "new"))?.title).toBe("Recent");
+    expect((await row(a.db, "tasks", "live"))?.title).toBe("Still here");
+  });
+});
