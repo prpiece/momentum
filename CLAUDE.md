@@ -27,7 +27,7 @@ Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/C
 
 ## Architecture rules
 - **One source of truth:** Zustand stores hydrate from SQLite, and each action writes through to a `db/` repo. Smart Lists, Matrix quadrants, calendar blocks and search are *selectors* over task records. They are never stored.
-- **`src/domain/` is pure:** no React, no Tauri imports. All recurrence, date, matrix, streak, NL-parse and layout logic goes there, with a `*.test.ts` beside each file. Test that logic before wiring up any UI.
+- **`src/domain/` is pure:** no React, no Tauri imports and no DOM APIs. The Expo phone app (`mobile/`, PLAN D229, ADR 0006) runs it too. All recurrence, date, matrix, streak, NL-parse and layout logic goes there, with a `*.test.ts` beside each file. Test that logic before wiring up any UI.
 - **Time:**
   - Timed instants are UTC ISO strings.
   - All-day items and due dates are local `YYYY-MM-DD` strings and never become instants.
