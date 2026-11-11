@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { toast as sonner } from "sonner";
 import { create } from "zustand";
 import { withTransition } from "../lib/motion";
+import { setToast, type ToastAction } from "./toast";
 import { todayLocal } from "../domain/dates";
 import type { ViewId } from "../domain/types";
 import type { Scope } from "./data";
@@ -95,9 +96,11 @@ export const toggleCollapsed = (id: string) =>
   });
 
 /** A transient toast through Sonner (D207): stacked, swipe or Esc to dismiss, paused on hover. Undo-style actions stay 6 s. */
-export function toast(message: string, action?: { label: string; run: () => void }, ms = action ? 6000 : 3500) {
+export function toast(message: string, action?: ToastAction, ms = action ? 6000 : 3500) {
   sonner(message, { duration: ms, action: action && { label: action.label, onClick: action.run } });
 }
+// The shared stores and sync toast through stores/toast.ts; on desktop that's this one.
+setToast(toast);
 
 /** Ask which occurrences a change to a recurring task applies to. Resolves null on cancel. */
 export const askScope = (verb: ScopeAsk["verb"]) =>

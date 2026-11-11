@@ -8,7 +8,7 @@ import { after, reorder } from "../domain/order";
 import type { LocalDate } from "../domain/types";
 import { uid } from "./data";
 import { trackDone } from "./settings";
-import { toast } from "./ui";
+import { toast } from "./toast";
 
 type ById<T> = Record<string, T>;
 export type HabitData = { habits: Habit[]; groups: HabitGroup[]; checkins: HabitCheckin[] };

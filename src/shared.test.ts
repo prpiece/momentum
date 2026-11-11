@@ -1,0 +1,24 @@
+/*
+ * The phone app (mobile/, PLAN D229) runs these folders as they are, so they must not reach for
+ * desktop-only modules or browser globals. Desktop-only files in them are listed as exceptions.
+ */
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { expect, it } from "vitest";
+
+const SHARED = ["src/domain", "src/db", "src/stores", "src/lib/sync"];
+/** Desktop-only: file dialogs and Rust commands (backup), the desktop UI state with Sonner and view transitions (ui). */
+const DESKTOP_ONLY = new Set(["src/db/backup.ts", "src/stores/ui.ts"]);
+const FORBIDDEN = [/from "@tauri-apps\//, /import\("@tauri-apps\//, /from "react-dom/, /from "sonner"/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/, /import\.meta\.env/, /from "\.\.\/(\.\.\/)?(features|components|lib\/(?!sync))/];
+
+it("keeps shared code free of desktop-only imports and browser globals", () => {
+  const offenders: string[] = [];
+  for (const dir of SHARED)
+    for (const name of readdirSync(dir)) {
+      const file = `${dir}/${name}`;
+      if (!/\.tsx?$/.test(name) || name.includes(".test.") || DESKTOP_ONLY.has(file)) continue;
+      const text = readFileSync(join(process.cwd(), file), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+      for (const re of FORBIDDEN) if (re.test(text)) offenders.push(`${file}: ${re}`);
+    }
+  expect(offenders).toEqual([]);
+});

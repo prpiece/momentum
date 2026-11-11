@@ -2,11 +2,9 @@
  * Sync engine (v1.1, PLAN D225): push the outbox, pull what changed, apply it, refresh the stores.
  * Pure rules live in domain/sync.ts; this file is the I/O around them. Main window only.
  */
-import type Database from "@tauri-apps/plugin-sql";
 import { create } from "zustand";
-import { onWrite, select, transact } from "../../db/client";
+import { onWrite, select, transact, type Driver } from "../../db/client";
 import { saveSettings } from "../../db/settings";
-import { snapshotDatabase } from "../../db/backup";
 import { USER_SETTING_KEYS, withRemoteSettings } from "../../domain/settings";
 import { isSyncTarget, pendingFields, planApply, pushBatches, SYNC_TABLES, tagWinner, type ApplyOp, type OutboxRow, type RemoteRow, type SyncTable } from "../../domain/sync";
 import { hydrate } from "../../stores/data";
@@ -14,7 +12,7 @@ import { hydrateFocus } from "../../stores/focus";
 import { hydrateHabits } from "../../stores/habits";
 import { hydrateProgress } from "../../stores/progress";
 import { useSettings } from "../../stores/settings";
-import { toast } from "../../stores/ui";
+import { toast } from "../../stores/toast";
 import { restoreSession, supabase, syncConfigured } from "./supabase";
 
 /** The local schema this client speaks (latest migration); the server refuses older clients (spec, "Version skew"). */
@@ -38,7 +36,11 @@ async function state(key: string): Promise<string | null> {
   const rows = await select<{ value: string }>("SELECT value FROM sync_state WHERE key = $1", [key]);
   return rows[0]?.value ?? null;
 }
-const setState = (d: Database, key: string, value: string) =>
+/** Copies the database aside before sign-in replaces or removes data. Each app plugs in its own (it knows where backups go). */
+let snapshotDatabase: (reason: string) => Promise<unknown> = async () => undefined;
+export const setSnapshot = (fn: typeof snapshotDatabase) => void (snapshotDatabase = fn);
+
+const setState = (d: Driver, key: string, value: string) =>
   d.execute("INSERT INTO sync_state (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [key, value]);
 
 /** This device's id in the account's device list. */
@@ -108,7 +110,7 @@ function parseRemote(v: unknown): RemoteRow[] | null {
   return out;
 }
 
-async function columnsOf(d: Database): Promise<Record<SyncTable, string[]>> {
+async function columnsOf(d: Driver): Promise<Record<SyncTable, string[]>> {
   const entries = await Promise.all(
     (Object.keys(SYNC_TABLES) as SyncTable[]).map(async (t) => [t, (await d.select<{ name: string }[]>(`PRAGMA table_info(${t})`)).map((c) => c.name)] as const),
   );
@@ -118,7 +120,7 @@ async function columnsOf(d: Database): Promise<Record<SyncTable, string[]>> {
 const where = (key: Record<string, unknown>, from = 1) => Object.keys(key).map((c, i) => `${c} = $${i + from}`).join(" AND ");
 
 /** Applies one op; returns an issue instead of throwing, so one bad row never blocks the rest. */
-async function applyOp(d: Database, op: Exclude<ApplyOp, { kind: "settings" }>): Promise<string | null> {
+async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): Promise<string | null> {
   try {
     if (op.kind === "delete") {
       await d.execute(`DELETE FROM ${op.tbl} WHERE ${where(op.key)}`, Object.values(op.key));
@@ -222,14 +224,21 @@ export function syncNow(): Promise<void> {
   return running;
 }
 
+/**
+ * What sync needs from the app it runs in (PLAN D229): the platform name for the device list,
+ * whether the network is up, and when to sync again (back online; on the phone, back in front).
+ */
+export type SyncHost = { platform: string | null; online(): boolean; watch(sync: () => void): () => void };
+let host: SyncHost = { platform: null, online: () => true, watch: () => () => undefined };
+export const setSyncHost = (h: SyncHost) => void (host = h);
+
 let named = false;
 /**
  * Names this device's platform for the device list, once per launch. The row only exists after
  * a push that carried patches, so this retries on later runs until the update finds it.
  */
 async function namePlatform(device: string): Promise<boolean> {
-  const ua = navigator.userAgent;
-  const platform = /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : null;
+  const { platform } = host;
   if (!platform) return true;
   const { data, error } = await supabase.from("devices").update({ platform }).eq("id", device).select("id");
   return !error && !!data?.length;
@@ -237,7 +246,7 @@ async function namePlatform(device: string): Promise<boolean> {
 
 async function runOnce() {
   if (!useSync.getState().account) return;
-  if (!navigator.onLine) return useSync.setState({ status: { kind: "offline" } });
+  if (!host.online()) return useSync.setState({ status: { kind: "offline" } });
   if (!(await supabase.auth.getSession()).data.session) {
     const restored = await restoreSession();
     if (restored === "offline") return useSync.setState({ status: { kind: "offline" } });
@@ -262,7 +271,7 @@ async function runOnce() {
       return;
     }
     console.error("Sync failed", err);
-    useSync.setState({ status: navigator.onLine ? { kind: "error", message: err instanceof Error ? err.message : String(err) } : { kind: "offline" } });
+    useSync.setState({ status: host.online() ? { kind: "error", message: err instanceof Error ? err.message : String(err) } : { kind: "offline" } });
   }
 }
 
@@ -277,8 +286,7 @@ function schedule(account: string, device: string) {
     timer = setTimeout(() => void syncNow(), 2000);
   });
   const every = setInterval(() => void syncNow(), 5 * 60_000);
-  const online = () => void syncNow();
-  window.addEventListener("online", online);
+  const unwatch = host.watch(() => void syncNow());
   const channel = supabase
     .channel(`devices:${account}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "devices", filter: `owner_id=eq.${account}` }, (p) => {
@@ -290,7 +298,7 @@ function schedule(account: string, device: string) {
     clearTimeout(timer);
     offWrite();
     clearInterval(every);
-    window.removeEventListener("online", online);
+    unwatch();
     void supabase.removeChannel(channel);
   };
 }
