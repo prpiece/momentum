@@ -72,6 +72,7 @@ function commitEvents(changed: CalendarEvent[]) {
 }
 
 function log(taskId: string, kind: ActivityKind, detail = "") {
+  if (get().tasks[taskId]?.deletedAt) return; // a trashed task's history would only sync as an orphan
   void repo.logActivity(taskId, kind, detail);
 }
 

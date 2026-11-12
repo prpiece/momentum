@@ -129,8 +129,12 @@ async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): P
     const key = SYNC_TABLES[op.tbl];
     const cols = Object.keys(op.row);
     const rest = cols.filter((c) => !(key as readonly string[]).includes(c));
+    const vals = cols.map((_, i) => `$${i + 1}`).join(", ");
+    // Activity whose task is gone locally (purged, or tombstoned elsewhere) is skipped, not an error.
+    const at = cols.indexOf("task_id") + 1;
+    const source = op.tbl === "task_activity" && at ? `SELECT ${vals} WHERE EXISTS (SELECT 1 FROM tasks WHERE id = $${at})` : `VALUES (${vals})`;
     const sql =
-      `INSERT INTO ${op.tbl} (${cols.join(", ")}) VALUES (${cols.map((_, i) => `$${i + 1}`).join(", ")}) ` +
+      `INSERT INTO ${op.tbl} (${cols.join(", ")}) ${source} ` +
       `ON CONFLICT(${key.join(", ")}) DO ${rest.length ? `UPDATE SET ${rest.map((c) => `${c} = excluded.${c}`).join(", ")}` : "NOTHING"}`;
     try {
       await d.execute(sql, Object.values(op.row));
@@ -310,7 +314,8 @@ export async function startSync() {
   const raw = await state("issues");
   try {
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(parsed)) useSync.setState({ issues: parsed as SyncIssue[] });
+    // Orphaned activity rows used to be reported as foreign-key issues; they're skipped now, so drop the old reports.
+    if (Array.isArray(parsed)) useSync.setState({ issues: (parsed as SyncIssue[]).filter((i) => !(i.tbl === "task_activity" && /FOREIGN KEY constraint failed/.test(i.reason))) });
   } catch {
     /* a bad issues list only loses the history */
   }
