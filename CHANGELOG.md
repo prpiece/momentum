@@ -5,6 +5,18 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.1.2
+
+- **Settings save when you say so.** Changes wait in an "Unsaved changes" bar until you press Save, and leaving the page asks first. The Scale slider no longer zooms the window while you drag it.
+- **Backgrounds that stay put.** Your background image now saves reliably, shows only behind your task lists (the sidebar stays plain, like Microsoft To Do), and can be blurred or left sharp. Backups include the image too.
+- **Streak reminders.** If a habit's streak is about to break, you get one reminder at 6 PM. Change the time, or turn it off, in Settings → Notifications.
+- **Focus starts on its own.** Turn on "Start focus at time blocks" and a focus session begins when a task you've scheduled on the calendar starts, and stops when the block ends.
+- **Report a problem.** Settings → Help has a form for telling us what went wrong, with an optional screenshot.
+- **One colour picker.** Lists, habits, events and the Matrix all use the same picker, with presets and any custom colour. Matrix colours are under "Rules & colours", or click a quadrant's dot.
+- **Clearer dragging.** A line shows where an item will land, and it settles into place when you let go.
+- **Smaller popups.** Notices like "Event deleted · Undo" fit their text, and the update notice is a small card in the corner.
+- **Fixes.** No more "task activity wasn't synced" errors. Being offline no longer asks you to choose your handle again. The calendar's side panel button stays visible at any scale. The page behind Getting started and dialogs no longer scrolls. Sending a sign-in code shows that it's working.
+
 ## v1.1.1
 
 - **Handles with an @.** Typing an @ at the start of your handle no longer stops it from saving. The @ is shown for you in the field.

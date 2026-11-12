@@ -1,6 +1,6 @@
 [package]
 name = "momentum"
-version = "1.1.1"
+version = "1.1.2"
 description = "Momentum, an offline desktop planner"
 authors = ["Momentum contributors"]
 edition = "2024"
