@@ -80,8 +80,9 @@
   .menu-item.danger, .menu-item.danger > .mi-icon { color: var(--danger); }
   .menu-item:disabled { opacity: .4; pointer-events: none; }
   .menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
-  .toast { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: var(--r-card); font-size: var(--fs-sm); line-height: var(--lh-sm); }
-  .toast [data-title] { flex: 1; min-width: 0; padding: 0 4px; }
+  .toast { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: var(--r-card); font-size: var(--fs-base); line-height: var(--lh-base); }
+  .toast [data-content] { flex: 0 1 auto; min-width: 0; }
+  .toast [data-title] { min-width: 0; }
   .toast-act { color: var(--accent-text) !important; font-weight: 600; }
 
   /* ---------- empty state ---------- */

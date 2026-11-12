@@ -71,7 +71,7 @@ export function CalendarView() {
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
         <ToolbarActions>
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button type="button" onClick={() => setCalAnchor(todayLocal())} className="btn btn-secondary" title="Today (T)">
             Today
           </button>
@@ -85,13 +85,13 @@ export function CalendarView() {
             <ChevronRight size={18} strokeWidth={1.75} />
           </button>
           </Tip>
-          <h2 className="ml-1 mr-3 whitespace-nowrap text-[length:var(--fs-lg)] font-semibold leading-[var(--lh-lg)] max-[1100px]:mr-1 max-[1100px]:text-[length:var(--fs-base)] max-[799px]:hidden">{rangeTitle(span ? "5day" : view, days, anchor)}</h2>
+          <h2 className="ml-1 mr-3 whitespace-nowrap text-[length:var(--fs-lg)] font-semibold leading-[var(--lh-lg)] @max-[800px]/tb:mr-1 @max-[800px]/tb:text-[length:var(--fs-base)] @max-[560px]/tb:hidden">{rangeTitle(span ? "5day" : view, days, anchor)}</h2>
           {span && (
-            <button type="button" onClick={() => setCalSpan(null)} title="Back to the selected view" aria-pressed="true" className="anim-pop btn btn-ghost btn-sm max-[1100px]:hidden">
+            <button type="button" onClick={() => setCalSpan(null)} title="Back to the selected view" aria-pressed="true" className="anim-pop btn btn-ghost btn-sm @max-[800px]/tb:hidden">
               {span} days <X size={14} strokeWidth={1.75} />
             </button>
           )}
-          <div role="radiogroup" aria-label="Calendar view" className="seg max-[1100px]:hidden">
+          <div role="radiogroup" aria-label="Calendar view" className="seg @max-[800px]/tb:hidden">
             {CAL_VIEWS.map((v) => (
               <button
                 key={v}
@@ -107,7 +107,7 @@ export function CalendarView() {
             ))}
           </div>
           {/* Narrow windows: the five views collapse to one menu button (it also shows a dragged day span). */}
-          <button ref={viewMenu.anchor} type="button" aria-label="Calendar view" aria-haspopup="menu" aria-expanded={viewMenu.open} onClick={viewMenu.toggle} className="btn btn-secondary min-[1100px]:hidden">
+          <button ref={viewMenu.anchor} type="button" aria-label="Calendar view" aria-haspopup="menu" aria-expanded={viewMenu.open} onClick={viewMenu.toggle} className="btn btn-secondary @min-[800px]/tb:hidden">
             {span ? `${span} days` : LABEL[view][0]} <ChevronDown size={14} strokeWidth={1.75} />
           </button>
           {viewMenu.open && (
@@ -126,7 +126,7 @@ export function CalendarView() {
           </button>
           </Tip>
           <Tip label="Arrange tasks">
-          <button type="button" aria-label="Toggle side panel" aria-pressed={cal.arrangeOpen} onClick={() => setCal({ arrangeOpen: !cal.arrangeOpen })} className={`btn btn-ghost icon-btn ${cal.arrangeOpen ? "is-on" : ""}`}>
+          <button type="button" aria-label="Toggle side panel" aria-pressed={cal.arrangeOpen} onClick={() => setCal({ arrangeOpen: !cal.arrangeOpen })} className={`btn btn-ghost icon-btn shrink-0 ${cal.arrangeOpen ? "is-on" : ""}`}>
             <PanelRight size={16} strokeWidth={1.75} />
           </button>
           </Tip>
@@ -176,7 +176,7 @@ export function CalendarView() {
           <AgendaView days={days} items={items} />
         ) : view === "day" ? (
           // Grid plus the Day brief, or the grid up to the Arrange panel: both sides filled, never a centred island (D209).
-          <div className="flex min-h-0 flex-1">
+          <div className="@container/day flex min-h-0 flex-1">
             <TimeGrid days={days} items={items} onViewDay={openDay} />
             {!cal.arrangeOpen && <DayBrief day={days[0]} items={items} />}
           </div>

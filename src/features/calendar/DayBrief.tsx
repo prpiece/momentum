@@ -27,7 +27,7 @@ export function DayBrief({ day, items }: { day: string; items: CalItem[] }) {
   const date = fromLocalDate(day);
 
   return (
-    <aside aria-label="Day brief" className="hidden w-[var(--detail-panel)] shrink-0 flex-col overflow-y-auto border-l border-border min-[1100px]:flex">
+    <aside aria-label="Day brief" className="hidden w-[var(--detail-panel)] shrink-0 flex-col overflow-y-auto border-l border-border @min-[820px]/day:flex">
       <header className="border-b border-border px-5 pb-4 pt-5">
         <div className={`t-label ${day === today ? "text-accent-text" : "text-muted"}`}>{relativeDayLabel(day, today)}</div>
         <h2 className="t-title mt-1">{format(date, "EEEE d MMMM")}</h2>

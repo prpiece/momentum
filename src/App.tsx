@@ -110,7 +110,7 @@ export default function App() {
         <div className="contents max-[719px]:hidden">{layout === "sidebar" ? <Sidebar /> : topBar && <NavBar position="top" style={barStyle} />}</div>
         <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden shell-surface border-border max-[719px]:border-0 ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : barStyle === "floating" ? "" : topBar ? "border-t" : "border-b"}`}>
           <Header view={view} spec={spec} controls={controlsInBar ? "phone" : "always"} />
-          <div key={view} className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
+          <div key={view} data-scroller className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
             <View view={view} spec={spec} />
           </div>
           {/* Below the toolbar, so the window controls stay reachable while a task is open. */}

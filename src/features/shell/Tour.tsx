@@ -6,6 +6,7 @@ import type { ViewId } from "../../domain/types";
 import { useSettings } from "../../stores/settings";
 import { useAppVersion } from "../../lib/updater";
 import { go, useUi } from "../../stores/ui";
+import { lockScroll } from "../../lib/scrollLock";
 
 const Kbd = ({ children }: { children: string }) => <Keys keys={children} />;
 const Token = ({ children }: { children: ReactNode }) => <code className="token">{children}</code>;
@@ -142,6 +143,9 @@ export function Tour() {
   const startView = useRef<ViewId | null>(null);
   const step = STEPS[i];
   const last = STEPS.length - 1;
+
+  // The page behind stays put while the tour is up.
+  useEffect(() => (open ? lockScroll() : undefined), [open]);
 
   // Remember where you were, to come back to it at the end.
   useEffect(() => {

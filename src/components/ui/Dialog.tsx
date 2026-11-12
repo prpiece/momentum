@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { exitGhost } from "../../lib/motion";
+import { lockScroll } from "../../lib/scrollLock";
 import { Tip } from "./Tip";
 
 /** Modal with backdrop. Escape and backdrop click close (`modal` keeps it open on backdrop click); focus moves inside and returns on close. */
@@ -13,6 +14,8 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
     const scrim = ref.current?.parentElement;
     return () => exitGhost(scrim);
   }, []);
+
+  useEffect(() => lockScroll(), []);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;

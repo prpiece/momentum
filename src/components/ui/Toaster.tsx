@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Toaster as Sonner } from "sonner";
 import { useSettings } from "../../stores/settings";
 
@@ -14,10 +15,11 @@ export function Toaster() {
       gap={8}
       theme={theme}
       closeButton
+      style={{ "--width": "420px" } as CSSProperties}
       toastOptions={{
         unstyled: true,
         classNames: {
-          toast: "layer layer-raised toast w-[min(420px,calc(100vw-32px))]",
+          toast: "layer layer-raised toast inset-x-0 mx-auto w-fit max-w-[min(420px,calc(100vw-32px))]",
           actionButton: "btn btn-ghost btn-sm toast-act shrink-0",
           closeButton: "btn btn-ghost btn-sm icon-btn order-last shrink-0 text-muted",
         },

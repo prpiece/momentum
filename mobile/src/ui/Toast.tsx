@@ -46,8 +46,8 @@ export function ToastHost() {
 }
 
 const s = StyleSheet.create({
-  wrap: { position: "absolute", left: 16, right: 16 },
-  toast: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, paddingLeft: 16, minHeight: 48, elevation: 6, shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  text: { flex: 1, fontSize: 15, paddingVertical: 12 },
-  action: { paddingHorizontal: 16, minHeight: 48, justifyContent: "center" },
+  wrap: { position: "absolute", left: 16, right: 16, alignItems: "center" },
+  toast: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, paddingLeft: 12, maxWidth: "100%", elevation: 6, shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  text: { fontSize: 15, paddingVertical: 10, flexShrink: 1 },
+  action: { paddingHorizontal: 12, minHeight: 44, justifyContent: "center" },
 });
