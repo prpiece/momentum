@@ -2,12 +2,12 @@ import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { reportProblem, sendReport, type Screenshot } from "@core/lib/sync/report";
 import { supabase, syncConfigured } from "@core/lib/sync/supabase";
 import { toast } from "@core/stores/toast";
 import { useColors } from "@/theme";
-import { Button, Field, Label } from "@/ui/kit";
+import { Button, Field, Label, Text } from "@/ui/kit";
 
 /** Same form as the desktop's Settings → Help → Report a problem: name, email, description, optional screenshot. */
 export default function Report() {

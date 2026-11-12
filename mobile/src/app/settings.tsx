@@ -1,11 +1,11 @@
 import * as Notifications from "expo-notifications";
 import { useNavigation, usePreventRemove } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { ACCENTS } from "@core/domain/color";
 import { discardDraft, saveDraft, useSettingsDraft } from "@core/stores/settingsDraft";
 import { useColors } from "@/theme";
-import { Button, Icon, Label, Segmented } from "@/ui/kit";
+import { Button, Icon, Label, Segmented, Text } from "@/ui/kit";
 
 /** The settings that matter on a phone. They sync, so they match the computer. */
 export default function Settings() {

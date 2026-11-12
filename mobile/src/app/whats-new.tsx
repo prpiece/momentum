@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { newsGroups } from "@core/domain/changelog";
 import { useColors } from "@/theme";
 import { appVersion, sectionsSince } from "@/whatsNew";
-import { Button, Label } from "@/ui/kit";
+import { Button, Label, Text } from "@/ui/kit";
 
 /** What changed: the CHANGELOG sections since `since` (after an update), or this version's. Markdown shows as plain text. */
 export default function WhatsNew() {

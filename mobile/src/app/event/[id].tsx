@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import { hhmmOf } from "@core/domain/calendar";
 import { atLocalTime, durationMinutes, fromLocalDate, hhmm, scheduleDate, timed, toLocalDate } from "@core/domain/dates";
 import { scheduleForKey, summarizeSchedule } from "@core/domain/recurrence";
@@ -9,7 +9,7 @@ import { addEvent, updateEvent, useData } from "@core/stores/data";
 import { createFromText } from "@core/stores/quickAddSubmit";
 import { applySchedule, deleteEvent } from "@core/stores/schedule";
 import { useColors } from "@/theme";
-import { Button, Field, Label, Segmented } from "@/ui/kit";
+import { Button, Field, Label, Segmented, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
 
 /** `new` (from a calendar tap: a task or an event at that slot) or one event to edit. */

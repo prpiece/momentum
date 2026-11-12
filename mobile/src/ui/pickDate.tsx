@@ -1,8 +1,9 @@
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, View } from "react-native";
 import { create } from "zustand";
 import { useColors } from "@/theme";
+import { Text } from "./kit";
 
 type Ask = { mode: "date" | "time"; value: Date; resolve: (d: Date | null) => void };
 const useAsk = create<{ ask: Ask | null }>(() => ({ ask: null }));

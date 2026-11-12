@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
 import { deleteAccount, keepAccount, loadAccount, saveHandle, sendCode, statusText, verifyCode, type AccountInfo } from "@core/lib/sync/account";
 import { signOut, syncNow, useSync } from "@core/lib/sync/engine";
 import { syncConfigured } from "@core/lib/sync/supabase";
 import { toast } from "@core/stores/toast";
 import { useColors, type Colors } from "@/theme";
+import { Text } from "@/ui/kit";
 
 const SITE = "https://prpiece.github.io/momentum/";
 

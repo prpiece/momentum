@@ -1,30 +1,16 @@
 import { Tabs } from "expo-router";
-import type { ColorValue } from "react-native";
 import { useColors } from "@/theme";
-import { Icon, type IconName } from "@/ui/kit";
+import { TabBar } from "@/ui/TabBar";
 
-const tab = (title: string, icon: IconName) => ({ title, tabBarIcon: ({ color }: { color: ColorValue }) => <Icon name={icon} color={String(color)} size={22} /> });
-
-/** Today, Lists, Calendar, Habits and More (D200's phone bar, as native tabs). */
+/** Today · Calendar · + · Habits · Browse (D254). Each screen draws its own header. */
 export default function TabsLayout() {
   const c = useColors();
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: c.bg },
-        headerTintColor: c.fg,
-        headerShadowVisible: false,
-        tabBarStyle: { backgroundColor: c.bg, borderTopColor: c.border },
-        tabBarActiveTintColor: c.accentText,
-        tabBarInactiveTintColor: c.muted,
-        sceneStyle: { backgroundColor: c.bg },
-      }}
-    >
-      <Tabs.Screen name="index" options={tab("Today", "sun")} />
-      <Tabs.Screen name="lists" options={tab("Lists", "list")} />
-      <Tabs.Screen name="calendar" options={tab("Calendar", "calendar")} />
-      <Tabs.Screen name="habits" options={tab("Habits", "target")} />
-      <Tabs.Screen name="more" options={tab("More", "menu")} />
+    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.surface } }}>
+      <Tabs.Screen name="index" options={{ title: "Today" }} />
+      <Tabs.Screen name="calendar" options={{ title: "Calendar" }} />
+      <Tabs.Screen name="habits" options={{ title: "Habits" }} />
+      <Tabs.Screen name="browse" options={{ title: "Browse" }} />
     </Tabs>
   );
 }

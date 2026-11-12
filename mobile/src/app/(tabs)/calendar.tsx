@@ -1,6 +1,7 @@
 import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from "react";
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { calendarItems, coversDay, dayRange, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, rangeTitle, resizedSchedule, stepAnchor, viewDays, type CalItem } from "@core/domain/calendar";
 import { addDaysLocal, formatTime, fromLocalDate, relativeDayLabel, todayLocal } from "@core/domain/dates";
@@ -10,14 +11,15 @@ import { useData } from "@core/stores/data";
 import { applySchedule, currentSchedule } from "@core/stores/schedule";
 import { useSettings } from "@core/stores/settings";
 import { resolveColor, useColors, type Colors } from "@/theme";
-import { Icon, Segmented } from "@/ui/kit";
+import { Empty, IconButton, Segmented, Text } from "@/ui/kit";
+import { useQuickAddContext } from "@/ui/QuickAdd";
 
 type View_ = "day" | "3day" | "month" | "agenda";
 const VIEWS = [
-  { value: "day", label: "Day" },
-  { value: "3day", label: "3 days" },
-  { value: "month", label: "Month" },
   { value: "agenda", label: "Agenda" },
+  { value: "3day", label: "3 days" },
+  { value: "day", label: "Day" },
+  { value: "month", label: "Month" },
 ] as const;
 const HOUR = 56;
 const PPM = HOUR / 60;
@@ -35,8 +37,12 @@ const newAt = (day: LocalDate, minute: number | null) => router.push({ pathname:
 export default function Calendar() {
   const c = useColors();
   const today = todayLocal();
-  const [view, setView] = useState<View_>("3day");
+  const insets = useSafeAreaInsets();
+  const [view, setView] = useState<View_>("agenda");
   const [anchor, setAnchor] = useState(today);
+  // Month: the day whose agenda shows under the grid.
+  const [picked, setPicked] = useState(today);
+  useQuickAddContext({ schedule: { kind: "day", date: view === "month" ? picked : anchor } });
   const weekStart = useSettings((s) => s.settings.weekStart);
   const tasks = useData((s) => s.tasks);
   const lists = useData((s) => s.lists);
@@ -47,31 +53,29 @@ export default function Calendar() {
     return calendarItems({ tasks: derive(tasks, lists).active, events: Object.values(events), colorOf, showCompleted: true }, days[0], days[days.length - 1]);
   }, [tasks, lists, events, days]);
 
+  const title =
+    view === "3day"
+      ? rangeTitle("5day", days, anchor)
+      : view === "day"
+        ? fromLocalDate(anchor).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })
+        : rangeTitle(view, days, anchor);
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, paddingTop: insets.top + 4 }}>
       <View style={s.bar}>
-        <Segmented value={view} options={VIEWS} onChange={setView} />
         <View style={s.nav}>
-          <Pressable onPress={() => setAnchor(step(view, anchor, -1))} hitSlop={8} accessibilityLabel="Previous" style={s.navButton}>
-            <Icon name="chevron-left" color={c.fg} />
-          </Pressable>
-          <Text style={[s.navTitle, { color: c.fg }]} numberOfLines={1}>
-            {view === "3day"
-              ? rangeTitle("5day", days, anchor)
-              : view === "day"
-                ? fromLocalDate(anchor).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-                : rangeTitle(view, days, anchor)}
+          <Text variant="title" numberOfLines={1} accessibilityRole="header" style={{ flex: 1 }}>
+            {title}
           </Text>
-          <Pressable onPress={() => setAnchor(today)} hitSlop={8} style={s.navButton}>
-            <Text style={{ color: c.accentText, fontWeight: "600" }}>Today</Text>
+          <IconButton icon="chevron-left" label="Previous" color={c.fg} onPress={() => setAnchor(step(view, anchor, -1))} />
+          <Pressable onPress={() => (setAnchor(today), setPicked(today))} accessibilityRole="button" style={s.navButton}>
+            <Text style={{ color: c.accentText, fontWeight: "600", fontSize: 15 }}>Today</Text>
           </Pressable>
-          <Pressable onPress={() => setAnchor(step(view, anchor, 1))} hitSlop={8} accessibilityLabel="Next" style={s.navButton}>
-            <Icon name="chevron-right" color={c.fg} />
-          </Pressable>
+          <IconButton icon="chevron-right" label="Next" color={c.fg} onPress={() => setAnchor(step(view, anchor, 1))} />
         </View>
+        <Segmented value={view} options={VIEWS} onChange={setView} />
       </View>
       {view === "month" ? (
-        <Month days={days} anchor={anchor} items={items} c={c} onDay={(d) => (setAnchor(d), setView("day"))} />
+        <Month days={days} anchor={anchor} items={items} c={c} picked={picked} onDay={setPicked} />
       ) : view === "agenda" ? (
         <Agenda days={days} items={items} c={c} />
       ) : (
@@ -214,56 +218,72 @@ function Block({ item, top, height, left, width, day, days, colIndex, colW, c }:
   );
 }
 
-function Month({ days, anchor, items, c, onDay }: { days: LocalDate[]; anchor: LocalDate; items: CalItem[]; c: Colors; onDay: (d: LocalDate) => void }) {
+function Month({ days, anchor, items, c, picked, onDay }: { days: LocalDate[]; anchor: LocalDate; items: CalItem[]; c: Colors; picked: LocalDate; onDay: (d: LocalDate) => void }) {
   const month = anchor.slice(0, 7);
   const today = todayLocal();
   return (
-    <View style={s.month}>
-      {days.map((d) => {
-        const on = items.filter((i) => coversDay(i, d));
-        return (
-          <Pressable key={d} onPress={() => onDay(d)} onLongPress={() => newAt(d, null)} style={[s.cell, { borderColor: c.border }]} accessibilityLabel={`${relativeDayLabel(d, today)}, ${on.length} items`}>
-            <Text style={{ color: d === today ? c.accentText : d.startsWith(month) ? c.fg : c.muted, fontWeight: d === today ? "700" : "400", fontSize: 13 }}>{fromLocalDate(d).getDate()}</Text>
-            {on.slice(0, 3).map((i) => (
-              <Text key={i.uid} numberOfLines={1} style={[s.cellItem, { backgroundColor: resolveColor(c, i.color) }]}>
-                {i.title}
-              </Text>
-            ))}
-            {on.length > 3 ? <Text style={{ color: c.muted, fontSize: 10 }}>+{on.length - 3}</Text> : null}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-function Agenda({ days, items, c }: { days: LocalDate[]; items: CalItem[]; c: Colors }) {
-  const today = todayLocal();
-  const timeFormat = useSettings((s) => s.settings.timeFormat);
-  const withItems = days.map((d) => ({ d, on: itemsOnDay(items, d) })).filter((x) => x.on.length);
-  return (
     <ScrollView>
-      {withItems.length ? null : <Text style={{ color: c.muted, padding: 24, textAlign: "center" }}>Nothing scheduled.</Text>}
-      {withItems.map(({ d, on }) => (
-        <View key={d}>
-          <Text style={[s.agendaDay, { color: d === today ? c.accentText : c.muted }]}>{relativeDayLabel(d, today)}</Text>
-          {on.map((i) => (
-            <Pressable key={i.uid} onPress={() => openItem(i)} style={[s.agendaRow, { borderColor: c.border }]}>
-              <View style={[s.dot, { backgroundColor: resolveColor(c, i.color) }]} />
-              <Text style={{ color: c.muted, width: 72, fontSize: 14 }}>{i.allDay ? "All day" : i.start ? formatTime(i.start, timeFormat) : ""}</Text>
-              <Text style={{ color: i.done ? c.muted : c.fg, flex: 1, fontSize: 16, textDecorationLine: i.done ? "line-through" : "none" }} numberOfLines={2}>
-                {i.title}
-              </Text>
+      <View style={s.weekdays}>
+        {days.slice(0, 7).map((d) => (
+          <Text key={d} style={{ flex: 1, textAlign: "center", color: c.muted, fontSize: 12, fontWeight: "600" }}>
+            {fromLocalDate(d).toLocaleDateString(undefined, { weekday: "narrow" })}
+          </Text>
+        ))}
+      </View>
+      <View style={s.month}>
+        {days.map((d) => {
+          const on = items.filter((i) => coversDay(i, d));
+          const sel = d === picked;
+          return (
+            <Pressable key={d} onPress={() => onDay(d)} onLongPress={() => newAt(d, null)} style={s.cell} accessibilityRole="button" accessibilityState={{ selected: sel }} accessibilityLabel={`${relativeDayLabel(d, today)}, ${on.length} items`}>
+              <View style={[s.dayNum, sel && { backgroundColor: d === today ? c.accent : c.fg }]}>
+                <Text style={{ color: sel ? (d === today ? c.accentFg : c.surface) : d === today ? c.accentText : d.startsWith(month) ? c.fg : c.muted, fontWeight: d === today || sel ? "600" : "400", fontSize: 15, fontVariant: ["tabular-nums"] }}>{fromLocalDate(d).getDate()}</Text>
+              </View>
+              <View style={s.dots}>
+                {on.slice(0, 3).map((i) => (
+                  <View key={i.uid} style={[s.dot6, { backgroundColor: resolveColor(c, i.color) }]} />
+                ))}
+              </View>
             </Pressable>
-          ))}
-        </View>
-      ))}
+          );
+        })}
+      </View>
+      <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.border }}>
+        <Agenda days={[picked]} items={items} c={c} plain />
+      </View>
     </ScrollView>
   );
 }
 
+function Agenda({ days, items, c, plain }: { days: LocalDate[]; items: CalItem[]; c: Colors; plain?: boolean }) {
+  const today = todayLocal();
+  const timeFormat = useSettings((s) => s.settings.timeFormat);
+  const withItems = days.map((d) => ({ d, on: itemsOnDay(items, d) })).filter((x) => x.on.length);
+  return (
+    <Wrap plain={plain}>
+      {withItems.length ? null : <Empty text="Nothing scheduled" hint="Tap + to add something for this day." />}
+      {withItems.map(({ d, on }) => (
+        <View key={d}>
+          <Text variant="label" style={[s.agendaDay, { color: d === today ? c.accentText : c.muted }]}>{d === today ? `Today · ${fromLocalDate(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}` : relativeDayLabel(d, today)}</Text>
+          {on.map((i) => (
+            <Pressable key={i.uid} onPress={() => openItem(i)} style={[s.agendaRow, { borderColor: c.border }]}>
+              <View style={[s.dot, { backgroundColor: resolveColor(c, i.color) }]} />
+              <Text variant="bodyStrong" style={{ color: i.done ? c.muted : c.fg, flex: 1, textDecorationLine: i.done ? "line-through" : "none" }} numberOfLines={2}>
+                {i.title}
+              </Text>
+              <Text style={{ color: c.muted, fontSize: 14, fontVariant: ["tabular-nums"] }}>{i.allDay ? "All day" : i.start ? formatTime(i.start, timeFormat) : ""}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ))}
+    </Wrap>
+  );
+}
+
+const Wrap = ({ plain, children }: { plain?: boolean; children: ReactNode }) => (plain ? <View>{children}</View> : <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>{children}</ScrollView>);
+
 const s = StyleSheet.create({
-  bar: { padding: 12, gap: 8 },
+  bar: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
   nav: { flexDirection: "row", alignItems: "center", gap: 4 },
   navButton: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },
   navTitle: { flex: 1, fontSize: 16, fontWeight: "600" },
@@ -274,10 +294,13 @@ const s = StyleSheet.create({
   now: { position: "absolute", left: 0, right: 0, height: 2 },
   block: { position: "absolute", borderRadius: 4, paddingHorizontal: 4, paddingTop: 2, overflow: "hidden" },
   handle: { position: "absolute", left: 0, right: 0, bottom: 0, height: 14 },
-  month: { flex: 1, flexDirection: "row", flexWrap: "wrap" },
-  cell: { width: `${100 / 7}%`, height: "16.66%", borderTopWidth: StyleSheet.hairlineWidth, padding: 3, gap: 2 },
-  cellItem: { color: "#FFFFFF", fontSize: 10, borderRadius: 3, paddingHorizontal: 2, overflow: "hidden" },
-  agendaDay: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
-  agendaRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 52, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  weekdays: { flexDirection: "row", paddingHorizontal: 8, paddingBottom: 4 },
+  month: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 8, paddingBottom: 8 },
+  cell: { width: `${100 / 7}%`, minHeight: 52, alignItems: "center", paddingTop: 4, gap: 3 },
+  dayNum: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  dots: { flexDirection: "row", gap: 3, height: 6 },
+  dot6: { width: 6, height: 6, borderRadius: 3 },
+  agendaDay: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  agendaRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, paddingHorizontal: 20, borderBottomWidth: StyleSheet.hairlineWidth },
   dot: { width: 10, height: 10, borderRadius: 5 },
 });
