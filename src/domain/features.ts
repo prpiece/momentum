@@ -124,6 +124,8 @@ export const FEATURES: Feature[] = [
     commands: [palette("go-focus", "Go to Focus"), keys("G F", "Focus")] },
   { id: "mini-window", title: "Keep the timer on top", howTo: "The mini window shows your next tasks, the timer and the matrix while you work elsewhere.", icon: "window", group: "Habits & focus", since: OLD, core: false,
     commands: [keys("Ctrl Alt M", "Show or hide the mini window")] },
+  { id: "streak-reminder", title: "Save a streak before it breaks", howTo: "At 18:00 (change it in Settings → Notifications) you get one reminder for habits with a running streak that you haven't done yet. Weekly habits are reminded on the week's last day.", icon: "target", group: "Habits & focus", since: "1.1.2", core: false, commands: [] },
+  { id: "auto-focus", title: "Start focus when a time block begins", howTo: "Turn on Start focus at time blocks in Settings → Notifications: a task you've put on the calendar starts a focus session when its time comes, and stops it when the block ends.", icon: "timer", group: "Habits & focus", since: "1.1.2", core: false, commands: [] },
 
   // ---- Progress
   { id: "progress", title: "See your progress", howTo: "Your week, streaks, trophies and trends in one place.", icon: "chart", group: "Progress", since: OLD, core: false,
@@ -135,6 +137,7 @@ export const FEATURES: Feature[] = [
   { id: "appearance", title: "Make it yours", howTo: "Theme, accent, layout and scale are in Settings → Appearance.", icon: "palette", group: "Keyboard", since: OLD, core: false,
     commands: [palette("theme-light", "Switch theme: Light"), palette("theme-dark", "Switch theme: Dark"), palette("theme-system", "Switch theme: System"), palette("sidebar", "Collapse or expand the sidebar", "["), keys("[", "Collapse or expand the sidebar"), keys("Ctrl + / Ctrl − / Ctrl 0", "Scale up / down / reset")] },
   { id: "background", title: "Pick a background", howTo: "Put a colour or one of your own images behind the app, and dim it to keep text easy to read, in Settings → Appearance.", icon: "palette", group: "Keyboard", since: "1.0.2", core: false, commands: [] },
+  { id: "report", title: "Report a problem", howTo: "Settings → Help → Report a problem sends us a description, and a screenshot if you like. It needs an internet connection.", icon: "help", group: "Keyboard", since: "1.1.2", core: false, commands: [] },
   { id: "help", title: "Find your way around", howTo: "Help lists every command; the tour shows the main ideas again.", icon: "help", group: "Keyboard", since: "1.0.0", core: false,
     commands: [palette("help", "Help"), palette("tour", "Take the tour"), palette("shortcuts", "Keyboard shortcuts", "?"), palette("go-settings", "Go to Settings"), keys("?", "Keyboard shortcuts"), keys("Ctrl ,", "Settings"), keys("G ,", "Settings")] },
 ];

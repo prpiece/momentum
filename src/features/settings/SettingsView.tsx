@@ -120,7 +120,7 @@ const INDEX: [string, string][] = [
   ["settings-appearance", "Theme"], ["settings-appearance", "Accent"], ["settings-appearance", "Layout"], ["settings-appearance", "Sidebar position"], ["settings-appearance", "Animations"],
   ["settings-appearance", "Density"], ["settings-appearance", "Scale"],
   ["settings-notifications", "Notifications"], ["settings-notifications", "Task reminders"], ["settings-notifications", "When things start"], ["settings-notifications", "Habit reminders"],
-  ["settings-notifications", "Daily summary"], ["settings-notifications", "Focus timer"], ["settings-notifications", "Style"], ["settings-notifications", "Popup position"], ["settings-notifications", "Chime"],
+  ["settings-notifications", "Daily summary"], ["settings-notifications", "Streak at risk"], ["settings-notifications", "Start focus at time blocks"], ["settings-notifications", "Focus timer"], ["settings-notifications", "Style"], ["settings-notifications", "Popup position"], ["settings-notifications", "Chime"],
   ["settings-notifications", "Sound effects"], ["settings-notifications", "Volume"],
   [VOICE_SECTION_ID, "Voice model"], [VOICE_SECTION_ID, "Microphone"], [VOICE_SECTION_ID, "Push to talk"],
   ["settings-account", "Sync now"], ["settings-account", "Sign out"],

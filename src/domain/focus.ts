@@ -2,6 +2,7 @@
  * Focus timer as a pure state machine. Time is always derived from wall-clock timestamps
  * (never from counting ticks), so throttled background timers can't make it drift.
  */
+import type { TaskVM } from "./taskViews";
 import type { Cycles, Instant } from "./types";
 
 export type FocusMode = "pomodoro" | "stopwatch";
@@ -122,4 +123,18 @@ export function formatClock(ms: number): string {
   const mm = String(m).padStart(2, "0");
   const ss = String(sec).padStart(2, "0");
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+export type AutoFocus = { key: string; taskId: string; title: string; start: number; end: number };
+
+/** The not-done time-blocked task whose start fell in the last 60s, unless it is the block we already started. Not-done = the open tasks the caller passes in. */
+export function dueAutoFocus(tasks: readonly TaskVM[], now: number, lastKey: string | null): AutoFocus | null {
+  for (const { task, schedule, key } of tasks) {
+    if (task.status !== "open" || schedule.kind !== "timed") continue;
+    const start = Date.parse(schedule.start);
+    const end = Date.parse(schedule.end);
+    const k = `${task.id}:${key ?? ""}:${schedule.start}`;
+    if (now >= start && now - start < 60_000 && end > now && k !== lastKey) return { key: k, taskId: task.id, title: task.title, start, end };
+  }
+  return null;
 }

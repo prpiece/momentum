@@ -3,7 +3,7 @@ import { atLocalTime, timed, wallKey } from "./dates";
 import type { Habit } from "./habits";
 import type { CalItem } from "./calendar";
 import { DEFAULT_SETTINGS } from "./settings";
-import { dedupeFires, digestBetween, reminderAt, remindersBetween, startsBetween, upcomingFires } from "./reminders";
+import { dedupeFires, digestBetween, reminderAt, remindersBetween, startsBetween, streakFires, upcomingFires } from "./reminders";
 import { toVM, type TaskVM } from "./taskViews";
 import type { Reminder, Schedule, Task } from "./types";
 
@@ -78,5 +78,43 @@ describe("reminders", () => {
     const quiet = { ...DEFAULT_SETTINGS, notify: { ...DEFAULT_SETTINGS.notify, digest: false, starts: false, taskReminders: false } };
     expect(upcomingFires({ ...src, settings: quiet }, ...win)).toHaveLength(0);
     expect(upcomingFires({ ...src, settings: { ...DEFAULT_SETTINGS, notify: { ...DEFAULT_SETTINGS.notify, enabled: false } } }, ...win)).toHaveLength(0);
+  });
+
+  describe("streak at risk", () => {
+    const habit = (p: Partial<Habit> = {}): Habit => ({ id: "h", name: "Reading", icon: "", color: "#000", goal: { kind: "once" }, frequency: { kind: "daily" }, reminders: [], groupId: null, sortOrder: 0, archived: false, startDate: "2026-01-01", createdAt: "", ...p });
+    const days = (...d: string[]) => new Map(d.map((x) => [x, 1]));
+    const win = [atLocalTime("2026-10-25", "12:00"), atLocalTime("2026-10-26", "23:00")] as const;
+
+    it("fires at the time on today if a daily streak is not yet saved, and tomorrow", () => {
+      const f = streakFires([habit()], () => days("2026-10-24", "2026-10-23"), "18:00", ...win, 0);
+      expect(f.map((x) => wallKey(x.at))).toEqual(["2026-10-25T18:00", "2026-10-26T18:00"]);
+      expect(f[0].title).toBe("Keep your 2-day Reading streak");
+    });
+
+    it("skips today once done, and habits with no streak", () => {
+      const f = streakFires([habit()], () => days("2026-10-25", "2026-10-24"), "18:00", ...win, 0);
+      expect(f.map((x) => wallKey(x.at))).toEqual(["2026-10-26T18:00"]);
+      expect(streakFires([habit()], () => days("2026-10-20"), "18:00", ...win, 0)).toHaveLength(0);
+    });
+
+    it("fires weekly habits on the last day of the week, only while the week's target is unmet", () => {
+      const h = habit({ frequency: { kind: "perWeek", count: 1 } });
+      // Week Mon 2026-10-19..Sun 2026-10-25 done; Mon 26 starts a new week, so Sunday Nov 1 is its last day.
+      const long = [atLocalTime("2026-10-26", "12:00"), atLocalTime("2026-11-02", "12:00")] as const;
+      expect(streakFires([h], () => days("2026-10-20"), "18:00", ...long, 1).map((x) => wallKey(x.at))).toEqual(["2026-11-01T18:00"]);
+      expect(streakFires([h], () => days("2026-10-20", "2026-10-27"), "18:00", ...long, 1)).toHaveLength(0);
+    });
+
+    it("combines several habits into one notification", () => {
+      const f = streakFires([habit(), habit({ id: "g", name: "Yoga" })], () => days("2026-10-24"), "18:00", ...win, 0);
+      expect(f[0].title).toBe("Keep your streaks alive");
+      expect(f[0].body).toBe("Reading (1 day), Yoga (1 day)");
+    });
+
+    it("is switched off by the setting", () => {
+      const src = { active: [], events: [], habits: [habit()], habitValues: () => days("2026-10-24"), settings: { ...DEFAULT_SETTINGS, streakReminder: { on: false, time: "18:00" } } };
+      expect(upcomingFires(src, ...win).some((f) => f.key.startsWith("streak:"))).toBe(false);
+      expect(upcomingFires({ ...src, settings: DEFAULT_SETTINGS }, ...win).some((f) => f.key.startsWith("streak:"))).toBe(true);
+    });
   });
 });

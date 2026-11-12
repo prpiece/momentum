@@ -262,6 +262,10 @@ export type Settings = {
   /** Look for a new release on GitHub at launch (D59). */
   checkUpdates: boolean;
   notify: NotifySettings;
+  /** Evening nudge for habits whose running streak is about to break (D232 batch); `time` is `HH:MM`. */
+  streakReminder: { on: boolean; time: string };
+  /** Start a focus session when a time-blocked task begins. Per device. */
+  autoFocus: boolean;
   sounds: SoundSettings;
   /** The first-run welcome tour has been shown. */
   onboarded: boolean;

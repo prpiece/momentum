@@ -68,6 +68,8 @@ function Preview({ style }: { style: NotifySettings["style"] }) {
 
 export function NotificationSection() {
   const n = useSettings((s) => s.settings.notify);
+  const sr = useSettings((s) => s.settings.streakReminder);
+  const autoFocus = useSettings((s) => s.settings.autoFocus);
   const update = useSettings((s) => s.update);
   const set = (patch: Partial<NotifySettings>) => update({ notify: { ...useSettings.getState().settings.notify, ...patch } });
 
@@ -87,6 +89,12 @@ export function NotificationSection() {
               <Switch checked={n[k]} onChange={(v) => set({ [k]: v })} label={title} />
             </Line>
           ))}
+          <Line title="Streak at risk" hint="One reminder for habits whose streak is about to break">
+            {sr.on && (
+              <input type="time" aria-label="Streak reminder time" value={sr.time} onChange={(e) => e.target.value && update({ streakReminder: { ...sr, time: e.target.value } })} className="input w-auto tabular-nums" />
+            )}
+            <Switch checked={sr.on} onChange={(on) => update({ streakReminder: { ...sr, on } })} label="Streak at risk" />
+          </Line>
         </div>
         <div className="space-y-3 border-t border-border pt-4">
           <div className="t-label text-muted">How they look</div>
@@ -129,6 +137,11 @@ export function NotificationSection() {
             <BellRing size={15} /> Send a test notification
           </button>
         </div>
+      </div>
+      <div className="border-t border-border pt-4">
+        <Line title="Start focus at time blocks" hint="A task on the calendar starts a focus session when its time begins, on this device">
+          <Switch checked={autoFocus} onChange={(v) => update({ autoFocus: v })} label="Start focus at time blocks" />
+        </Line>
       </div>
     </div>
   );

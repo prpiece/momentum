@@ -1,6 +1,6 @@
 import { calendarItems, type CalItem } from "./calendar";
 import { addDaysLocal, atLocalTime, formatTime, relativeDayLabel, scheduleDate, toLocalDate } from "./dates";
-import { isDone, isDueToday, type CheckinMap, type Habit } from "./habits";
+import { currentStreak, isBuild, isDone, isDueToday, streakAtRiskOn, type CheckinMap, type Habit } from "./habits";
 import type { TaskVM } from "./taskViews";
 import type { CalendarEvent, Reminder, Schedule, Settings, WeekStart } from "./types";
 
@@ -136,6 +136,38 @@ export function digestBetween(tasks: readonly TaskVM[], time: string, from: Date
   return out;
 }
 
+/**
+ * "Keep your streak" nudges at `time` on each day in (from, to] where a running streak can still be
+ * saved. The streak is read as of `from`'s day. Habits at risk on the same day share one notification.
+ */
+export function streakFires(habits: readonly Habit[], habitValues: (id: string) => CheckinMap, time: string, from: Date, to: Date, ws: WeekStart): Fire[] {
+  const today = toLocalDate(from);
+  const byDay = new Map<string, { habit: Habit; count: number; unit: string }[]>();
+  for (const h of habits) {
+    if (h.archived || !isBuild(h)) continue;
+    const values = habitValues(h.id);
+    const { count, unit } = currentStreak(h, values, today, ws);
+    if (!count) continue;
+    for (let d = today; d <= toLocalDate(to); d = addDaysLocal(d, 1)) {
+      const at = atLocalTime(d, time);
+      if (at <= from || at > to || !streakAtRiskOn(h, values, d, ws)) continue;
+      byDay.set(d, [...(byDay.get(d) ?? []), { habit: h, count, unit }]);
+    }
+  }
+  return [...byDay].map(([d, list]) => {
+    const [first] = list;
+    const single = list.length === 1;
+    const plural = (x: { count: number; unit: string }) => `${x.count} ${x.unit}${x.count === 1 ? "" : "s"}`;
+    return {
+      key: `streak:${d}:${time}`,
+      at: atLocalTime(d, time),
+      title: single ? `Keep your ${first.count}-${first.unit} ${first.habit.name} streak` : "Keep your streaks alive",
+      body: single ? "Check in before the streak breaks" : list.map((x) => `${x.habit.name} (${plural(x)})`).join(", "),
+      target: { kind: "habit", id: first.habit.id } as const,
+    };
+  }).sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
 /** One notification per target and moment: an explicit "at start" reminder and a start alert don't both fire. */
 export function dedupeFires(fires: readonly Fire[]): Fire[] {
   const seen = new Set<string>();
@@ -152,7 +184,7 @@ export type FireSources = {
   events: readonly CalendarEvent[];
   habits: readonly Habit[];
   habitValues: (id: string) => CheckinMap;
-  settings: Pick<Settings, "timeFormat" | "weekStart" | "notify">;
+  settings: Pick<Settings, "timeFormat" | "weekStart" | "notify" | "streakReminder">;
 };
 
 /**
@@ -168,5 +200,6 @@ export function upcomingFires(src: FireSources, from: Date, to: Date, startFrom 
     ...remindersBetween(src.active, src.habits, src.habitValues, from, to, timeFormat, weekStart).filter(wanted),
     ...startsBetween(items, startFrom, to, timeFormat),
     ...(n.digest ? digestBetween(src.active, n.digestTime, from, to) : []),
+    ...(n.habitReminders && src.settings.streakReminder.on ? streakFires(src.habits, src.habitValues, src.settings.streakReminder.time, from, to, weekStart) : []),
   ]).sort((a, b) => a.at.getTime() - b.at.getTime());
 }

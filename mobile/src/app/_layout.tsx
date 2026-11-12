@@ -40,6 +40,7 @@ export default function RootLayout() {
         <Stack.Screen name="search" options={{ title: "Search" }} />
         <Stack.Screen name="focus" options={{ title: "Focus" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="report" options={{ title: "Report a problem" }} />
       </Stack>
       <ToastHost />
       <PickerHost />
