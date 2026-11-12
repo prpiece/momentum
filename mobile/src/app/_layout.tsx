@@ -1,10 +1,11 @@
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ready } from "@/boot";
 import { startReminders } from "@/notify";
+import { updatedSinceLastRun } from "@/whatsNew";
 import { useColors } from "@/theme";
 import { PickerHost } from "@/ui/pickDate";
 import { ToastHost } from "@/ui/Toast";
@@ -18,6 +19,10 @@ export default function RootLayout() {
   // After the Stack mounts, so a tapped notification can navigate.
   useEffect(() => {
     if (state === "ok") return startReminders();
+  }, [state]);
+  // Once after an update, with every section since the version seen last.
+  useEffect(() => {
+    if (state === "ok") void updatedSinceLastRun().then((since) => since && router.push({ pathname: "/whats-new", params: { since } }));
   }, [state]);
 
   if (state !== "ok")
@@ -40,6 +45,7 @@ export default function RootLayout() {
         <Stack.Screen name="search" options={{ title: "Search" }} />
         <Stack.Screen name="focus" options={{ title: "Focus" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="whats-new" options={{ title: "What's new" }} />
       </Stack>
       <ToastHost />
       <PickerHost />

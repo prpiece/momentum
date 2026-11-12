@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { changelogSection, compareVersions, missedSections, newsItems } from "./changelog";
+import { changelogSection, compareVersions, missedSections, newsGroups, newsItems } from "./changelog";
+
+describe("newsGroups", () => {
+  it("groups bullets under the section's own ### headings", () => {
+    const body = ["- Intro.", "### Added", "- One.", "  ![Shot](a.png)", "- Two.", "### Fixed", "- Three."].join("\n");
+    expect(newsGroups(body)).toEqual([
+      { heading: null, items: [{ text: "Intro.", image: null }] },
+      { heading: "Added", items: [{ text: "One.", image: { alt: "Shot", src: "a.png" } }, { text: "Two.", image: null }] },
+      { heading: "Fixed", items: [{ text: "Three.", image: null }] },
+    ]);
+    expect(newsItems(body)).toHaveLength(4);
+  });
+  it("gives one headingless group when there are no headings", () => {
+    expect(newsGroups("- A.\n- B.").map((g) => g.heading)).toEqual([null]);
+  });
+});
 
 const MD = `# Changelog
 

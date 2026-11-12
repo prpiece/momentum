@@ -15,6 +15,7 @@ export default function More() {
       <NavRow icon="clock" title="Focus" onPress={() => router.push("/focus")} />
       <NavRow icon="search" title="Search" onPress={() => router.push("/search")} />
       <NavRow icon="settings" title="Settings" onPress={() => router.push("/settings")} />
+      <NavRow icon="gift" title="What's new" onPress={() => router.push("/whats-new")} />
       <NavRow icon="user" title="Account" detail={account ? undefined : "Sign in"} onPress={() => router.push("/account")} />
       {account ? <Text style={{ color: c.muted, padding: 16 }}>{statusText(status)}</Text> : null}
     </ScrollView>
