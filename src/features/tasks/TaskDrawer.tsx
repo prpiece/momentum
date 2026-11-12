@@ -9,6 +9,7 @@ import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { isTauri } from "../../db/client";
 import { loadActivity } from "../../db/repo";
+import { DropLine, dropSide, SORT_TRANSITION } from "../../lib/dnd";
 import { importImage, MAX_IMAGE_BYTES, newImageName, writeImage } from "../../lib/appFiles";
 import { scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
 import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type Activity, type Task } from "../../domain/types";
@@ -472,13 +473,14 @@ function Reorderable({ ids, onMove, children }: { ids: string[]; onMove: (id: st
 const addField = "mt-1 h-8 w-full rounded-control border border-transparent bg-transparent px-2 text-[length:var(--fs-sm)] outline-none placeholder:text-muted hover:bg-surface-2 focus-visible:border-accent-text focus-visible:bg-surface focus-visible:shadow-[var(--focus-ring-input)] focus-visible:outline-none";
 
 function SortableItem({ id, label, children }: { id: string; label: string; children: ReactNode }) {
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging, isOver, index, activeIndex } = useSortable({ id, transition: SORT_TRANSITION });
   return (
     <li
       ref={setNodeRef}
       style={{ transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined, transition }}
-      className={`anim-rise group flex h-[var(--row-compact)] items-center gap-2 rounded-control pr-1 hover:bg-surface-2 ${isDragging ? "relative z-10 bg-surface shadow-float" : ""}`}
+      className={`anim-rise group relative flex h-[var(--row-compact)] items-center gap-2 rounded-control pr-1 hover:bg-surface-2 ${isDragging ? "z-10 bg-surface shadow-float" : ""}`}
     >
+      <DropLine side={dropSide({ isOver, isDragging, index, activeIndex })} />
       <button
         ref={setActivatorNodeRef}
         type="button"

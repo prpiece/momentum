@@ -14,8 +14,11 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { type ReactNode, useState } from "react";
+import { IconTile } from "../components/ui/AppIcon";
 import { useData } from "../stores/data";
+import { useHabits } from "../stores/habits";
 import { useUi } from "../stores/ui";
+import { reducedMotion } from "./motion";
 
 /*
  * One DndContext for the whole app (pointer-based; native HTML5 DnD is never used because
@@ -116,8 +119,36 @@ export function DndRoot({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      <DragOverlay dropAnimation={null}>{active?.type === "task" ? <TaskGhost id={active.id} /> : null}</DragOverlay>
+      {/* The ghost settles into its slot; reduced motion drops it instantly. */}
+      <DragOverlay dropAnimation={reducedMotion() ? null : { duration: 180, easing: "cubic-bezier(.4, 0, .2, 1)" }}>
+        {active?.type === "task" ? <TaskGhost id={active.id} /> : active?.type === "habit" ? <HabitGhost id={active.id} /> : null}
+      </DragOverlay>
     </DndContext>
+  );
+}
+
+/** Shared by every vertical sortable: neighbours slide into place over the same 180ms move curve (CSS drops it under reduced motion). */
+export const SORT_TRANSITION = { duration: 180, easing: "cubic-bezier(.4, 0, .2, 1)" };
+
+/** Which edge of this row the dragged item will land on, or null. Moving down lands below the target, moving up above it. */
+export function dropSide(s: { isOver: boolean; isDragging: boolean; index: number; activeIndex: number }): "above" | "below" | null {
+  return s.isOver && !s.isDragging && s.activeIndex >= 0 ? (s.activeIndex < s.index ? "below" : "above") : null;
+}
+
+/** The insertion indicator: a 2px accent line on a row's top or bottom edge. The row must be `relative`. Stays under reduced motion. */
+export function DropLine({ side }: { side: "above" | "below" | null }) {
+  if (!side) return null;
+  return <span aria-hidden className={`pointer-events-none absolute inset-x-0 z-10 h-0.5 rounded-full bg-accent-text ${side === "above" ? "top-0" : "bottom-0"}`} />;
+}
+
+function HabitGhost({ id }: { id: string }) {
+  const h = useHabits((s) => s.habits[id]);
+  if (!h) return null;
+  return (
+    <div className="flex max-w-xs cursor-grabbing items-center gap-3 rounded-card border border-accent bg-raised px-3 py-2 font-medium shadow-float">
+      <IconTile name={h.icon} color={h.color} size={28} />
+      <span className="truncate">{h.name}</span>
+    </div>
   );
 }
 

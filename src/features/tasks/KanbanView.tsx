@@ -101,7 +101,7 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
       style={{ transform: sort.transform ? `translate3d(${sort.transform.x}px, 0, 0)` : undefined, transition: sort.transition }}
       aria-label={section?.name ?? "Unsectioned"}
       className={`flex max-h-full w-[280px] shrink-0 flex-col rounded-card border px-2 pb-2 ${
-        sort.isDragging ? "z-10 opacity-80 shadow-float " : ""
+        sort.isDragging ? "z-10 bg-raised opacity-90 shadow-float ring-1 ring-accent " : ""
       }${
         isOver ? "border-accent-text bg-accent-soft" : "border-transparent bg-bg"
       }`}

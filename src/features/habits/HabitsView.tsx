@@ -8,7 +8,7 @@ import { PageHead } from "../../components/ui/PageHead";
 import { ToolbarActions } from "../../components/ui/Toolbar";
 import { addDaysLocal, fromLocalDate, todayLocal } from "../../domain/dates";
 import { currentStreak, frequencyLabel, isBuild, isDone, isScheduled, type Habit } from "../../domain/habits";
-import { onDrop } from "../../lib/dnd";
+import { DropLine, dropSide, onDrop, SORT_TRANSITION } from "../../lib/dnd";
 import { removeGroup, reorderHabit, updateHabit, useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { confirm, openContextMenu, openMenuAt } from "../../stores/ui";
@@ -185,7 +185,7 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
   const ws = useSettings((s) => s.settings.weekStart);
   const values = valuesOf(records);
   const streak = currentStreak(h, values, todayLocal(), ws);
-  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: `habit:${h.id}`, data: { type: "habit", id: h.id } });
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver, index, activeIndex } = useSortable({ id: `habit:${h.id}`, data: { type: "habit", id: h.id }, transition: SORT_TRANSITION });
   const scheduled = isScheduled(h, props.date) || h.frequency.kind === "perWeek";
 
   return (
@@ -196,8 +196,9 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
       {...listeners}
       onClick={props.onSelect}
       onContextMenu={(e) => openContextMenu(e, habitMenu(h, props.date, props.onEdit))}
-      className={`group flex min-h-[60px] items-center gap-3 px-3.5 py-2 ${props.selected ? "bg-accent-soft" : "hover:bg-surface-2"} ${isDragging ? "opacity-50" : ""} ${scheduled ? "" : "opacity-60"}`}
+      className={`group relative flex min-h-[60px] items-center gap-3 px-3.5 py-2 ${props.selected ? "bg-accent-soft" : "hover:bg-surface-2"} ${isDragging ? "bg-accent-soft opacity-40" : ""} ${scheduled ? "" : "opacity-60"}`}
     >
+      <DropLine side={dropSide({ isOver, isDragging, index, activeIndex })} />
       <IconTile name={h.icon} color={h.color} />
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{h.name}</div>

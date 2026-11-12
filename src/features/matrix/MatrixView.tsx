@@ -73,7 +73,7 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
     <section
       ref={setNodeRef}
       aria-label={info.title}
-      className={`flex min-h-0 flex-col overflow-hidden rounded-card border px-2 pb-2 pt-2.5 ${isOver ? "border-accent-text bg-accent-soft" : "border-border bg-surface"}`}
+      className={`flex min-h-0 flex-col overflow-hidden rounded-card border px-2 pb-2 pt-2.5 ${isOver ? "border-accent-text bg-accent-soft ring-2 ring-accent-text" : "border-border bg-surface"}`}
     >
       <header className="flex items-center gap-2 px-1 pb-2">
         <span className="h-[18px] w-[3px] shrink-0 rounded-[2px]" style={{ background: QUADRANT_VAR[q] }} aria-hidden />

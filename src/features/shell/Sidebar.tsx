@@ -431,7 +431,7 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
     <div
       ref={(n) => (drag.setNodeRef(n), drop.setNodeRef(n))}
       style={t ? { transform: `translate3d(${t.x}px, ${t.y}px, 0)`, position: "relative", zIndex: 20 } : undefined}
-      className={`group/nav relative rounded-control ${target ? "ring-2 ring-accent" : ""} ${drag.isDragging ? "opacity-70" : ""}`}
+      className={`group/nav relative rounded-control ${target ? "bg-accent-soft ring-2 ring-accent-text" : ""} ${drag.isDragging ? "bg-raised opacity-90 shadow-float ring-1 ring-accent" : ""}`}
     >
       <button
         type="button"

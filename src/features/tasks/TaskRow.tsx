@@ -5,6 +5,7 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import type { TreeRow } from "../../domain/taskViews";
+import { DropLine, dropSide, SORT_TRANSITION } from "../../lib/dnd";
 import { reducedMotion, withTransition } from "../../lib/motion";
 import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
@@ -33,8 +34,9 @@ export const TaskRow = memo(function TaskRow(props: {
   const tags = useData((s) => s.tags);
   const timeFormat = useSettings((s) => s.settings.timeFormat);
 
-  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver, index, activeIndex } = useSortable({
     id: `${props.container}:${t.id}`,
+    transition: SORT_TRANSITION,
     data: { type: "task", id: t.id, key: vm.key, container: props.container },
   });
   const style = props.reorderable && transform ? { transform: `translate3d(0, ${transform.y}px, 0)`, transition } : undefined;
@@ -72,9 +74,10 @@ export const TaskRow = memo(function TaskRow(props: {
         }
       }}
       className={`group relative flex h-[var(--row)] cursor-default items-center gap-3 rounded-control pr-2 text-[length:var(--fs-base)] max-[719px]:h-auto max-[719px]:min-h-[var(--row-touch)] max-[719px]:items-start max-[719px]:rounded-none max-[719px]:border-b max-[719px]:border-border max-[719px]:py-3 max-[719px]:[&>.check]:mt-0.5 outline-none transition-opacity duration-[var(--dur)] focus-visible:shadow-[inset_0_0_0_2px_var(--accent-text)] focus-visible:outline-none ${
-        isDragging ? "opacity-40" : ""
+        isDragging ? "bg-accent-soft opacity-40" : ""
       } ${selected || open ? "bg-accent-soft" : "hover:bg-surface-2"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
     >
+      <DropLine side={props.reorderable ? dropSide({ isOver, isDragging, index, activeIndex }) : null} />
       {/* A fixed toggle gutter keeps every checkbox in a column, with or without subtasks. */}
       <div style={{ width: 20 + depth * 20 }} className="-mr-1.5 flex shrink-0 items-center justify-end self-stretch max-[719px]:mt-0.5 max-[719px]:h-[var(--checkbox)] max-[719px]:self-start">
         {shownKids > 0 && (
