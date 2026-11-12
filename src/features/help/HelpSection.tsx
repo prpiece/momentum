@@ -4,12 +4,14 @@ import { FEATURE_GROUPS, searchFeatures } from "../../domain/features";
 import { useSettings } from "../../stores/settings";
 import { go } from "../../stores/ui";
 import { openTour } from "../shell/Tour";
+import { ReportDialog } from "../settings/ReportDialog";
 import { CommandChips } from "./CommandChips";
 import { FEATURE_ICON } from "./featureIcons";
 
 /** Settings → Help: every command, shortcut and token, searchable (D169). */
 export function HelpSection() {
   const [q, setQ] = useState("");
+  const [reporting, setReporting] = useState(false);
   const gs = useSettings((s) => s.settings.gettingStarted);
   const update = useSettings((s) => s.update);
   const found = useMemo(() => searchFeatures(q).filter((f) => !f.requires), [q]);
@@ -64,6 +66,10 @@ export function HelpSection() {
         <button type="button" onClick={openTour} className="h-9 rounded-control border border-border px-3 text-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent">
           Take the tour
         </button>
+        <button type="button" onClick={() => setReporting(true)} className="h-9 rounded-control border border-border px-3 text-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent">
+          Report a problem
+        </button>
+        {reporting && <ReportDialog onClose={() => setReporting(false)} />}
       </div>
     </div>
   );

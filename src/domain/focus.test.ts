@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { advance, elapsedMs, formatClock, pause, pickLabel, rangeBetween, remainingMs, resume, start, stop, withRange, DEFAULT_POMODORO as C } from "./focus";
+import { advance, elapsedMs, formatClock, pause, dueAutoFocus, pickLabel, rangeBetween, remainingMs, resume, start, stop, withRange, DEFAULT_POMODORO as C } from "./focus";
+import type { TaskVM } from "./taskViews";
 
 describe("focus timer", () => {
   const t0 = 1_000_000;
@@ -86,5 +87,23 @@ describe("focus timer", () => {
   it("formats the clock", () => {
     expect(formatClock(25 * min)).toBe("25:00");
     expect(formatClock(3_725_000)).toBe("1:02:05");
+  });
+});
+
+describe("dueAutoFocus", () => {
+  const vm = (id: string, start: string, end: string, status: "open" | "done" = "open") =>
+    ({ task: { id, title: id, status }, schedule: { kind: "timed", start, end }, date: null, key: null }) as unknown as TaskVM;
+  const block = vm("a", "2026-10-25T14:00:00.000Z", "2026-10-25T15:00:00.000Z");
+  const at = (s: string) => Date.parse(s);
+  it("returns a block that started within the last minute", () => {
+    expect(dueAutoFocus([block], at("2026-10-25T14:00:30.000Z"), null)?.taskId).toBe("a");
+    expect(dueAutoFocus([block], at("2026-10-25T13:59:59.000Z"), null)).toBeNull();
+    expect(dueAutoFocus([block], at("2026-10-25T14:01:00.000Z"), null)).toBeNull();
+  });
+  it("skips done tasks, day tasks and a block already started", () => {
+    const now = at("2026-10-25T14:00:10.000Z");
+    expect(dueAutoFocus([vm("a", "2026-10-25T14:00:00.000Z", "2026-10-25T15:00:00.000Z", "done")], now, null)).toBeNull();
+    expect(dueAutoFocus([{ ...block, schedule: { kind: "day", date: "2026-10-25" } }], now, null)).toBeNull();
+    expect(dueAutoFocus([block], now, dueAutoFocus([block], now, null)?.key ?? null)).toBeNull();
   });
 });

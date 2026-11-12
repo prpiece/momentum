@@ -33,6 +33,21 @@ export default function Settings() {
         <Switch value={s.notify.enabled} onValueChange={(enabled) => update({ notify: { ...s.notify, enabled } })} accessibilityLabel="Notifications" />
       </View>
       {s.notify.enabled ? <Permissions /> : null}
+      <View style={st.switchRow}>
+        <Text style={{ color: c.fg, fontSize: 16, flex: 1 }}>Streak at risk</Text>
+        <Switch value={s.streakReminder.on} onValueChange={(on) => update({ streakReminder: { ...s.streakReminder, on } })} accessibilityLabel="Streak at risk" />
+      </View>
+      {s.streakReminder.on ? (
+        <Segmented
+          value={s.streakReminder.time}
+          options={[...new Set(["17:00", "18:00", "20:00", "21:00", s.streakReminder.time])].sort().map((t) => ({ value: t, label: t }))}
+          onChange={(time) => update({ streakReminder: { ...s.streakReminder, time } })}
+        />
+      ) : null}
+      <View style={st.switchRow}>
+        <Text style={{ color: c.fg, fontSize: 16, flex: 1 }}>Start focus at time blocks</Text>
+        <Switch value={s.autoFocus} onValueChange={(autoFocus) => update({ autoFocus })} accessibilityLabel="Start focus at time blocks" />
+      </View>
       <Text style={{ color: c.muted, marginTop: 24, fontSize: 13 }}>These settings sync with your other devices when you're signed in.</Text>
     </ScrollView>
   );

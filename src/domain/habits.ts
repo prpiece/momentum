@@ -97,6 +97,15 @@ export function isDueToday(h: Habit, checkins: CheckinMap, today: LocalDate, ws:
   return true;
 }
 
+/** Whether a check-in on `d` would still save the streak: daily habits on each unfinished scheduled day, per-week habits on the week's last day while its target is unmet. */
+export function streakAtRiskOn(h: Habit, checkins: CheckinMap, d: LocalDate, ws: WeekStart): boolean {
+  if (h.frequency.kind === "perWeek") {
+    const w = weekStartOf(d, ws);
+    return d === addDaysLocal(w, 6) && weekDoneCount(h, checkins, w) < weeklyTarget(h);
+  }
+  return isScheduled(h, d) && !isDone(h, checkins.get(d));
+}
+
 export type Streak = { count: number; unit: "day" | "week" };
 
 /**

@@ -5,7 +5,7 @@ import { remainingMs } from "@core/domain/focus";
 import { upcomingFires, type ReminderTarget } from "@core/domain/reminders";
 import { derive } from "@core/domain/taskViews";
 import { useData } from "@core/stores/data";
-import { useFocus } from "@core/stores/focus";
+import { autoStartFocus, startFocus, useFocus } from "@core/stores/focus";
 import { useHabits, valuesOf } from "@core/stores/habits";
 import { useSettings } from "@core/stores/settings";
 import { toggleDone } from "@core/stores/taskActions";
@@ -51,6 +51,12 @@ async function respond(r: Notifications.NotificationResponse) {
   const req = r.notification.request;
   const target = targetOf(req.content.data);
   void Notifications.dismissNotificationAsync(req.identifier);
+  // "Focus starts now": tapping begins the session on that task (if one isn't already running).
+  const focusTask = typeof req.content.data?.focusTask === "string" ? req.content.data.focusTask : null;
+  if (focusTask) {
+    if (useFocus.getState().timer.status === "idle" || useFocus.getState().timer.status === "done") startFocus("stopwatch", focusTask);
+    return router.push("/focus");
+  }
   if (r.actionIdentifier === "done" && target?.kind === "task") return void toggleDone(target.id, target.occurrenceKey);
   if (r.actionIdentifier === "snooze") {
     const id = req.identifier.endsWith(SNOOZED) ? req.identifier : req.identifier + SNOOZED;
@@ -75,16 +81,25 @@ async function apply() {
   const { tasks, lists, events } = useData.getState();
   const { habits, checkins } = useHabits.getState();
   const settings = useSettings.getState().settings;
+  const active = derive(tasks, lists).active;
+  // Time blocks that auto-start focus: their own notification replaces the plain "starting now" one.
+  const blocks = settings.autoFocus
+    ? active.flatMap(({ task, schedule }) => (schedule.kind === "timed" && Date.parse(schedule.start) > now && Date.parse(schedule.start) <= now + DAYS * 86_400_000 ? [{ task, start: new Date(schedule.start) }] : []))
+        .sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 10)
+    : [];
+  const blockIds = new Set(blocks.map((b) => b.task.id));
   const fires = upcomingFires(
-    { active: derive(tasks, lists).active, events: Object.values(events), habits: Object.values(habits), habitValues: (id) => valuesOf(checkins[id]), settings },
+    { active, events: Object.values(events), habits: Object.values(habits), habitValues: (id) => valuesOf(checkins[id]), settings },
     new Date(now),
     new Date(now + DAYS * 86_400_000),
-  ).slice(0, LIMIT);
+  )
+    .filter((f) => !(f.key.startsWith("start:") && f.target.kind === "task" && blockIds.has(f.target.id)))
+    .slice(0, LIMIT - blocks.length);
   const timer = useFocus.getState().timer;
   const focusLeft = timer.status === "running" ? remainingMs(timer, now, settings.pomodoro) : null;
 
   for (const n of await Notifications.getAllScheduledNotificationsAsync()) if (!n.identifier.endsWith(SNOOZED)) await Notifications.cancelScheduledNotificationAsync(n.identifier);
-  if ((!fires.length && focusLeft === null) || !(await allowed())) return;
+  if ((!fires.length && !blocks.length && focusLeft === null) || !(await allowed())) return;
 
   const at = (date: Date) => ({ type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL }) as const;
   for (const f of fires)
@@ -92,6 +107,12 @@ async function apply() {
       identifier: f.key,
       content: { title: f.title, body: f.body, data: { target: f.target }, categoryIdentifier: f.target.kind === "task" ? "task" : "reminder" },
       trigger: at(f.at),
+    });
+  for (const b of blocks)
+    await Notifications.scheduleNotificationAsync({
+      identifier: `autofocus:${b.task.id}:${b.start.toISOString()}`,
+      content: { title: `Focus starts now: ${b.task.title}`, body: "Tap to start the timer", data: { focusTask: b.task.id } },
+      trigger: at(b.start),
     });
   if (focusLeft !== null && timer.status === "running")
     await Notifications.scheduleNotificationAsync({
@@ -131,6 +152,12 @@ export function startReminders(): () => void {
   })();
   for (const store of [useData, useHabits, useSettings, useFocus] as const) subs.push({ remove: store.subscribe(reschedule) });
   subs.push(AppState.addEventListener("change", (s) => s === "active" && reschedule()));
+  // While the app is open, a time block that just began starts focus itself (the OS can't do it when closed).
+  const openTasks = () => derive(useData.getState().tasks, useData.getState().lists).active;
+  const tick = () => AppState.currentState === "active" && autoStartFocus(openTasks);
+  tick();
+  const interval = setInterval(tick, 5000);
+  subs.push({ remove: () => clearInterval(interval) }, AppState.addEventListener("change", (s) => s === "active" && tick()));
   reschedule();
   return () => {
     stopped = true;

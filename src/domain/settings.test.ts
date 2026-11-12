@@ -37,6 +37,7 @@ describe("parseSettings", () => {
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
       matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["teal", null, null, "ocean"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
+      streakReminder: { on: false, time: "20:15" }, autoFocus: true,
       sounds: { enabled: false, volume: 0.3, picks: { task: "ding", habit: "none", streak: "pop", dayDone: "chime", focusEnd: "marimba", longBreak: "fanfare" } },
       onboarded: true, gettingStarted: { dismissed: true, done: ["habits", "tokens"], seenVersion: "1.0.0" }, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
     };
@@ -156,6 +157,12 @@ describe("parseSettings migrations", () => {
     expect(parseSettings({ notifications: false }).notify.enabled).toBe(false);
     const n = parseSettings({ notify: { style: "fax", digestTime: "25:00", starts: false } }).notify;
     expect([n.enabled, n.style, n.digestTime, n.starts]).toEqual([true, "both", "08:00", false]);
+  });
+
+  it("repairs a bad streak reminder and defaults auto-focus off", () => {
+    expect(parseSettings({}).streakReminder).toEqual({ on: true, time: "18:00" });
+    expect(parseSettings({ streakReminder: { on: "yes", time: "7pm" } }).streakReminder).toEqual({ on: true, time: "18:00" });
+    expect(parseSettings({}).autoFocus).toBe(false);
   });
 
   it("maps the retired 3-day calendar view to 5 days", () => {

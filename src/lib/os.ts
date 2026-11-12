@@ -16,7 +16,7 @@ import { checkinOf, setCheckin, setCheckinHandler, useHabits } from "../stores/h
 import { buildSnapshot, parseMiniAction } from "../domain/mini";
 import { toggleDone } from "../features/tasks/actions";
 import { derive } from "../domain/taskViews";
-import { pauseFocus, resumeFocus, setPhaseEndHandler, skipPhase, startFocus, stopFocus, tickFocus, useFocus } from "../stores/focus";
+import { autoStartFocus, pauseFocus, resumeFocus, setPhaseEndHandler, skipPhase, startFocus, stopFocus, tickFocus, useFocus } from "../stores/focus";
 import { matchTasks } from "../domain/fuzzy";
 import { isRecord } from "../domain/settings";
 import { inSmartList } from "../domain/taskViews";
@@ -109,7 +109,16 @@ async function appIconPng(accent: string): Promise<Uint8Array> {
 }
 
 export async function initOs() {
-  setInterval(tickFocus, 1000);
+  setInterval(() => {
+    tickFocus();
+    const due = autoStartFocus(() => {
+      const { tasks, lists } = useData.getState();
+      return derive(tasks, lists).active;
+    });
+    if (!due) return;
+    toast(`Focus started · ${due.title}`, { label: "Stop", run: stopFocus });
+    if (isTauri && notifySettings().enabled && notifySettings().focus) notice("Momentum focus", `Focus started · ${due.title}`);
+  }, 1000);
   setDoneHandler(onTaskDone);
   setCheckinHandler(onCheckin);
   // A week that just ended, and trophies earned from history (silently, the first time).

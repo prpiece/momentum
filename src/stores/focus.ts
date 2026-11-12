@@ -4,6 +4,7 @@ import type { Row } from "../db/rows";
 import { parseSession, sessionRow } from "../db/miscRows";
 import * as timer from "../domain/focus";
 import type { FocusMode, FocusSession, TimerState } from "../domain/focus";
+import type { TaskVM } from "../domain/taskViews";
 import { uid } from "./data";
 import { trackDone, useSettings } from "./settings";
 
@@ -67,6 +68,30 @@ export function tickFocus() {
     if (before.phase === "focus") trackDone("focus:completed");
     onPhaseEnd(before.phase, state.status === "done" ? "done" : state.phase);
   }
+}
+
+let lastBlock: string | null = null;
+let blockEnd: { taskId: string; end: number } | null = null;
+
+/**
+ * Auto-start (Settings → "Start focus at time blocks"): called about once a second with a way to read the
+ * open tasks. When a time block has just begun and nothing is running, starts a stopwatch on its task and
+ * stops it when the block ends. Returns the block it started, so the caller can say so.
+ */
+export function autoStartFocus(openTasks: () => readonly TaskVM[], now = Date.now()): timer.AutoFocus | null {
+  const t = get().timer;
+  const busy = t.status === "running" || t.status === "paused";
+  if (blockEnd && now >= blockEnd.end) {
+    if (busy && t.taskId === blockEnd.taskId) stopFocus();
+    blockEnd = null;
+  }
+  if (!useSettings.getState().settings.autoFocus || busy) return null;
+  const due = timer.dueAutoFocus(openTasks(), now, lastBlock);
+  if (!due) return null;
+  lastBlock = due.key;
+  blockEnd = { taskId: due.taskId, end: due.end };
+  startFocus("stopwatch", due.taskId);
+  return due;
 }
 
 export function deleteSession(id: string) {

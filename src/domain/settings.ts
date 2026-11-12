@@ -82,6 +82,8 @@ export const DEFAULT_SETTINGS: Settings = {
     focus: true,
     quickAdd: true,
   },
+  streakReminder: { on: true, time: "18:00" },
+  autoFocus: false,
   sounds: {
     enabled: true,
     volume: 0.7,
@@ -216,6 +218,12 @@ function parseNotify(raw: unknown, legacyEnabled: unknown): Settings["notify"] {
   };
 }
 
+function parseStreakReminder(raw: unknown): Settings["streakReminder"] {
+  const r = isRecord(raw) ? raw : {};
+  const d = DEFAULT_SETTINGS.streakReminder;
+  return { on: typeof r.on === "boolean" ? r.on : d.on, time: typeof r.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.time) ? r.time : d.time };
+}
+
 function parseSounds(raw: unknown): Settings["sounds"] {
   const r = isRecord(raw) ? raw : {};
   const d = DEFAULT_SETTINGS.sounds;
@@ -323,6 +331,8 @@ export function parseSettings(raw: unknown): Settings {
     launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
     checkUpdates: typeof r.checkUpdates === "boolean" ? r.checkUpdates : d.checkUpdates,
     notify: parseNotify(r.notify, r.notifications),
+    streakReminder: parseStreakReminder(r.streakReminder),
+    autoFocus: typeof r.autoFocus === "boolean" ? r.autoFocus : d.autoFocus,
     sounds: parseSounds(r.sounds),
     onboarded: r.onboarded === true,
     gettingStarted: parseGettingStarted(r.gettingStarted, r.onboarded === true),
@@ -337,13 +347,13 @@ export function parseSettings(raw: unknown): Settings {
 /** Settings that follow the account to every device (v1.1 spec, "What syncs"). */
 export const USER_SETTING_KEYS = [
   "theme", "accent", "taskOpen", "defaultView", "weekStart", "timeFormat", "smartParse", "showCompleted", "viewOptions",
-  "savedFilters", "calendar", "matrix", "matrixColors", "pomodoro", "sounds", "onboarded", "gettingStarted",
+  "savedFilters", "calendar", "matrix", "matrixColors", "pomodoro", "streakReminder", "sounds", "onboarded", "gettingStarted",
 ] as const satisfies readonly (keyof Settings)[];
 
 /** Settings that stay on this device: hardware, window and OS integration, and the local background image. */
 export const DEVICE_SETTING_KEYS = [
   "density", "motion", "scale", "layout", "barPosition", "barStyle", "background", "sidebarSide", "sidebarCollapsed",
-  "closeToTray", "launchAtStartup", "checkUpdates", "notify", "quickAddShortcut", "miniShortcut", "voiceShortcut", "voiceMic",
+  "closeToTray", "launchAtStartup", "checkUpdates", "notify", "autoFocus", "quickAddShortcut", "miniShortcut", "voiceShortcut", "voiceMic",
 ] as const satisfies readonly (keyof Settings)[];
 
 /** The user settings that differ between two snapshots: the synced patch for a settings save. */
