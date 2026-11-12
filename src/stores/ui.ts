@@ -15,7 +15,7 @@ export type MenuEntry =
   | { label: string; icon?: ReactNode; run: () => void; danger?: boolean; hint?: string }
   | { label: string; choices: { title: string; icon: ReactNode; run: () => void; active?: boolean }[] }
   | "sep";
-type ConfirmAsk = { title: string; body: string; confirm: string; resolve: (ok: boolean) => void };
+type ConfirmAsk = { title: string; body: string; confirm: string; resolve: (ok: boolean) => void; /** A third choice between Cancel and the confirm button. */ alt?: { label: string; run: () => void } };
 
 type UiStore = {
   view: ViewId;
@@ -64,7 +64,29 @@ const set = useUi.setState;
 
 // Leaving a view closes what was opened from it (the task drawer would otherwise float over Settings).
 export const setFilter = (view: ViewId, query: string) => set((s) => ({ filters: { ...s.filters, [view]: query } }));
-export const go = (view: ViewId) => set({ view, selection: [], drawer: null, contextMenu: null });
+/** Settings registers this while open; it resolves false when the user stays (unsaved changes, D232). */
+let leaveGuard: (() => Promise<boolean>) | null = null;
+export const setLeaveGuard = (g: (() => Promise<boolean>) | null) => (leaveGuard = g);
+export const go = (view: ViewId) => {
+  const change = () => set({ view, selection: [], drawer: null, contextMenu: null });
+  if (!leaveGuard || view === "settings") return change();
+  void leaveGuard().then((ok) => ok && change());
+};
+
+/** Unsaved changes: Save, Discard or stay. */
+export const askSave = () =>
+  new Promise<"save" | "discard" | "stay">((resolve) => {
+    const end = (r: "save" | "discard" | "stay") => (set({ confirmAsk: null }), resolve(r));
+    set({
+      confirmAsk: {
+        title: "Save your changes?",
+        body: "You changed settings that aren't saved yet.",
+        confirm: "Save",
+        resolve: (ok) => end(ok ? "save" : "stay"),
+        alt: { label: "Discard", run: () => end("discard") },
+      },
+    });
+  });
 // Opening and closing the drawer animate (D207); switching tasks inside an open drawer is instant.
 export const openTask = (id: string, key: string | null = null) => {
   const change = () => set({ drawer: { id, key } });

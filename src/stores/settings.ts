@@ -8,6 +8,8 @@ type SettingsStore = {
   settings: Settings;
   hydrate: () => Promise<void>;
   update: (patch: Partial<Settings>) => void;
+  /** Writes a pending debounced save now; awaited before the app quits. */
+  flush: () => Promise<void>;
 };
 
 // Sliders and colour drags call update() per pointer move; each save writes the whole object, so keep only the last one.
@@ -20,7 +22,16 @@ export const useSettings = create<SettingsStore>((set, get) => ({
     const settings = { ...get().settings, ...patch };
     set({ settings });
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => void saveSettings(get().settings), 250);
+    saveTimer = setTimeout(() => {
+      saveTimer = undefined;
+      void saveSettings(get().settings);
+    }, 250);
+  },
+  flush: async () => {
+    if (!saveTimer) return;
+    clearTimeout(saveTimer);
+    saveTimer = undefined;
+    await saveSettings(get().settings);
   },
 }));
 

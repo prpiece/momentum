@@ -1,5 +1,5 @@
 import type { BarPosition, Layout } from "../../domain/types";
-import { useSettings } from "../../stores/settings";
+import { useSettingsDraft } from "../../stores/settingsDraft";
 
 type Choice = { id: string; layout: Layout; barPosition?: BarPosition; name: string; hint: string };
 
@@ -48,13 +48,11 @@ function Thumb({ choice, floating }: { choice: Choice; floating: boolean }) {
   );
 }
 
-/** Settings → Appearance (D114). Changes apply as you click. Floating is a separate switch (D223), so it keeps across positions. */
+/** Settings → Appearance (D114). Changes wait for Save (D232). Floating is a separate switch (D223), so it keeps across positions. */
 export function LayoutPicker() {
-  const layout = useSettings((s) => s.settings.layout);
-  const barPosition = useSettings((s) => s.settings.barPosition);
-  const barStyle = useSettings((s) => s.settings.barStyle);
+  const { draft, update } = useSettingsDraft();
+  const { layout, barPosition, barStyle } = draft;
   const floating = barStyle === "floating";
-  const update = useSettings((s) => s.update);
   const current = layout === "sidebar" ? "sidebar" : barPosition;
   return (
     <div role="radiogroup" aria-label="Layout" className="grid grid-cols-3 gap-2">

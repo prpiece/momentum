@@ -4,7 +4,7 @@ import { Segmented } from "../../components/ui/Segmented";
 import { Switch } from "../../components/ui/Switch";
 import type { NotifySettings } from "../../domain/types";
 import { testNotification } from "../../lib/os";
-import { useSettings } from "../../stores/settings";
+import { useSettingsDraft } from "../../stores/settingsDraft";
 
 type Flag = { [K in keyof NotifySettings]: NotifySettings[K] extends boolean ? K : never }[keyof NotifySettings];
 
@@ -67,9 +67,9 @@ function Preview({ style }: { style: NotifySettings["style"] }) {
 }
 
 export function NotificationSection() {
-  const n = useSettings((s) => s.settings.notify);
-  const update = useSettings((s) => s.update);
-  const set = (patch: Partial<NotifySettings>) => update({ notify: { ...useSettings.getState().settings.notify, ...patch } });
+  const { draft, update } = useSettingsDraft();
+  const n = draft.notify;
+  const set = (patch: Partial<NotifySettings>) => update({ notify: { ...n, ...patch } });
 
   return (
     <div className="space-y-4">

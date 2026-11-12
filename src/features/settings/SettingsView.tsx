@@ -14,7 +14,7 @@ import { VOICE_SECTION_ID } from "../../lib/voice";
 import { TagsSection } from "./TagsSection";
 import { HelpSection } from "../help/HelpSection";
 import { HELP_SECTION_ID } from "../help/featureIcons";
-import { BackgroundSection } from "./BackgroundSection";
+import { BackgroundSection, pruneBackgrounds } from "./BackgroundSection";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENTS, type AccentId } from "../../domain/color";
 import { SCALE_MAX, SCALE_MIN, SCALE_STEP, type Settings, type ViewId } from "../../domain/types";
@@ -22,8 +22,9 @@ import { saveWorkspace } from "../../db/repo";
 import { hydrate } from "../../stores/data";
 import { hydrateFocus, saveSessions } from "../../stores/focus";
 import { hydrateHabits, saveHabitData } from "../../stores/habits";
-import { openSettingsPage, useSettings, useSettingsPage } from "../../stores/settings";
-import { toast, useUi } from "../../stores/ui";
+import { openSettingsPage, useSettingsPage } from "../../stores/settings";
+import { discardDraft, draftIsDirty, saveDraft, useSettingsDraft } from "../../stores/settingsDraft";
+import { askSave, setLeaveGuard, toast, useUi } from "../../stores/ui";
 import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
 
 /** One bordered card per page (D198); each direct child is a row with a hairline above it. */
@@ -117,7 +118,7 @@ const GROUPS = [["settings-account"], ["settings-general", "settings-appearance"
 const INDEX: [string, string][] = [
   ["settings-general", "Start view"], ["settings-general", "Week starts on"], ["settings-general", "Time format"], ["settings-general", "Smart parsing in quick add"],
   ["settings-general", "Closing the window"], ["settings-general", "Launch at login"], ["settings-general", "Global quick add"], ["settings-general", "Mini window"], ["settings-general", "Tags"],
-  ["settings-appearance", "Theme"], ["settings-appearance", "Accent"], ["settings-appearance", "Layout"], ["settings-appearance", "Sidebar position"], ["settings-appearance", "Animations"],
+  ["settings-appearance", "Theme"], ["settings-appearance", "Accent"], ["settings-appearance", "Layout"], ["settings-appearance", "Task list background"], ["settings-appearance", "Sidebar position"], ["settings-appearance", "Animations"],
   ["settings-appearance", "Density"], ["settings-appearance", "Scale"],
   ["settings-notifications", "Notifications"], ["settings-notifications", "Task reminders"], ["settings-notifications", "When things start"], ["settings-notifications", "Habit reminders"],
   ["settings-notifications", "Daily summary"], ["settings-notifications", "Focus timer"], ["settings-notifications", "Style"], ["settings-notifications", "Popup position"], ["settings-notifications", "Chime"],
@@ -154,9 +155,11 @@ function PageRow({ icon: Icon, title, hint, onClick }: { icon: LucideIcon; title
   );
 }
 
+const saveAll = () => (saveDraft(), void pruneBackgrounds());
+const discardAll = () => (discardDraft(), void pruneBackgrounds());
+
 export function SettingsView() {
-  const s = useSettings((st) => st.settings);
-  const update = useSettings((st) => st.update);
+  const { draft: s, update, dirty } = useSettingsDraft();
   const set = <K extends keyof Settings>(key: K) => (value: Settings[K]) => update({ [key]: value });
 
   const page = useSettingsPage((st) => st.page);
@@ -169,6 +172,17 @@ export function SettingsView() {
 
   // Leaving Settings returns to the category list next time. (Not on a React dev remount: the view is still Settings then.)
   useEffect(() => () => (useUi.getState().view !== "settings" ? openSettingsPage(null) : undefined), []);
+  // Leaving with unsaved changes asks first (D232); `go` waits for the answer.
+  useEffect(() => {
+    setLeaveGuard(async () => {
+      if (!draftIsDirty()) return true;
+      const r = await askSave();
+      if (r === "save") saveAll();
+      else if (r === "discard") discardAll();
+      return r !== "stay";
+    });
+    return () => (setLeaveGuard(null), discardDraft());
+  }, []);
   // Escape or Alt+Left go back (D202). Escape inside a field that handled it (the shortcut recorder) stays there.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -424,6 +438,7 @@ export function SettingsView() {
   };
 
   return (
+    <div className="relative h-full min-h-0">
     <div ref={pane} className="h-full min-h-0 overflow-y-auto">
       {/* Keyed by page, so each one slides in from the side it comes from (D208). */}
       <div key={current?.id ?? "home"} data-dir={current ? "fwd" : "back"} className="anim-page mx-auto flex max-w-[640px] flex-col gap-5 px-[var(--gutter)] py-8">
@@ -469,6 +484,18 @@ export function SettingsView() {
           </>
         )}
       </div>
+    </div>
+    {dirty && (
+      <div role="status" className="layer absolute inset-x-0 bottom-4 z-20 mx-auto flex w-fit max-w-[calc(100%-32px)] items-center gap-3 rounded-card py-2 pl-4 pr-2 shadow-float">
+        <span className="font-medium">Unsaved changes</span>
+        <button type="button" className="btn btn-ghost" onClick={discardAll}>
+          Discard
+        </button>
+        <button type="button" className="btn btn-primary" onClick={saveAll}>
+          Save
+        </button>
+      </div>
+    )}
     </div>
   );
 }

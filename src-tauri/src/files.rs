@@ -11,7 +11,7 @@ use std::{
 use tauri::{AppHandle, Manager};
 
 pub const MAX_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
-/// Note images (D78) and the app background image (D222). Backups carry only attachments.
+/// Note images (D78) and the app background image (D222). Backups carry both.
 const FOLDERS: [&str; 2] = ["attachments", "backgrounds"];
 const EXTS: [&str; 5] = ["png", "jpg", "jpeg", "gif", "webp"];
 
@@ -97,10 +97,9 @@ pub fn delete_image(app: AppHandle, kind: String, name: String) -> Result<(), St
     }
 }
 
-// ---- .zip backups (D78): the JSON export plus `attachments/<file>` ----
+// ---- .zip backups (D78): the JSON export plus `attachments/<file>` and `backgrounds/<file>` ----
 
 const JSON_ENTRY: &str = "momentum-backup.json";
-const ATT_PREFIX: &str = "attachments/";
 const MAX_JSON_BYTES: u64 = 512 * 1024 * 1024;
 
 type AnyResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -113,17 +112,19 @@ fn zip_path(path: &str) -> Result<&Path, String> {
     }
 }
 
-fn zip_backup(zip_file: &Path, json: &str, att_dir: &Path) -> AnyResult<()> {
+fn zip_backup(zip_file: &Path, json: &str, folders: &[(&str, &Path)]) -> AnyResult<()> {
     let mut zip = zip::ZipWriter::new(fs::File::create(zip_file)?);
     zip.start_file(JSON_ENTRY, zip::write::SimpleFileOptions::default())?;
     zip.write_all(json.as_bytes())?;
     // Images are already compressed, so they are stored as-is.
     let stored = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
-    for entry in fs::read_dir(att_dir)?.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if valid_name(&name).is_ok() && entry.metadata()?.is_file() {
-            zip.start_file(format!("{ATT_PREFIX}{name}"), stored)?;
-            std::io::copy(&mut fs::File::open(entry.path())?, &mut zip)?;
+    for (kind, dir) in folders {
+        for entry in fs::read_dir(dir)?.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if valid_name(&name).is_ok() && entry.metadata()?.is_file() {
+                zip.start_file(format!("{kind}/{name}"), stored)?;
+                std::io::copy(&mut fs::File::open(entry.path())?, &mut zip)?;
+            }
         }
     }
     zip.finish()?;
@@ -137,13 +138,14 @@ fn unzip_json(zip_file: &Path) -> AnyResult<String> {
     Ok(text)
 }
 
-/// Restores entries `attachments/<valid image name>` of at most 10 MB; anything else is skipped.
-fn unzip_attachments(zip_file: &Path, att_dir: &Path) -> AnyResult<u32> {
+/// Restores entries `<kind>/<valid image name>` of at most 10 MB; anything else is skipped.
+fn unzip_images(zip_file: &Path, kind: &str, att_dir: &Path) -> AnyResult<u32> {
+    let prefix = format!("{kind}/");
     let mut archive = zip::ZipArchive::new(fs::File::open(zip_file)?)?;
     let mut restored = 0;
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
-        let Some(name) = entry.name()?.strip_prefix(ATT_PREFIX).filter(|n| valid_name(n).is_ok()).map(str::to_owned) else { continue };
+        let Some(name) = entry.name()?.strip_prefix(prefix.as_str()).filter(|n| valid_name(n).is_ok()).map(str::to_owned) else { continue };
         let mut bytes = Vec::new();
         entry.take(MAX_IMAGE_BYTES + 1).read_to_end(&mut bytes)?;
         if bytes.len() as u64 <= MAX_IMAGE_BYTES {
@@ -156,7 +158,8 @@ fn unzip_attachments(zip_file: &Path, att_dir: &Path) -> AnyResult<u32> {
 
 #[tauri::command]
 pub fn write_backup_zip(app: AppHandle, path: String, json: String) -> Result<(), String> {
-    zip_backup(zip_path(&path)?, &json, &dir(&app, "attachments")?).map_err(|e| e.to_string())
+    let (att, bg) = (dir(&app, "attachments")?, dir(&app, "backgrounds")?);
+    zip_backup(zip_path(&path)?, &json, &[("attachments", &att), ("backgrounds", &bg)]).map_err(|e| e.to_string())
 }
 
 /// The backup's JSON text; nothing is restored until the user confirms.
@@ -167,12 +170,14 @@ pub fn read_backup_zip(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn restore_backup_attachments(app: AppHandle, path: String) -> Result<u32, String> {
-    unzip_attachments(zip_path(&path)?, &dir(&app, "attachments")?).map_err(|e| e.to_string())
+    let zip = zip_path(&path)?;
+    let att = unzip_images(zip, "attachments", &dir(&app, "attachments")?).map_err(|e| e.to_string())?;
+    Ok(att + unzip_images(zip, "backgrounds", &dir(&app, "backgrounds")?).map_err(|e| e.to_string())?)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{unzip_attachments, unzip_json, valid_name, zip_backup};
+    use super::{unzip_images, unzip_json, valid_name, zip_backup};
     use std::{fs, io::Write};
 
     #[test]
@@ -184,7 +189,7 @@ mod tests {
         fs::write(src.join("a1.png"), b"png-bytes").unwrap();
         fs::write(src.join("notes.txt"), b"skip me").unwrap();
         let zip_file = base.join("b.zip");
-        zip_backup(&zip_file, "{\"x\":1}", &src).unwrap();
+        zip_backup(&zip_file, "{\"x\":1}", &[("attachments", &src)]).unwrap();
         // Add a hostile entry by hand: it must not be restored.
         let mut extra = zip::ZipWriter::new_append(fs::OpenOptions::new().read(true).write(true).open(&zip_file).unwrap()).unwrap();
         extra.start_file("attachments/../evil.png", zip::write::SimpleFileOptions::default()).unwrap();
@@ -192,7 +197,7 @@ mod tests {
         extra.finish().unwrap();
 
         assert_eq!(unzip_json(&zip_file).unwrap(), "{\"x\":1}");
-        assert_eq!(unzip_attachments(&zip_file, &dst).unwrap(), 1);
+        assert_eq!(unzip_images(&zip_file, "attachments", &dst).unwrap(), 1);
         assert_eq!(fs::read(dst.join("a1.png")).unwrap(), b"png-bytes");
         assert!(!dst.join("notes.txt").exists() && !base.join("evil.png").exists());
         fs::remove_dir_all(base).unwrap();
