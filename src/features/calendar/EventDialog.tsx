@@ -1,7 +1,8 @@
-import { Check, Pin, Trash2 } from "lucide-react";
+import { Pin, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button, Dialog } from "../../components/ui/Dialog";
 import { Segmented } from "../../components/ui/Segmented";
+import { ColorField } from "../../components/ui/ColorField";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, hhmm, scheduleDate, timed, todayLocal } from "../../domain/dates";
 import { REPEAT_PRESETS, describeRule, scheduleForKey } from "../../domain/recurrence";
@@ -135,13 +136,7 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Color">
-          {ACCENT_PRESETS.map((p) => (
-            <button key={p.hex} type="button" disabled={ro} aria-label={p.name} aria-pressed={color === p.hex} onClick={() => setColor(p.hex)} className="grid size-7 place-items-center rounded-full" style={{ background: p.hex }}>
-              {color === p.hex && <Check size={14} strokeWidth={3} className="text-white" />}
-            </button>
-          ))}
-        </div>
+        <ColorField value={color} onChange={setColor} disabled={ro} />
 
         <textarea value={notes} disabled={ro} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" aria-label="Notes" className="input min-h-20 w-full resize-y" />
 
