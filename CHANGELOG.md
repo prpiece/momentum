@@ -5,6 +5,13 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.1.3
+
+- **Move tasks between days.** In Today and Upcoming, drag a task onto another day's task or heading to move it there. It keeps its time. Upcoming now has a heading for each of the next seven days.
+- **The calendar makes room for an open task.** With a task open beside the week, the calendar shows the days that fit. Hold a dragged item at the edge and the next day slides in, or use the arrows by the times.
+- **Tidier popups.** Several notices at once now line up instead of piling on top of each other.
+- **Fixes.** No more "a change to tasks wasn't synced (NOT NULL constraint failed)" errors. Changes those errors held back are fetched again the next time you open the app.
+
 ## v1.1.2
 
 - **Settings save when you say so.** Changes wait in an "Unsaved changes" bar until you press Save, and leaving the page asks first. The Scale slider no longer zooms the window while you drag it.
