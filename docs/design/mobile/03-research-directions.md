@@ -1,6 +1,6 @@
 # D3 · Reference ledger and direction (Gate 2)
 
-Status: **draft for approval**, combined with D2 and D4–D6.
+Status: **approved 2026-11-12** (D2–D6 combined, one approval, D254).
 
 How to read the ledger:
 - References are **Observed** from the shipped apps' public behaviour, from memory plus the Todoist help pages. Verify the details on a device before copying any measurement.

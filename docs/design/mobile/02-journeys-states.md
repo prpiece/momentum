@@ -1,6 +1,6 @@
 # D2 · Journeys, content and states (Gate 1)
 
-Status: **draft for approval**, combined with D3–D6 at the user's request (2026-11-12). Screens are on the Design canvas, "Momentum Phone redesign".
+Status: **approved 2026-11-12** (D2–D6 combined, one approval, D254). Screens are on the Design canvas, "Momentum Phone redesign".
 Tags: **Observed** (in the code or mocks), **Proposed** (new).
 
 ## 1. Task flows

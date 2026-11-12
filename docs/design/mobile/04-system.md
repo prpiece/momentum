@@ -1,6 +1,6 @@
 # D4 · Phone design system, motion and gestures (Gate 3)
 
-Status: **draft for approval**, combined with D2, D3, D5 and D6.
+Status: **approved 2026-11-12** (D2–D6 combined, one approval, D254).
 
 Colours come from the shared source (`docs/design/momentum-tokens.css`, generated into `mobile/src/theme/tokens.ts`, D250). Everything below is phone-only and lives in `mobile/src/theme`.
 

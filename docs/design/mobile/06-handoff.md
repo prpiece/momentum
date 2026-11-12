@@ -1,6 +1,6 @@
 # D6 · Handoff (Gate 5)
 
-Status: **draft for approval.** D2–D6 were done together (2026-11-12, at the user's request), and approving this file approves `02`–`06` and the canvas. This is the input to R1.
+Status: **approved 2026-11-12** (D254): `02`–`06` and the canvas, done together in one pass at the user's request. This is the input to R1.
 
 - **Canvas:** "Momentum Phone redesign", https://claude.ai/artifact/6wKYNAEtYNgEMyahq5DqnC (private; share it from the page if others need it).
 - **Brief:** `01-brief.md`. **Flows and states:** `02`. **Research and direction:** `03`. **System, motion and gestures:** `04`.
