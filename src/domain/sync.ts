@@ -71,8 +71,11 @@ export function planApply(remote: RemoteRow[], pending: Map<string, Set<string>>
   const deletes: ApplyOp[] = [];
   const upserts: Extract<ApplyOp, { kind: "upsert" }>[] = [];
   const settings: Record<string, unknown> = {};
+  // Tasks this batch removes or leaves alone: their activity rows would be orphans (the server doesn't cascade).
+  const goneTasks = new Set<string>();
   for (const r of latest.values()) {
     const mine = pending.get(rowKey(r.tbl, r.id)) ?? new Set<string>();
+    if (r.tbl === "tasks" && (mine.has("deleted_at") || r.data.deleted_at != null)) goneTasks.add(r.id);
     if (mine.has("deleted_at")) continue;
     const fields = Object.fromEntries(Object.entries(r.data).filter(([f]) => !mine.has(f)));
     if (r.tbl === "settings") {
@@ -88,7 +91,8 @@ export function planApply(remote: RemoteRow[], pending: Map<string, Set<string>>
     const row = Object.fromEntries(Object.entries({ ...fields, ...keyFromId(r.tbl, r.id) }).filter(([c]) => cols.has(c)));
     upserts.push({ kind: "upsert", tbl: r.tbl, id: r.id, row });
   }
-  return [...deletes, ...orderUpserts(upserts), ...(Object.keys(settings).length ? [{ kind: "settings" as const, fields: settings }] : [])];
+  const kept = upserts.filter((o) => !(o.tbl === "task_activity" && typeof o.row.task_id === "string" && goneTasks.has(o.row.task_id)));
+  return [...deletes, ...orderUpserts(kept), ...(Object.keys(settings).length ? [{ kind: "settings" as const, fields: settings }] : [])];
 }
 
 /** The key columns a row id stands for: the id itself, or `habit_id|date` for check-ins (as the triggers build it). */

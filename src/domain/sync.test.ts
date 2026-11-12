@@ -4,6 +4,7 @@ import { keyFromId, pendingFields, planApply, pushBatches, tagWinner, type Outbo
 const COLS = {
   folders: ["id", "name", "parent_id"],
   lists: ["id", "name", "color"],
+  task_activity: ["id", "task_id", "kind"],
   tasks: ["id", "title", "list_id", "parent_id", "recurrence_parent_id", "deleted_at"],
   habit_checkins: ["habit_id", "date", "value", "note"],
   rest_days: ["date"],
@@ -13,6 +14,16 @@ const ob = (seq: number, tbl: string, row_id: string, fields: object): OutboxRow
 const rr = (tbl: RemoteRow["tbl"], id: string, data: Record<string, unknown>, version = 1): RemoteRow => ({ tbl, id, data, version });
 
 describe("planApply", () => {
+  it("drops activity for a task deleted in the same batch or deleted locally and pending", () => {
+    const act = (id: string, taskId: string) => rr("task_activity", id, { id, task_id: taskId, kind: "renamed", deleted_at: null });
+    const ids = (ops: ReturnType<typeof planApply>) => ops.map((o) => (o.kind === "settings" ? "" : o.id));
+    const gone = rr("tasks", "t1", { id: "t1", deleted_at: "2026-01-02T00:00:00.000Z" });
+    expect(ids(planApply([gone, act("a1", "t1"), act("a2", "t2")], new Map(), COLS))).toEqual(["t1", "a2"]);
+    const pending = pendingFields([ob(1, "tasks", "t3", { deleted_at: "2026-01-02T00:00:00.000Z" })]);
+    const live = rr("tasks", "t3", { id: "t3", title: "x", deleted_at: null });
+    expect(ids(planApply([live, act("a3", "t3")], pending, COLS))).toEqual([]);
+  });
+
   it("writes remote rows when nothing is pending, dropping unknown columns", () => {
     const ops = planApply([rr("lists", "l1", { id: "l1", name: "Work", color: null, deleted_at: null, future_col: 1 })], new Map(), COLS);
     expect(ops).toEqual([{ kind: "upsert", tbl: "lists", id: "l1", row: { id: "l1", name: "Work", color: null } }]);
