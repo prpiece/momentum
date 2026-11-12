@@ -123,7 +123,7 @@ async function columnsOf(d: Driver): Promise<Record<SyncTable, string[]>> {
 const where = (key: Record<string, unknown>, from = 1) => Object.keys(key).map((c, i) => `${c} = $${i + from}`).join(" AND ");
 
 /** Applies one op; returns an issue instead of throwing, so one bad row never blocks the rest. */
-async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): Promise<string | null> {
+export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): Promise<string | null> {
   try {
     if (op.kind === "delete") {
       await d.execute(`DELETE FROM ${op.tbl} WHERE ${where(op.key)}`, Object.values(op.key));
@@ -132,15 +132,22 @@ async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): P
     const key = SYNC_TABLES[op.tbl];
     const cols = Object.keys(op.row);
     const rest = cols.filter((c) => !(key as readonly string[]).includes(c));
-    const vals = cols.map((_, i) => `$${i + 1}`).join(", ");
+    const p = (c: string) => `$${cols.indexOf(c) + 1}`;
+    const match = key.map((c) => `${c} = ${p(c)}`).join(" AND ");
+    // Fields with pending local edits are left out of the row, so it can lack NOT NULL columns
+    // (updated_at, title). SQLite checks NOT NULL before ON CONFLICT, so an upsert would fail:
+    // update the row in place, and insert only when there is none.
+    const guards = [`NOT EXISTS (SELECT 1 FROM ${op.tbl} WHERE ${match})`];
     // Activity whose task is gone locally (purged, or tombstoned elsewhere) is skipped, not an error.
-    const at = cols.indexOf("task_id") + 1;
-    const source = op.tbl === "task_activity" && at ? `SELECT ${vals} WHERE EXISTS (SELECT 1 FROM tasks WHERE id = $${at})` : `VALUES (${vals})`;
-    const sql =
-      `INSERT INTO ${op.tbl} (${cols.join(", ")}) ${source} ` +
-      `ON CONFLICT(${key.join(", ")}) DO ${rest.length ? `UPDATE SET ${rest.map((c) => `${c} = excluded.${c}`).join(", ")}` : "NOTHING"}`;
+    if (op.tbl === "task_activity" && cols.includes("task_id")) guards.push(`EXISTS (SELECT 1 FROM tasks WHERE id = ${p("task_id")})`);
+    const insert = `INSERT INTO ${op.tbl} (${cols.join(", ")}) SELECT ${cols.map(p).join(", ")} WHERE ${guards.join(" AND ")}`;
+    const update = `UPDATE ${op.tbl} SET ${rest.map((c) => `${c} = ${p(c)}`).join(", ")} WHERE ${match}`;
+    const run = async () => {
+      if (rest.length) await d.execute(update, Object.values(op.row));
+      await d.execute(insert, Object.values(op.row));
+    };
     try {
-      await d.execute(sql, Object.values(op.row));
+      await run();
     } catch (err) {
       if (op.tbl !== "tags" || !/UNIQUE/i.test(String(err))) throw err;
       // Same tag name made on two devices: both keep the smaller id and tombstone the other (D225).
@@ -153,7 +160,7 @@ async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): P
       );
       if (loser === mine.id) {
         await d.execute("DELETE FROM tags WHERE id = $1", [mine.id]);
-        await d.execute(sql, Object.values(op.row));
+        await run();
       }
     }
     return null;
@@ -317,8 +324,18 @@ export async function startSync() {
   const raw = await state("issues");
   try {
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    // Orphaned activity rows used to be reported as foreign-key issues; they're skipped now, so drop the old reports.
-    if (Array.isArray(parsed)) useSync.setState({ issues: (parsed as SyncIssue[]).filter((i) => !(i.tbl === "task_activity" && /FOREIGN KEY constraint failed/.test(i.reason))) });
+    if (Array.isArray(parsed)) {
+      const old = parsed as SyncIssue[];
+      // Rows with pending local edits used to fail NOT NULL (D251). They apply now: pull everything again once
+      // to recover the changes those failures dropped (pending local fields still win), and drop the reports.
+      const notNull = (i: SyncIssue) => /NOT NULL constraint failed/.test(i.reason);
+      if (old.some(notNull)) await setLocalState("cursor", "0");
+      // Orphaned activity rows used to be reported as foreign-key issues; they're skipped now, so drop the old reports.
+      const fixed = (i: SyncIssue) => notNull(i) || (i.tbl === "task_activity" && /FOREIGN KEY constraint failed/.test(i.reason));
+      const issues = old.filter((i) => !fixed(i));
+      useSync.setState({ issues });
+      if (issues.length < old.length) await setLocalState("issues", JSON.stringify(issues));
+    }
   } catch {
     /* a bad issues list only loses the history */
   }

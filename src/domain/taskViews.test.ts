@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atLocalTime, timed } from "./dates";
+import { addDaysLocal, atLocalTime, timed } from "./dates";
 import { flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, sortVMs, toVM, type TaskVM } from "./taskViews";
 import type { Schedule, SmartListId, Task, TaskList } from "./types";
 
@@ -114,6 +114,15 @@ describe("grouping", () => {
       (s) => vm(mk({ schedule: s })),
     );
     expect(groupVMs(vms, "date", ctx).map((g) => g.label)).toEqual(["Overdue", "Today", "Tomorrow", "Later", "No date"]);
+  });
+
+  it("gives each of the next seven days its own group", () => {
+    const vms = [day(addDaysLocal(TODAY, 3)), day(addDaysLocal(TODAY, 1)), day(addDaysLocal(TODAY, 6)), day(addDaysLocal(TODAY, 7))].map((s) => vm(mk({ schedule: s })));
+    const labels = groupVMs(vms, "date", ctx).map((g) => g.label);
+    expect(labels).toHaveLength(4);
+    expect(labels[0]).toBe("Tomorrow");
+    expect(labels[1]).toBe("Wednesday 28 Oct");
+    expect(labels[3]).toBe("Later");
   });
 
   it("puts multi-tag tasks in every tag group", () => {

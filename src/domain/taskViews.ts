@@ -1,4 +1,5 @@
-import { addDaysLocal, scheduleDate, toLocalDate, wallKey } from "./dates";
+import { format } from "date-fns";
+import { addDaysLocal, fromLocalDate, scheduleDate, toLocalDate, wallKey } from "./dates";
 import { effective } from "./recurrence";
 import {
   INBOX_ID,
@@ -90,12 +91,13 @@ export type Group = { key: string; label: string; items: TaskVM[] };
 
 type GroupCtx = { today: LocalDate; lists: ReadonlyMap<string, TaskList>; tags: ReadonlyMap<string, Tag> };
 
+/** Each of the next seven days is its own group, so a task can be dragged onto a day (D253). */
 function dateBucket(vm: TaskVM, today: LocalDate): [string, string] {
   if (!vm.date) return ["5", "No date"];
   if (vm.date < today) return ["0", "Overdue"];
   if (vm.date === today) return ["1", "Today"];
-  if (vm.date === addDaysLocal(today, 1)) return ["2", "Tomorrow"];
-  if (vm.date <= addDaysLocal(today, 6)) return ["3", "Next 7 days"];
+  if (vm.date === addDaysLocal(today, 1)) return [`2:${vm.date}`, "Tomorrow"];
+  if (vm.date <= addDaysLocal(today, 6)) return [`2:${vm.date}`, format(fromLocalDate(vm.date), "EEEE d MMM")];
   return ["4", "Later"];
 }
 

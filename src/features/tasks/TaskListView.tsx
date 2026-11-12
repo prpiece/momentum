@@ -1,24 +1,40 @@
+import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight } from "lucide-react";
 import { useMemo, useRef } from "react";
+import { droppedSchedule } from "../../domain/calendar";
 import { todayLocal } from "../../domain/dates";
 import { flattenTree, groupVMs, sortVMs, topLevelIn, type TaskVM, type TreeRow } from "../../domain/taskViews";
-import type { ViewOptions } from "../../domain/types";
+import type { ViewId, ViewOptions } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
 import { reorderTask, useData } from "../../stores/data";
+import { applySchedule, currentSchedule } from "../../stores/schedule";
+import { useSettings } from "../../stores/settings";
 import { openTask, setSelection, toggleCollapsed, useUi } from "../../stores/ui";
 import type { Derived } from "../../domain/taskViews";
 import { TaskRow, type RowClick } from "./TaskRow";
+import { viewOptionsOf } from "./viewOptions";
 import type { TaskViewSpec } from "./viewSpec";
 
 type Row =
-  | { kind: "header"; key: string; label: string; count: number; collapsible?: string }
+  | { kind: "header"; key: string; label: string; count: number; collapsible?: string; date?: string }
   | { kind: "task"; key: string; row: TreeRow; parent?: string };
 
-// Dropping a task row onto another row in the same container reorders siblings.
+/** Views ordered by date (Today, Upcoming, any list sorted or grouped by date) move tasks between days instead of reordering (D253). */
+const movesByDate = (o: ViewOptions) => o.groupBy === "date" || o.sortBy === "date";
+
+// Dropping a task row onto another row in the same container reorders siblings, or in a date-ordered
+// view moves the task to that row's day (keeping its time).
 onDrop("task", (drag, drop) => {
   if (drag.type !== "task" || drag.container !== drop.container || drag.id === drop.id) return;
+  if (movesByDate(viewOptionsOf(drop.container as ViewId, useSettings.getState().settings.viewOptions))) {
+    if (drop.date === undefined || drop.date === drag.date) return;
+    const ref = { source: "task" as const, id: drag.id, key: drag.key };
+    const current = currentSchedule(ref);
+    void applySchedule(ref, drop.date ? droppedSchedule(current, drop.date, "keepTime", 0) : { kind: "none" });
+    return;
+  }
   const tasks = useData.getState().tasks;
   const a = tasks[drag.id];
   const b = tasks[drop.id];
@@ -37,6 +53,7 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
   const today = todayLocal();
   const reorderable = !!spec.list && options.sortBy === "manual" && options.groupBy === "none";
   const container = spec.id;
+  const byDate = !reorderable && movesByDate(options);
 
   const rows = useMemo<Row[]>(() => {
     // Every view nests a subtask under its parent when both are in it; otherwise the subtask
@@ -51,7 +68,9 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
     const openOnes = spec.splitCompleted ? vms.filter(isOpen) : vms;
     const roots = topLevelIn(openOnes);
     for (const g of groupVMs(sortVMs(roots, options.sortBy), options.groupBy, { today, lists: new Map(Object.entries(lists)), tags: new Map(Object.entries(tags)) })) {
-      if (g.label) out.push({ kind: "header", key: `h:${g.key}`, label: g.label, count: g.items.length });
+      // Day groups (Today, each of the next seven days) take drops too (D253).
+      const date = options.groupBy !== "date" ? undefined : g.key === "1" ? today : g.key.startsWith("2:") ? g.key.slice(2) : undefined;
+      if (g.label) out.push({ kind: "header", key: `h:${g.key}`, label: g.label, count: g.items.length, date });
       for (const r of flattenTree(g.items, childrenOf, collapsedSet, all)) out.push({ kind: "task", key: `${g.key}:${r.vm.task.id}`, row: r, parent: parentOf(r) });
     }
     if (spec.splitCompleted) {
@@ -106,9 +125,9 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
             return (
               <div key={vi.key} data-index={vi.index} ref={virtual.measureElement} className="absolute inset-x-0" style={{ top: vi.start }}>
                 {r.kind === "header" ? (
-                  <GroupHeader label={r.label} count={r.count} toggleKey={r.collapsible} expanded={r.collapsible ? !!collapsed[r.collapsible] : true} />
+                  <GroupHeader label={r.label} count={r.count} toggleKey={r.collapsible} expanded={r.collapsible ? !!collapsed[r.collapsible] : true} date={byDate ? r.date : undefined} />
                 ) : (
-                  <TaskRow row={r.row} parent={r.parent} container={container} reorderable={reorderable} showList={!spec.list} onClick={onClick} />
+                  <TaskRow row={r.row} parent={r.parent} container={container} reorderable={reorderable} movesByDate={byDate} showList={!spec.list} onClick={onClick} />
                 )}
               </div>
             );
@@ -120,7 +139,9 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
   );
 }
 
-function GroupHeader(props: { label: string; count: number; toggleKey?: string; expanded: boolean }) {
+function GroupHeader(props: { label: string; count: number; toggleKey?: string; expanded: boolean; date?: string }) {
+  // A day's header is a drop target for that day (the calendar's keep-time slot).
+  const { setNodeRef, isOver } = useDroppable({ id: `group:${props.date ?? props.label}`, data: { type: "slot", date: props.date, mode: "keepTime" }, disabled: !props.date });
   const content = (
     <>
       {props.toggleKey && <ChevronRight size={16} strokeWidth={1.75} className={`transition-transform duration-[var(--dur)] ${props.expanded ? "rotate-90" : ""}`} />}
@@ -132,7 +153,7 @@ function GroupHeader(props: { label: string; count: number; toggleKey?: string; 
   const cls = "flex h-7 items-center gap-1.5 rounded-xs text-muted";
   return (
     <div className="pt-4 pb-1">
-      <div className="flex items-center border-b border-border px-1">
+      <div ref={setNodeRef} className={`flex items-center rounded-xs border-b px-1 transition-colors ${isOver ? "border-accent-text bg-accent-soft text-fg" : "border-border"}`}>
         {props.toggleKey ? (
           <button type="button" aria-expanded={props.expanded} onClick={() => toggleCollapsed(props.toggleKey ?? "")} className={`${cls} hover:text-fg`}>
             {content}

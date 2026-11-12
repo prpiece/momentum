@@ -363,6 +363,13 @@
 @keyframes slide-from-left {
   from { transform: translateX(-100%); }
 }
+/* Calendar days shifting beside the task drawer (D252). */
+@keyframes days-from-right {
+  from { transform: translateX(32px); opacity: 0.4; }
+}
+@keyframes days-from-left {
+  from { transform: translateX(-32px); opacity: 0.4; }
+}
 .anim-pop { animation: pop 260ms var(--ease-out); }
 .anim-fade { animation: fade-in var(--dur) var(--ease-out); }
 .anim-rise { animation: rise var(--dur) var(--ease-out); }

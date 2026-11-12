@@ -22,6 +22,8 @@ export const TaskRow = memo(function TaskRow(props: {
   parent?: string;
   container: string;
   reorderable: boolean;
+  /** Dropping onto this row moves the dragged task to its day (date-sorted views, D253). */
+  movesByDate?: boolean;
   showList: boolean;
   onClick: RowClick;
 }) {
@@ -34,10 +36,10 @@ export const TaskRow = memo(function TaskRow(props: {
   const tags = useData((s) => s.tags);
   const timeFormat = useSettings((s) => s.settings.timeFormat);
 
-  const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver, index, activeIndex } = useSortable({
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver, index, activeIndex, active } = useSortable({
     id: `${props.container}:${t.id}`,
     transition: SORT_TRANSITION,
-    data: { type: "task", id: t.id, key: vm.key, container: props.container },
+    data: { type: "task", id: t.id, key: vm.key, container: props.container, date: vm.date },
   });
   const style = props.reorderable && transform ? { transform: `translate3d(0, ${transform.y}px, 0)`, transition } : undefined;
 
@@ -77,7 +79,13 @@ export const TaskRow = memo(function TaskRow(props: {
         isDragging ? "bg-accent-soft opacity-40" : ""
       } ${selected || open ? "bg-accent-soft" : "hover:bg-surface-2"} ${fresh ? "anim-rise" : ""} ${leaving ? "opacity-50" : ""}`}
     >
-      <DropLine side={props.reorderable ? dropSide({ isOver, isDragging, index, activeIndex }) : null} />
+      <DropLine
+        side={
+          props.reorderable || (props.movesByDate && isOver && active?.data.current?.date !== vm.date && active?.data.current?.container === props.container)
+            ? dropSide({ isOver, isDragging, index, activeIndex })
+            : null
+        }
+      />
       {/* A fixed toggle gutter keeps every checkbox in a column, with or without subtasks. */}
       <div style={{ width: 20 + depth * 20 }} className="-mr-1.5 flex shrink-0 items-center justify-end self-stretch max-[719px]:mt-0.5 max-[719px]:h-[var(--checkbox)] max-[719px]:self-start">
         {shownKids > 0 && (

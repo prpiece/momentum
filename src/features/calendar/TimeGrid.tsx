@@ -1,15 +1,110 @@
 import { useDroppable, type DragMoveEvent } from "@dnd-kit/core";
 import { format } from "date-fns";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { hhmmOf, itemsOnDay, layoutDay, MINUTES_PER_DAY, snap, SNAP, type CalItem } from "../../domain/calendar";
-import { atLocalTime, formatTime, fromLocalDate, timed, todayLocal } from "../../domain/dates";
+import { atLocalTime, formatTime, fromLocalDate, scheduleDate, timed, todayLocal } from "../../domain/dates";
 import { isDragData, onDragMove } from "../../lib/dnd";
+import { useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
+import { useUi } from "../../stores/ui";
 import { Chip, TimeBlock } from "./Blocks";
 import { dragRef, dropMinute, HOUR_PX, minuteAt, previewMinutes } from "./calendarActions";
 import { CreatePopover, type Draft } from "./CreatePopover";
 
 const ALL_DAY_ROWS = 3;
+const GUTTER = 56; // the 3.5rem time column
+const MIN_COL = 112; // narrowest readable day column beside the drawer
+const EDGE = 24; // px at the visible edge that slides the days while dragging
+const HOLD = 450; // ms at the edge before each next day slides in
+
+/**
+ * The days the open task drawer leaves room for (D252). The drawer floats over the grid, so the grid
+ * steps out from under it and shows as many days as fit; the rest slide in from the side, by holding
+ * a drag at the edge or with the arrows in the time gutter.
+ */
+function useVisibleDays(root: RefObject<HTMLDivElement | null>, days: string[]) {
+  const drawer = useUi((s) => s.drawer);
+  const task = useData((s) => (drawer ? s.tasks[drawer.id] : undefined));
+  const [box, setBox] = useState({ width: 0, cover: 0, right: true });
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const aside = drawer ? document.querySelector<HTMLElement>("[data-task-drawer]") : null;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      // Offsets, not the drawer's own rect: it is still sliding in (a transform) when this first runs.
+      const p = aside?.offsetParent?.getBoundingClientRect();
+      const a = aside && p ? { left: p.left + aside.offsetLeft, right: p.left + aside.offsetLeft + aside.offsetWidth } : null;
+      const right = !a || a.left > r.left + r.width / 2;
+      const cover = !a ? 0 : Math.max(0, right ? r.right - a.left : a.right - r.left);
+      // A drawer as wide as the grid (phones) covers it outright: nothing to make room for.
+      setBox({ width: r.width, cover: cover >= r.width - GUTTER ? 0 : cover, right });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (aside) ro.observe(aside);
+    return () => ro.disconnect();
+  }, [root, drawer?.id]);
+
+  const n = box.cover ? Math.min(days.length, Math.max(1, Math.floor((box.width - box.cover - GUTTER) / MIN_COL))) : days.length;
+  const max = days.length - n;
+  // Start with the open task's day in view.
+  const at = task ? days.indexOf(scheduleDate(task.schedule) ?? "") : -1;
+  const initial = at < n ? 0 : Math.min(max, at - n + 1);
+  const key = `${days[0]}|${drawer?.id ?? ""}|${n}`;
+  const [pos, setPos] = useState({ key: "", offset: 0, dir: 0 });
+  const offset = pos.key === key ? pos.offset : initial;
+  const shift = (dir: number) =>
+    setPos((p) => {
+      const from = p.key === key ? p.offset : initial;
+      const to = Math.min(max, Math.max(0, from + dir));
+      return to === from ? p : { key, offset: to, dir };
+    });
+
+  // Holding a drag at the visible edge slides the next day in, again every HOLD ms.
+  const live = useRef({ box, max, shift });
+  live.current = { box, max, shift };
+  useEffect(() => {
+    let timer = 0;
+    let dir = 0;
+    const stop = () => {
+      window.clearInterval(timer);
+      dir = 0;
+    };
+    const off = onDragMove((e) => {
+      const { box, max } = live.current;
+      const el = root.current;
+      const a = e?.activatorEvent;
+      const { initial: from, translated } = e?.active.rect.current ?? {};
+      if (!e || !el || !max || !(a instanceof MouseEvent) || !from || !translated) return stop();
+      const x = a.clientX + translated.left - from.left;
+      const r = el.getBoundingClientRect();
+      const left = r.left + GUTTER + (box.right ? 0 : box.cover);
+      const right = r.right - (box.right ? box.cover : 0);
+      const want = x > right - EDGE ? 1 : x < left ? -1 : 0;
+      if (want === dir) return;
+      stop();
+      if (!want) return;
+      dir = want;
+      timer = window.setInterval(() => live.current.shift(want), HOLD);
+    });
+    return () => {
+      off();
+      stop();
+    };
+  }, [root]);
+
+  return {
+    shown: n === days.length ? days : days.slice(offset, offset + n),
+    pad: box.cover ? { [box.right ? "paddingRight" : "paddingLeft"]: box.cover } : undefined,
+    canBack: offset > 0,
+    canForward: offset < max,
+    shift,
+    slide: pos.key === key && pos.dir ? { key: offset, dir: pos.dir } : null,
+  };
+}
 
 /** Day / 3-day / week grid: header, all-day row, scrolling time columns. */
 export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: CalItem[]; onViewDay: (d: string) => void }) {
@@ -17,6 +112,8 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
   const timeFormat = useSettings((s) => s.settings.timeFormat);
   const hourPx = HOUR_PX[density];
   const scroller = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const { shown, pad, canBack, canForward, shift, slide } = useVisibleDays(root, days);
   const today = todayLocal();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [ghost, setGhost] = useState<{ date: string; top: number; minutes: number } | null>(null);
@@ -44,16 +141,29 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
     [],
   );
 
-  const byDay = useMemo(() => days.map((d) => ({ day: d, placed: layoutDay(items, d), allDay: itemsOnDay(items, d).filter((i) => i.allDay) })), [days, items]);
-  const cols = `3.5rem repeat(${days.length}, minmax(0, 1fr))`;
+  const byDay = useMemo(() => shown.map((d) => ({ day: d, placed: layoutDay(items, d), allDay: itemsOnDay(items, d).filter((i) => i.allDay) })), [shown, items]);
+  const cols = `3.5rem repeat(${shown.length}, minmax(0, 1fr))`;
+  // The day columns slide in from the side the new day came from.
+  const anim = slide ? { animation: `${slide.dir > 0 ? "days-from-right" : "days-from-left"} var(--dur) var(--ease-move)` } : undefined;
 
   // One day: a left-aligned date header; the Day view puts the brief beside the grid (PLAN D209).
-  const single = days.length === 1;
+  const single = shown.length === 1;
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="grid border-b border-border pr-2" style={{ gridTemplateColumns: cols }}>
-        <div />
-        {days.map((d) => {
+    <div ref={root} className="flex min-h-0 min-w-0 flex-1 flex-col" style={pad}>
+      <div key={`head${slide?.key}`} className="grid border-b border-border pr-2" style={{ gridTemplateColumns: cols, ...anim }}>
+        <div className="flex items-center justify-center">
+          {(canBack || canForward) && (
+            <>
+              <button type="button" className="btn btn-ghost btn-sm icon-btn !w-6 !px-0" aria-label="Earlier day" disabled={!canBack} onClick={() => shift(-1)}>
+                <ChevronLeft size={16} strokeWidth={1.75} />
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm icon-btn !w-6 !px-0" aria-label="Later day" disabled={!canForward} onClick={() => shift(1)}>
+                <ChevronRight size={16} strokeWidth={1.75} />
+              </button>
+            </>
+          )}
+        </div>
+        {shown.map((d) => {
           const date = fromLocalDate(d);
           return (
             <button key={d} type="button" onClick={() => onViewDay(d)} className={`@container flex min-w-0 items-center gap-1.5 border-l border-border px-1 hover:bg-surface-2 ${single ? "h-12 justify-start px-3" : "h-16 justify-center"}`}>
@@ -64,7 +174,7 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         })}
       </div>
 
-      <div className="grid border-b border-border pr-2" style={{ gridTemplateColumns: cols }}>
+      <div key={`allday${slide?.key}`} className="grid border-b border-border pr-2" style={{ gridTemplateColumns: cols, ...anim }}>
         <div className="flex items-center justify-end pr-2 text-[length:var(--fs-xs)] text-muted">all-day</div>
         {byDay.map(({ day, allDay }) => (
           <AllDayCell key={day} day={day} items={allDay} onCreate={(anchor) => setDraft({ anchor, schedule: { kind: "day", date: day } })} />
@@ -72,7 +182,7 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
       </div>
 
       <div ref={scroller} className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="relative grid" style={{ gridTemplateColumns: cols, height: 24 * hourPx }}>
+        <div key={`body${slide?.key}`} className="relative grid" style={{ gridTemplateColumns: cols, height: 24 * hourPx, ...anim }}>
           <div className="relative">
             {Array.from({ length: 23 }, (_, i) => i + 1).map((h) => (
               <span key={h} className="absolute right-2 -translate-y-1/2 tabular-nums text-[length:var(--fs-xs)] text-muted" style={{ top: h * hourPx }}>

@@ -12,6 +12,9 @@ export function Toaster() {
     <Sonner
       position="bottom-center"
       visibleToasts={3}
+      // Always listed, never collapsed into a stack: toasts size to their text (D237), and Sonner only
+      // hides the text of the cards behind when it styles them itself, so a stack of mixed widths overlapped.
+      expand
       gap={8}
       theme={theme}
       closeButton

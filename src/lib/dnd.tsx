@@ -28,7 +28,8 @@ import { reducedMotion } from "./motion";
  */
 
 export type DragData =
-  | { type: "task"; id: string; key: string | null; container?: string }
+  /** `date`: the row's day, in views that move tasks between days by dragging (D253). */
+  | { type: "task"; id: string; key: string | null; container?: string; date?: string | null }
   /** Calendar block move/resize. `edge` is set when resizing. */
   | { type: "block"; id: string; key: string | null; edge: "start" | "end" | null; source: "task" | "event" }
   | { type: "habit"; id: string }
@@ -39,7 +40,7 @@ export type DragData =
 export type DropData =
   | { type: "list"; listId: string }
   | { type: "smart"; id: "inbox" | "today" | "upcoming" }
-  | { type: "task"; id: string; container: string }
+  | { type: "task"; id: string; container: string; date?: string | null }
   | { type: "section"; listId: string; sectionId: string | null }
   /** Calendar target: a time-grid column (`time`), the all-day row (`allDay`) or a month cell (`keepTime`). */
   | { type: "slot"; date: string; mode: "time" | "allDay" | "keepTime" }
