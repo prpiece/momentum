@@ -555,3 +555,6 @@ html [data-sonner-toaster][data-sonner-theme] [data-sonner-toast] [data-close-bu
   from { opacity: 0; transform: scale(0.98); }
 }
 .tip { transform-origin: var(--radix-tooltip-content-transform-origin); animation: tip-in var(--dur-fast) ease-out; }
+
+/* A modal or the tour is open: the page behind must not scroll (lib/scrollLock.ts). */
+html[data-scroll-lock] [data-scroller] { overflow: hidden !important; }

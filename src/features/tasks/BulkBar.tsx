@@ -28,8 +28,8 @@ export function BulkBar() {
   const btn = "flex h-8 items-center gap-1.5 rounded-control px-2.5 text-sm hover:bg-surface-2";
 
   return (
-    <div role="toolbar" aria-label="Bulk edit" className="anim-rise absolute inset-x-0 bottom-5 z-30 mx-auto flex w-fit items-center gap-1 rounded-panel border border-border bg-raised p-1.5 shadow-float">
-      <span className="px-2.5 text-sm font-semibold">{n} selected</span>
+    <div role="toolbar" aria-label="Bulk edit" className="anim-rise absolute inset-x-0 bottom-5 z-30 mx-auto flex w-fit items-center gap-1 rounded-card border border-border bg-raised p-1.5 shadow-float">
+      <span className="px-2.5 text-[length:var(--fs-base)] font-semibold">{n} selected</span>
       <button type="button" className={btn} onClick={() => withUndo(`Completed ${n} tasks`, () => selection.forEach((id) => setStatus(id, "done")))}>
         <CheckCheck size={16} /> Complete
       </button>
