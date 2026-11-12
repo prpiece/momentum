@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { deleteAccount, keepAccount, loadAccount, saveHandle, sendCode, statusText, verifyCode, type Device, type Profile } from "../../lib/sync/account";
 import { signOut, syncNow, useSync } from "../../lib/sync/engine";
 import { syncConfigured } from "../../lib/sync/supabase";
+import { Spinner } from "../../components/ui/Spinner";
 import { SiteLink } from "./SiteLink";
 import { confirm, toast } from "../../stores/ui";
 
@@ -61,7 +62,8 @@ function SignIn() {
             </span>
           </label>
           <button type="submit" disabled={busy || !agreed || !email.includes("@")} className="btn btn-primary">
-            Email me a code
+            {busy ? <Spinner /> : null}
+            {busy ? "Sending…" : "Email me a code"}
           </button>
         </form>
       ) : (
@@ -76,7 +78,8 @@ function SignIn() {
           <input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" aria-label="Code" className="input w-40 tabular-nums" />
           <div className="flex gap-2">
             <button type="submit" disabled={busy || !/^\d{6}$/.test(code.trim())} className="btn btn-primary">
-              Sign in
+              {busy ? <Spinner /> : null}
+              {busy ? "Signing in…" : "Sign in"}
             </button>
             <button type="button" disabled={busy} onClick={() => setSent(false)} className={btn}>
               Use another email
@@ -105,7 +108,7 @@ function SignedIn({ account }: { account: string }) {
     void loadAccount(account).then((a) => {
       if (!live) return;
       setEmail(a.email);
-      setProfile(a.profile);
+      setProfile((p) => a.profile ?? p);
       setDevices(a.devices);
       setMe(a.me);
       setDeletesAt(a.deletesAt);

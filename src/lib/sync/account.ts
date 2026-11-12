@@ -2,14 +2,15 @@
  * Sign-in and account actions shared by the desktop Account page and the phone (PLAN D229).
  * Each returns the message to show; the apps only draw the forms.
  */
-import { deviceId, enableSync, signInSituation, signOut, wipeLocal, type SyncStatus } from "./engine";
+import { pickProfile } from "../../domain/sync";
+import { deviceId, enableSync, setLocalState, signInSituation, signOut, state, wipeLocal, type SyncStatus } from "./engine";
 import { supabase } from "./supabase";
 
 export const HANDLE = /^[a-z0-9_]{3,20}$/;
 export type Profile = { handle: string | null; display_name: string | null };
 export type Device = { id: string; platform: string | null; last_seen: string };
 /** `deletesAt`: set while a deletion is pending (D231), so the app can offer to keep the account. */
-export type AccountInfo = { email: string | null; profile: Profile; devices: Device[]; me: string; deletesAt: Date | null };
+export type AccountInfo = { email: string | null; profile: Profile | null; devices: Device[]; me: string; deletesAt: Date | null };
 const GRACE_MS = 7 * 86_400_000;
 
 /** Emails a 6-digit code. Returns an error message, or null when sent. */
@@ -41,18 +42,32 @@ export async function verifyCode(email: string, code: string, addOtherData: () =
   }
 }
 
+/** The profile is cached in sync_state so an offline start keeps the handle instead of asking for one again. */
+const cacheProfile = (account: string, p: Profile) => setLocalState("profile", JSON.stringify({ account, ...p })).catch(console.error);
+async function cachedProfile(account: string): Promise<Profile | null> {
+  try {
+    const c = JSON.parse((await state("profile")) ?? "null") as (Profile & { account?: string }) | null;
+    return c?.account === account ? { handle: c.handle ?? null, display_name: c.display_name ?? null } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** `profile` is null when it couldn't be fetched and nothing is cached: unknown, not empty. */
 export async function loadAccount(account: string): Promise<AccountInfo> {
-  const [{ data: user }, { data: p }, { data: d }, { data: del }, me] = await Promise.all([
+  const [{ data: user }, { data: p, error: pErr }, { data: d }, { data: del }, me] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from("profiles").select("handle, display_name").eq("id", account).maybeSingle(),
     supabase.from("devices").select("id, platform, last_seen").order("last_seen", { ascending: false }),
     supabase.from("account_deletions").select("requested_at").eq("owner_id", account).maybeSingle(),
     deviceId(),
   ]);
+  const profile = pickProfile(p as Profile | null, !!pErr, pErr ? await cachedProfile(account) : null);
+  if (profile && !pErr) void cacheProfile(account, profile);
   const requested = (del as { requested_at: string } | null)?.requested_at;
   return {
     email: user.user?.email ?? null,
-    profile: (p as Profile | null) ?? { handle: null, display_name: null },
+    profile,
     devices: (d as Device[] | null) ?? [],
     me,
     deletesAt: requested ? new Date(Date.parse(requested) + GRACE_MS) : null,
@@ -66,6 +81,7 @@ export async function saveHandle(account: string, handle: string, name: string):
   const row = { id: account, handle: h, display_name: name.trim() || h };
   const { error } = await supabase.from("profiles").upsert(row);
   if (error) return { ok: false, message: /reserved/.test(error.message) ? "That handle is reserved." : /duplicate|unique/i.test(error.message) ? "That handle is taken." : error.message };
+  void cacheProfile(account, row);
   return { ok: true, profile: { handle: row.handle, display_name: row.display_name } };
 }
 

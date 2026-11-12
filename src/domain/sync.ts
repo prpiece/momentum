@@ -147,3 +147,8 @@ export function pushBatches<T extends OutboxRow>(outbox: T[], maxCount = 500, ma
 
 /** Two devices made a tag with the same name: both keep the smaller id, so they converge (D225). */
 export const tagWinner = (a: string, b: string) => (a < b ? a : b);
+
+export type ProfileFields = { handle: string | null; display_name: string | null };
+/** The profile to show: the fetched one, or, when the fetch failed (offline), the last known one. null = unknown, never "empty". */
+export const pickProfile = (fetched: ProfileFields | null, failed: boolean, cached: ProfileFields | null): ProfileFields | null =>
+  failed ? cached : (fetched ?? { handle: null, display_name: null });

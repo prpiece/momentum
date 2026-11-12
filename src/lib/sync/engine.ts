@@ -3,7 +3,7 @@
  * Pure rules live in domain/sync.ts; this file is the I/O around them. Main window only.
  */
 import { create } from "zustand";
-import { onWrite, select, transact, type Driver } from "../../db/client";
+import { onWrite, select, transact, write, type Driver } from "../../db/client";
 import { saveSettings } from "../../db/settings";
 import { USER_SETTING_KEYS, withRemoteSettings } from "../../domain/settings";
 import { isSyncTarget, pendingFields, planApply, pushBatches, SYNC_TABLES, tagWinner, type ApplyOp, type OutboxRow, type RemoteRow, type SyncTable } from "../../domain/sync";
@@ -32,7 +32,7 @@ export const useSync = create<{ status: SyncStatus; account: string | null; issu
 
 // ---------- local sync state ----------
 
-async function state(key: string): Promise<string | null> {
+export async function state(key: string): Promise<string | null> {
   const rows = await select<{ value: string }>("SELECT value FROM sync_state WHERE key = $1", [key]);
   return rows[0]?.value ?? null;
 }
@@ -42,6 +42,9 @@ export const setSnapshot = (fn: typeof snapshotDatabase) => void (snapshotDataba
 
 const setState = (d: Driver, key: string, value: string) =>
   d.execute("INSERT INTO sync_state (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [key, value]);
+
+export const setLocalState = (key: string, value: string) =>
+  write(["INSERT INTO sync_state (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [key, value]]);
 
 /** This device's id in the account's device list. */
 export async function deviceId(): Promise<string> {

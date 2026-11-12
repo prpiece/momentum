@@ -219,3 +219,14 @@
     }
   }
 }
+
+/* Busy mark for buttons (sign-in). Reduced motion zeroes animation-duration, which would freeze it mid-turn,
+   so the ring shows one fixed gap instead. */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  display: inline-block; width: 1em; height: 1em; flex: none;
+  border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}

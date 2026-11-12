@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyFromId, pendingFields, planApply, pushBatches, tagWinner, type OutboxRow, type RemoteRow, type SyncTable } from "./sync";
+import { keyFromId, pickProfile, pendingFields, planApply, pushBatches, tagWinner, type OutboxRow, type RemoteRow, type SyncTable } from "./sync";
 
 const COLS = {
   folders: ["id", "name", "parent_id"],
@@ -99,4 +99,12 @@ it("tagWinner picks the same id from either side", () => {
 it("keyFromId undoes the trigger's row naming", () => {
   expect(keyFromId("habit_checkins", "a|b|2026-01-01")).toEqual({ habit_id: "a|b", date: "2026-01-01" });
   expect(keyFromId("celebrations", "streak-7")).toEqual({ key: "streak-7" });
+});
+
+describe("pickProfile", () => {
+  const known = { handle: "ada", display_name: "Ada" };
+  it("keeps the last known profile when the fetch failed", () => expect(pickProfile(null, true, known)).toEqual(known));
+  it("is unknown, not empty, when offline with nothing cached", () => expect(pickProfile(null, true, null)).toBeNull());
+  it("is empty only when the server confirms no profile", () => expect(pickProfile(null, false, known)).toEqual({ handle: null, display_name: null }));
+  it("prefers the fetched profile", () => expect(pickProfile({ handle: "b", display_name: "B" }, false, known)?.handle).toBe("b"));
 });
