@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { deleteAccount, keepAccount, loadAccount, saveHandle, sendCode, statusText, verifyCode, type AccountInfo } from "@core/lib/sync/account";
 import { signOut, syncNow, useSync } from "@core/lib/sync/engine";
 import { syncConfigured } from "@core/lib/sync/supabase";
@@ -65,13 +65,13 @@ function SignIn({ c }: { c: Colors }) {
               .
             </Text>
           </View>
-          <Button c={c} label="Email me a code" onPress={send} disabled={!canSend} />
+          <Button c={c} label={busy ? "Sending…" : "Email me a code"} onPress={send} disabled={!canSend} busy={busy} />
         </>
       ) : (
         <>
           <Text style={[styles.small, { color: c.fg2 }]}>We sent a 6-digit code to {email.trim()}.</Text>
           <Field c={c} value={code} onChangeText={setCode} placeholder="123456" keyboardType="number-pad" autoComplete="one-time-code" textContentType="oneTimeCode" onSubmitEditing={() => canVerify && void verify()} />
-          <Button c={c} label="Sign in" onPress={verify} disabled={!canVerify} />
+          <Button c={c} label={busy ? "Signing in…" : "Sign in"} onPress={verify} disabled={!canVerify} busy={busy} />
           <Button c={c} label="Use another email" onPress={() => setSent(false)} secondary />
         </>
       )}
@@ -130,7 +130,7 @@ function SignedIn({ account, c }: { account: string; c: Colors }) {
           <Button c={c} label="Keep my account" onPress={keep} />
         </View>
       ) : null}
-      {info && !info.profile.handle ? (
+      {info?.profile && !info.profile.handle ? (
         <>
           <Text style={[styles.heading, { color: c.fg }]}>Choose your handle</Text>
           <Text style={[styles.small, { color: c.fg2 }]}>Friends will find you by it later. You can change it once every 30 days.</Text>
@@ -143,9 +143,9 @@ function SignedIn({ account, c }: { account: string; c: Colors }) {
         </>
       ) : (
         <View>
-          <Text style={[styles.heading, { color: c.fg }]}>{info?.profile.display_name ?? "…"}</Text>
+          <Text style={[styles.heading, { color: c.fg }]}>{info?.profile?.display_name ?? "…"}</Text>
           <Text style={[styles.small, { color: c.fg2 }]}>
-            {info?.profile.handle ? `@${info.profile.handle} · ` : ""}
+            {info?.profile?.handle ? `@${info.profile.handle} · ` : ""}
             {info?.email}
           </Text>
         </View>
@@ -173,7 +173,7 @@ function Field({ c, ...props }: { c: Colors } & React.ComponentProps<typeof Text
   return <TextInput placeholderTextColor={c.muted} autoCapitalize="none" autoCorrect={false} style={[styles.field, { color: c.fg, backgroundColor: c.surface, borderColor: c.border }]} {...props} />;
 }
 
-function Button({ c, label, onPress, disabled, secondary }: { c: Colors; label: string; onPress: () => unknown; disabled?: boolean; secondary?: boolean }) {
+function Button({ c, label, onPress, disabled, secondary, busy }: { c: Colors; label: string; onPress: () => unknown; disabled?: boolean; secondary?: boolean; busy?: boolean }) {
   return (
     <Pressable
       onPress={() => void onPress()}
@@ -181,6 +181,7 @@ function Button({ c, label, onPress, disabled, secondary }: { c: Colors; label: 
       accessibilityRole="button"
       style={[styles.button, secondary ? { backgroundColor: c.surface2 } : { backgroundColor: c.accent }, disabled && { opacity: 0.5 }]}
     >
+      {busy ? <ActivityIndicator color={secondary ? c.fg : c.accentFg} style={styles.spin} /> : null}
       <Text style={{ color: secondary ? c.fg : c.accentFg, fontSize: 16, fontWeight: "600" }}>{label}</Text>
     </Pressable>
   );
@@ -199,5 +200,6 @@ const styles = StyleSheet.create({
   field: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 12, height: 48, fontSize: 16 },
   handle: { flexDirection: "row", alignItems: "center", gap: 2 },
   handleInput: { flex: 1, fontSize: 16, height: "100%" },
-  button: { height: 48, borderRadius: 6, alignItems: "center", justifyContent: "center" },
+  button: { height: 48, borderRadius: 6, flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  spin: { marginRight: 8 },
 });
