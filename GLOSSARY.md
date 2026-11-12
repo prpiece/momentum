@@ -1,6 +1,6 @@
 # Momentum
 
-An offline desktop planner: tasks organised into lists and folders, viewed through smart lists, a calendar, an Eisenhower matrix and a focus timer.
+A local-first planner for desktop and phone: tasks organised into lists and folders, viewed through smart lists, a calendar, an Eisenhower matrix and a focus timer.
 
 ## Organising tasks
 
@@ -66,6 +66,10 @@ _Avoid_: App window
 A small always-on-top window that shows the current task, the focus timer or the matrix while the user works elsewhere.
 _Avoid_: Widget, overlay, compact mode
 
+**Phone app**:
+The separate native app for iOS and Android phones: a focused companion that shares the desktop's data and sync but shows only a subset of its views.
+_Avoid_: Mobile, mobile app, companion
+
 **Quick-add**:
 The single-line natural-language entry that turns typed or spoken text into a task.
 _Avoid_: Capture, new task box
@@ -103,6 +107,10 @@ _Avoid_: Theme, mode
 **Bar**:
 The layout whose navigation is one horizontal strip, placed at the top or the bottom of the window.
 _Avoid_: Dock, taskbar, top bar
+
+**Narrow layout**:
+How the desktop app rearranges itself when its window is narrower than a phone's width threshold.
+_Avoid_: Phone layout, mobile layout
 
 **View mode**:
 How one task view presents its tasks: list, board, matrix or timeline.

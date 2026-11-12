@@ -8,8 +8,8 @@ One spec per release, built from the decisions in `PLAN.md` and the ADRs in `doc
 | v1.1 | [Accounts and sync](v1.1-accounts-sync.md), [launch checklist](v1.1-launch-checklist.md) | v1.0 (migration 0008, settings split) |
 | v1.2 | [iOS and Android (Expo companion, D229)](v1.2-mobile.md), [tickets](v1.2-mobile-tickets.md) | v1.1.1 |
 | — | Repo goes private, after the updater and Pages move to a public host (D224) | v1.2 |
-| v1.3 | [Friends and leaderboards](v1.2-friends-leaderboards.md) (file keeps its old number) | v1.1 |
-| v1.4 | [Sharing](v1.3-sharing.md) (file keeps its old number) | v1.1, v1.3 |
+| v1.3 | [Friends and leaderboards](v1.3-friends-leaderboards.md) | v1.1 |
+| v1.4 | [Sharing](v1.4-sharing.md) | v1.1, v1.3 |
 
 Open items:
 - Which `usemomentum` domain to buy (D192). `.co`, `.org` and `.net` looked free on 2026-11-07; `.app`, `.com` and `.io` were taken.
