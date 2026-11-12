@@ -13,18 +13,32 @@ export function changelogSection(md: string, version: string): string | null {
   return body || null;
 }
 
-/** Splits a section into its top-level bullets. Continuation lines (like an indented screenshot) stay with their bullet. */
-export function newsItems(section: string): NewsItem[] {
-  const items: string[] = [];
+/** A run of bullets under one of the section's own `###` headings (null before the first one, or when there are none). */
+export type NewsGroup = { heading: string | null; items: NewsItem[] };
+
+/** Splits a section into its `###` groups of top-level bullets. Continuation lines (like an indented screenshot) stay with their bullet. */
+export function newsGroups(section: string): NewsGroup[] {
+  const groups: { heading: string | null; raw: string[] }[] = [{ heading: null, raw: [] }];
   for (const line of section.split("\n")) {
-    if (line.startsWith("- ")) items.push(line.slice(2));
-    else if (items.length && line.trim()) items[items.length - 1] += `\n${line.trim()}`;
+    const h = /^###\s+(.+?)\s*$/.exec(line);
+    const raw = groups[groups.length - 1].raw;
+    if (h) groups.push({ heading: h[1], raw: [] });
+    else if (line.startsWith("- ")) raw.push(line.slice(2));
+    else if (raw.length && line.trim()) raw[raw.length - 1] += `\n${line.trim()}`;
   }
-  return items.map((raw) => {
-    const m = IMAGE.exec(raw);
-    return { text: raw.replace(IMAGE, "").trim(), image: m ? { alt: m[1], src: m[2] } : null };
-  });
+  return groups
+    .filter((g) => g.raw.length)
+    .map((g) => ({
+      heading: g.heading,
+      items: g.raw.map((r) => {
+        const m = IMAGE.exec(r);
+        return { text: r.replace(IMAGE, "").trim(), image: m ? { alt: m[1], src: m[2] } : null };
+      }),
+    }));
 }
+
+/** Every top-level bullet of a section, headings dropped. */
+export const newsItems = (section: string): NewsItem[] => newsGroups(section).flatMap((g) => g.items);
 
 const parts = (v: string) => v.split(".").map((n) => parseInt(n, 10) || 0);
 /** Semver-ish compare of `X.Y.Z` strings: negative when a < b. */

@@ -8,6 +8,8 @@ import { expect, it } from "vitest";
 // @ts-expect-error: plain .mjs script, no types
 import { OUT, render } from "../scripts/mobile-migrations.mjs";
 // @ts-expect-error: plain .mjs script, no types
+import * as changelog from "../scripts/mobile-changelog.mjs";
+// @ts-expect-error: plain .mjs script, no types
 import * as tokens from "../scripts/mobile-tokens.mjs";
 
 const SHARED = ["src/domain", "src/db", "src/stores", "src/lib/sync"];
@@ -33,4 +35,8 @@ it("bundles the current migrations for the phone (run scripts/mobile-migrations.
 
 it("gives the phone the current colour tokens (run scripts/mobile-tokens.mjs)", () => {
   expect(readFileSync(tokens.OUT, "utf8")).toBe(tokens.render());
+});
+
+it("bundles the current changelog for the phone (run scripts/mobile-changelog.mjs)", () => {
+  expect(readFileSync(changelog.OUT, "utf8")).toBe(changelog.render());
 });
