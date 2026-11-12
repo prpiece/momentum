@@ -3,7 +3,7 @@ import { Check, ListTree, Settings2 } from "lucide-react";
 import { type CSSProperties, useMemo, useState } from "react";
 import { Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
-import { ColorPicker } from "../../components/ui/ColorPicker";
+import { ColorPanel } from "../../components/ui/ColorField";
 import { accentForeground, accentHex, ACCENTS, isHex, ON_LIGHT, parseQuadrantColor, quadrantHex, type QuadrantColor } from "../../domain/color";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { patchForQuadrant, QUADRANT_INFO, QUADRANT_VAR, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
@@ -66,6 +66,7 @@ export function MatrixView({ vms, defaults }: { vms: readonly TaskVM[]; defaults
 function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; defaults: Partial<NewTask> }) {
   const info = QUADRANT_INFO[q];
   const rules = useSettings((s) => s.settings.matrix);
+  const menu = useMenu();
   const { setNodeRef, isOver } = useDroppable({ id: `quadrant:${q}`, data: { type: "quadrant", q } });
   // New tasks inherit the quadrant's attributes (same rule as dropping a blank task here); tokens typed in the box win (D220).
   const quadrantDefaults = { ...defaults, ...patchForQuadrant({ task: { priority: 0 }, date: null, schedule: { kind: "none" } }, q, todayLocal(), rules) };
@@ -76,7 +77,21 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
       className={`flex min-h-0 flex-col overflow-hidden rounded-card border px-2 pb-2 pt-2.5 ${isOver ? "border-accent-text bg-accent-soft" : "border-border bg-surface"}`}
     >
       <header className="flex items-center gap-2 px-1 pb-2">
-        <span className="h-[18px] w-[3px] shrink-0 rounded-[2px]" style={{ background: QUADRANT_VAR[q] }} aria-hidden />
+        <button
+          ref={menu.anchor}
+          type="button"
+          aria-label={`${info.title} colour`}
+          aria-expanded={menu.open}
+          onClick={menu.toggle}
+          className="-mx-1 shrink-0 rounded-control px-1 py-0.5"
+        >
+          <span className="block h-[18px] w-[3px] rounded-[2px]" style={{ background: QUADRANT_VAR[q] }} />
+        </button>
+        {menu.open && (
+          <Popover anchor={menu.anchor} onClose={menu.close} className="w-64 p-3">
+            <QuadrantColorPanel q={q} />
+          </Popover>
+        )}
         <h2 className="text-[length:var(--fs-sm)] font-semibold">{info.title}</h2>
         <span className="truncate text-[length:var(--fs-xs)] text-muted">{info.hint}</span>
         <span className="ml-auto text-[length:var(--fs-xs)] tabular-nums text-muted">{items.length}</span>
@@ -129,11 +144,10 @@ function MatrixItem({ vm }: { vm: TaskVM }) {
 }
 
 /** Per-quadrant colour: a preset or any custom hex (D85, D216); unset keeps the theme default. */
-function QuadrantColorPicker() {
+function useQuadrantColor() {
   const colors = useSettings((s) => s.settings.matrixColors);
   const accent = useSettings((s) => s.settings.accent);
   const update = useSettings((s) => s.update);
-  const [open, setOpen] = useState<Quadrant | null>(null);
   const pick = (q: Quadrant, c: QuadrantColor | null) => {
     const next: QuadrantColors = [...colors];
     next[q - 1] = c;
@@ -147,6 +161,37 @@ function QuadrantColorPicker() {
     const v = getComputedStyle(document.documentElement).getPropertyValue(QUADRANT_VAR[q].slice(4, -1)).trim();
     return isHex(v) ? v : accentHex(accent, theme);
   };
+  return { colors, accent, update, pick, currentHex };
+}
+
+/** Picker for one quadrant: the shared panel plus the preset row (a preset toggles back to the default). */
+function QuadrantColorPanel({ q }: { q: Quadrant }) {
+  const { colors, pick, currentHex } = useQuadrantColor();
+  return (
+    <ColorPanel value={currentHex(q)} onChange={(hex) => pick(q, parseQuadrantColor(hex))}>
+      <div className="flex flex-wrap gap-2 p-1">
+        {ACCENTS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            title={p.name}
+            aria-label={p.name}
+            aria-pressed={colors[q - 1] === p.id}
+            onClick={() => pick(q, colors[q - 1] === p.id ? null : p.id)}
+            className="swatch grid size-5 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110"
+            style={{ "--sw": p.light, "--sw-d": p.dark, "--sw-fg": accentForeground(p.light), "--sw-fg-d": ON_LIGHT } as CSSProperties}
+          >
+            {colors[q - 1] === p.id && <Check size={11} strokeWidth={3.5} />}
+          </button>
+        ))}
+      </div>
+    </ColorPanel>
+  );
+}
+
+function QuadrantColorPicker() {
+  const { colors, accent, update } = useQuadrantColor();
+  const [open, setOpen] = useState<Quadrant | null>(null);
   const link = "rounded-control px-1.5 py-0.5 text-xs text-fg-2 hover:bg-surface-2 hover:text-fg";
   return (
     <>
@@ -171,24 +216,8 @@ function QuadrantColorPicker() {
             />
           </div>
           {open === q && (
-            <div className="mt-2 flex flex-col gap-3 rounded-card border border-border p-3">
-              <ColorPicker value={currentHex(q)} onChange={(hex) => pick(q, parseQuadrantColor(hex))} />
-              <div className="flex flex-wrap gap-2 p-1">
-                {ACCENTS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    title={p.name}
-                    aria-label={p.name}
-                    aria-pressed={colors[q - 1] === p.id}
-                    onClick={() => pick(q, colors[q - 1] === p.id ? null : p.id)}
-                    className="swatch grid size-5 place-items-center rounded-full transition-transform duration-[var(--dur)] hover:scale-110"
-                    style={{ "--sw": p.light, "--sw-d": p.dark, "--sw-fg": accentForeground(p.light), "--sw-fg-d": ON_LIGHT } as CSSProperties}
-                  >
-                    {colors[q - 1] === p.id && <Check size={11} strokeWidth={3.5} />}
-                  </button>
-                ))}
-              </div>
+            <div className="mt-2 rounded-card border border-border p-3">
+              <QuadrantColorPanel q={q} />
             </div>
           )}
         </div>
@@ -196,7 +225,6 @@ function QuadrantColorPicker() {
     </>
   );
 }
-
 function RulesEditor() {
   const rules = useSettings((s) => s.settings.matrix);
   const update = useSettings((s) => s.update);
@@ -209,7 +237,7 @@ function RulesEditor() {
   return (
     <>
       <button ref={menu.anchor} type="button" onClick={menu.toggle} className="btn btn-ghost btn-sm">
-        <Settings2 size={15} /> Rules
+        <Settings2 size={15} /> Rules &amp; colours
       </button>
       {menu.open && (
         <Popover anchor={menu.anchor} onClose={menu.close} align="end" className="max-h-[80vh] w-72 overflow-y-auto p-4">

@@ -1,7 +1,8 @@
 import { AppIcon, IconPicker } from "../../components/ui/AppIcon";
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button, Dialog } from "../../components/ui/Dialog";
+import { ColorField } from "../../components/ui/ColorField";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { isBuild, type Habit, type HabitFrequency, type HabitGoal } from "../../domain/habits";
 import { addGroup, addHabit, updateHabit, useHabits } from "../../stores/habits";
@@ -62,13 +63,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
 
         <IconPicker value={icon} onChange={(k) => k && setIcon(k)} color={color} />
 
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Color">
-          {ACCENT_PRESETS.map((p) => (
-            <button key={p.hex} type="button" aria-label={p.name} aria-pressed={color === p.hex} onClick={() => setColor(p.hex)} className="grid size-7 place-items-center rounded-full" style={{ background: p.hex }}>
-              {color === p.hex && <Check size={14} strokeWidth={3} className="text-white" />}
-            </button>
-          ))}
-        </div>
+        <ColorField value={color} onChange={setColor} />
 
         <fieldset>
           <legend className="mb-1.5 t-label text-muted">Type</legend>

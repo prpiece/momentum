@@ -1,6 +1,7 @@
 import { IconPicker, ListGlyph } from "../../components/ui/AppIcon";
-import { Archive, Check, Pin, Trash2 } from "lucide-react";
+import { Archive, Pin, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
+import { ColorField } from "../../components/ui/ColorField";
 import { Button, Dialog } from "../../components/ui/Dialog";
 import { ACCENT_PRESETS } from "../../domain/color";
 import type { TaskList } from "../../domain/types";
@@ -50,14 +51,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
 
         <fieldset>
           <legend className="mb-1.5 t-label text-muted">Color</legend>
-          <div className="flex flex-wrap items-center gap-2">
-            {ACCENT_PRESETS.map((p) => (
-              <button key={p.hex} type="button" aria-label={p.name} aria-pressed={color === p.hex} onClick={() => setColor(p.hex)} className="grid size-7 place-items-center rounded-full" style={{ background: p.hex }}>
-                {color === p.hex && <Check size={14} strokeWidth={3} className="text-white" />}
-              </button>
-            ))}
-            <input type="color" aria-label="Custom color" value={color ?? "#888888"} onChange={(e) => setColor(e.target.value)} className="size-7 cursor-pointer rounded-full border border-border bg-transparent" />
-          </div>
+          <ColorField value={color ?? ACCENT_PRESETS[0].hex} onChange={setColor} />
         </fieldset>
 
         <fieldset>
