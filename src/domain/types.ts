@@ -185,7 +185,7 @@ export type BarPosition = (typeof BAR_POSITIONS)[number];
 export const BAR_STYLES = ["flat", "floating"] as const;
 export type BarStyle = (typeof BAR_STYLES)[number];
 /** Behind the whole app (D222): nothing, a colour, or an image file in the app's `backgrounds` folder, dimmed by `dim` percent. */
-export type Background = { kind: "none" } | { kind: "color"; hex: string } | { kind: "image"; file: string; dim: number };
+export type Background = { kind: "none" } | { kind: "color"; hex: string } | { kind: "image"; file: string; dim: number; blur: boolean };
 export const DIM_MAX = 80;
 export const DIM_DEFAULT = 40;
 export const TIME_FORMATS = ["12h", "24h"] as const;

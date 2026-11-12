@@ -413,6 +413,8 @@ export async function initOs() {
     }
   };
   await syncAutostart(settings().launchAtStartup);
+  // A real quit (tray, or closing with close-to-tray off) first writes any settings change still waiting on the save debounce.
+  await listen("app:quit", () => void useSettings.getState().flush().catch(console.error).finally(() => void invoke("quit_app")));
 
   // --- updates (D59) ---------------------------------------------------------
   if (settings().checkUpdates) void checkForUpdate();

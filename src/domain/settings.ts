@@ -279,7 +279,7 @@ function parseBackground(raw: unknown): Background {
   if (raw.kind === "color" && isHex(raw.hex)) return { kind: "color", hex: raw.hex.toLowerCase() };
   if (raw.kind === "image" && typeof raw.file === "string" && IMAGE_FILE.test(raw.file)) {
     const dim = typeof raw.dim === "number" && Number.isFinite(raw.dim) ? Math.min(DIM_MAX, Math.max(0, Math.round(raw.dim))) : DIM_DEFAULT;
-    return { kind: "image", file: raw.file, dim };
+    return { kind: "image", file: raw.file, dim, blur: raw.blur !== false };
   }
   return DEFAULT_SETTINGS.background;
 }

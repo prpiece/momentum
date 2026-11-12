@@ -41,7 +41,12 @@ export function ConfirmDialog() {
           <Button variant="secondary" onClick={() => ask.resolve(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={() => ask.resolve(true)}>
+          {ask.alt && (
+            <Button variant="secondary" onClick={ask.alt.run}>
+              {ask.alt.label}
+            </Button>
+          )}
+          <Button variant={ask.alt ? "primary" : "danger"} onClick={() => ask.resolve(true)}>
             {ask.confirm}
           </Button>
         </div>

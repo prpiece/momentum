@@ -11,7 +11,7 @@ use std::{
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WindowEvent,
+    AppHandle, Emitter, Manager, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_window_state::StateFlags;
@@ -134,6 +134,24 @@ fn set_close_to_tray(state: tauri::State<CloseToTray>, enabled: bool) {
     state.0.store(enabled, Ordering::Relaxed);
 }
 
+/// Quits after the main window has saved pending settings (it answers `app:quit` with `quit_app`);
+/// exits anyway after 1.5s if the page never answers.
+fn request_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if app.emit_to("main", "app:quit", ()).is_err() {
+        return app.exit(0);
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        app.exit(0);
+    });
+}
+
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 /// Backup export / .ics import: read or write a file the user picked in a native dialog.
 /// Limited to the two extensions the app uses so the command can't touch arbitrary files.
 fn checked_path(path: &str) -> Result<&Path, String> {
@@ -253,7 +271,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             "quick" => show_quick_add(app),
             "mini" => toggle_mini(app.clone()),
             // Real quit: bypasses the window's close-to-tray handler.
-            "quit" => app.exit(0),
+            "quit" => request_quit(app),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -307,6 +325,7 @@ pub fn run() {
         .manage(voice::Voice::default())
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
+            quit_app,
             secrets::secret_get,
             secrets::secret_set,
             secrets::secret_delete,
@@ -343,7 +362,8 @@ pub fn run() {
                     api.prevent_close();
                     let _ = window.hide();
                 } else {
-                    window.app_handle().exit(0);
+                    api.prevent_close();
+                    request_quit(window.app_handle());
                 }
             }
         })

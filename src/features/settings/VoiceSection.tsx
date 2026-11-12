@@ -2,7 +2,7 @@ import { Download, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isTauri } from "../../db/client";
 import type { ModelStatus } from "../../domain/voice";
-import { useSettings } from "../../stores/settings";
+import { useSettingsDraft } from "../../stores/settingsDraft";
 import { cancelVoiceModelDownload, downloadVoiceModel, MODEL_DISK_MB, MODEL_DOWNLOAD_MB, refreshVoiceModel, removeVoiceModel, useVoiceModel, voiceInputDevices } from "../../lib/voice";
 
 function statusLine(s: ModelStatus): string {
@@ -26,8 +26,8 @@ export function VoiceSection() {
   useEffect(() => {
     void refreshVoiceModel().catch((e) => console.error("Voice model status failed", e));
   }, []);
-  const mic = useSettings((st) => st.settings.voiceMic);
-  const update = useSettings((st) => st.update);
+  const { draft, update } = useSettingsDraft();
+  const mic = draft.voiceMic;
   const [devices, setDevices] = useState<string[]>([]);
   useEffect(() => {
     if (isTauri) void voiceInputDevices().then(setDevices, () => undefined);

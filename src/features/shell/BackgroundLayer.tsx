@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { imageUrl } from "../../lib/appFiles";
 import { useSettings } from "../../stores/settings";
+import { toast } from "../../stores/ui";
 
 /**
- * The user's background (D222), behind everything. The shell surfaces turn translucent while `html[data-bg]`
- * is set (tokens.css `.shell-bg`); an image gets a `--bg` veil of `dim` percent so text keeps its contrast.
+ * The user's background (D222), behind the task list only: the sidebar and other pages stay solid.
+ * An image gets a `--bg` veil of `dim` percent so text keeps its contrast, and a small blur unless `blur` is off.
  */
 export function BackgroundLayer() {
   const bg = useSettings((s) => s.settings.background);
@@ -19,16 +20,18 @@ export function BackgroundLayer() {
     };
   }, [file]);
   const src = url?.file === file ? url?.src : null;
-  const on = bg.kind === "color" || (bg.kind === "image" && !!src);
-  useEffect(() => {
-    document.documentElement.toggleAttribute("data-bg", on);
-  }, [on]);
-  if (!on) return null;
+  if (bg.kind === "none") return null;
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10" style={{ background: bg.kind === "color" ? bg.hex : "var(--bg)" }}>
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ background: bg.kind === "color" ? bg.hex : "var(--bg)" }}>
       {bg.kind === "image" && src && (
         <>
-          <img src={src} alt="" className="size-full object-cover" draggable={false} />
+          <img
+            src={src}
+            alt=""
+            className={`size-full object-cover ${bg.blur ? "scale-105 blur-[6px]" : ""}`}
+            draggable={false}
+            onError={() => toast("The background image couldn't be loaded. Choose it again in Settings → Appearance.")}
+          />
           <div className="absolute inset-0 bg-bg" style={{ opacity: bg.dim / 100 }} />
         </>
       )}

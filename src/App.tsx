@@ -37,6 +37,9 @@ import { useSettings } from "./stores/settings";
 import { toast, useUi } from "./stores/ui";
 
 
+/** Views that are not task lists: the background image stays off them. */
+const PAGE_VIEWS: readonly string[] = ["settings", "calendar", "habits", "progress", "focus"];
+
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
   if (view === "calendar") return <CalendarView />;
@@ -104,14 +107,16 @@ export default function App() {
     <TipProvider delayDuration={400} skipDelayDuration={300} disableHoverableContent>
     <DndRoot>
       {/* Below 720px the sidebar or bar hides and the phone bar sits under the content (D200). */}
-      <BackgroundLayer />
       <div className="flex h-full flex-col">
       <div className={`relative isolate flex min-h-0 flex-1 ${layout === "bar" ? "flex-col" : side === "right" ? "flex-row-reverse" : ""}`}>
         <div className="contents max-[719px]:hidden">{layout === "sidebar" ? <Sidebar /> : topBar && <NavBar position="top" style={barStyle} />}</div>
         <main className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden shell-surface border-border max-[719px]:border-0 ${layout === "sidebar" ? (side === "left" ? "border-l" : "border-r") : barStyle === "floating" ? "" : topBar ? "border-t" : "border-b"}`}>
           <Header view={view} spec={spec} controls={controlsInBar ? "phone" : "always"} />
-          <div key={view} data-scroller className="anim-view flex min-h-0 flex-1 flex-col overflow-auto">
-            <View view={view} spec={spec} />
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            {spec && !PAGE_VIEWS.includes(view) && <BackgroundLayer />}
+            <div key={view} data-scroller className="anim-view relative flex min-h-0 flex-1 flex-col overflow-auto">
+              <View view={view} spec={spec} />
+            </div>
           </div>
           {/* Below the toolbar, so the window controls stay reachable while a task is open. */}
           <TaskDrawer />

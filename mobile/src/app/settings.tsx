@@ -1,18 +1,29 @@
 import * as Notifications from "expo-notifications";
+import { useNavigation, usePreventRemove } from "expo-router";
 import { useEffect, useState } from "react";
-import { AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { ACCENTS } from "@core/domain/color";
-import { useSettings } from "@core/stores/settings";
+import { discardDraft, saveDraft, useSettingsDraft } from "@core/stores/settingsDraft";
 import { useColors } from "@/theme";
 import { Button, Icon, Label, Segmented } from "@/ui/kit";
 
 /** The settings that matter on a phone. They sync, so they match the computer. */
 export default function Settings() {
   const c = useColors();
-  const s = useSettings((x) => x.settings);
-  const update = useSettings((x) => x.update);
+  const { draft: s, update, dirty, save, discard } = useSettingsDraft();
+  const nav = useNavigation();
+  // Leaving with unsaved changes asks first (D232); a draft nobody saved is dropped when the screen closes.
+  usePreventRemove(dirty, ({ data }) =>
+    Alert.alert("Save your changes?", "You changed settings that aren't saved yet.", [
+      { text: "Keep editing", style: "cancel" },
+      { text: "Discard", style: "destructive", onPress: () => (discardDraft(), nav.dispatch(data.action)) },
+      { text: "Save", onPress: () => (saveDraft(), nav.dispatch(data.action)) },
+    ]),
+  );
+  useEffect(() => discardDraft, []);
   return (
-    <ScrollView contentContainerStyle={st.page}>
+    <View style={{ flex: 1 }}>
+    <ScrollView contentContainerStyle={[st.page, dirty && { paddingBottom: 96 }]}>
       <Label>Theme</Label>
       <Segmented value={s.theme} options={[{ value: "system", label: "System" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} onChange={(theme) => update({ theme })} />
       <Label>Accent</Label>
@@ -50,6 +61,14 @@ export default function Settings() {
       </View>
       <Text style={{ color: c.muted, marginTop: 24, fontSize: 13 }}>These settings sync with your other devices when you're signed in.</Text>
     </ScrollView>
+    {dirty ? (
+      <View style={[st.bar, { backgroundColor: c.raised, borderColor: c.borderStrong }]} accessibilityRole="alert">
+        <Text style={{ color: c.fg, fontSize: 15, fontWeight: "600", flex: 1 }}>Unsaved changes</Text>
+        <Button label="Discard" kind="secondary" onPress={discard} />
+        <Button label="Save" onPress={save} />
+      </View>
+    ) : null}
+    </View>
   );
 }
 
@@ -89,6 +108,7 @@ function Permissions() {
 const st = StyleSheet.create({
   switchRow: { flexDirection: "row", alignItems: "center", minHeight: 48 },
   page: { padding: 16 },
+  bar: { position: "absolute", left: 16, right: 16, bottom: 16, flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 14, borderWidth: 1, elevation: 6 },
   swatches: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   swatch: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
 });

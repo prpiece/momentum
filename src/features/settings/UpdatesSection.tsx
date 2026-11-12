@@ -2,7 +2,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Download, RefreshCw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { checkForUpdate, installUpdate, useAppVersion, useUpdate, type UpdateStatus } from "../../lib/updater";
-import { useSettings } from "../../stores/settings";
+import { useSettingsDraft } from "../../stores/settingsDraft";
 import { Switch } from "../../components/ui/Switch";
 import { Line } from "./NotificationSection";
 
@@ -27,8 +27,8 @@ function statusLine(s: UpdateStatus): string {
 export function UpdatesSection() {
   const version = useAppVersion();
   const { status, checkedAt } = useUpdate();
-  const checkUpdates = useSettings((s) => s.settings.checkUpdates);
-  const update = useSettings((s) => s.update);
+  const { draft, update } = useSettingsDraft();
+  const checkUpdates = draft.checkUpdates;
   const busy = status.kind === "checking" || status.kind === "downloading";
   const btn = "btn btn-secondary";
 

@@ -1,7 +1,7 @@
 import { Play } from "lucide-react";
 import { SOUNDS, type SoundEvent, type SoundSettings } from "../../domain/types";
 import { playSound, SOUND_LABELS } from "../../lib/sounds";
-import { useSettings } from "../../stores/settings";
+import { useSettingsDraft } from "../../stores/settingsDraft";
 import { Switch } from "../../components/ui/Switch";
 import { Line } from "./NotificationSection";
 
@@ -15,9 +15,9 @@ const EVENTS: [SoundEvent, string, string][] = [
 ];
 
 export function SoundsSection() {
-  const s = useSettings((st) => st.settings.sounds);
-  const update = useSettings((st) => st.update);
-  const set = (patch: Partial<SoundSettings>) => update({ sounds: { ...useSettings.getState().settings.sounds, ...patch } });
+  const { draft, update } = useSettingsDraft();
+  const s = draft.sounds;
+  const set = (patch: Partial<SoundSettings>) => update({ sounds: { ...s, ...patch } });
 
   return (
     <div className="space-y-4">
