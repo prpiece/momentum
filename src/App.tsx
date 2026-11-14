@@ -12,6 +12,8 @@ import type { Folder, ViewId } from "./domain/types";
 import { CalendarView } from "./features/calendar/CalendarView";
 import { EventDialog } from "./features/calendar/EventDialog";
 import { FocusView } from "./features/focus/FocusView";
+import { FriendDialogs } from "./features/friends/FriendDialogs";
+import { FriendsView } from "./features/friends/FriendsView";
 import { HabitsView } from "./features/habits/HabitsView";
 import { ProgressView } from "./features/progress/ProgressView";
 import { SettingsView } from "./features/settings/SettingsView";
@@ -39,7 +41,7 @@ import { toast, useUi } from "./stores/ui";
 
 
 /** Views that are not task lists: the background image stays off them. */
-const PAGE_VIEWS: readonly string[] = ["settings", "calendar", "habits", "progress", "focus"];
+const PAGE_VIEWS: readonly string[] = ["settings", "calendar", "habits", "progress", "focus", "friends"];
 
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
@@ -47,6 +49,7 @@ function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "habits") return <HabitsView />;
   if (view === "progress") return <ProgressView />;
   if (view === "focus") return <FocusView />;
+  if (view === "friends") return <FriendsView />;
   if (spec) return <TaskView spec={spec} />;
   const nav = navFor(view);
   return (
@@ -136,6 +139,7 @@ export default function App() {
       <ScopeDialog />
       <ConfirmDialog />
       <EventDialog />
+      <FriendDialogs />
       <ContextMenu />
       <Tour />
       <Toaster />

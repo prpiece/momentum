@@ -1,7 +1,7 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { format } from "date-fns";
-import { Ban, CalendarCheck, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, Hourglass, ImagePlus, Pin, Plus, Timer, Trash2, X } from "lucide-react";
+import { Ban, CalendarCheck, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, Hourglass, ImagePlus, Pin, Plus, Send, Timer, Trash2, X } from "lucide-react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Dialog, IconButton } from "../../components/ui/Dialog";
@@ -16,6 +16,8 @@ import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type Activ
 import { depthOf, duplicateTask, ensureTags, reorderTask, uid, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { closeDrawer, openTask, toast, useUi } from "../../stores/ui";
+import { openSend } from "../friends/friendsUi";
+import { confirmShareMove } from "../friends/moveGuard";
 import { deleteTasks, editTask, setWontDo, toggleDone } from "./actions";
 import { NoteMarkdown } from "./NoteMarkdown";
 import { InlineAdd } from "./InlineAdd";
@@ -95,6 +97,9 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         <IconButton className="btn-sm" label="Duplicate" onClick={() => duplicateTask(t.id)}>
           {icon(Copy)}
         </IconButton>
+        <IconButton className="btn-sm" label="Send to friend" onClick={() => openSend(t.id)}>
+          {icon(Send)}
+        </IconButton>
         <IconButton className="btn-sm" label={t.status === "wont_do" ? "Reopen" : "Won't do"} active={t.status === "wont_do"} onClick={() => setWontDo(t.id, key)}>
           {icon(Ban)}
         </IconButton>
@@ -124,7 +129,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
                     .filter((l) => !l.archived || l.id === t.listId)
                     .sort((a, b) => a.sortOrder - b.sortOrder)
                     .map((l) => (
-                      <MenuItem key={l.id} active={l.id === t.listId} onSelect={() => (set({ listId: l.id }), close())}>
+                      <MenuItem key={l.id} active={l.id === t.listId} onSelect={() => (close(), l.id === t.listId ? undefined : void confirmShareMove("list", l.id, "this task", t.listId).then((ok) => ok && set({ listId: l.id })))}>
                         {l.name}
                       </MenuItem>
                     ))}

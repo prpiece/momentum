@@ -61,6 +61,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       "go-habits": navTo("habits"),
       "go-focus": navTo("focus"),
       "go-progress": navTo("progress"),
+      "go-friends": navTo("friends"),
       "go-settings": navTo("settings"),
       "matrix-mode": () => (close(), showInCurrentView({ mode: "matrix" })),
       "show-completed": () => (update({ showCompleted: !showCompleted }), close()),

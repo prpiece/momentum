@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Momentum invite</title>
+  <meta name="description" content="Open a Momentum invite.">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<main>
+  <h1>You're invited to Momentum</h1>
+  <p id="status" class="meta">Opening the app…</p>
+  <p><a id="open" href="momentum://invite/">Open in Momentum</a></p>
+  <p>Don't have it yet? Get the app from the <a href="https://github.com/prpiece/momentum/releases/latest">latest release</a>, then open this link again. If you sign up first, the app keeps the invite and applies it after sign-in.</p>
+  <p class="meta">Invite code: <code id="code">none</code> (you can also paste the link in the app: Friends → Open invite link).</p>
+</main>
+<script>
+  // Invite links (PLAN D261): this page only hands the code to the app; it sends nothing anywhere.
+  const c = new URLSearchParams(location.search).get("c") || "";
+  if (/^[A-Za-z0-9]{10}$/.test(c)) {
+    const link = "momentum://invite/" + c;
+    document.getElementById("open").href = link;
+    document.getElementById("code").textContent = c;
+    location.href = link;
+  } else {
+    document.getElementById("status").textContent = "This invite link is incomplete. Ask for a new one.";
+    document.getElementById("open").remove();
+  }
+</script>
+</body>
+</html>

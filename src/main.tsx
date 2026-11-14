@@ -67,6 +67,7 @@ if (popup === "mini") {
           return () => window.removeEventListener("online", sync);
         },
       });
+      void import("./features/friends/boot").then((b) => b.startFriends());
       return s.startSync();
     });
   // Old unreferenced note images are cleaned up in the background (D78).

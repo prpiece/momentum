@@ -15,6 +15,7 @@ import { FocusBadge } from "../focus/FocusView";
 import { ListDialog } from "../tasks/ListDialog";
 import { useCounts } from "../tasks/selectors";
 import { WindowControls } from "./WindowControls";
+import { RequestBadge } from "../friends/RequestBadge";
 import { MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
 
 const GAP = 2; // px between items (gap-0.5)
@@ -56,7 +57,7 @@ export function NavBar({ position, style }: { position: BarPosition; style: BarS
 
   const dests = [
     ...SIDEBAR_SMART_NAV.map((n) => ({ ...n, count: counts.smart[n.id] || undefined, drop: { type: "smart", id: n.id } as DropData, badge: undefined })),
-    ...MODULE_NAV.map((n) => ({ ...n, count: undefined, drop: undefined, badge: n.id === "focus" ? <FocusBadge /> : undefined })),
+    ...MODULE_NAV.map((n) => ({ ...n, count: undefined, drop: undefined, badge: n.id === "focus" ? <FocusBadge /> : n.id === "friends" ? <RequestBadge /> : undefined })),
   ];
 
   // The nav's width doesn't depend on what's inside it (flex-1, min-w-0), so folding can't feed back into the measure.

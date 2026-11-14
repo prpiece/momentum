@@ -5,6 +5,7 @@ import { relativeDayLabel, todayLocal } from "@core/domain/dates";
 import { derive, inSmartList, sortVMs, type TaskVM } from "@core/domain/taskViews";
 import { INBOX_ID } from "@core/domain/types";
 import { useData } from "@core/stores/data";
+import { useRole } from "@/social/roles";
 import { resolveColor, useColors } from "@/theme";
 import { Empty, GroupHeader, IconButton, PageHeader } from "@/ui/kit";
 import { listMenu } from "@/ui/listActions";
@@ -24,7 +25,9 @@ export default function ListScreen() {
   const list = lists[id];
   const smart = id === "someday" || id === "waiting" ? id : null;
   const title = id === "upcoming" ? "Upcoming" : smart === "someday" ? "Someday" : smart === "waiting" ? "Waiting" : (list?.name ?? "List");
-  useQuickAddContext(id === "upcoming" || smart === "waiting" ? {} : smart === "someday" ? { schedule: { kind: "someday" } } : { listId: id ?? INBOX_ID });
+  const { role, viewer } = useRole(id);
+  // A viewer can't add here (D262): the + falls back to the default list.
+  useQuickAddContext(id === "upcoming" || smart === "waiting" || viewer ? {} : smart === "someday" ? { schedule: { kind: "someday" } } : { listId: id ?? INBOX_ID });
 
   const { rows, open } = useMemo(() => {
     const d = derive(tasks, lists);
@@ -70,7 +73,7 @@ export default function ListScreen() {
       ListHeaderComponent={
         <PageHeader
           title={title}
-          sub={open ? `${open} open` : undefined}
+          sub={[viewer ? "View only" : role ? "Shared" : "", open ? `${open} open` : ""].filter(Boolean).join(" · ") || undefined}
           back={{ label: "Browse", onPress: () => router.back() }}
           actions={editable ? <IconButton icon="more-horizontal" label={`${title} options`} onPress={() => void listMenu(list, (v) => resolveColor(c, v, c.muted))} /> : null}
         />

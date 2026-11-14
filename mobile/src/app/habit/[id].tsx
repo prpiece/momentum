@@ -9,6 +9,8 @@ import { GUTTER, INSET, resolveColor, useColors } from "@/theme";
 import { Button, Card, Field, FieldRow, Label, PageHeader, Segmented, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
 import { askText, choose } from "@/ui/Sheet";
+import { useSocial } from "@core/stores/social";
+import { chooseBuddies, nameOf } from "@/social/actions";
 
 type Kind = HabitGoal["kind"];
 const KINDS = [
@@ -50,6 +52,8 @@ export default function HabitScreen() {
   const [period, setPeriod] = useState<GoalPeriod>(g && "period" in g ? g.period : "day");
   const [frequency, setFrequency] = useState<HabitFrequency>(h?.frequency ?? { kind: "daily" });
   const [color, setColor] = useState(h?.color ?? COLORS[0].value);
+  const buddyRows = useSocial((s) => s.myBuddies);
+  const friends = useSocial((s) => s.friends);
   const [reminders, setReminders] = useState<string[]>(h?.reminders ?? []);
   if (id !== "new" && !h)
     return (
@@ -176,6 +180,14 @@ export default function HabitScreen() {
       <Card style={{ marginTop: 20 }}>
         <FieldRow first icon="repeat" title="Repeats" value={frequencyLabel(frequency)} onPress={() => void chooseFrequency()} />
         <FieldRow icon="bell" title="Reminder" value={reminders.join(", ") || "None"} onPress={() => void chooseReminder()} />
+        {h ? (
+          <FieldRow
+            icon="users"
+            title="Buddies"
+            value={buddyRows.filter((b) => b.habitId === h.id).map((b) => { const f = friends.find((x) => x.id === b.buddyId); return f ? nameOf(f) : b.handle ? `@${b.handle}` : "a friend"; }).join(", ") || "None"}
+            onPress={() => void chooseBuddies(h)}
+          />
+        ) : null}
         <FieldRow icon="droplet" title="Colour" value={COLORS.find((o) => o.value === color)?.label ?? "Custom"} valueColor={hex} onPress={() => void chooseColor()} />
       </Card>
       <View style={{ paddingHorizontal: INSET, paddingTop: 20, gap: 10 }}>

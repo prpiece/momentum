@@ -21,6 +21,8 @@ import { askAlarmPermission } from "@/notify";
 import { askDay } from "@/ui/reschedule";
 import { askText, choose } from "@/ui/Sheet";
 import { Ring, useComplete } from "@/ui/TaskRow";
+import { sendToFriend } from "@/social/actions";
+import { useRole } from "@/social/roles";
 
 /**
  * A task's sheet (S4): title and notes, then the fields people change most, with repeat and
@@ -46,6 +48,7 @@ export default function TaskSheet() {
   const [more, setMore] = useState(false);
   const [sub, setSub] = useState("");
   useEffect(() => setTitle(t?.title ?? ""), [t?.title]);
+  const { viewer } = useRole(t?.listId);
   const complete = useComplete(t ? { task: t, key: occurrence ?? vm?.key ?? null } : null);
 
   if (!t || t.deletedAt)
@@ -179,13 +182,14 @@ export default function TaskSheet() {
     <View style={s.page}>
       <ScrollView keyboardShouldPersistTaps="handled">
         <View style={s.head}>
-          <Ring checked={complete.checked} color={t.priority ? resolveColor(c, PRIORITY_VAR[t.priority]) : c.controlBorder} onPress={complete.toggle} label={`${done ? "Mark not done" : "Complete"} ${t.title}`} size={24} />
+          <Ring checked={complete.checked} color={t.priority ? resolveColor(c, PRIORITY_VAR[t.priority]) : c.controlBorder} onPress={viewer ? () => undefined : complete.toggle} label={`${done ? "Mark not done" : "Complete"} ${t.title}`} size={24} />
           <View style={{ flex: 1, paddingTop: 6 }}>
             <TextInput
               value={title}
               onChangeText={setTitle}
               onEndEditing={() => title.trim() && title !== t.title && updateTask(t.id, { title: title.trim() })}
               multiline
+              editable={!viewer}
               maxFontSizeMultiplier={2}
               style={[s.title, { color: done ? c.muted : c.fg }]}
               accessibilityLabel="Title"
@@ -198,6 +202,7 @@ export default function TaskSheet() {
                 if (next !== t.description) updateTask(t.id, { description: next });
               }}
               multiline
+              editable={!viewer}
               placeholder="Add notes"
               placeholderTextColor={c.muted}
               maxFontSizeMultiplier={2}
@@ -215,7 +220,12 @@ export default function TaskSheet() {
           </View>
         </View>
 
-        <Card style={{ marginTop: 16 }}>
+        {viewer ? (
+          <Text variant="meta" style={{ color: c.muted, paddingHorizontal: GUTTER, paddingTop: 12 }}>
+            You can view this task. Only editors and the owner change it.
+          </Text>
+        ) : null}
+        <Card style={[{ marginTop: 16 }, viewer && { opacity: 0.6, pointerEvents: "none" }]}>
           <FieldRow first icon="calendar" title="Planned" value={planned || "No date"} valueColor={date && date < today && !done ? c.danger : undefined} onPress={chooseDay} />
           <FieldRow icon="check-square" title="Deadline" value={t.deadline ? `by ${relativeDayLabel(t.deadline, today)}` : "None"} valueColor={t.deadline && t.deadline < today && !done ? c.danger : undefined} onPress={chooseDeadline} />
           <FieldRow icon="clock" title="Duration" value={minutes ? formatMinutes(minutes) : "None"} onPress={chooseDuration} />
@@ -250,14 +260,17 @@ export default function TaskSheet() {
             </Text>
           </Pressable>
         ))}
-        <View style={s.subRow}>
+        {viewer ? null : <View style={s.subRow}>
           <View style={{ width: 44, alignItems: "center" }}>
             <Icon name="plus" color={c.muted} />
           </View>
           <TextInput value={sub} onChangeText={setSub} onSubmitEditing={addSub} submitBehavior="submit" returnKeyType="done" placeholder="Add subtask" placeholderTextColor={c.muted} maxFontSizeMultiplier={2} style={[s.subInput, { color: c.fg }]} />
-        </View>
+        </View>}
+        <Card style={{ marginTop: 12 }}>
+          <FieldRow first icon="send" title="Send to friend" onPress={() => void sendToFriend(t, kids.map((k) => k.task.title))} />
+        </Card>
         <View style={[s.footer, { borderColor: c.border, paddingBottom: insets.bottom + 16 }]}>
-        <Button label="Delete" icon="trash-2" kind="outline" onPress={async () => (await deleteTasks([t.id], occurrence)) && router.back()} style={{ paddingHorizontal: 14 }} />
+        {viewer ? null : <Button label="Delete" icon="trash-2" kind="outline" onPress={async () => (await deleteTasks([t.id], occurrence)) && router.back()} style={{ paddingHorizontal: 14 }} />}
         <Button
           label="Start focus"
           icon="clock"

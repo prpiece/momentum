@@ -7,6 +7,8 @@ import { INBOX_ID, type Folder } from "@core/domain/types";
 import { statusText } from "@core/lib/sync/account";
 import { useSync } from "@core/lib/sync/engine";
 import { updateFolder, useData } from "@core/stores/data";
+import { requestCount, useSocial } from "@core/stores/social";
+import { roleFor } from "@/social/roles";
 import { GUTTER, INSET, resolveColor, useColors } from "@/theme";
 import { Icon, IconButton, Label, NavRow, PageHeader, Text } from "@/ui/kit";
 import { folderMenu, listMenu, newListOrFolder } from "@/ui/listActions";
@@ -22,6 +24,8 @@ export default function Browse() {
   const folders = useData((s) => s.folders);
   const account = useSync((s) => s.account);
   const status = useSync((s) => s.status);
+  const shares = useSocial((s) => s.shares);
+  const requests = useSocial(requestCount);
   useQuickAddContext({});
   const { counts, inbox, upcoming, someday, waiting } = useMemo(() => {
     const today = todayLocal();
@@ -53,6 +57,7 @@ export default function Browse() {
           <Text variant="body" style={{ flex: 1 }} numberOfLines={1}>
             {f.name}
           </Text>
+          {shares.some((x) => x.status === "active" && x.kind === "folder" && x.containerId === f.id) ? <Icon name="users" size={16} color={c.muted} /> : null}
           <Icon name={f.collapsed ? "chevron-right" : "chevron-down"} size={16} color={c.muted} />
         </Pressable>,
         ...(f.collapsed ? [] : tree(f.id, depth + 1)),
@@ -60,7 +65,7 @@ export default function Browse() {
     ...visible
       .filter((l) => (l.folderId && folders[l.folderId] ? l.folderId : null) === parent)
       .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((l) => <NavRow key={l.id} dot={resolveColor(c, l.color, c.muted)} title={l.name} detail={n(counts.get(l.id))} indent={depth * 28} onPress={() => open(l.id)} onLongPress={() => void listMenu(l, colorOf)} />),
+      .map((l) => <NavRow key={l.id} dot={resolveColor(c, l.color, c.muted)} title={l.name} sub={roleFor(shares, lists, folders, l.id) ? "Shared" : undefined} detail={n(counts.get(l.id))} indent={depth * 28} onPress={() => open(l.id)} onLongPress={() => void listMenu(l, colorOf)} />),
   ];
 
   return (
@@ -90,6 +95,7 @@ export default function Browse() {
       )}
       <View style={[s.divider, { backgroundColor: c.border }]} />
       <NavRow icon="clock" title="Focus" onPress={() => router.push("/focus")} />
+      <NavRow icon="users" title="Friends" detail={requests ? `${requests} new` : undefined} onPress={() => router.push("/friends")} />
       <NavRow icon="settings" title="Settings" onPress={() => router.push("/settings")} />
       <NavRow icon="gift" title="What's new" onPress={() => router.push("/whats-new")} />
       <NavRow icon="alert-circle" title="Report a problem" onPress={() => router.push("/report")} />

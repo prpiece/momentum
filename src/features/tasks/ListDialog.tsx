@@ -7,6 +7,7 @@ import { ACCENT_PRESETS } from "../../domain/color";
 import type { TaskList } from "../../domain/types";
 import { addList, removeList, updateList, useData } from "../../stores/data";
 import { confirm, go } from "../../stores/ui";
+import { confirmShareMove } from "../friends/moveGuard";
 
 
 /** Create (no `list`) or edit a list. */
@@ -19,8 +20,9 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
   const [folder, setFolder] = useState<string | null>(list?.folderId ?? folderId);
   const [tint, setTint] = useState(list?.tint ?? false);
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim()) return;
+    if (list && folder && folder !== list.folderId && !(await confirmShareMove("folder", folder, `“${list.name}”`))) return;
     const patch = { name: name.trim(), icon, color, folderId: folder, tint };
     if (list) updateList(list.id, patch);
     else {
@@ -37,7 +39,7 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
         className="space-y-5 p-6"
         onSubmit={(e) => {
           e.preventDefault();
-          save();
+          void save();
         }}
       >
         <h2 className="text-lg font-semibold">{list ? "Edit list" : "New list"}</h2>

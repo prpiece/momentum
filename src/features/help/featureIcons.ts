@@ -18,10 +18,12 @@ import {
   Palette,
   Plus,
   Search,
+  Share2,
   Sun,
   Target,
   Timer,
   Undo2,
+  Users,
 } from "lucide-react";
 import type { FeatureIcon } from "../../domain/features";
 
@@ -46,6 +48,8 @@ export const FEATURE_ICON: Record<FeatureIcon, LucideIcon> = {
   timer: Timer,
   window: AppWindow,
   chart: ChartColumn,
+  share: Share2,
+  users: Users,
   palette: Palette,
   help: LifeBuoy,
 };

@@ -1,10 +1,11 @@
 import { formatTime } from "../../domain/dates";
-import { Bell, ChevronLeft, CircleUser, ChevronRight, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Search, Settings2, Wrench } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, CircleUser, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Plug, Search, Settings2, Wrench } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHead } from "../../components/ui/PageHead";
 import { Switch } from "../../components/ui/Switch";
 import { Segmented } from "../../components/ui/Segmented";
 import { AccountSection } from "./AccountSection";
+import { ConnectionsSection } from "./ConnectionsSection";
 import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
@@ -105,6 +106,7 @@ const DEFAULT_VIEWS: { id: ViewId; label: string }[] = [...SMART_LIST_NAV, ...MO
 type Page = { id: string; title: string; icon: LucideIcon };
 const PAGES: Page[] = [
   { id: "settings-account", title: "Account", icon: CircleUser },
+  { id: "settings-connections", title: "Connections", icon: Plug },
   { id: "settings-general", title: "General", icon: Settings2 },
   { id: "settings-appearance", title: "Appearance", icon: Palette },
   { id: "settings-notifications", title: "Notifications & sounds", icon: Bell },
@@ -115,7 +117,7 @@ const PAGES: Page[] = [
   ...(import.meta.env.DEV ? [{ id: "settings-developer", title: "Developer", icon: Wrench }] : []),
 ];
 /** Pages the list shows together, like the groups on a phone's settings screen. */
-const GROUPS = [["settings-account"], ["settings-general", "settings-appearance", "settings-notifications"], [VOICE_SECTION_ID, "settings-data"], [HELP_SECTION_ID, "settings-about"], ["settings-developer"]];
+const GROUPS = [["settings-account", "settings-connections"], ["settings-general", "settings-appearance", "settings-notifications"], [VOICE_SECTION_ID, "settings-data"], [HELP_SECTION_ID, "settings-about"], ["settings-developer"]];
 
 /** Searchable settings: [page, label as shown on that page]. The label is found in the page text to scroll to it. */
 const INDEX: [string, string][] = [
@@ -128,6 +130,7 @@ const INDEX: [string, string][] = [
   ["settings-notifications", "Timer sounds"], ["settings-notifications", "Volume"],
   [VOICE_SECTION_ID, "Voice model"], [VOICE_SECTION_ID, "Microphone"], [VOICE_SECTION_ID, "Push to talk"],
   ["settings-account", "Sync now"], ["settings-account", "Sign out"],
+  ["settings-connections", "Link a chat"], ["settings-connections", "Linked chats"], ["settings-connections", "Webhook"],
   ["settings-data", "Export backup"], ["settings-data", "Restore from backup"], ["settings-data", "Import calendar"],
   ["settings-about", "Check at launch"], ["settings-about", "Check now"],
 ];
@@ -414,6 +417,11 @@ export function SettingsView() {
     "settings-account": (
       <Card>
         <AccountSection />
+      </Card>
+    ),
+    "settings-connections": (
+      <Card>
+        <ConnectionsSection />
       </Card>
     ),
     "settings-data": (

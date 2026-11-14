@@ -32,12 +32,15 @@ const make = (url: string, key: string) =>
 /** False until an app configures a project: the Account page then explains sync is unavailable. */
 export let syncConfigured = false;
 export let supabase: SupabaseClient = make("http://127.0.0.1:54321", "unset");
+/** The project's base URL (the inbound function's links are built from it). */
+export let projectUrl = "http://127.0.0.1:54321";
 let secrets: SecretStore | null = null;
 let stored: string | null = null;
 
 export function configureSync(url: string | undefined, key: string | undefined, store: SecretStore) {
   if (!url || !key) return;
   supabase = make(url, key);
+  projectUrl = url.replace(/\/$/, "");
   secrets = store;
   syncConfigured = true;
   // Keep the secure store in step with the session: a refresh rotates the token, sign-out removes it.
