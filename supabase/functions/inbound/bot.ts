@@ -211,7 +211,7 @@ async function show(c: Ctx, cmd: "today" | "week" | "overdue" | "inbox" | "waiti
     case "inbox":
       return listing(c, "Inbox", open.filter((v) => core.inSmartList("inbox", v, d)), "Your Inbox is empty.");
     case "waiting": {
-      // ponytail: Track B's Waiting for field (D267); reads any non-empty `waiting` until its handoff names the shape.
+      // Waiting for (D267): `waiting` is JSON text or null (v1.3 handoff).
       const rows = new Map((await records(c.db, c.link.account_id, "tasks")).map((r) => [r.id, r]));
       const w = open.filter((v) => { const x = rows.get(v.task.id)?.waiting; return x !== undefined && x !== null && x !== "" && x !== "null"; });
       return listing(c, "Waiting for", w, "Nothing waiting.");
@@ -270,7 +270,7 @@ async function change(c: Ctx, cmd: "done" | "snooze" | "move" | "deadline", arg:
   if (when.schedule.kind === "none") return cmd === "snooze" ? "Snooze to when? e.g. snooze 2 tomorrow 9am" : "Which date? e.g. deadline 2 friday";
   if (cmd === "deadline") {
     const date = when.schedule.kind === "day" ? when.schedule.date : core.toLocalDate(new Date(when.schedule.start));
-    // ponytail: Track B's Deadline field (D267) as a local date under `deadline`, until its handoff names it.
+    // Deadline (D267): a local date under `deadline` (v1.3 handoff).
     await save(c, ...extra);
     await write(c.db, c.link.account_id, "tasks", task.id, { ...core.taskToRow({ ...task, updatedAt: at }), deadline: date });
     return `Deadline for "${task.title}": ${date}.`;

@@ -204,3 +204,18 @@ describe("account deletion", () => {
     expect((await row(a.db, "tasks", "live"))?.title).toBe("Still here");
   });
 });
+
+describe("v1.3 fields (Track B handoff)", () => {
+  it("syncs calendar subscriptions and keeps the new task fields", async () => {
+    const d = randomUUID();
+    const res = await push(a.db, d, [
+      { seq: 1, tbl: "calendar_subscriptions", id: "s1", fields: { id: "s1", name: "Work", url: "https://example.test/x.ics", deleted_at: null } },
+      { seq: 2, tbl: "tasks", id: "v13", fields: { id: "v13", title: "x", list_id: "inbox", deadline: "2026-12-24", duration_min: 30, someday: 0, waiting: '{"kind":"person","who":"Sam"}', deleted_at: null } },
+      { seq: 3, tbl: "tasks", id: "v13", fields: { title: "y" } },
+    ]);
+    expect(res.refused).toEqual([]);
+    expect(await row(a.db, "calendar_subscriptions", "s1")).toMatchObject({ name: "Work" });
+    expect(await row(a.db, "tasks", "v13")).toMatchObject({ title: "y", deadline: "2026-12-24", duration_min: 30, waiting: '{"kind":"person","who":"Sam"}' });
+    expect((await pull(b.db)).find((r) => r.id === "s1")).toBeUndefined();
+  });
+});
