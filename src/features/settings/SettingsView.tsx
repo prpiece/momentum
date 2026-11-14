@@ -424,7 +424,10 @@ export function SettingsView() {
           <span className="font-medium">Calendar subscriptions</span>
           <SubscriptionsPanel />
         </div>
-        <AgentsPanel />
+        <div className="mt-5 space-y-2 border-t border-border pt-4">
+          <span className="font-medium">AI agents</span>
+          <AgentsPanel />
+        </div>
       </Card>
     ),
     [HELP_SECTION_ID]: (
