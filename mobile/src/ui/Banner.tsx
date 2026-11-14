@@ -1,7 +1,10 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { syncNow, useSync } from "@core/lib/sync/engine";
 import { GUTTER, useColors } from "@/theme";
 import { Icon, Text } from "./kit";
+
+/** Where "Update" goes. iOS waits for the App Store ID (docs/specs/v1.2-store-updates-checklist.md). */
+const STORE_URL = Platform.select({ android: "https://play.google.com/store/apps/details?id=com.momentum.planner", default: null });
 
 /**
  * Sync stays silent until it matters (02 §3): a quiet line when offline, a danger-soft banner
@@ -32,6 +35,10 @@ export function SyncBanner() {
       {error ? (
         <Pressable onPress={() => void syncNow()} accessibilityRole="button" style={s.retry}>
           <Text style={{ color: c.fg, fontWeight: "600", fontSize: 14 }}>Retry</Text>
+        </Pressable>
+      ) : STORE_URL ? (
+        <Pressable onPress={() => void Linking.openURL(STORE_URL)} accessibilityRole="link" style={s.retry}>
+          <Text style={{ color: c.fg, fontWeight: "600", fontSize: 14 }}>Update</Text>
         </Pressable>
       ) : null}
     </View>

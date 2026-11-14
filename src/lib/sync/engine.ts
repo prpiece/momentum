@@ -272,7 +272,10 @@ async function runOnce() {
   useSync.setState({ status: { kind: "syncing" } });
   try {
     const device = await deviceId();
-    if ((await push(device)) === "updateRequired") return useSync.setState({ status: { kind: "updateRequired" } });
+    // The server's floor, read even with nothing to push, so an idle client still learns it's too old.
+    const { data: meta } = await supabase.from("server_meta").select("min_client_schema").maybeSingle();
+    const tooOld = typeof meta?.min_client_schema === "number" && meta.min_client_schema > CLIENT_SCHEMA;
+    if (tooOld || (await push(device)) === "updateRequired") return useSync.setState({ status: { kind: "updateRequired" } });
     await pull();
     if (!named) named = await namePlatform(device);
     useSync.setState({ status: { kind: "idle", at: new Date().toISOString() } });
