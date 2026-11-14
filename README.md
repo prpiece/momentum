@@ -73,6 +73,19 @@
 
 **Design**: a calm, warm look in light, dark or system themes; 10 accent colours tuned for both themes, with Indigo as the default (the taskbar and tray icons take the same colour); a sidebar (left or right) or a single bar at the top or bottom; comfortable or compact density; adjustable text size and zoom; and a phone-style layout with a bottom bar when the window is narrow. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
 
+## AI agents
+
+Your own AI agent can read and change your tasks through the running app (nothing leaves your computer). Turn on Settings → AI agents → Add `momentum` to PATH, then:
+
+```
+momentum add "call mom by fri 15m !high"     # quick-add text, same as the app
+momentum list today                           # or inbox, upcoming, someday, waiting, a list name, "#work !high"
+momentum done <id>                            # also: search, get, update, reopen, habits; --json on all
+claude mcp add momentum -- momentum mcp       # Claude Code; Claude Desktop, Cursor, Codex and Gemini are in Settings
+```
+
+If Momentum is closed, the command starts it in the tray.
+
 ## Screenshots
 
 | | |

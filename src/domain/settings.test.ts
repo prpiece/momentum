@@ -35,7 +35,7 @@ describe("parseSettings", () => {
       sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false, showCompleted: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
-      matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["teal", null, null, "ocean"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
+      matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["teal", null, null, "ocean"], closeToTray: false, launchAtStartup: true, cliOnPath: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
       streakReminder: { on: false, time: "20:15" }, autoFocus: true,
       sounds: { enabled: false, volume: 0.3, picks: { task: "ding", habit: "none", streak: "pop", dayDone: "chime", focusEnd: "marimba", longBreak: "fanfare" } },

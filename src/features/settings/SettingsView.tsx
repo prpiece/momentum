@@ -10,6 +10,7 @@ import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
 import { SubscriptionsPanel } from "./SubscriptionsPanel";
 import { UpdatesSection } from "./UpdatesSection";
+import { AgentsPanel } from "./AgentsPanel";
 import { VoiceSection } from "./VoiceSection";
 import { keyLabel } from "../../lib/platform";
 import { VOICE_SECTION_ID } from "../../lib/voice";
@@ -423,6 +424,7 @@ export function SettingsView() {
           <span className="font-medium">Calendar subscriptions</span>
           <SubscriptionsPanel />
         </div>
+        <AgentsPanel />
       </Card>
     ),
     [HELP_SECTION_ID]: (

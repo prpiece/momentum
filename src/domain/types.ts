@@ -275,6 +275,8 @@ export type Settings = {
   matrixColors: QuadrantColors;
   /** Closing the window hides to the tray (reminders keep firing). */
   closeToTray: boolean;
+  /** `momentum` is on this device's PATH (D264). */
+  cliOnPath: boolean;
   launchAtStartup: boolean;
   /** Look for a new release on GitHub at launch (D59). */
   checkUpdates: boolean;

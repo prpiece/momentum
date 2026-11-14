@@ -70,6 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   matrixColors: [null, null, null, null],
   closeToTray: true,
   launchAtStartup: true,
+  cliOnPath: false,
   checkUpdates: true,
   notify: {
     enabled: true,
@@ -333,6 +334,7 @@ export function parseSettings(raw: unknown): Settings {
     matrixColors: parseMatrixColors(r.matrixColors),
     closeToTray: typeof r.closeToTray === "boolean" ? r.closeToTray : d.closeToTray,
     launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
+    cliOnPath: typeof r.cliOnPath === "boolean" ? r.cliOnPath : d.cliOnPath,
     checkUpdates: typeof r.checkUpdates === "boolean" ? r.checkUpdates : d.checkUpdates,
     notify: parseNotify(r.notify, r.notifications),
     streakReminder: parseStreakReminder(r.streakReminder),
@@ -362,7 +364,7 @@ export const USER_SETTING_KEYS = [
 /** Settings that stay on this device: hardware, window and OS integration, and the local background image. */
 export const DEVICE_SETTING_KEYS = [
   "density", "motion", "scale", "layout", "barPosition", "barStyle", "background", "sidebarSide", "sidebarCollapsed",
-  "closeToTray", "launchAtStartup", "checkUpdates", "notify", "autoFocus", "quickAddShortcut", "miniShortcut", "voiceShortcut", "voiceMic",
+  "closeToTray", "launchAtStartup", "cliOnPath", "checkUpdates", "notify", "autoFocus", "quickAddShortcut", "miniShortcut", "voiceShortcut", "voiceMic",
   "oneThing",
 ] as const satisfies readonly (keyof Settings)[];
 

@@ -1,3 +1,4 @@
+mod agent;
 mod files;
 mod net;
 mod secrets;
@@ -330,9 +331,14 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .manage(CloseToTray(AtomicBool::new(true)))
         .manage(voice::Voice::default())
+        .manage(agent::Agent::default())
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
             quit_app,
+            agent::agent_reply,
+            agent::agent_ready,
+            agent::agent_cli_info,
+            agent::agent_cli_path,
             secrets::secret_get,
             secrets::secret_set,
             secrets::secret_delete,
@@ -378,6 +384,10 @@ pub fn run() {
         .setup(move |app| {
             backup_before_migrate(&app.path().app_config_dir()?, latest)?;
             build_tray(app)?;
+            // Agents (D264): a failure here only turns the CLI off.
+            if let Err(e) = agent::start(app.handle()) {
+                eprintln!("could not start the agent API: {e}");
+            }
             // Without it images don't show, but the app still works.
             if let Err(e) = files::allow_asset_dirs(app.handle()) {
                 eprintln!("could not allow the image folders: {e}");
@@ -396,6 +406,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Momentum")
         .run(|_app, _event| {
+            if let tauri::RunEvent::Exit = _event {
+                agent::stop(_app);
+            }
             // Clicking the Dock icon while the window is hidden in the menu bar (close-to-tray).
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {
