@@ -134,6 +134,7 @@ momentum/
   - Tauri plugins: `notification`, `global-shortcut`, `autostart`, `dialog` and `fs` (export/import).
   - `ical.js` for .ics import, which needs correct TZID and RRULE handling.
   - `updater` and `process` Tauri plugins: signed in-app updates and the restart after one (D59).
+  - Phone: `expo-widgets` (Expo's own, SDK 58) for the Today home-screen and lock-screen widgets, drawn with `@expo/ui`, which is already installed (D271).
   - `@radix-ui/react-tooltip` (MIT, bundled) for tooltips on icon-only controls: hover/focus delay, Escape, collision and `aria-describedby` we'd otherwise hand-roll (D208).
   - `sonner` (MIT, bundled) for toasts: stacking, swipe and hover-pause, exit motion and an accessible live region we'd otherwise hand-roll (D207).
   - `sherpa-onnx` (Rust, statically linked; its build script fetches prebuilt libs in CI) runs Parakeet on-device, and `cpal` captures the microphone in Rust (D81; Linux CI needs `libasound2-dev`). The model download uses `reqwest` (already pulled in by the updater), `sha2` to verify, and `tar` + `bzip2` to unpack.
@@ -579,3 +580,8 @@ A grilling session (Q1–Q38) reset everything after v1.1.3. Specs: `docs/specs/
   - Sounds keep only the timer alarms (`focusEnd`, `longBreak`); stored picks for the old events are dropped on read. The long break plays its sound instead of a celebration.
   - The `trophy` list/habit icon key now shows the Award icon, so stored icons still render.
   - The phone's bundled changelog starts at v1.2.0, its first release (D257).
+- **D271: Phone readiness pieces (v1.2, Track A).**
+  - **Widgets:** `expo-widgets` draws a Today widget with the next 3 open tasks (`domain/todayWidget.ts`), refreshed 1 s after task changes and when the app comes to the front. On iOS the tasks and `+ Add` are links, and a lock-screen accessory opens quick add (`momentum://quickadd`). On Android, expo-widgets taps only run widget-side JS and can't open the app, so the widget only displays, and quick add is a launcher shortcut (long-press the icon → Add task, `plugins/with-add-shortcut.js`).
+  - **Alarms:** reminders for priority-3 tasks (`domain/alarms.ts`) ring on Android as full-screen alarms through a small local module (`mobile/modules/momentum-alarm`): `setAlarmClock` (exact, no exact-alarm permission), an Alarms channel that uses the alarm sound and keeps ringing, and an Open/Dismiss screen over the lock screen. The first high-priority reminder asks once to allow full-screen intents (Android 14+ settings page); without it they show as heads-up notifications. They are lost on reboot until the app opens again. iOS marks them time-sensitive (entitlement in `app.json`).
+  - **Update required:** each sync reads `server_meta.min_client_schema`, which clients could already read, so no server change was needed.
+  - **Build numbers:** `mobile/app.config.js` computes `versionCode`/`buildNumber` = major·10000 + minor·100 + patch.

@@ -56,7 +56,7 @@ it("gives desktop and phone one version (PLAN D257)", () => {
 });
 
 it("maps every synced column in shared code, so the phone never drops a field (PLAN D257)", () => {
-  // Retired with perfect days (D256): still synced for v1.1 clients, read by nobody.
+  // Retired with the rewards (D256): still synced for v1.1 clients, read by nobody.
   const RETIRED = new Set(["rest_days", "celebrations"]);
   const db = new DatabaseSync(":memory:");
   const dir = "src-tauri/migrations";
