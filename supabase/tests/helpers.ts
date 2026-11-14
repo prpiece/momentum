@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
 export const status = Object.fromEntries(
-  execSync("supabase status -o env", { encoding: "utf8" })
+  (process.env.SUPABASE_STATUS_ENV ?? execSync("supabase status -o env", { encoding: "utf8" }))
     .split(/\r?\n/)
     .map((l) => /^(\w+)="?([^"]*)"?$/.exec(l))
     .filter((m): m is RegExpExecArray => !!m)

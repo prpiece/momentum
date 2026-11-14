@@ -72,7 +72,7 @@ declare
 begin
   delete from public.link_codes where account_id = me or expires_at < now();
   loop
-    select lpad(((get_byte(b, 0) << 16 | get_byte(b, 1) << 8 | get_byte(b, 2)) % 1000000)::text, 6, '0') into c
+    select lpad(((get_byte(b, 0) * 65536 + get_byte(b, 1) * 256 + get_byte(b, 2)) % 1000000)::text, 6, '0') into c
     from extensions.gen_random_bytes(3) as b;
     begin
       insert into public.link_codes (code, account_id, expires_at) values (c, me, now() + interval '10 minutes');
@@ -180,6 +180,32 @@ end $$;
 
 select cron.schedule('digest', '*/5 * * * *', 'select public.run_digest()');
 
+/*
+ * A write from a bot command into the account's own records, merged like a sync patch and pulled
+ * by its devices. `_delta` adds to a check-in's value (ADR 0005). Only tables the commands touch.
+ */
+create function public.server_write(p_account uuid, p_tbl text, p_id text, p_fields jsonb) returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  f jsonb := p_fields;
+  cur jsonb;
+begin
+  if p_tbl not in ('tasks', 'tags', 'habit_checkins', 'task_activity') then
+    raise exception 'bad_table' using errcode = '22023';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_account::text, 0));
+  if f ? '_delta' then
+    select r.data into cur from public.sync_rows r where r.owner_id = p_account and r.tbl = p_tbl and r.id = p_id;
+    f := (f - '_delta') || jsonb_build_object('value',
+      (case when cur is null or cur->>'deleted_at' is not null then 0 else coalesce((cur->>'value')::numeric, 0) end)
+      + (f->>'_delta')::numeric);
+  end if;
+  insert into public.sync_rows as r (owner_id, tbl, id, data, version)
+  values (p_account, p_tbl, p_id, f, nextval('public.sync_version'))
+  on conflict (owner_id, tbl, id) do update set data = r.data || excluded.data, version = excluded.version, updated_at = now();
+  perform public.ping_all(p_account);
+end $$;
+
 -- ---------- Access ----------
 
 alter table public.chat_links enable row level security;
@@ -197,7 +223,7 @@ declare fn regprocedure;
 begin
   for fn in select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname in ('create_link_code', 'my_connections', 'remove_connection', 'set_digest',
-      'create_webhook', 'delete_webhook', 'has_webhook', 'link_chat', 'hit_rate', 'due_digests', 'run_digest')
+      'create_webhook', 'delete_webhook', 'has_webhook', 'link_chat', 'hit_rate', 'due_digests', 'run_digest', 'server_write')
   loop
     execute format('revoke all on function %s from public, anon, authenticated', fn);
   end loop;
@@ -205,4 +231,4 @@ end $$;
 grant execute on function public.create_link_code(), public.my_connections(), public.remove_connection(uuid),
   public.set_digest(uuid, time), public.create_webhook(), public.delete_webhook(), public.has_webhook() to authenticated;
 grant execute on function public.link_chat(text, text, text, text, jsonb), public.hit_rate(text, int, interval),
-  public.due_digests() to service_role;
+  public.due_digests(), public.server_write(uuid, text, text, jsonb) to service_role;
