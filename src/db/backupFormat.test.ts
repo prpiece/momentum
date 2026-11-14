@@ -4,7 +4,10 @@ import { DEFAULT_SETTINGS } from "../domain/settings";
 import { BACKUP_FORMAT, validateBackup, type BackupFile } from "./backupFormat";
 import { habitToRow } from "./habitRows";
 import { sessionRow } from "./miscRows";
+import { subscriptionToRow, type CalendarSubscription } from "../domain/subscriptions";
 import { eventToRow, folderToRow, listToRow, sectionToRow, tagToRow, taskToRow } from "./rows";
+
+const SUB: CalendarSubscription = { id: "sub1", name: "Holidays", url: "https://example.com/h.ics", color: "#2f9358", sortOrder: 1, createdAt: "2026-10-01T00:00:00.000Z", deletedAt: null };
 
 function file(): BackupFile {
   const ws = sampleWorkspace("2026-10-25");
@@ -22,6 +25,7 @@ function file(): BackupFile {
       tags: ws.tags.map(tagToRow),
       tasks: ws.tasks.map(taskToRow),
       task_activity: [],
+      calendar_subscriptions: [subscriptionToRow(SUB)],
       calendar_events: ws.events.map(eventToRow),
       habit_groups: h.groups.map((g) => ({ id: g.id, name: g.name, sort_order: g.sortOrder })),
       habits: h.habits.map(habitToRow),
@@ -41,6 +45,17 @@ describe("validateBackup", () => {
     expect(r.data.tasks).toHaveLength(f.tables.tasks.length);
     expect(r.data.tasks.map(taskToRow)).toEqual(f.tables.tasks);
     expect(r.data.habits.map(habitToRow)).toEqual(f.tables.habits);
+  });
+
+  it("carries calendar subscriptions and drops subscribed events whose subscription is gone", () => {
+    const f = file();
+    const ev = { ...f.tables.calendar_events[0], source: "ics" };
+    f.tables.calendar_events = [{ ...ev, id: "sub:sub1:a", subscription_id: "sub1" }, { ...ev, id: "sub:gone:a", subscription_id: "gone" }];
+    const r = validateBackup(JSON.parse(JSON.stringify(f)));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.data.subscriptions).toEqual([SUB]);
+    expect(r.data.events.map((e) => e.id)).toEqual(["sub:sub1:a"]);
+    expect(r.dropped).toBe(1);
   });
 
   it("rejects files that aren't Momentum backups or are from the future", () => {

@@ -8,6 +8,7 @@ import { AccountSection } from "./AccountSection";
 import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
+import { SubscriptionsPanel } from "./SubscriptionsPanel";
 import { UpdatesSection } from "./UpdatesSection";
 import { VoiceSection } from "./VoiceSection";
 import { keyLabel } from "../../lib/platform";
@@ -417,6 +418,11 @@ export function SettingsView() {
     "settings-data": (
       <Card>
         <DataSection />
+        {/* Track C moves this to Connections (D258) */}
+        <div className="mt-5 space-y-2 border-t border-border pt-4">
+          <span className="font-medium">Calendar subscriptions</span>
+          <SubscriptionsPanel />
+        </div>
       </Card>
     ),
     [HELP_SECTION_ID]: (

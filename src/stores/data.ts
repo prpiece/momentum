@@ -66,7 +66,7 @@ function commit(changed: Task[]) {
   void repo.saveTasks(changed);
 }
 
-function commitEvents(changed: CalendarEvent[]) {
+export function commitEvents(changed: CalendarEvent[]) {
   if (!changed.length) return;
   set((s) => ({ events: { ...s.events, ...byId(changed) } }));
   void repo.saveEvents(changed);

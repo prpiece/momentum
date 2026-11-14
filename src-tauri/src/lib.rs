@@ -1,4 +1,5 @@
 mod files;
+mod net;
 mod secrets;
 mod voice;
 
@@ -348,6 +349,7 @@ pub fn run() {
             files::write_backup_zip,
             files::read_backup_zip,
             files::restore_backup_attachments,
+            net::fetch_ics,
             voice::voice_model_status,
             voice::voice_download,
             voice::voice_cancel_download,
