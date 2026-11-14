@@ -68,3 +68,13 @@ it("maps every synced column in shared code, so the phone never drops a field (P
     .flatMap((t) => (columns(db, t) as string[]).filter((c) => !new RegExp(`\\b${c}\\b`).test(shared)).map((c) => `${t}.${c}`));
   expect(ignored).toEqual([]);
 });
+
+it("derives store build numbers from the shared version", async () => {
+  // @ts-expect-error: plain .js config, no types
+  const { default: config } = await import("../mobile/app.config.js");
+  expect(config.versionCode("1.2.0")).toBe(10200);
+  expect(config.versionCode("2.10.3")).toBe(21003);
+  expect(() => config.versionCode("1.100.0")).toThrow();
+  const out = config({ config: { version: "1.2.0", android: { package: "p" }, ios: {} } });
+  expect([out.android.versionCode, out.ios.buildNumber, out.android.package]).toEqual([10200, "10200", "p"]);
+});

@@ -6,7 +6,7 @@ One spec per release, built from the decisions in `PLAN.md` and the ADRs in `doc
 |---|---|---|---|
 | v1.0.0 | [Simplify and redesign](v1.0-simplify-redesign.md) | — | nothing; offline only |
 | v1.1 | [Accounts and sync](v1.1-accounts-sync.md), [launch checklist](v1.1-launch-checklist.md) | — | v1.0 |
-| v1.2 | [Phone app (Expo)](v1.2-mobile.md), [tickets](v1.2-mobile-tickets.md), [remove gamification, one version, phone ready](v1.2-degamify-release.md) | A | v1.1.3 |
+| v1.2 | [Phone app (Expo)](v1.2-mobile.md), [tickets](v1.2-mobile-tickets.md), [remove gamification, one version, phone ready](v1.2-degamify-release.md), [store updates checklist](v1.2-store-updates-checklist.md) | A | v1.1.3 |
 | v1.3 | [Connectors and planning](v1.3-connectors-planning.md) | B | v1.2 |
 | v1.4 | [Friends, shares and connections](v1.4-social-connections.md) | C | v1.1 sync; merges after v1.3 |
 | v1.5 | [Pro plan](v1.5-pro.md) | — | v1.4 |
