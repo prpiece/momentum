@@ -1,5 +1,5 @@
 /*
- * Sound effects, synthesized with Web Audio so no sound files ship with the app (D63).
+ * Timer and reminder sounds, synthesized with Web Audio so no sound files ship with the app (D63).
  * Each sound is a few enveloped notes; `times` repeats one back to back, which makes an alarm.
  */
 import type { SoundEvent, SoundName } from "../domain/types";

@@ -56,7 +56,7 @@ import {
   Timer,
   TreePalm,
   TreePine,
-  Trophy,
+  Award,
   Users,
   Wallet,
   Wrench,
@@ -70,7 +70,7 @@ export const ICONS: Record<string, LucideIcon> = {
   star: Star,
   flame: Flame,
   zap: Zap,
-  trophy: Trophy,
+  award: Award,
   droplet: Droplet,
   salad: Salad,
   apple: Apple,
@@ -128,7 +128,7 @@ export const ICONS: Record<string, LucideIcon> = {
   flag: Flag,
 };
 
-/** Emoji from before icons existed, mapped to the closest icon. */
+/** Emoji from before icons existed, and retired keys (D256), mapped to the closest icon. */
 const LEGACY: Record<string, string> = {
   "✅": "check", "💧": "droplet", "🧘": "meditate", "🏃": "run", "📚": "book", "💪": "strength", "🥗": "salad", "😴": "sleep",
   "🚶": "run", "🦷": "sparkles", "📵": "phone-off", "✍️": "pen", "🎸": "guitar", "🧹": "clean", "💊": "pill", "🌞": "sun",
@@ -136,6 +136,7 @@ const LEGACY: Record<string, string> = {
   "🛒": "cart", "✈️": "plane", "💡": "idea", "🎯": "target", "🧪": "lab", "🎨": "art", "🎵": "music", "🌱": "sprout",
   "❤️": "heart", "🍳": "cook", "🐾": "pet", "🛠️": "tools", "📝": "notebook", "🚀": "rocket", "⭐": "star", "🗓️": "calendar",
   "⏳": "hourglass", "🎂": "cake", "💍": "gem", "🎄": "tree", "🏖️": "beach", "🚭": "no-smoking", "🏁": "flag", "📅": "calendar", "🎉": "party",
+  trophy: "award",
 };
 
 export const iconOf = (key: string | null | undefined): LucideIcon | null => (key ? (ICONS[key] ?? ICONS[LEGACY[key] ?? ""] ?? null) : null);

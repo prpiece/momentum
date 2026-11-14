@@ -87,7 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sounds: {
     enabled: true,
     volume: 0.7,
-    picks: { task: "pop", habit: "marimba", streak: "fanfare", dayDone: "fanfare", focusEnd: "chime", longBreak: "ding" },
+    picks: { focusEnd: "chime", longBreak: "ding" },
   },
   onboarded: false,
   gettingStarted: { dismissed: false, done: [], seenVersion: null },
@@ -232,7 +232,7 @@ function parseSounds(raw: unknown): Settings["sounds"] {
   return {
     enabled: typeof r.enabled === "boolean" ? r.enabled : d.enabled,
     volume: typeof r.volume === "number" && r.volume >= 0 && r.volume <= 1 ? r.volume : d.volume,
-    picks: { task: pick("task"), habit: pick("habit"), streak: pick("streak"), dayDone: pick("dayDone"), focusEnd: pick("focusEnd"), longBreak: pick("longBreak") },
+    picks: { focusEnd: pick("focusEnd"), longBreak: pick("longBreak") },
   };
 }
 

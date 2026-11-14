@@ -45,11 +45,6 @@
   --color-q-drop: var(--q-drop);
   --color-streak: var(--streak);
   --color-on-strong: var(--on-strong);
-  --color-m-bronze: var(--m-bronze);
-  --color-m-silver: var(--m-silver);
-  --color-m-gold: var(--m-gold);
-  --color-m-platinum: var(--m-platinum);
-  --color-m-diamond: var(--m-diamond);
   --color-l-violet: var(--l-violet);
   --color-l-amber: var(--l-amber);
   --color-l-blue: var(--l-blue);
@@ -178,10 +173,8 @@
   --q-delegate: #A86400;
   --q-drop: #6B665E;
 
-  --streak: #A86400;          /* flame, perfect-day dots */
-  --on-strong: #FFFFFF;       /* text/icons on streak, metal, quadrant, habit fills */
-
-  --m-bronze: #9A5B2E; --m-silver: #6F757F; --m-gold: #8C6600; --m-platinum: #46747B; --m-diamond: #3F6FB0;
+  --streak: #A86400;          /* habit streak flame */
+  --on-strong: #FFFFFF;       /* text/icons on streak, quadrant, habit fills */
 
   /* User-picked colours (lists, habits, events). Fixed per theme. */
   --l-violet: #7A45C8; --l-amber: #A86400; --l-blue: #3470C2; --l-green: #2B7D47; --l-coral: #C8432B; --l-teal: #0B7A75;
@@ -234,8 +227,6 @@
 
   --streak: #E9A23B;
   --on-strong: #141519;
-
-  --m-bronze: #D08A5A; --m-silver: #B4BAC4; --m-gold: #E2B33C; --m-platinum: #8DC0C6; --m-diamond: #8FB4EA;
 
   --l-violet: #B892F0; --l-amber: #E9A23B; --l-blue: #76A5EC; --l-green: #5CC283; --l-coral: #F28B74; --l-teal: #4FC4BC;
   --h-blue: #76A5EC;   --h-violet: #B892F0; --h-coral: #F28B74; --h-amber: #E9A23B; --h-teal: #4FC4BC;
@@ -385,14 +376,6 @@
 @keyframes grow-x {
   from { transform: scaleX(0); }
 }
-@keyframes ring-in {
-  from { stroke-dasharray: 0 var(--ring-c); }
-}
-@keyframes flicker {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  30% { transform: scale(1.06) rotate(-3deg); }
-  60% { transform: scale(0.97) rotate(2deg); }
-}
 /* Onboarding steps slide in from the side you're moving toward (--dir: 1 forward, -1 back). */
 @keyframes step-in {
   from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 18px)); }
@@ -432,45 +415,10 @@
 /* Chart marks grow from their baseline. */
 .anim-grow-y { animation: grow-y 520ms var(--ease-out) backwards; transform-box: fill-box; transform-origin: bottom; }
 .anim-grow-x { animation: grow-x 600ms var(--ease-out) backwards; transform-origin: left; }
-.anim-ring { animation: ring-in 900ms var(--ease-out); }
-.anim-flicker { animation: flicker 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
 
-/* ---------- celebrations (D63) ---------- */
-/* The logo traces itself in; its dot lands last. */
+/* The tick traces itself in when a task is completed. */
 @keyframes draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 .anim-draw { animation: draw 520ms 160ms var(--ease-out) backwards; }
-@keyframes dot-in { 0% { transform: scale(0); } 70% { transform: scale(1.6); } 100% { transform: scale(1); } }
-.anim-dot { animation: dot-in 360ms 560ms var(--ease-out) backwards; transform-box: fill-box; transform-origin: center; }
-/* Small moments: a logo badge pops out of the checkbox and swooshes up. */
-@keyframes badge-up {
-  0% { opacity: 0; transform: translate(-50%, 0) scale(0.3) rotate(0deg); }
-  25% { opacity: 1; transform: translate(-50%, -10px) scale(1.15) rotate(-6deg); }
-  100% { opacity: 0; transform: translate(-30%, -34px) scale(0.85) rotate(-14deg); }
-}
-.anim-badge { animation: badge-up 640ms var(--ease-out) forwards; }
-/* Big moments: the logo jumps in, bounces, and (weeks and up) spins with a trail. */
-@keyframes hero-in {
-  0% { opacity: 0; transform: translateY(40px) scale(0.3) rotate(-25deg); }
-  55% { opacity: 1; transform: translateY(-14px) scale(1.12) rotate(6deg); }
-  75% { transform: translateY(4px) scale(0.96) rotate(-2deg); }
-  100% { transform: none; }
-}
-@keyframes hero-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes hero-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-.anim-hero { animation: hero-in 640ms var(--ease-out) backwards; }
-.anim-hero-spin { animation: hero-spin 900ms 640ms var(--ease-out) backwards, hero-bob 1.4s 1.6s ease-in-out infinite; }
-.anim-hero-bob { animation: hero-bob 1.4s 700ms ease-in-out infinite; }
-/* Rings burst outward behind the logo; dots pop out along --dx/--dy. */
-@keyframes ring-burst { from { opacity: 0.9; transform: scale(0.4); } to { opacity: 0; transform: scale(2.6); } }
-.anim-ring-burst { animation: ring-burst 900ms var(--ease-out) backwards; }
-@keyframes pop-out {
-  0% { opacity: 0; transform: translate(0, 0) scale(0.2); }
-  30% { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
-}
-.anim-pop-out { animation: pop-out 820ms cubic-bezier(.15,.9,.3,1) backwards; }
-@keyframes card-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
-.anim-card { animation: card-in 360ms 380ms var(--ease-out) backwards; }
 
 /* Slim scrollbars without arrow buttons that stop short of rounded corners (D84). `scrollbar-width`/`-color` would disable these in Chromium, so they are not used. */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

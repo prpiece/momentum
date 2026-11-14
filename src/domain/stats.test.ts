@@ -39,9 +39,9 @@ describe("completedPerDay", () => {
     ]);
   });
 
-  it('skips tasks completed within 2 minutes of creation', () => {
+  it("counts every completion, quick ones too: there's no score to protect (D256)", () => {
     const quick = done('2026-10-25', { createdAt: atLocalTime('2026-10-25', '12:00').toISOString() });
-    expect(completedPerDay([quick, done('2026-10-25')], TODAY, 1)[0].value).toBe(1);
+    expect(completedPerDay([quick, done('2026-10-25')], TODAY, 1)[0].value).toBe(2);
   });
 
   it("sums weeks by the week-start setting", () => {

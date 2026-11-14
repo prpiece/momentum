@@ -17,7 +17,6 @@ import { setImport, useUi } from "../../stores/ui";
 import { MatrixView } from "../matrix/MatrixView";
 import { setViewOptions, viewOptionsOf } from "./viewOptions";
 import { TodayHabits } from "../habits/TodayHabits";
-import { TodayStreak } from "../celebrate/TodayStreak";
 import { CountdownChips } from "../calendar/CountdownChips";
 import { GettingStartedCard } from "../help/GettingStartedCard";
 import { BulkBar } from "./BulkBar";
@@ -97,7 +96,6 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
             </span>
           }
         >
-          {spec.id === "today" && <TodayStreak />}
           <FilterBar view={spec.id} />
         </PageHead>
       </div>

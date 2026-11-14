@@ -15,6 +15,7 @@ import { deleteTasks, editTask, toggleDone } from "@core/stores/taskActions";
 import { FONTS, GUTTER, resolveColor, useColors } from "@/theme";
 import { Button, Card, FieldRow, Icon, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
+import { askAlarmPermission } from "@/notify";
 import { askDay } from "@/ui/reschedule";
 import { askText, choose } from "@/ui/Sheet";
 import { Ring, useComplete } from "@/ui/TaskRow";
@@ -87,10 +88,13 @@ export default function TaskSheet() {
     if (r === "none") return updateTask(t.id, { reminders: [] });
     const on = t.reminders.some((x) => same(x, r));
     updateTask(t.id, { reminders: on ? t.reminders.filter((x) => !same(x, r)) : [...t.reminders, r] });
+    if (!on && t.priority === 3) void askAlarmPermission();
   };
   const choosePriority = async () => {
     const p = await choose<Priority>("Priority", ([3, 2, 1, 0] as Priority[]).map((p) => ({ value: p, label: PRIORITY_LABEL[p], icon: "flag", color: p ? resolveColor(c, PRIORITY_VAR[p]) : c.muted, selected: t.priority === p })));
-    if (p !== null) updateTask(t.id, { priority: p });
+    if (p === null) return;
+    updateTask(t.id, { priority: p });
+    if (p === 3 && t.reminders.length) void askAlarmPermission();
   };
   const chooseList = async () => {
     const options = Object.values(lists)

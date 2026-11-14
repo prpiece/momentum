@@ -101,10 +101,8 @@
   --q-delegate: #A86400;
   --q-drop: #6B665E;
 
-  --streak: #A86400;          /* flame, perfect-day dots */
-  --on-strong: #FFFFFF;       /* text/icons on streak, metal, quadrant, habit fills */
-
-  --m-bronze: #9A5B2E; --m-silver: #6F757F; --m-gold: #8C6600; --m-platinum: #46747B; --m-diamond: #3F6FB0;
+  --streak: #A86400;          /* habit streak flame */
+  --on-strong: #FFFFFF;       /* text/icons on streak, quadrant, habit fills */
 
   /* User-picked colours (lists, habits, events). Fixed per theme. */
   --l-violet: #7A45C8; --l-amber: #A86400; --l-blue: #3470C2; --l-green: #2B7D47; --l-coral: #C8432B; --l-teal: #0B7A75;
@@ -156,8 +154,6 @@
 
   --streak: #E9A23B;
   --on-strong: #141519;
-
-  --m-bronze: #D08A5A; --m-silver: #B4BAC4; --m-gold: #E2B33C; --m-platinum: #8DC0C6; --m-diamond: #8FB4EA;
 
   --l-violet: #B892F0; --l-amber: #E9A23B; --l-blue: #76A5EC; --l-green: #5CC283; --l-coral: #F28B74; --l-teal: #4FC4BC;
   --h-blue: #76A5EC;   --h-violet: #B892F0; --h-coral: #F28B74; --h-amber: #E9A23B; --h-teal: #4FC4BC;

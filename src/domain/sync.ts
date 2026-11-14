@@ -17,6 +17,8 @@ export const SYNC_TABLES = {
   habits: ["id"],
   habit_checkins: ["habit_id", "date"],
   focus_sessions: ["id"],
+  // Retired with the rewards (D256): nothing writes these two any more. They stay listed so v1.1 clients' rows
+  // still apply and their triggers match, until a local migration drops them.
   rest_days: ["date"],
   celebrations: ["key"],
 } as const;

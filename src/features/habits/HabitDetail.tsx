@@ -1,5 +1,5 @@
 import { addMonths, format, startOfMonth, startOfWeek } from "date-fns";
-import { ChevronLeft, ChevronRight, Flame, Pencil, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame, Pencil } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { viewDays } from "../../domain/calendar";
 import { accentForeground } from "../../domain/color";
@@ -66,7 +66,7 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
         <Stat icon={<Flame size={15} className="text-streak" />} label="Current streak" value={cur.count} unit={`${cur.unit}${cur.count === 1 ? "" : "s"}`} />
-        <Stat icon={<Trophy size={15} className="text-streak" />} label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
+        <Stat label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
         <Stat label="Last 30 days" value={rate30 === null ? "–" : Math.round(rate30 * 100)} unit={rate30 === null ? "" : "%"} />
         <Stat label={habit.goal.kind === "quit" ? "Slips" : habit.goal.kind === "limit" ? "Days logged" : "Check-ins"} value={total} unit="total" />
       </div>

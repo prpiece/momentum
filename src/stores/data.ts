@@ -4,7 +4,6 @@ import { canAddChild, canNest, childFolders } from "../domain/folders";
 import { after, before, reorder as reorderItems } from "../domain/order";
 import { detachOccurrence, effective, scheduleForKey, shiftAnchor, splitSeries } from "../domain/recurrence";
 import { scheduleDate } from "../domain/dates";
-import { notePush } from "./progress";
 import {
   INBOX_ID,
   type CalendarEvent,
@@ -173,11 +172,9 @@ export function updateTask(id: string, patch: Partial<Task>) {
   if (patch.title !== undefined && patch.title !== t.title) log(id, "renamed", patch.title);
   if (patch.priority !== undefined && patch.priority !== t.priority) log(id, "priority", PRIORITY_LABEL[patch.priority]);
   if (patch.schedule && JSON.stringify(patch.schedule) !== JSON.stringify(t.schedule)) {
-    // "from → to" lets perfect days spot a task pushed off on or after its due day (D64).
     const from = scheduleDate(t.schedule);
     const to = scheduleDate(patch.schedule);
     log(id, "scheduled", from && to ? `${from} → ${to}` : "");
-    if (from && to && to > from && !t.recurrence) notePush(from, to);
   }
   commit(changed);
 }
@@ -186,10 +183,6 @@ export function updateTask(id: string, patch: Partial<Task>) {
  * Complete / reopen / won't-do. For a recurring task this handles the current (or given)
  * occurrence: it is detached as its own finished task and the series moves on.
  */
-/** Called after a task is completed (lib/celebrate: the sound and the perfect-day check). */
-let onDone = () => {};
-export const setDoneHandler = (fn: () => void) => void (onDone = fn);
-
 export function setStatus(id: string, status: TaskStatus, occurrenceKey?: string | null) {
   const t = get().tasks[id];
   if (!t) return;
@@ -203,14 +196,12 @@ export function setStatus(id: string, status: TaskStatus, occurrenceKey?: string
     const seriesNext = effective(series) ? series : { ...series, deletedAt: now() };
     commit([seriesNext, done]);
     log(done.id, kind);
-    if (status === "done") onDone();
     return;
   }
   // Subtasks are part of their parent: finishing it finishes the open ones too (D58). Reopening doesn't reopen them.
   const kids = finished ? descendants(id).filter((d) => d.status === "open").map((d) => ({ ...d, status, completedAt: now(), updatedAt: now() })) : [];
   commit([{ ...t, status, completedAt: finished ? now() : null, updatedAt: now() }, ...kids]);
   log(id, kind);
-  if (status === "done" && t.status !== "done") onDone();
 }
 
 /** Soft-delete tasks and their subtasks. Returns the affected ids for undo. */

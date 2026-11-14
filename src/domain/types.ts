@@ -214,7 +214,8 @@ export type NotifySettings = {
 
 export const SOUNDS = ["chime", "pop", "ding", "marimba", "fanfare", "none"] as const;
 export type SoundName = (typeof SOUNDS)[number];
-export const SOUND_EVENTS = ["task", "habit", "streak", "dayDone", "focusEnd", "longBreak"] as const;
+/** Timer alarms only: completion sounds went with the rewards (D256). */
+export const SOUND_EVENTS = ["focusEnd", "longBreak"] as const;
 export type SoundEvent = (typeof SOUND_EVENTS)[number];
 export type SoundSettings = {
   enabled: boolean;

@@ -66,7 +66,7 @@ const STEPS: Step[] = [
     view: "habits",
     body: (
       <>
-        <p>Check in your habits each day, and run a focus timer on a task. A perfect day is everything due done and every daily habit kept.</p>
+        <p>Check in your habits each day, and run a focus timer on a task.</p>
         <Tip>
           <Kbd>Ctrl Alt M</Kbd> keeps the timer and your next tasks on top while you work elsewhere.
         </Tip>
@@ -79,7 +79,7 @@ const STEPS: Step[] = [
     view: "progress",
     body: (
       <>
-        <p>Progress shows your week, your streaks and the trophies you've earned. When you're not sure how to do something, search for it.</p>
+        <p>Progress shows what you finished and how long you focused. When you're not sure how to do something, search for it.</p>
         <Tip>
           <Kbd>Ctrl K</Kbd> finds any task or command. Settings → Help lists every shortcut and token.
         </Tip>
