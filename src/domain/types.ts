@@ -296,4 +296,11 @@ export type Settings = {
   /** Input device name for voice (D94); null = system default. */
   voiceMic: string | null;
   pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number; cycles: Cycles };
+  /** Day ends at (D267): the hour, 0–5, when "today" rolls over (`domain/dates.ts` `todayLocal`). */
+  dayEndHour: number;
+  /** One thing (D267): Today shows a single task; Low energy limits it to tasks of 15 minutes or less. Per device. */
+  oneThing: { on: boolean; energy: Energy };
 };
+
+export const ENERGIES = ["normal", "low"] as const;
+export type Energy = (typeof ENERGIES)[number];

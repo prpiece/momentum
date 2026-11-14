@@ -180,6 +180,7 @@ export const REPEAT_PRESETS = [
 
 /** One-line chip label for a task's schedule, e.g. "Tue 5 Nov · 09:00 · Weekly" or "No date". */
 export function summarizeSchedule(s: Schedule, rule: string | null): string {
+  if (s.kind === "someday") return "Someday";
   const date = scheduleDate(s);
   if (!date) return "No date";
   const parts = [format(fromLocalDate(date), "EEE d MMM")];

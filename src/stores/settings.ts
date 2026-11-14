@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { loadSettings, saveSettings } from "../db/settings";
+import { setDayEndHour } from "../domain/dates";
 import { markDone, type DoneEvent } from "../domain/features";
 import { DEFAULT_SETTINGS } from "../domain/settings";
 import type { Settings } from "../domain/types";
@@ -45,3 +46,6 @@ export function trackDone(event: DoneEvent) {
   const next = markDone(settings.gettingStarted, event);
   if (next !== settings.gettingStarted) update({ gettingStarted: next });
 }
+
+// "Today" follows the Day ends at setting everywhere todayLocal() is asked, on both apps (D267).
+useSettings.subscribe((s) => setDayEndHour(s.settings.dayEndHour));
