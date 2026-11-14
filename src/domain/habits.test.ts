@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal } from "./dates";
-import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal } from "./habits";
+import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal, periodValue } from "./habits";
 
 // 2026-10-25 is a Sunday. Weeks start Monday (weekStart = 1).
 const TODAY = "2026-10-25";
@@ -25,7 +25,7 @@ describe("daily streaks", () => {
     expect(bestStreak(h, done(1, 5, 6, 7, 8), TODAY, WS).count).toBe(4);
   });
   it("needs the target for counted goals", () => {
-    const water = habit({ kind: "daily" }, { kind: "count", target: 8, unit: "glasses" });
+    const water = habit({ kind: "daily" }, { kind: "count", target: 8, unit: "glasses", period: "day" });
     const m = new Map([
       [TODAY, 8],
       [addDaysLocal(TODAY, -1), 7],
@@ -127,4 +127,24 @@ it("goalLabel describes each kind", () => {
   expect(goalLabel({ kind: "limit", cap: 5, unit: "min" })).toBe("max 5 min a day");
   expect(goalLabel({ kind: "quit" })).toBe("none");
   expect(goalLabel({ kind: "once" })).toBe("");
+});
+
+describe("weekly totals for count and amount (D267)", () => {
+  const run = habit({ kind: "daily" }, { kind: "amount", target: 20, unit: "km", period: "week" });
+  const checkins = (xs: [string, number][]) => new Map(xs);
+  it("a week succeeds once its check-ins add up to the target", () => {
+    const m = checkins([["2026-10-19", 8], ["2026-10-21", 7]]);
+    expect(currentStreak(run, m, "2026-10-21", WS)).toEqual({ count: 0, unit: "week" });
+    const met = checkins([["2026-10-19", 8], ["2026-10-21", 7], ["2026-10-23", 6]]);
+    expect(currentStreak(run, met, "2026-10-23", WS)).toEqual({ count: 1, unit: "week" });
+    expect(periodValue(run, met, "2026-10-23", WS)).toBe(21);
+    expect(goalLabel(run.goal)).toBe("20 km a week");
+  });
+  it("stays in Today all week and counts weeks for the completion rate", () => {
+    const m = checkins([["2026-10-12", 25], ["2026-10-20", 5]]);
+    expect(isDueToday(run, m, "2026-10-20", WS)).toBe(true);
+    // The current week (5 of 20 km so far) is still open, so only the met week counts.
+    expect(completionRate(run, m, "2026-10-12", "2026-10-25", "2026-10-25", WS)).toBe(1);
+    expect(completionRate(run, m, "2026-10-12", "2026-10-25", "2026-10-26", WS)).toBe(0.5);
+  });
 });

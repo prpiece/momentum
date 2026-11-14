@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { addDaysLocal, fromLocalDate, todayLocal } from "@core/domain/dates";
-import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isScheduled, type Habit, type HabitFrequency, type HabitGoal } from "@core/domain/habits";
+import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isScheduled, type Habit, type HabitFrequency, type GoalPeriod, type HabitGoal } from "@core/domain/habits";
 import { addHabit, removeHabit, setCheckin, tapCheckin, updateHabit, useHabits, valuesOf } from "@core/stores/habits";
 import { useSettings } from "@core/stores/settings";
 import { GUTTER, INSET, resolveColor, useColors } from "@/theme";
@@ -26,10 +26,14 @@ const KIND_HINT: Record<Kind, string> = {
   quit: "Log a slip when it happens. Every other day counts.",
 };
 const COLORS = ["blue", "violet", "coral", "amber", "teal"].map((k) => ({ value: `var(--h-${k})`, label: k[0].toUpperCase() + k.slice(1) }));
+const PERIODS: { value: GoalPeriod; label: string }[] = [
+  { value: "day", label: "Per day" },
+  { value: "week", label: "Per week" },
+];
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const goalOf = (kind: Kind, n: number, unit: string): HabitGoal =>
-  kind === "count" || kind === "amount" ? { kind, target: Math.max(1, n), unit } : kind === "limit" ? { kind, cap: Math.max(0, n), unit } : kind === "quit" ? { kind } : { kind: "once" };
+const goalOf = (kind: Kind, n: number, unit: string, period: GoalPeriod = "day"): HabitGoal =>
+  kind === "count" || kind === "amount" ? { kind, target: Math.max(1, n), unit, period } : kind === "limit" ? { kind, cap: Math.max(0, n), unit } : kind === "quit" ? { kind } : { kind: "once" };
 
 /** One habit (S7): streaks, the past-year map (tap a day to fix it), and every setting. `new` creates one. */
 export default function HabitScreen() {
@@ -43,6 +47,7 @@ export default function HabitScreen() {
   const [kind, setKind] = useState<Kind>(g?.kind ?? "once");
   const [n, setN] = useState(String(g && "target" in g ? g.target : g && "cap" in g ? g.cap : 1));
   const [unit, setUnit] = useState(g && "unit" in g ? g.unit : "");
+  const [period, setPeriod] = useState<GoalPeriod>(g && "period" in g ? g.period : "day");
   const [frequency, setFrequency] = useState<HabitFrequency>(h?.frequency ?? { kind: "daily" });
   const [color, setColor] = useState(h?.color ?? COLORS[0].value);
   const [reminders, setReminders] = useState<string[]>(h?.reminders ?? []);
@@ -58,7 +63,7 @@ export default function HabitScreen() {
 
   const save = () => {
     if (!name.trim()) return;
-    const patch: Partial<Habit> = { name: name.trim(), goal: goalOf(kind, Number(n) || 0, unit.trim()), frequency, color, reminders };
+    const patch: Partial<Habit> = { name: name.trim(), goal: goalOf(kind, Number(n) || 0, unit.trim(), period), frequency, color, reminders };
     if (h) updateHabit(h.id, patch);
     else addHabit({ ...patch, name: name.trim() });
     router.back();
@@ -163,6 +168,9 @@ export default function HabitScreen() {
             <Field value={n} onChangeText={setN} keyboardType="decimal-pad" style={{ flex: 1 }} accessibilityLabel={kind === "limit" ? "Most per day" : "Target per day"} />
             <Field value={unit} onChangeText={setUnit} placeholder="glasses, min, km" style={{ flex: 2 }} accessibilityLabel="Unit" />
           </View>
+        ) : null}
+        {kind === "count" || kind === "amount" ? (
+          <Segmented value={period} options={PERIODS} onChange={setPeriod} />
         ) : null}
       </View>
       <Card style={{ marginTop: 20 }}>

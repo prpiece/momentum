@@ -18,7 +18,7 @@ const posInt = (v: unknown, max: number) => (typeof v === "number" && Number.isF
 export function parseGoal(v: unknown): HabitGoal {
   if (isRecord(v) && (v.kind === "count" || v.kind === "amount")) {
     const target = typeof v.target === "number" && v.target > 0 && Number.isFinite(v.target) ? v.target : 1;
-    return { kind: v.kind, target, unit: typeof v.unit === "string" ? v.unit.slice(0, 20) : "" };
+    return { kind: v.kind, target, unit: typeof v.unit === "string" ? v.unit.slice(0, 20) : "", period: v.period === "week" ? "week" : "day" };
   }
   if (isRecord(v) && v.kind === "limit") {
     const cap = typeof v.cap === "number" && v.cap >= 0 && Number.isFinite(v.cap) ? v.cap : 0;

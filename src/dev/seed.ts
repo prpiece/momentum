@@ -172,10 +172,10 @@ export function sampleHabits(today = todayLocal()): HabitData {
     { id: id(), name: "Health", sortOrder: 1 },
   ];
   const habits = [
-    habit("Drink water", "droplet", "#2f6fed", { kind: "count", target: 8, unit: "glasses" }, { kind: "daily" }, 0, groups[1].id),
+    habit("Drink water", "droplet", "#2f6fed", { kind: "count", target: 8, unit: "glasses", period: "day" }, { kind: "daily" }, 0, groups[1].id),
     habit("Meditate", "meditate", "#8a4fd8", { kind: "once" }, { kind: "daily" }, 1, groups[0].id),
-    habit("Run", "run", "#e1583f", { kind: "amount", target: 5, unit: "km" }, { kind: "perWeek", count: 2 }, 2, groups[1].id),
-    habit("Read", "book", "#d18a14", { kind: "count", target: 20, unit: "pages" }, { kind: "weekdays", days: [1, 2, 3, 4, 5] }, 3),
+    habit("Run", "run", "#e1583f", { kind: "amount", target: 5, unit: "km", period: "day" }, { kind: "perWeek", count: 2 }, 2, groups[1].id),
+    habit("Read", "book", "#d18a14", { kind: "count", target: 20, unit: "pages", period: "day" }, { kind: "weekdays", days: [1, 2, 3, 4, 5] }, 3),
     habit("No phone after 10pm", "phone-off", "#0e8a85", { kind: "once" }, { kind: "daily" }, 4, groups[0].id),
   ];
   // Deterministic "random" so screenshots are stable.

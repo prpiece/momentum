@@ -1,5 +1,5 @@
 import { droppedSchedule } from "@core/domain/calendar";
-import { addDaysLocal, fromLocalDate, relativeDayLabel, toLocalDate, todayLocal } from "@core/domain/dates";
+import { addDaysLocal, fromLocalDate, scheduleDate, relativeDayLabel, toLocalDate, todayLocal } from "@core/domain/dates";
 import type { LocalDate, Schedule } from "@core/domain/types";
 import { editOccurrence, updateTask, useData } from "@core/stores/data";
 import { applySchedule, currentSchedule, type Ref } from "@core/stores/schedule";
@@ -42,7 +42,7 @@ const moved = (to: Schedule, current: Schedule, date: LocalDate | null): Schedul
 export async function reschedule(refs: Ref[]) {
   if (!refs.length) return;
   const first = currentSchedule(refs[0]);
-  const date = await askDay(first.kind === "none" ? null : first.kind === "timed" ? toLocalDate(new Date(first.start)) : first.date);
+  const date = await askDay(scheduleDate(first));
   if (date === undefined) return;
   const none: Schedule = { kind: "none" };
   if (refs.length === 1) return applySchedule(refs[0], moved(none, first, date));

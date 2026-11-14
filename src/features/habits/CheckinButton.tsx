@@ -4,9 +4,10 @@ import { Logo } from "../../components/Logo";
 import { Popover } from "../../components/ui/Popover";
 import { motionOn } from "../../lib/celebrate";
 import { accentForeground } from "../../domain/color";
-import { isBuild, isDone, targetOf, unitOf, type Habit } from "../../domain/habits";
+import { isBuild, isDone, isWeeklyTotal, periodValue, targetOf, unitOf, type Habit } from "../../domain/habits";
 import type { LocalDate } from "../../domain/types";
-import { setCheckin, tapCheckin, useHabits } from "../../stores/habits";
+import { setCheckin, tapCheckin, useHabits, valuesOf } from "../../stores/habits";
+import { useSettings } from "../../stores/settings";
 import { openContextMenu } from "../../stores/ui";
 import { habitMenu } from "./habitMenu";
 
@@ -18,9 +19,13 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
  * popover: log an amount against the cap, or log a slip. They turn red once the day is over the line.
  */
 export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: LocalDate; size?: number }) {
-  const value = useHabits((s) => s.checkins[habit.id]?.[date]?.value ?? 0);
+  const records = useHabits((s) => s.checkins[habit.id]);
+  const weekStart = useSettings((s) => s.settings.weekStart);
+  // A weekly goal (D267) shows the week's total against its target; the day's own value is what a tap changes.
+  const value = records?.[date]?.value ?? 0;
+  const shown = periodValue(habit, valuesOf(records), date, weekStart);
   const target = targetOf(habit);
-  const done = isDone(habit, value);
+  const done = isWeeklyTotal(habit) ? shown >= target : isDone(habit, value);
   const anchor = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -31,7 +36,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
   const failed = !build && !done;
   const quit = habit.goal.kind === "quit";
   const typed = habit.goal.kind === "amount" || habit.goal.kind === "limit";
-  const progress = Math.min(1, target ? value / target : value > 0 ? 1 : 0);
+  const progress = Math.min(1, target ? shown / target : shown > 0 ? 1 : 0);
   const unit = unitOf(habit);
   const label =
     habit.goal.kind === "once"
