@@ -163,6 +163,16 @@ export const SNAP = 15;
 export const snap = (minutes: number, step = SNAP) =>
   Math.max(0, Math.min(MINUTES_PER_DAY, Math.round(minutes / step) * step));
 
+/** A dragged block's snapped [start, end] minutes, kept inside the day (a drag past the grid end stops at the bottom, top at 0). */
+export function movedSpan(startMinute: number, duration: number): { start: number; end: number } {
+  const last = Math.max(0, Math.floor((MINUTES_PER_DAY - duration) / SNAP) * SNAP);
+  const start = Math.min(snap(startMinute), last);
+  return { start, end: start + duration };
+}
+
+/** The snapped end of a block being resized: inside the day and at least one step after `start`. */
+export const resizedEnd = (start: number, endMinute: number) => Math.max(snap(endMinute), start + SNAP);
+
 /** Minutes since local midnight of `day` (DST days included: wall-clock, not elapsed time). */
 export function minutesInDay(d: Date, day: LocalDate): number {
   const diff = daysBetween(day, toLocalDate(d));

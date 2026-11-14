@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarItems, dayRange, daySummary, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, rangeTitle, resizedSchedule, snap, stepAnchor, viewDays, type CalItem } from "./calendar";
+import { calendarItems, dayRange, daySummary, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, movedSpan, rangeTitle, resizedEnd, resizedSchedule, snap, stepAnchor, viewDays, type CalItem } from "./calendar";
 import { atLocalTime, timed, wallKey } from "./dates";
 import { toVM, type TaskVM } from "./taskViews";
 import type { CalendarEvent, Schedule, Task } from "./types";
@@ -245,5 +245,19 @@ describe("daySummary", () => {
   it("only counts the part of an overnight item inside the day", () => {
     const items = [item({ title: "Flight", startDate: "2026-10-25", start: new Date(2026, 9, 25, 23), end: at(1) })];
     expect(daySummary(items, "2026-10-26", at(9)).scheduledMinutes).toBe(60);
+  });
+});
+
+describe("drag clamping", () => {
+  it("moves snapped and stays inside the day", () => {
+    expect(movedSpan(14 * 60 + 7, 45)).toEqual({ start: 840, end: 885 });
+    expect(movedSpan(5000, 60)).toEqual({ start: 1380, end: 1440 });
+    expect(movedSpan(-200, 60)).toEqual({ start: 0, end: 60 });
+    expect(movedSpan(900, 2000).start).toBe(0);
+  });
+  it("resizes between one step after the start and midnight", () => {
+    expect(resizedEnd(600, 605)).toBe(615);
+    expect(resizedEnd(600, 700)).toBe(705);
+    expect(resizedEnd(600, 9999)).toBe(1440);
   });
 });

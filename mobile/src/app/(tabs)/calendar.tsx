@@ -1,16 +1,18 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from "react";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { calendarItems, coversDay, dayRange, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, rangeTitle, resizedSchedule, stepAnchor, viewDays, type CalItem } from "@core/domain/calendar";
-import { addDaysLocal, formatTime, fromLocalDate, relativeDayLabel, todayLocal } from "@core/domain/dates";
+import { calendarItems, coversDay, dayRange, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, movedSpan, rangeTitle, resizedEnd, resizedSchedule, stepAnchor, viewDays, type CalItem } from "@core/domain/calendar";
+import { addDaysLocal, durationMinutes, formatTime, fromLocalDate, relativeDayLabel, todayLocal } from "@core/domain/dates";
 import { derive } from "@core/domain/taskViews";
 import type { LocalDate, Task, WeekStart } from "@core/domain/types";
 import { useData } from "@core/stores/data";
 import { applySchedule, currentSchedule } from "@core/stores/schedule";
 import { useSettings } from "@core/stores/settings";
 import { resolveColor, useColors, type Colors } from "@/theme";
+import { lift, snapTick, tick } from "@/ui/haptics";
 import { Empty, IconButton, Segmented, Text } from "@/ui/kit";
 import { useQuickAddContext } from "@/ui/QuickAdd";
 
@@ -166,41 +168,65 @@ function Column({ day, width, days, colIndex, items, c }: { day: LocalDate; widt
 function Block({ item, top, height, left, width, day, days, colIndex, colW, c }: { item: CalItem; top: number; height: number; left: number; width: number; day: LocalDate; days: LocalDate[]; colIndex: number; colW: number; c: Colors }) {
   const [drag, setDrag] = useState<{ dx: number; dy: number; dh: number } | null>(null);
   const timeFormat = useSettings((s) => s.settings.timeFormat);
+  const reduceMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+  const lifted = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const editable = !item.readOnly && (item.source === "task" || item.source === "event");
   const ref = { source: item.source, id: item.id, key: item.key };
+  const settle = () => (setDrag(null), (scale.value = reduceMotion ? 1 : withSpring(1, { damping: 18, stiffness: 300 })));
+
+  // Live snapped span in minutes: a move keeps the duration, a resize keeps the start; both stay inside the day.
+  const startMin = top / PPM;
+  const duration = durationMinutes(currentSchedule(ref)) ?? (height / PPM);
+  const span = !drag ? null : drag.dh ? { start: startMin, end: resizedEnd(startMin, startMin + (height + drag.dh) / PPM) } : movedSpan(startMin + drag.dy / PPM, duration);
+  const clock = (m: number) => formatTime(new Date(2026, 0, 1, Math.floor(m / 60) % 24, m % 60), timeFormat);
+  const slot = span ? `${span.start}-${span.end}` : null;
+  const lastSlot = useRef<string | null>(null);
+  useEffect(() => {
+    if (slot && lastSlot.current && slot !== lastSlot.current) snapTick();
+    lastSlot.current = slot;
+  }, [slot]);
 
   const move = Gesture.Pan()
     .runOnJS(true)
     .enabled(editable)
     .activateAfterLongPress(350)
+    .onStart(() => {
+      lift();
+      scale.value = reduceMotion ? 1 : withSpring(1.03, { damping: 18, stiffness: 300 });
+    })
     .onUpdate((e) => setDrag({ dx: e.translationX, dy: e.translationY, dh: 0 }))
     .onEnd((e) => {
-      setDrag(null);
       const target = days[Math.min(days.length - 1, Math.max(0, colIndex + Math.round(e.translationX / colW)))];
-      const startMinute = top / PPM + e.translationY / PPM;
-      void applySchedule(ref, droppedSchedule(currentSchedule(ref), target, "time", startMinute));
+      tick();
+      void applySchedule(ref, droppedSchedule(currentSchedule(ref), target, "time", movedSpan(startMin + e.translationY / PPM, duration).start));
     })
-    .onFinalize(() => setDrag(null));
+    .onFinalize(settle);
   const open = Gesture.Tap()
     .runOnJS(true)
     .onEnd(() => openItem(item));
   const resize = Gesture.Pan()
     .runOnJS(true)
     .enabled(editable)
-    .onUpdate((e) => setDrag({ dx: 0, dy: 0, dh: e.translationY }))
+    .onUpdate((e) => setDrag({ dx: 0, dy: 0, dh: e.translationY || 0.001 }))
     .onEnd((e) => {
-      setDrag(null);
-      void applySchedule(ref, resizedSchedule(currentSchedule(ref), "end", (top + height + e.translationY) / PPM, day));
+      tick();
+      void applySchedule(ref, resizedSchedule(currentSchedule(ref), "end", resizedEnd(startMin, startMin + (height + e.translationY) / PPM), day));
     })
-    .onFinalize(() => setDrag(null));
+    .onFinalize(settle);
 
   const color = resolveColor(c, item.color);
+  const moving = drag && !drag.dh ? span : null;
+  const shownTop = moving ? moving.start * PPM : top;
+  const shownHeight = span ? Math.max(20, (span.end - span.start) * PPM) : Math.max(20, height);
   return (
     <GestureDetector gesture={Gesture.Exclusive(move, open)}>
-      <View
+      <Animated.View
         style={[
           s.block,
-          { top: top + (drag?.dy ?? 0), height: Math.max(20, height + (drag?.dh ?? 0)), left: left + (drag?.dx ?? 0) + 1, width: width - 2, backgroundColor: color, opacity: item.done ? 0.55 : drag ? 0.85 : 1, zIndex: drag ? 10 : 1 },
+          { top: shownTop, height: shownHeight, left: left + (drag?.dx ?? 0) + 1, width: width - 2, backgroundColor: color, opacity: item.done ? 0.55 : 1, zIndex: drag ? 10 : 1 },
+          drag && s.lifted,
+          lifted,
         ]}
         accessibilityRole="button"
         accessibilityLabel={`${item.title}${item.start ? `, ${formatTime(item.start, timeFormat)}` : ""}`}
@@ -208,12 +234,17 @@ function Block({ item, top, height, left, width, day, days, colIndex, colW, c }:
         <Text numberOfLines={Math.max(1, Math.floor(height / 16))} style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "600", textDecorationLine: item.done ? "line-through" : "none" }}>
           {item.title}
         </Text>
+        {span ? (
+          <Text numberOfLines={1} style={{ color: "#FFFFFF", fontSize: 11, fontVariant: ["tabular-nums"] }}>
+            {clock(span.start)} – {clock(span.end)}
+          </Text>
+        ) : null}
         {editable && height >= 32 ? (
           <GestureDetector gesture={resize}>
             <View style={s.handle} accessibilityLabel="Resize" />
           </GestureDetector>
         ) : null}
-      </View>
+      </Animated.View>
     </GestureDetector>
   );
 }
@@ -293,6 +324,7 @@ const s = StyleSheet.create({
   line: { position: "absolute", left: 0, right: 0, borderTopWidth: StyleSheet.hairlineWidth },
   now: { position: "absolute", left: 0, right: 0, height: 2 },
   block: { position: "absolute", borderRadius: 4, paddingHorizontal: 4, paddingTop: 2, overflow: "hidden" },
+  lifted: { overflow: "visible", elevation: 8, shadowColor: "#14120F", shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   handle: { position: "absolute", left: 0, right: 0, bottom: 0, height: 14 },
   weekdays: { flexDirection: "row", paddingHorizontal: 8, paddingBottom: 4 },
   month: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 8, paddingBottom: 8 },
