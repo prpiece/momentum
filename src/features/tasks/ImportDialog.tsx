@@ -11,6 +11,7 @@ import { useSettings } from "../../stores/settings";
 import { setImport, toast, useUi } from "../../stores/ui";
 import { withUndo } from "../../stores/undo";
 import { createFromText } from "../../stores/quickAddSubmit";
+import { startExternalImport } from "./startExternalImport";
 
 const PREVIEW = 5;
 const field = "input";
@@ -147,7 +148,8 @@ function ImportBody() {
             </ul>
           )}
         </div>
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button onClick={() => void startExternalImport()} className="mr-auto">From Todoist or TickTick…</Button>
           <Button onClick={close}>Cancel</Button>
           <Button variant="primary" onClick={run} disabled={!items.length}>
             Import

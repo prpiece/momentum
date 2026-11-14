@@ -83,3 +83,6 @@ export async function importIcs(path: string, color: string) {
   await hydrate();
   return { count: events.length, skipped };
 }
+
+/** A text export from another app (Todoist, TickTick), read through the same Rust command as the .ics import. */
+export const readTextFile = (path: string) => invoke<string>("read_text_file", { path });

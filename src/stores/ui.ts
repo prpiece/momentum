@@ -6,6 +6,8 @@ import { setToast, type ToastAction } from "./toast";
 import { setTaskOpener } from "./quickAddSubmit";
 import { setScopeAsker } from "./ask";
 import { todayLocal } from "../domain/dates";
+import type { ImportSource } from "../domain/importExternal";
+import type { ImportPlan } from "../domain/importPlan";
 import type { ViewId } from "../domain/types";
 import type { Scope } from "./data";
 
@@ -26,6 +28,8 @@ type UiStore = {
   shortcutsOpen: boolean;
   /** Bulk-import dialog (D92). */
   importOpen: boolean;
+  /** A parsed Todoist or TickTick export waiting for the preview dialog to confirm it. */
+  externalImport: { source: ImportSource; plan: ImportPlan } | null;
   scopeAsk: ScopeAsk | null;
   confirmAsk: ConfirmAsk | null;
   collapsed: Record<string, true>;
@@ -50,6 +54,7 @@ export const useUi = create<UiStore>(() => ({
   paletteOpen: false,
   shortcutsOpen: false,
   importOpen: false,
+  externalImport: null,
   scopeAsk: null,
   confirmAsk: null,
   collapsed: {},
@@ -97,6 +102,7 @@ export const setSelection = (selection: string[]) => set({ selection });
 export const setPalette = (paletteOpen: boolean) => set({ paletteOpen });
 export const setShortcuts = (shortcutsOpen: boolean) => set({ shortcutsOpen });
 export const setImport = (importOpen: boolean) => set({ importOpen });
+export const setExternalImport = (externalImport: UiStore["externalImport"]) => set({ externalImport });
 export const setCalAnchor = (calAnchor: string) => set({ calAnchor });
 export const setCalSpan = (calSpan: number | null) => set({ calSpan });
 export function openContextMenu(e: { clientX: number; clientY: number; preventDefault: () => void; stopPropagation: () => void }, items: MenuEntry[]) {

@@ -1,4 +1,4 @@
-import { CalendarPlus, Download, Upload } from "lucide-react";
+import { CalendarPlus, Download, ListPlus, Upload } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "../../components/Logo";
 import { isTauri } from "../../db/client";
@@ -8,6 +8,7 @@ import { dataDirLabel } from "../../lib/platform";
 import { useAppVersion } from "../../lib/updater";
 import { confirm, toast } from "../../stores/ui";
 import { SiteLink } from "./SiteLink";
+import { startExternalImport } from "../tasks/startExternalImport";
 
 const btn = "btn btn-secondary";
 
@@ -63,6 +64,9 @@ export function DataSection() {
         </button>
         <button type="button" disabled={!isTauri || busy} onClick={icsIt} className={btn}>
           <CalendarPlus size={15} /> Import calendar (.ics)
+        </button>
+        <button type="button" disabled={!isTauri || busy} onClick={() => void startExternalImport()} className={btn}>
+          <ListPlus size={15} /> Import from Todoist or TickTick
         </button>
       </div>
       <p className="text-xs text-muted">

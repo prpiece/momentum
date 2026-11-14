@@ -89,6 +89,7 @@ export const FEATURES: Feature[] = [
     commands: [token("tomorrow 5pm", "Date and time"), token("every mon", "Repeat"), token("!high  !2", "Priority"), token("#tag", "Tag"), token("~List", "List")] },
   { id: "bulk-import", title: "Paste many tasks at once", howTo: "Paste a list of lines and each one becomes a task.", icon: "paste", group: "Capture", since: OLD, core: false,
     commands: [palette("import", "Import tasks…")] },
+  { id: "external-import", title: "Import from Todoist or TickTick", howTo: "Settings → Data → Import from Todoist or TickTick (or Import tasks…). Pick the export file, check the preview, import; one Undo takes it all back.", icon: "file", group: "Capture", since: "1.3.0", core: false, commands: [] },
   { id: "voice", title: "Add tasks by voice", howTo: "Hold the shortcut and say the task, or say “open today”, “start focus”, “show matrix”.", icon: "mic", group: "Capture", since: OLD, core: false,
     commands: [keys("Ctrl Alt Space", "Hold to talk")] },
   { id: "palette", title: "Search and run commands", howTo: "Find any task, list or tag, or run a command by name.", icon: "search", group: "Capture", since: OLD, core: true, done: "palette:opened",
