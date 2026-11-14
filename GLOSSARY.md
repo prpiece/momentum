@@ -32,6 +32,34 @@ _Avoid_: Upload, media, embed
 An all-day calendar event shown as the number of days until it, or since it.
 _Avoid_: Timer, deadline
 
+**Planned date**:
+When you intend to do a task: no date, a day, a time, or someday.
+_Avoid_: Due date, do date, schedule (in UI copy)
+
+**Deadline**:
+The local date a task must be done by, independent of its planned date; it makes the task urgent in the Matrix.
+_Avoid_: Due date, due
+
+**Duration**:
+How long a task is expected to take, which can be set without giving it a time.
+_Avoid_: Estimate, length, time block
+
+**Someday**:
+A planned date meaning "not now", which keeps a task out of Today, Upcoming and the Matrix until you give it a real date.
+_Avoid_: Backlog, later, icebox
+
+**Waiting for**:
+A task that can't move until something else happens, either a person getting back to you by a follow-up date or another task being completed; it comes back when the date arrives or the other task is done.
+_Avoid_: Blocked, on hold, delegated, dependency (in UI copy)
+
+**One thing**:
+A way of showing Today as only the next single task, optionally limited to short tasks on a low-energy day.
+_Avoid_: Focus mode (that is the timer), zen mode, single-task view
+
+**Calendar subscription**:
+Another calendar's published address, whose events the app shows read-only next to your own and refreshes regularly.
+_Avoid_: Calendar sync, linked calendar, feed
+
 ## Prioritising
 
 **Quadrant**:
@@ -132,36 +160,36 @@ _Avoid_: Docs, manual, cheat sheet
 
 ## Progress
 
-**Trophy**:
-A kind of achievement measured by one count (tasks done, focus hours, habit streak, perfect days, perfect weeks).
-_Avoid_: Badge, award
-
-**Share card**:
-An image summarising the user's progress over a week or a month, made of numbers and charts only, never task or list names; when signed in it carries the user's handle and invite link.
-_Avoid_: Report, summary, stats image
-
-**Level**:
-One rung of a trophy's ladder, reached when its count passes a threshold; each level has its own look.
-_Avoid_: Tier, milestone, rank
-
-**Weekly score**:
-The points an account earns from Monday to Sunday by completing tasks, focusing, checking in habits and having perfect days, which is what the leaderboard ranks.
-_Avoid_: XP, points total, rank
-
 **Friend**:
-Another account that has accepted a mutual friend request and so can see your profile stats and weekly score.
+Another account that has accepted a mutual friend request, so you can send each other tasks, invite each other to shares, focus together and be check-in buddies.
 _Avoid_: Follower, contact, buddy
+
+**Connection**:
+A link between an account and an outside service (Discord, Slack, Telegram, a webhook) that lets text sent from there land in that account's Inbox as a task.
+_Avoid_: Integration (in UI copy), plugin, bot
+
+**Sent task**:
+A copy of a task that one friend sends to another; it lands in the recipient's Inbox once they accept it, and from then on is unconnected to the sender's task.
+_Avoid_: Shared task, delegated task, forwarded task
+
+**Focus together**:
+Starting your own focus session so it ends at the same moment as a friend's session that is in progress; neither of you sees the other's task.
+_Avoid_: Co-working, group session, body doubling (in UI copy)
+
+**Check-in buddy**:
+A friend you chose on one habit, who sees only that habit's name and whether you've checked it in today, and may nudge you.
+_Avoid_: Accountability partner, follower
+
+**Nudge**:
+A reminder a check-in buddy sends you about a habit, at most once a day.
+_Avoid_: Poke, ping
 
 **Invite link**:
 A link that makes whoever opens it and signs in a friend of its sender, or a member of a share, depending on what it was made for.
 _Avoid_: Referral link, share link
 
-**Leaderboard**:
-Your friends and you, ordered by weekly score.
-_Avoid_: Ranking, global board
-
 **Progress**:
-The one place that shows the user's statistics, trophies and, once social exists, friends and leaderboards.
+The one place that shows the user's plain statistics: completions over time, focus time and the heatmap. It has no points, rewards or rankings.
 _Avoid_: Stats page, achievements page
 
 ## Accounts
@@ -181,6 +209,14 @@ _Avoid_: Backup, cloud save
 **Handle**:
 An account's unique public name, written with a leading @, which friends and collaborators use to find it.
 _Avoid_: Username, user id, tag
+
+**Pro**:
+The paid plan, which raises the limits that cost the server money (devices, share members, attachment storage) and adds two-way calendar sync; every local feature stays free.
+_Avoid_: Premium, Supporter, subscription (in UI copy)
+
+**Digest**:
+An optional morning message, sent privately through a connection, listing that day's tasks.
+_Avoid_: Summary, briefing, newsletter
 
 ## Sharing
 
