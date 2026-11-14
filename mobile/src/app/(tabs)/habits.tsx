@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { useMemo } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { todayLocal } from "@core/domain/dates";
-import { currentStreak, frequencyLabel, isDone, isDueToday, targetOf, unitOf, type Habit } from "@core/domain/habits";
+import { currentStreak, frequencyLabel, isDone, isDueToday, isWeeklyTotal, periodValue, targetOf, unitOf, type Habit } from "@core/domain/habits";
 import { setCheckin, tapCheckin, useHabits, valuesOf } from "@core/stores/habits";
 import { useSettings } from "@core/stores/settings";
 import { resolveColor, useColors } from "@/theme";
@@ -27,7 +27,8 @@ export default function Habits() {
       .sort((a, b) => a.sortOrder - b.sortOrder);
     const due = live.filter((h) => isDueToday(h, valuesOf(checkins[h.id]), today, weekStart));
     // Limit and quit days are only kept once the day is over, so they stay in To do.
-    const isKept = (h: Habit) => h.goal.kind !== "limit" && h.goal.kind !== "quit" && isDone(h, valuesOf(checkins[h.id]).get(today));
+    const isKept = (h: Habit) =>
+      h.goal.kind !== "limit" && h.goal.kind !== "quit" && (isWeeklyTotal(h) ? periodValue(h, valuesOf(checkins[h.id]), today, weekStart) >= targetOf(h) : isDone(h, valuesOf(checkins[h.id]).get(today)));
     return { todo: due.filter((h) => !isKept(h)), done: due.filter(isKept), notToday: live.filter((h) => !due.includes(h)) };
   }, [habits, checkins, today, weekStart]);
   const total = todo.length + done.length;
@@ -70,8 +71,9 @@ function HabitRow({ h, today, first }: { h: Habit; today: string; first: boolean
   const records = useHabits((s) => s.checkins[h.id]);
   const weekStart = useSettings((s) => s.settings.weekStart);
   const values = valuesOf(records);
-  const value = values.get(today) ?? 0;
-  const done = isDone(h, value);
+  // A weekly goal (D267) shows the week's total against its target.
+  const value = periodValue(h, values, today, weekStart);
+  const done = isWeeklyTotal(h) ? value >= targetOf(h) : isDone(h, value);
   const streak = currentStreak(h, values, today, weekStart);
   const color = resolveColor(c, h.color);
   const unit = unitOf(h);

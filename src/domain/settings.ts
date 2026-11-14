@@ -1,6 +1,8 @@
 import { isHex, parseAccent, parseQuadrantColor } from "./color";
 import { FEATURES, type GettingStarted } from "./features";
+import { DAY_END_MAX } from "./dates";
 import {
+  ENERGIES,
   BAR_POSITIONS,
   BAR_STYLES,
   CAL_VIEWS,
@@ -68,6 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   matrixColors: [null, null, null, null],
   closeToTray: true,
   launchAtStartup: true,
+  cliOnPath: false,
   checkUpdates: true,
   notify: {
     enabled: true,
@@ -96,6 +99,8 @@ export const DEFAULT_SETTINGS: Settings = {
   voiceShortcut: "CommandOrControl+Alt+Space",
   voiceMic: null,
   pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, cycles: { kind: "infinite" } },
+  dayEndHour: 0,
+  oneThing: { on: false, energy: "normal" },
 };
 
 /** A view's options before the user changes any. Today and Upcoming hide finished tasks; lists show them in a Completed group. */
@@ -329,6 +334,7 @@ export function parseSettings(raw: unknown): Settings {
     matrixColors: parseMatrixColors(r.matrixColors),
     closeToTray: typeof r.closeToTray === "boolean" ? r.closeToTray : d.closeToTray,
     launchAtStartup: typeof r.launchAtStartup === "boolean" ? r.launchAtStartup : d.launchAtStartup,
+    cliOnPath: typeof r.cliOnPath === "boolean" ? r.cliOnPath : d.cliOnPath,
     checkUpdates: typeof r.checkUpdates === "boolean" ? r.checkUpdates : d.checkUpdates,
     notify: parseNotify(r.notify, r.notifications),
     streakReminder: parseStreakReminder(r.streakReminder),
@@ -341,6 +347,10 @@ export function parseSettings(raw: unknown): Settings {
     voiceMic: typeof r.voiceMic === "string" && r.voiceMic ? r.voiceMic : null,
     miniShortcut: accelerator(r.miniShortcut, d.miniShortcut),
     pomodoro: parsePomodoro(r.pomodoro),
+    dayEndHour: typeof r.dayEndHour === "number" && Number.isInteger(r.dayEndHour) && r.dayEndHour >= 0 && r.dayEndHour <= DAY_END_MAX ? r.dayEndHour : d.dayEndHour,
+    oneThing: isRecord(r.oneThing)
+      ? { on: r.oneThing.on === true, energy: oneOf(ENERGIES, r.oneThing.energy) ? r.oneThing.energy : "normal" }
+      : d.oneThing,
   };
 }
 
@@ -348,12 +358,14 @@ export function parseSettings(raw: unknown): Settings {
 export const USER_SETTING_KEYS = [
   "theme", "accent", "taskOpen", "defaultView", "weekStart", "timeFormat", "smartParse", "showCompleted", "viewOptions",
   "savedFilters", "calendar", "matrix", "matrixColors", "pomodoro", "streakReminder", "sounds", "onboarded", "gettingStarted",
+  "dayEndHour",
 ] as const satisfies readonly (keyof Settings)[];
 
 /** Settings that stay on this device: hardware, window and OS integration, and the local background image. */
 export const DEVICE_SETTING_KEYS = [
   "density", "motion", "scale", "layout", "barPosition", "barStyle", "background", "sidebarSide", "sidebarCollapsed",
-  "closeToTray", "launchAtStartup", "checkUpdates", "notify", "autoFocus", "quickAddShortcut", "miniShortcut", "voiceShortcut", "voiceMic",
+  "closeToTray", "launchAtStartup", "cliOnPath", "checkUpdates", "notify", "autoFocus", "quickAddShortcut", "miniShortcut", "voiceShortcut", "voiceMic",
+  "oneThing",
 ] as const satisfies readonly (keyof Settings)[];
 
 /** The user settings that differ between two snapshots: the synced patch for a settings save. */

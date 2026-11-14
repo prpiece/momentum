@@ -6,9 +6,10 @@ import { isTauri, select, write } from "./client";
 import { BACKUP_FORMAT, BACKUP_TABLES, validateBackup, type BackupFile, type Restored } from "./backupFormat";
 import type { Row } from "./rows";
 import { parseIcs } from "../domain/ics";
-import { saveEvents, saveWorkspace } from "./repo";
+import { saveEvents, saveSubscription, saveWorkspace } from "./repo";
+import { hydrateSubscriptions } from "../stores/subscriptions";
 
-const LATEST_SCHEMA = 9;
+const LATEST_SCHEMA = 10;
 
 async function invoke<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
   const { invoke: inv } = await import("@tauri-apps/api/core");
@@ -65,12 +66,13 @@ export async function restoreBackup(d: Restored, path: string): Promise<string> 
   const snapshot = await snapshotDatabase("before-import");
   if (isZip(path)) await invoke("restore_backup_attachments", { path });
   await write(...[...BACKUP_TABLES, "reminder_log"].reverse().map((t): [string] => [`DELETE FROM ${t}`]));
+  await Promise.all(d.subscriptions.map(saveSubscription));
   await saveWorkspace({ tasks: d.tasks, events: d.events, lists: d.lists, folders: d.folders, sections: d.sections, tags: d.tags });
   await write(...d.activity.map((a): [string, unknown[]] => ["INSERT INTO task_activity (task_id, at, kind, detail) VALUES ($1, $2, $3, $4)", [a.taskId, a.at, a.kind, a.detail]]));
   await saveHabitData({ habits: d.habits, groups: d.groups, checkins: d.checkins });
   await saveSessions(d.sessions);
   if (d.settings) useSettings.getState().update(d.settings);
-  await Promise.all([hydrate(), hydrateHabits(), hydrateFocus(), useSettings.getState().hydrate()]);
+  await Promise.all([hydrate(), hydrateSubscriptions(), hydrateHabits(), hydrateFocus(), useSettings.getState().hydrate()]);
   return snapshot;
 }
 
@@ -83,3 +85,6 @@ export async function importIcs(path: string, color: string) {
   await hydrate();
   return { count: events.length, skipped };
 }
+
+/** A text export from another app (Todoist, TickTick), read through the same Rust command as the .ics import. */
+export const readTextFile = (path: string) => invoke<string>("read_text_file", { path });

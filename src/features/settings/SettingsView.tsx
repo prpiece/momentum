@@ -1,3 +1,4 @@
+import { formatTime } from "../../domain/dates";
 import { Bell, ChevronLeft, CircleUser, ChevronRight, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Search, Settings2, Wrench } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHead } from "../../components/ui/PageHead";
@@ -7,7 +8,9 @@ import { AccountSection } from "./AccountSection";
 import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
+import { SubscriptionsPanel } from "./SubscriptionsPanel";
 import { UpdatesSection } from "./UpdatesSection";
+import { AgentsPanel } from "./AgentsPanel";
 import { VoiceSection } from "./VoiceSection";
 import { keyLabel } from "../../lib/platform";
 import { VOICE_SECTION_ID } from "../../lib/voice";
@@ -245,6 +248,21 @@ export function SettingsView() {
             ]}
           />
         </Row>
+        <Row label="Day ends at">
+          <select
+            aria-label="Day ends at"
+            title="Before this hour it still counts as the day before, for Today, overdue and habits"
+            value={s.dayEndHour}
+            onChange={(e) => update({ dayEndHour: Number(e.target.value) })}
+            className="input w-auto tabular-nums"
+          >
+            {[0, 1, 2, 3, 4, 5].map((h) => (
+              <option key={h} value={h}>
+                {formatTime(new Date(2026, 0, 1, h), s.timeFormat)}
+              </option>
+            ))}
+          </select>
+        </Row>
         <Row label="Time format">
           <Segmented
             name="timeFormat"
@@ -401,6 +419,15 @@ export function SettingsView() {
     "settings-data": (
       <Card>
         <DataSection />
+        {/* Track C moves this to Connections (D258) */}
+        <div className="mt-5 space-y-2 border-t border-border pt-4">
+          <span className="font-medium">Calendar subscriptions</span>
+          <SubscriptionsPanel />
+        </div>
+        <div className="mt-5 space-y-2 border-t border-border pt-4">
+          <span className="font-medium">AI agents</span>
+          <AgentsPanel />
+        </div>
       </Card>
     ),
     [HELP_SECTION_ID]: (

@@ -13,8 +13,8 @@ import { Button, Icon, Text } from "@/ui/kit";
 
 const EXAMPLES = ["Call mum tomorrow 6pm", "Gym every Mon Wed", "Groceries #errand"];
 const HABITS: { name: string; sub: string; goal: HabitGoal; frequency: HabitFrequency; color: string }[] = [
-  { name: "Drink water", sub: "8 glasses a day", goal: { kind: "count", target: 8, unit: "glasses" }, frequency: { kind: "daily" }, color: "var(--h-blue)" },
-  { name: "Read", sub: "20 minutes a day", goal: { kind: "amount", target: 20, unit: "min" }, frequency: { kind: "daily" }, color: "var(--h-violet)" },
+  { name: "Drink water", sub: "8 glasses a day", goal: { kind: "count", target: 8, unit: "glasses", period: "day" }, frequency: { kind: "daily" }, color: "var(--h-blue)" },
+  { name: "Read", sub: "20 minutes a day", goal: { kind: "amount", target: 20, unit: "min", period: "day" }, frequency: { kind: "daily" }, color: "var(--h-violet)" },
   { name: "Exercise", sub: "3 times a week", goal: { kind: "once" }, frequency: { kind: "perWeek", count: 3 }, color: "var(--h-coral)" },
   { name: "Less social media", sub: "At most 30 minutes a day", goal: { kind: "limit", cap: 30, unit: "min" }, frequency: { kind: "daily" }, color: "var(--h-amber)" },
 ];

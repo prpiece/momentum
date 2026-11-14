@@ -1,3 +1,4 @@
+import type { SmartListId } from "../domain/types";
 import {
   DndContext,
   DragOverlay,
@@ -39,7 +40,7 @@ export type DragData =
 
 export type DropData =
   | { type: "list"; listId: string }
-  | { type: "smart"; id: "inbox" | "today" | "upcoming" }
+  | { type: "smart"; id: SmartListId }
   | { type: "task"; id: string; container: string; date?: string | null }
   | { type: "section"; listId: string; sectionId: string | null }
   /** Calendar target: a time-grid column (`time`), the all-day row (`allDay`) or a month cell (`keepTime`). */

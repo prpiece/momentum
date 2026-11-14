@@ -36,11 +36,15 @@ zip = { version = "9", default-features = false, features = ["deflate"] }
 sherpa-onnx = "2.0.1"
 cpal = "0.18"
 reqwest = { version = "0.13", default-features = false }
+# The TLS crypto provider reqwest needs at runtime (installed in `run`); already in the tree via the updater.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 sha2 = "0.10"
 tar = "0.4"
 bzip2 = "0.6"
 # Refresh token in the OS keychain (v1.1, D225).
 keyring = "4"
+# Random token for the localhost agent API (D264); already in the tree through other crates.
+getrandom = "0.3"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

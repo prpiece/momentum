@@ -6,7 +6,7 @@ const TODAY = "2026-10-25";
 let n = 0;
 const mk = (p: Partial<Task> = {}): Task => ({
   id: `t${++n}`, title: `Task ${n}`, description: "", listId: "inbox", parentId: null, sectionId: null, status: "open", priority: 0,
-  schedule: { kind: "day", date: TODAY }, recurrence: null, recurrenceParentId: null, tags: [], checklist: [], reminders: [], sortOrder: n,
+  schedule: { kind: "day", date: TODAY }, recurrence: null, recurrenceParentId: null, deadline: null, durationMin: null, waiting: null, tags: [], checklist: [], reminders: [], sortOrder: n,
   pinned: false, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z", completedAt: null, deletedAt: null, ...p,
 });
 const byId = (...ts: Task[]) => Object.fromEntries(ts.map((t) => [t.id, t]));

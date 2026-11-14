@@ -63,6 +63,10 @@ onDrop("smart", (drag, drop) => {
   if (drag.type !== "task") return;
   const ids = dragged(drag.id);
   if (drop.id === "inbox") return withUndo("Moved to Inbox", () => moveTasks(ids, "inbox"));
+  // Waiting needs a person or a task, so it is set in the task's details, not by a drop.
+  if (drop.id === "waiting") return;
+  if (drop.id === "someday")
+    return withUndo(ids.length === 1 ? "Moved to Someday" : `Moved ${ids.length} tasks to Someday`, () => ids.forEach((id) => updateTask(id, { schedule: { kind: "someday" } })));
   // Upcoming means tomorrow.
   const date = drop.id === "today" ? todayLocal() : addDaysLocal(todayLocal(), 1);
   if (ids.length === 1 && useData.getState().tasks[ids[0]]?.recurrence) {

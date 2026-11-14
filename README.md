@@ -25,7 +25,7 @@
 - A quiet sidebar: Inbox, Today, Upcoming, Calendar, Habits, Focus and Progress, then your folders and lists. Or use a single bar at the top or bottom of the window instead.
 - One view switch on every task view: List, Board (a list's sections as columns you can drag to reorder), Timeline or Matrix. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
 - Task drawer:
-  - A property column for list, due date, priority and tags, each opening its editor.
+  - A property column for list, planned date, deadline, priority and tags, each opening its editor.
   - Markdown notes with images: paste, drop or add a picture, hover one to copy it back out. Removing an image from the note deletes its file too.
   - Date, time and duration, multiple reminders, repeat rules (presets or custom).
   - Priority, tags, subtasks (delete one from its parent with the hover bin), checklist, pin, duplicate, won't-do.
@@ -47,7 +47,7 @@
 - Colour items by list, priority or tag. Show or hide completed tasks, habits and focus records.
 - One-time, read-only `.ics` import (e.g. a Google Calendar export). Re-importing the same file updates the events instead of duplicating them.
 
-**Eisenhower Matrix**: a view mode on any list, Today or Upcoming. Four quadrants derived from priority and due date, with adjustable rules (default: *important* = Medium/High priority, *urgent* = due within 2 days or overdue) and colours you can change. Dragging a task to another quadrant changes its attributes to match.
+**Eisenhower Matrix**: a view mode on any list, Today or Upcoming. Four quadrants derived from priority and the deadline (or planned date), with adjustable rules (default: *important* = Medium/High priority, *urgent* = within 2 days or overdue) and colours you can change. Dragging a task to another quadrant changes its attributes to match.
 
 **Habits**:
 - Goal types: complete once, count up (e.g. 8 glasses), or enter an amount (e.g. 5 km).
@@ -72,6 +72,28 @@
 - Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click; you can turn this off in Settings → About & updates. The only other network request is the optional voice model download, which happens only when you start it.
 
 **Design**: a calm, warm look in light, dark or system themes; 10 accent colours tuned for both themes, with Indigo as the default (the taskbar and tray icons take the same colour); a sidebar (left or right) or a single bar at the top or bottom; comfortable or compact density; adjustable text size and zoom; and a phone-style layout with a bottom bar when the window is narrow. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
+
+## Privacy promise
+
+- **No telemetry.** No analytics, tracking or crash reports.
+- **No clipboard reading.** The app only writes to the clipboard (copy buttons); the only thing it reads is a paste you make.
+- **A full export.** Settings → Data → Export saves every task, list, event, calendar subscription, habit and focus session as JSON (with attachments as a zip).
+- **No account needed.** Everything works offline. Sync is optional.
+- **AI through your own agent.** Nothing is built in; connect Claude Code, Claude Desktop, Cursor, Codex or Gemini CLI through `momentum mcp` (below).
+- It goes online only to check for updates, to sync once you sign in, to fetch calendars you subscribe to, to download the voice model when you turn voice on, and to send a problem report you write.
+
+## AI agents
+
+Your own AI agent can read and change your tasks through the running app (nothing leaves your computer). Turn on Settings → AI agents → Add `momentum` to PATH, then:
+
+```
+momentum add "call mom by fri 15m !high"     # quick-add text, same as the app
+momentum list today                           # or inbox, upcoming, someday, waiting, a list name, "#work !high"
+momentum done <id>                            # also: search, get, update, reopen, habits; --json on all
+claude mcp add momentum -- momentum mcp       # Claude Code; Claude Desktop, Cursor, Codex and Gemini are in Settings
+```
+
+If Momentum is closed, the command starts it in the tray.
 
 ## Screenshots
 

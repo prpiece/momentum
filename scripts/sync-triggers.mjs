@@ -13,6 +13,7 @@ export const SYNCED = {
   tags: "id",
   tasks: "id",
   task_activity: "id",
+  calendar_subscriptions: "id",
   calendar_events: "id",
   habit_groups: "id",
   habits: "id",

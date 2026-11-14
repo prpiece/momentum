@@ -11,7 +11,7 @@ import type { Reminder, Schedule, Task } from "./types";
 
 describe("reminders", () => {
   const vm = (schedule: Schedule, reminders: Reminder[], p: Partial<Task> = {}) =>
-    toVM({ id: "t", title: "Dentist", description: "", listId: "inbox", parentId: null, sectionId: null, status: "open", priority: 0, schedule, recurrence: null, recurrenceParentId: null, tags: [], checklist: [], reminders, sortOrder: 0, pinned: false, createdAt: "", updatedAt: "", completedAt: null, deletedAt: null, ...p }) as TaskVM;
+    toVM({ id: "t", title: "Dentist", description: "", listId: "inbox", parentId: null, sectionId: null, status: "open", priority: 0, schedule, recurrence: null, deadline: null, durationMin: null, waiting: null, recurrenceParentId: null, tags: [], checklist: [], reminders, sortOrder: 0, pinned: false, createdAt: "", updatedAt: "", completedAt: null, deletedAt: null, ...p }) as TaskVM;
 
   it("computes fire times for timed and day schedules, across DST", () => {
     expect(wallKey(reminderAt(timed(atLocalTime("2026-10-26", "09:00"), 30), { kind: "before", minutes: 15 })!)).toBe("2026-10-26T08:45");

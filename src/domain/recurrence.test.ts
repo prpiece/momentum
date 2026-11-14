@@ -27,7 +27,7 @@ function task(schedule: Schedule, rule: string, exdates: string[] = []): Task {
     priority: 0,
     schedule,
     recurrence: { rule, exdates },
-    recurrenceParentId: null,
+    deadline: null, durationMin: null, waiting: null, recurrenceParentId: null,
     tags: [],
     checklist: [],
     reminders: [],

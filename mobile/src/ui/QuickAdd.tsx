@@ -1,7 +1,7 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { fromLocalDate, relativeDayLabel, toLocalDate, todayLocal } from "@core/domain/dates";
+import { fromLocalDate, relativeDayLabel, scheduleDate, toLocalDate, todayLocal } from "@core/domain/dates";
 import { parseQuickAdd } from "@core/domain/quickAdd";
 import { INBOX_ID, PRIORITY_LABEL, PRIORITY_VAR, type Priority } from "@core/domain/types";
 import { useData, type NewTask } from "@core/stores/data";
@@ -48,7 +48,7 @@ export function QuickAddHost() {
   };
 
   const listId = parsed?.listName ? undefined : defaults.listId;
-  const date = defaults.schedule && defaults.schedule.kind !== "none" ? (defaults.schedule.kind === "timed" ? toLocalDate(new Date(defaults.schedule.start)) : defaults.schedule.date) : null;
+  const date = defaults.schedule ? scheduleDate(defaults.schedule) : null;
   type Chip = { key: string; label: string; icon?: IconName; color?: string; remove: () => void; hint: string };
   const chips: Chip[] = [
     ...(parsed?.chips ?? []).map((ch) => ({

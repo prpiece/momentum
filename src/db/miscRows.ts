@@ -26,6 +26,7 @@ export function parseLegacyCountdown(r: Row): CalendarEvent | null {
     recurrence: rule ? { rule, exdates: [] } : null,
     recurrenceParentId: null,
     source: "local",
+    subscriptionId: null,
     countdown: r.direction === "since" ? "since" : "until",
     pinned: r.pinned === 1,
     createdAt: at,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal, atLocalTime, timed } from "./dates";
-import { flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, sortVMs, toVM, type TaskVM } from "./taskViews";
+import { derive, flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, plannedMinutes, sortVMs, toVM, type TaskVM } from "./taskViews";
 import type { Schedule, SmartListId, Task, TaskList } from "./types";
 
 const TODAY = "2026-10-25";
@@ -18,6 +18,9 @@ function mk(p: Partial<Task> = {}): Task {
     priority: 0,
     schedule: { kind: "none" },
     recurrence: null,
+    deadline: null,
+    durationMin: null,
+    waiting: null,
     recurrenceParentId: null,
     tags: [],
     checklist: [],
@@ -178,5 +181,47 @@ describe("matchScore", () => {
     expect(matchScore("Study chem", "stu che")).toBe(3);
     expect(matchScore("Study chem", "stu bio")).toBeNull();
     expect(matchScore("a(b", "(b")).toBe(3);
+  });
+});
+
+describe("planning fields in smart lists (D267)", () => {
+  const vmOf = (t: Task) => toVM(t) as TaskVM;
+  it("someday tasks leave Today and Upcoming and live in Someday", () => {
+    const v = vmOf(mk({ schedule: { kind: "someday" }, deadline: TODAY }));
+    expect(inSmartList("today", v, TODAY)).toBe(false);
+    expect(inSmartList("upcoming", v, TODAY)).toBe(false);
+    expect(inSmartList("someday", v, TODAY)).toBe(true);
+  });
+  it("Today holds tasks whose deadline is today or past, whatever their planned date", () => {
+    expect(inSmartList("today", vmOf(mk({ deadline: TODAY })), TODAY)).toBe(true);
+    expect(inSmartList("today", vmOf(mk({ deadline: addDaysLocal(TODAY, -2), schedule: { kind: "day", date: addDaysLocal(TODAY, 3) } })), TODAY)).toBe(true);
+    expect(inSmartList("today", vmOf(mk({ deadline: addDaysLocal(TODAY, 1) })), TODAY)).toBe(false);
+  });
+  it("a waiting task sits in Waiting until its follow-up date, then comes back to Today", () => {
+    const t = mk({ schedule: { kind: "day", date: TODAY }, waiting: { kind: "person", who: "Sam", followUp: addDaysLocal(TODAY, 2) } });
+    expect(inSmartList("today", vmOf(t), TODAY)).toBe(false);
+    expect(inSmartList("waiting", vmOf(t), TODAY)).toBe(true);
+    const later = addDaysLocal(TODAY, 2);
+    expect(inSmartList("waiting", vmOf(t), later)).toBe(false);
+    expect(inSmartList("today", vmOf(mk({ waiting: { kind: "person", who: "Sam", followUp: TODAY } })), TODAY)).toBe(true);
+  });
+  it("a wait on a task ends when that task is completed", () => {
+    const blocker = mk();
+    const waiting = mk({ schedule: { kind: "day", date: TODAY }, waiting: { kind: "task", taskId: blocker.id } });
+    const vms = (b: Task) => derive({ [b.id]: b, [waiting.id]: waiting }, {}).byId.get(waiting.id)!;
+    expect(inSmartList("waiting", vms(blocker), TODAY)).toBe(true);
+    expect(inSmartList("today", vms(blocker), TODAY)).toBe(false);
+    const done = { ...blocker, status: "done" as const };
+    expect(inSmartList("waiting", vms(done), TODAY)).toBe(false);
+    expect(inSmartList("today", vms(done), TODAY)).toBe(true);
+  });
+  it("plannedMinutes adds durations and timed lengths of open tasks", () => {
+    const vms = [
+      mk({ durationMin: 30 }),
+      mk({ schedule: timed(atLocalTime(TODAY, "09:00"), 100), durationMin: 5 }),
+      mk({ durationMin: 60, status: "done" }),
+      mk(),
+    ].map(vmOf);
+    expect(plannedMinutes(vms)).toBe(130);
   });
 });

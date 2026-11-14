@@ -42,6 +42,12 @@ if (popup === "mini") {
   ]);
   // Hydrate before first paint so the saved theme applies without a flash.
   await Promise.all([useSettings.getState().hydrate(), data.hydrate(), habits.hydrateHabits(), focus.hydrateFocus()]);
+  if (isTauri)
+    void import("./stores/subscriptions").then(async (s) => {
+      s.setFeedFetcher(async (url) => (await import("@tauri-apps/api/core")).invoke<string>("fetch_ics", { url }));
+      await s.hydrateSubscriptions();
+      s.startSubscriptionRefresh();
+    });
   if (!isTauri && import.meta.env.DEV && !Object.keys(data.useData.getState().tasks).length) {
     // Plain-browser dev mode has no database: show sample data so the UI is populated.
     const seed = await import("./dev/seed");

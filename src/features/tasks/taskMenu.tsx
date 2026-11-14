@@ -1,4 +1,5 @@
-import { Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, Flag, FolderInput, PanelRightOpen, Pin, PinOff, Sun, Sunrise, Trash2 } from "lucide-react";
+import { AlarmClock, Archive, Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, Flag, FolderInput, PanelRightOpen, Pin, PinOff, Sun, Sunrise, Trash2 } from "lucide-react";
+import { openSnooze } from "./SnoozeDialog";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
 import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type LocalDate, type Schedule } from "../../domain/types";
@@ -40,9 +41,11 @@ export function taskMenu(id: string, key: string | null): MenuEntry[] {
         { title: "Today", icon: <Sun size={15} />, run: () => reschedule(today) },
         { title: "Tomorrow", icon: <Sunrise size={15} />, run: () => reschedule(addDaysLocal(today, 1)) },
         { title: "Next week", icon: <CalendarArrowUp size={15} />, run: () => reschedule(addDaysLocal(today, 7)) },
+        { title: "Someday", icon: <Archive size={15} />, run: () => (many ? bulkEdit(ids, `Moved ${ids.length} tasks to Someday`, () => ({ schedule: { kind: "someday" } })) : void editTask(id, { schedule: { kind: "someday" } }, key)) },
         { title: "No date", icon: <CalendarX2 size={15} />, run: () => reschedule(null) },
       ],
     },
+    ...(many || t.status !== "open" ? [] : [{ label: "Snooze…", icon: <AlarmClock size={14} />, run: () => openSnooze(id, key) }]),
     {
       label: "Priority",
       choices: [...PRIORITIES].reverse().map((p) => ({

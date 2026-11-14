@@ -3,7 +3,7 @@
  * the mini window sends MiniActions (`mini:action`). Both are validated where they arrive.
  */
 import { elapsedMs, remainingMs, type FocusMode, type Phase, type PomodoroConfig, type TimerState } from "./focus";
-import { QUADRANTS, quadrantOf, type MatrixRules } from "./matrix";
+import { inMatrix, QUADRANTS, quadrantOf, type MatrixRules } from "./matrix";
 import { inSmartList, sortVMs, type TaskVM } from "./taskViews";
 import type { LocalDate } from "./types";
 
@@ -43,7 +43,7 @@ export function stepMinutes(m: number, dir: 1 | -1): number {
 const mini = (vm: TaskVM): MiniTask => ({ id: vm.task.id, key: vm.key, title: vm.task.title });
 
 export function buildSnapshot(roots: readonly TaskVM[], byId: ReadonlyMap<string, TaskVM>, timer: TimerState, cfg: PomodoroConfig, rules: MatrixRules, today: LocalDate, now: number): MiniSnapshot {
-  const open = roots.filter((v) => v.task.status === "open");
+  const open = roots.filter((v) => v.task.status === "open" && inMatrix(v));
   const matrix: MiniQuadrant[] = QUADRANTS.map((q) => {
     const items = sortVMs(open.filter((v) => quadrantOf(v, today, rules) === q), "date");
     return { count: items.length, top: items.map(mini) };

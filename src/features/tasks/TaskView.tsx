@@ -1,4 +1,4 @@
-import { CalendarRange, Columns3, Grid2x2, ListFilter, ListTodo, Settings2 } from "lucide-react";
+import { CalendarRange, Columns3, Crosshair, Grid2x2, ListFilter, ListTodo, Settings2 } from "lucide-react";
 import { format } from "date-fns";
 import { useMemo } from "react";
 import { ListGlyph } from "../../components/ui/AppIcon";
@@ -7,10 +7,10 @@ import { PageHead } from "../../components/ui/PageHead";
 import { Tip } from "../../components/ui/Tip";
 import { ToolbarActions } from "../../components/ui/Toolbar";
 import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../components/ui/Popover";
-import { todayLocal } from "../../domain/dates";
+import { formatMinutes, todayLocal } from "../../domain/dates";
 import type { GroupBy, ListLayout, SortBy } from "../../domain/types";
 import { isEmptyFilter, matchesFilter, parseFilter } from "../../domain/filter";
-import { toVM } from "../../domain/taskViews";
+import { plannedMinutes, toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { setImport, useUi } from "../../stores/ui";
@@ -23,6 +23,7 @@ import { BulkBar } from "./BulkBar";
 import { FilterBar } from "./FilterBar";
 import { KanbanView } from "./KanbanView";
 import { ListDialogButton } from "./ListDialog";
+import { OneThing } from "./OneThing";
 import { QuickAdd } from "./QuickAdd";
 import { useDerived } from "./selectors";
 import { TaskListView } from "./TaskListView";
@@ -79,6 +80,9 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
     [source, spec, today, adhoc, lists, tags, showDone],
   );
   const openCount = vms.filter((v) => v.task.status === "open").length;
+  const planned = spec.id === "today" ? plannedMinutes(vms) : 0;
+  const oneThing = spec.id === "today" && settings.oneThing.on;
+  const toggleOneThing = () => useSettings.getState().update({ oneThing: { ...settings.oneThing, on: !settings.oneThing.on } });
   const tint = list?.tint && list.color ? { background: `color-mix(in oklch, ${list.color} 6%, var(--surface))` } : undefined;
   // List mode reads as a page (880px, centred); Board, Timeline and Matrix use the full width (D198).
   const page = layout === "list" ? "mx-auto w-full max-w-[var(--content-max)]" : "w-full";
@@ -93,6 +97,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
             <span className="tabular-nums">
               {spec.id === "today" && `${format(new Date(), "EEEE d MMMM")} · `}
               <span key={openCount} className="anim-count">{openCount}</span> open
+              {planned > 0 && ` · ${formatMinutes(planned)} planned`}
             </span>
           }
         >
@@ -111,6 +116,13 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
           ))}
         </div>
         <span className="tb-sep" aria-hidden />
+        {spec.id === "today" && (
+          <Tip label="One thing" desc="show only the next task">
+            <button type="button" aria-pressed={oneThing} onClick={toggleOneThing} className={`btn btn-ghost ${oneThing ? "is-on text-accent-text" : ""}`}>
+              <Crosshair size={16} strokeWidth={1.75} /> <span className="@max-[44rem]/tb:sr-only">One thing</span>
+            </button>
+          </Tip>
+        )}
         {layout === "list" && (
           <button ref={menu.anchor} type="button" title="Sort and group" onClick={menu.toggle} aria-haspopup="menu" aria-expanded={menu.open} className="btn btn-ghost">
             <ListFilter size={16} strokeWidth={1.75} />
@@ -168,7 +180,9 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         </div>
       )}
 
-      {vms.length === 0 ? (
+      {oneThing ? (
+        <OneThing vms={vms} />
+      ) : vms.length === 0 ? (
         <EmptyState icon={spec.icon} title={query ? "No matches" : (EMPTY[spec.id]?.[0] ?? "Nothing here yet")}>
           {query ? "No task in this view matches the filter." : (EMPTY[spec.id]?.[1] ?? "Add a task above. Try “Plan trip next friday #travel”.")}
         </EmptyState>
@@ -187,6 +201,8 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
 }
 
 const EMPTY: Record<string, [string, string]> = {
-  today: ["A clear day", "Nothing due today. Add something above, or enjoy the quiet."],
-  upcoming: ["Nothing coming up", "Tasks with a future date show up here. Ones you add here are due tomorrow."],
+  today: ["A clear day", "Nothing planned for today. Add something above, or enjoy the quiet."],
+  upcoming: ["Nothing coming up", "Tasks with a future date show up here. Ones you add here are planned for tomorrow."],
+  someday: ["Nothing for someday", "Tasks you mean to do one day, with no date yet. Add “someday” to a task to put it here."],
+  waiting: ["Not waiting on anything", "Tasks waiting for someone or another task. Try “Contract waiting @sam fri”."],
 };

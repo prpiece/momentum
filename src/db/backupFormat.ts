@@ -11,6 +11,7 @@ import { parseCheckin, parseGroup, parseHabit } from "./habitRows";
 import { repairFolderParents } from "../domain/folders";
 import { parseActivity, parseAll, parseEvent, parseFolder, parseList, parseSection, parseTag, parseTask, type Row } from "./rows";
 import { parseLegacyCountdown, parseSession } from "./miscRows";
+import { parseSubscription, type CalendarSubscription } from "../domain/subscriptions";
 
 export const BACKUP_FORMAT = 1;
 
@@ -23,6 +24,7 @@ export const BACKUP_TABLES = [
   "tags",
   "tasks",
   "task_activity",
+  "calendar_subscriptions",
   "calendar_events",
   "habit_groups",
   "habits",
@@ -41,6 +43,7 @@ export type Restored = {
   tags: Tag[];
   tasks: Task[];
   activity: Activity[];
+  subscriptions: CalendarSubscription[];
   events: CalendarEvent[];
   groups: HabitGroup[];
   habits: Habit[];
@@ -86,6 +89,7 @@ export function validateBackup(raw: unknown): Validation {
     tags: parse("tags", parseTag),
     tasks: parse("tasks", parseTask),
     activity: parse("task_activity", parseActivity),
+    subscriptions: parse("calendar_subscriptions", parseSubscription),
     // Backups from before v1.0 have a `countdowns` table; its rows become events (D163).
     events: [...parse("calendar_events", parseEvent), ...parse("countdowns", parseLegacyCountdown)],
     groups: parse("habit_groups", parseGroup),
@@ -94,7 +98,7 @@ export function validateBackup(raw: unknown): Validation {
     sessions: parse("focus_sessions", parseSession),
   };
   const repaired = repairReferences(data);
-  const count = (r: Restored) => (r.settings ? 1 : 0) + [r.folders, r.lists, r.sections, r.tags, r.tasks, r.activity, r.events, r.groups, r.habits, r.checkins, r.sessions].reduce((n, a) => n + a.length, 0);
+  const count = (r: Restored) => (r.settings ? 1 : 0) + [r.folders, r.lists, r.sections, r.tags, r.tasks, r.activity, r.subscriptions, r.events, r.groups, r.habits, r.checkins, r.sessions].reduce((n, a) => n + a.length, 0);
   // Rows lost to validation or orphan cleanup (a re-created Inbox isn't counted as kept).
   const inboxAdded = repaired.lists.length - data.lists.length;
   return { ok: true, data: repaired, dropped: total - (count(repaired) - inboxAdded) };
@@ -128,7 +132,10 @@ export function repairReferences(d: Restored): Restored {
     sectionId: t.sectionId && sectionIds.has(t.sectionId) ? t.sectionId : null,
     recurrenceParentId: t.recurrenceParentId && taskIds.has(t.recurrenceParentId) ? t.recurrenceParentId : null,
   }));
-  const eventIds = new Set(d.events.map((e) => e.id));
+  // A subscribed event whose subscription is gone would never be refreshed or removed.
+  const subIds = new Set(d.subscriptions.map((s) => s.id));
+  const events = d.events.filter((e) => !e.subscriptionId || subIds.has(e.subscriptionId));
+  const eventIds = new Set(events.map((e) => e.id));
   const groupIds = new Set(d.groups.map((g) => g.id));
   const habitIds = new Set(d.habits.map((h) => h.id));
   return {
@@ -138,7 +145,7 @@ export function repairReferences(d: Restored): Restored {
     sections,
     tasks,
     activity: d.activity.filter((a) => taskIds.has(a.taskId)),
-    events: d.events.map((e) => ({ ...e, recurrenceParentId: e.recurrenceParentId && eventIds.has(e.recurrenceParentId) ? e.recurrenceParentId : null })),
+    events: events.map((e) => ({ ...e, recurrenceParentId: e.recurrenceParentId && eventIds.has(e.recurrenceParentId) ? e.recurrenceParentId : null })),
     habits: d.habits.map((h) => ({ ...h, groupId: h.groupId && groupIds.has(h.groupId) ? h.groupId : null })),
     checkins: d.checkins.filter((c) => habitIds.has(c.habitId)),
     sessions: d.sessions.map((s) => ({ ...s, taskId: s.taskId && taskIds.has(s.taskId) ? s.taskId : null })),

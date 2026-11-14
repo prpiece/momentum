@@ -112,7 +112,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
                 key={k}
                 type="button"
                 aria-pressed={goal.kind === k}
-                onClick={() => setGoal(k === "once" ? { kind: "once" } : { kind: k, target: goal.kind === "count" || goal.kind === "amount" ? goal.target : k === "count" ? 8 : 5, unit: goal.kind === "count" || goal.kind === "amount" ? goal.unit : k === "count" ? "times" : "km" })}
+                onClick={() => setGoal(k === "once" ? { kind: "once" } : { kind: k, target: goal.kind === "count" || goal.kind === "amount" ? goal.target : k === "count" ? 8 : 5, unit: goal.kind === "count" || goal.kind === "amount" ? goal.unit : k === "count" ? "times" : "km", period: goal.kind === "count" || goal.kind === "amount" ? goal.period : "day" })}
                 className={`h-8 flex-1 rounded-control text-xs ${goal.kind === k ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2"}`}
               >
                 {label}
@@ -124,7 +124,10 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
               Target
               <input type="number" min={0.1} step="any" value={goal.target} onChange={(e) => setGoal({ ...goal, target: Math.max(0.1, Number(e.target.value) || 1) })} aria-label="Target" className={`${field} w-20`} />
               <input value={goal.unit} onChange={(e) => setGoal({ ...goal, unit: e.target.value.slice(0, 20) })} placeholder="unit" aria-label="Unit" className={`${field} w-28`} />
-              per day
+              <select aria-label="Period" value={goal.period} onChange={(e) => setGoal({ ...goal, period: e.target.value === "week" ? "week" : "day" })} className={`${field} w-auto`}>
+                <option value="day">per day</option>
+                <option value="week">per week</option>
+              </select>
             </div>
           )}
         </fieldset>

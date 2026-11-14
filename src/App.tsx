@@ -18,6 +18,8 @@ import { SettingsView } from "./features/settings/SettingsView";
 import { CommandPalette } from "./features/shell/CommandPalette";
 import { ConfirmDialog, ScopeDialog, ShortcutSheet } from "./features/shell/Dialogs";
 import { ImportDialog } from "./features/tasks/ImportDialog";
+import { SnoozeDialog } from "./features/tasks/SnoozeDialog";
+import { ImportExternalDialog } from "./features/tasks/ImportExternalDialog";
 import { navFor } from "./features/shell/nav";
 import { NavBar } from "./features/shell/NavBar";
 import { PhoneBar } from "./features/shell/PhoneBar";
@@ -129,6 +131,8 @@ export default function App() {
       <CommandPalette />
       <ShortcutSheet />
       <ImportDialog />
+      <SnoozeDialog />
+      <ImportExternalDialog />
       <ScopeDialog />
       <ConfirmDialog />
       <EventDialog />

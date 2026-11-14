@@ -1,4 +1,4 @@
-import { relativeDayLabel, todayLocal } from "../domain/dates";
+import { relativeDayLabel, toLocalDate, todayLocal } from "../domain/dates";
 import { parseQuickAdd, withDefaults, type InputOrigin } from "../domain/quickAdd";
 import type { Task } from "../domain/types";
 import { addTask, ensureTags, useData, type NewTask } from "./data";
@@ -47,7 +47,7 @@ export function createFromText(
   else if (announce(t)) {
     const s = t.schedule;
     const today = todayLocal();
-    const when = s.kind === "none" ? "" : ` for ${relativeDayLabel(s.kind === "day" ? s.date : todayLocal(new Date(s.start)), today)}`;
+    const when = s.kind === "none" ? "" : s.kind === "someday" ? " for someday" : ` for ${relativeDayLabel(s.kind === "day" ? s.date : toLocalDate(new Date(s.start)), today)}`;
     toast(`Added to ${lists[t.listId]?.name ?? "Inbox"}${when}`, { label: "Open", run: () => openTask(t.id) });
   }
   return t;

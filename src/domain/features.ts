@@ -89,6 +89,7 @@ export const FEATURES: Feature[] = [
     commands: [token("tomorrow 5pm", "Date and time"), token("every mon", "Repeat"), token("!high  !2", "Priority"), token("#tag", "Tag"), token("~List", "List")] },
   { id: "bulk-import", title: "Paste many tasks at once", howTo: "Paste a list of lines and each one becomes a task.", icon: "paste", group: "Capture", since: OLD, core: false,
     commands: [palette("import", "Import tasks…")] },
+  { id: "external-import", title: "Import from Todoist or TickTick", howTo: "Settings → Data → Import from Todoist or TickTick (or Import tasks…). Pick the export file, check the preview, import; one Undo takes it all back.", icon: "file", group: "Capture", since: "1.3.0", core: false, commands: [] },
   { id: "voice", title: "Add tasks by voice", howTo: "Hold the shortcut and say the task, or say “open today”, “start focus”, “show matrix”.", icon: "mic", group: "Capture", since: OLD, core: false,
     commands: [keys("Ctrl Alt Space", "Hold to talk")] },
   { id: "palette", title: "Search and run commands", howTo: "Find any task, list or tag, or run a command by name.", icon: "search", group: "Capture", since: OLD, core: true, done: "palette:opened",
@@ -106,8 +107,18 @@ export const FEATURES: Feature[] = [
   { id: "lists", title: "Organise with lists and folders", howTo: "Make a list for each part of your life and group lists into folders.", icon: "list", group: "Tasks", since: OLD, core: false,
     commands: [palette("new-list", "New list")] },
 
+  // ---- Planning (v1.3, D267)
+  { id: "planning-tokens", title: "Deadlines, durations, someday and waiting", howTo: "Add these to the task text in any add box: a deadline apart from the planned date, how long it takes, Someday, or who you're waiting for and when to follow up.", icon: "token", group: "Capture", since: "1.3.0", core: false,
+    commands: [token("by fri  by 12/3", "Deadline"), token("30m  1h30m  ~2h", "Duration"), token("someday", "Someday, no date yet"), token("waiting @sam fri", "Waiting for a person, follow up Friday")] },
+  { id: "deadline", title: "Set a deadline", howTo: "A deadline is when it must be done by, apart from when you plan to do it. It shows as “by Fri”, turns red once passed, brings the task into Today on the day, and makes it urgent in the Matrix.", icon: "calendar", group: "Tasks", since: "1.3.0", core: false, commands: [] },
+  { id: "duration", title: "Say how long a task takes", howTo: "Give a task a duration in its details or with “30m”, even without a time. Today's header adds up what's planned.", icon: "timer", group: "Tasks", since: "1.3.0", core: false, commands: [] },
+  { id: "someday-waiting", title: "Someday and Waiting", howTo: "Someday holds tasks with no date yet. Waiting holds tasks waiting for someone or another task; they come back on the follow-up date or when that task is done.", icon: "hourglass", group: "Views", since: "1.3.0", core: false, commands: [] },
+  { id: "one-thing", title: "One thing at a time", howTo: "Turn on One thing in Today's toolbar to see only the next task, with Done and Not now. Low energy shows only tasks of 15 minutes or less.", icon: "target", group: "Views", since: "1.3.0", core: false, commands: [] },
+  { id: "snooze", title: "Snooze a task to a time", howTo: "Right-click a task → Snooze… and pick a day and time; it moves there and reminds you when it starts.", icon: "timer", group: "Tasks", since: "1.3.0", core: false, commands: [] },
+  { id: "day-end", title: "Late nights count as the same day", howTo: "Settings → General → Day ends at: before that hour, Today, overdue and habits still count as the day before.", icon: "sun", group: "Keyboard", since: "1.3.0", core: false, commands: [] },
+
   // ---- Views
-  { id: "smart-views", title: "Inbox, Today and Upcoming", howTo: "New tasks land in Inbox; Today shows what's due and overdue; Upcoming, the days ahead.", icon: "sun", group: "Views", since: OLD, core: false,
+  { id: "smart-views", title: "Inbox, Today and Upcoming", howTo: "New tasks land in Inbox; Today shows what's planned for today, overdue or at its deadline; Upcoming, the days ahead.", icon: "sun", group: "Views", since: OLD, core: false,
     commands: [palette("go-inbox", "Go to Inbox"), palette("go-today", "Go to Today"), palette("go-upcoming", "Go to Upcoming"), keys("G I / G T / G U", "Inbox / Today / Upcoming")] },
   { id: "matrix-mode", title: "Sort tasks by urgent and important", howTo: "Switch any view to Matrix and drag tasks between the four quadrants.", icon: "grid", group: "Views", since: "1.0.0", core: true, done: "view:matrix",
     commands: [palette("matrix-mode", "Show as matrix"), keys("G M", "Matrix mode")] },
@@ -115,6 +126,7 @@ export const FEATURES: Feature[] = [
   { id: "calendar", title: "Plan on the calendar", howTo: "Drag tasks onto time slots, and add events of your own.", icon: "calendar", group: "Views", since: OLD, core: false,
     commands: [palette("go-calendar", "Go to Calendar"), keys("G C", "Calendar"), keys("D / X / W / M / A", "Day / 5 days / week / month / agenda"), keys("T", "Jump to today"), keys("← →", "Previous / next")] },
   { id: "countdowns", title: "Count down to a date", howTo: "Turn on Show countdown on an all-day event, and pin it to Today.", icon: "hourglass", group: "Views", since: "1.0.0", core: false, commands: [] },
+  { id: "calendar-subscriptions", title: "Follow a calendar", howTo: "Settings → Data → Calendar subscriptions: paste an .ics address (Google, Outlook, iCloud…) and its events appear here and on your phone, read-only.", icon: "calendar", group: "Views", since: "1.3.0", core: false, commands: [] },
   { id: "ics-import", title: "Import a calendar", howTo: "Settings → Data → Import an .ics file.", icon: "file", group: "Views", since: OLD, core: false, commands: [] },
 
   // ---- Habits & focus
@@ -136,6 +148,7 @@ export const FEATURES: Feature[] = [
   { id: "appearance", title: "Make it yours", howTo: "Theme, accent, layout and scale are in Settings → Appearance.", icon: "palette", group: "Keyboard", since: OLD, core: false,
     commands: [palette("theme-light", "Switch theme: Light"), palette("theme-dark", "Switch theme: Dark"), palette("theme-system", "Switch theme: System"), palette("sidebar", "Collapse or expand the sidebar", "["), keys("[", "Collapse or expand the sidebar"), keys("Ctrl + / Ctrl − / Ctrl 0", "Scale up / down / reset")] },
   { id: "background", title: "Pick a background", howTo: "Put a colour or one of your own images behind the app, and dim it to keep text easy to read, in Settings → Appearance.", icon: "palette", group: "Keyboard", since: "1.0.2", core: false, commands: [] },
+  { id: "agents", title: "Let your AI agent use Momentum", howTo: "Settings → AI agents shows the setup for Claude, Cursor, Codex and Gemini. Or run momentum add \"call mom by fri 15m\" in a terminal.", icon: "window", group: "Keyboard", since: "1.3.0", core: false, commands: [] },
   { id: "report", title: "Report a problem", howTo: "Settings → Help → Report a problem sends us a description, and a screenshot if you like. It needs an internet connection.", icon: "help", group: "Keyboard", since: "1.1.2", core: false, commands: [] },
   { id: "help", title: "Find your way around", howTo: "Help lists every command; the tour shows the main ideas again.", icon: "help", group: "Keyboard", since: "1.0.0", core: false,
     commands: [palette("help", "Help"), palette("tour", "Take the tour"), palette("shortcuts", "Keyboard shortcuts", "?"), palette("go-settings", "Go to Settings"), keys("?", "Keyboard shortcuts"), keys("Ctrl ,", "Settings"), keys("G ,", "Settings")] },

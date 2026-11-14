@@ -1,7 +1,7 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { format } from "date-fns";
-import { Ban, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, ImagePlus, Pin, Plus, Trash2, X } from "lucide-react";
+import { Ban, CalendarCheck, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, Hourglass, ImagePlus, Pin, Plus, Timer, Trash2, X } from "lucide-react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Dialog, IconButton } from "../../components/ui/Dialog";
@@ -19,7 +19,10 @@ import { closeDrawer, openTask, toast, useUi } from "../../stores/ui";
 import { deleteTasks, editTask, setWontDo, toggleDone } from "./actions";
 import { NoteMarkdown } from "./NoteMarkdown";
 import { InlineAdd } from "./InlineAdd";
+import { DeadlineEditor, DurationEditor, WaitingEditor } from "./PlanningEditors";
 import { ScheduleEditor } from "./ScheduleEditor";
+import { durationMinutes, formatMinutes, relativeDayLabel, todayLocal } from "../../domain/dates";
+import { deadlinePassed } from "../../domain/taskViews";
 import { useDerived } from "./selectors";
 
 /** Slide-over detail panel, docked on the side opposite the sidebar. */
@@ -67,6 +70,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
   const key = occurrenceKey ?? vm?.key ?? null;
   const shown = t.recurrence && key ? scheduleForKey(t.schedule, key) : (vm?.schedule ?? t.schedule);
   const set = (patch: Partial<Task>) => updateTask(t.id, patch);
+  const tasksById = useData((s) => s.tasks);
 
   const list = lists[t.listId];
   const icon = (I: typeof Pin) => <I size={16} strokeWidth={1.75} />;
@@ -128,7 +132,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
               )}
             </Prop>
           )}
-          <Prop label="Due" text={summarizeSchedule(shown, t.recurrence?.rule ?? null)} value={shown.kind !== "none" ? <>{icon(CalendarDays)}{summarizeSchedule(shown, t.recurrence?.rule ?? null)}</> : null}>
+          <Prop label="Planned" text={summarizeSchedule(shown, t.recurrence?.rule ?? null)} value={shown.kind !== "none" ? <>{icon(CalendarDays)}{summarizeSchedule(shown, t.recurrence?.rule ?? null)}</> : null}>
             {() => (
               <div className="w-80 max-w-full p-3">
                 <ScheduleEditor
@@ -139,6 +143,39 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
                   onRecurrence={(recurrence) => void editTask(t.id, { recurrence, ...(recurrence && t.schedule.kind === "none" ? { schedule: shown } : {}) }, key)}
                   onReminders={(reminders) => set({ reminders })}
                 />
+              </div>
+            )}
+          </Prop>
+          <Prop
+            label="Deadline"
+            text={t.deadline ? `by ${relativeDayLabel(t.deadline, todayLocal())}` : "None"}
+            value={t.deadline ? <span className={`inline-flex items-center gap-1.5 ${deadlinePassed(t, todayLocal()) ? "text-danger" : ""}`}>{icon(CalendarCheck)}by {relativeDayLabel(t.deadline, todayLocal())}</span> : null}
+          >
+            {(close) => (
+              <div className="p-3">
+                <DeadlineEditor value={t.deadline} onChange={(deadline) => (set({ deadline }), close())} />
+              </div>
+            )}
+          </Prop>
+          <Prop
+            label="Duration"
+            text={(durationMinutes(shown) ?? t.durationMin) ? formatMinutes(durationMinutes(shown) ?? t.durationMin ?? 0) : "None"}
+            value={(durationMinutes(shown) ?? t.durationMin) ? <>{icon(Timer)}<span className="tabular-nums">{formatMinutes(durationMinutes(shown) ?? t.durationMin ?? 0)}</span></> : null}
+          >
+            {() => (
+              <div className="p-3">
+                <DurationEditor value={t.durationMin} timedMinutes={durationMinutes(shown)} onChange={(durationMin) => set({ durationMin })} />
+              </div>
+            )}
+          </Prop>
+          <Prop
+            label="Waiting for"
+            text={t.waiting ? waitingText(t, tasksById) : "None"}
+            value={t.waiting ? <>{icon(Hourglass)}{waitingText(t, tasksById)}</> : null}
+          >
+            {(close) => (
+              <div className="p-3">
+                <WaitingEditor task={t} onChange={(waiting) => (set({ waiting }), close())} />
               </div>
             )}
           </Prop>
@@ -532,3 +569,10 @@ function ActivityLog({ task }: { task: Task }) {
     </details>
   );
 }
+
+const waitingText = (t: Task, tasks: Record<string, Task>) =>
+  t.waiting?.kind === "person"
+    ? `Waiting for ${t.waiting.who} · ${relativeDayLabel(t.waiting.followUp, todayLocal())}`
+    : t.waiting?.kind === "task"
+      ? `Waiting on “${tasks[t.waiting.taskId]?.title ?? "a deleted task"}”`
+      : "";

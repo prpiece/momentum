@@ -7,7 +7,7 @@ export type LocalDate = string;
 export type Instant = string;
 
 /** Finished tasks show in each view with Show completed, and the `done` search keyword finds them all (D165). */
-export const SMART_LISTS = ["inbox", "today", "upcoming"] as const;
+export const SMART_LISTS = ["inbox", "today", "upcoming", "someday", "waiting"] as const;
 export type SmartListId = (typeof SMART_LISTS)[number];
 
 export const MODULE_VIEWS = ["calendar", "habits", "focus", "progress", "settings"] as const;
@@ -31,11 +31,21 @@ export const PRIORITY_VAR: Record<Priority, string> = { 0: "var(--muted)", 1: "v
 export const TASK_STATUSES = ["open", "done", "wont_do"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-/** When a task happens. `day` is all-day on a local date; `timed` has a real start and end. */
+/**
+ * When a task happens (its planned date). `day` is all-day on a local date; `timed` has a real start
+ * and end; `someday` means "not now" and keeps the task out of Today, Upcoming, the calendar and the Matrix (D267).
+ */
 export type Schedule =
   | { kind: "none" }
+  | { kind: "someday" }
   | { kind: "day"; date: LocalDate }
   | { kind: "timed"; start: Instant; end: Instant };
+
+/**
+ * Waiting for (D267): a person getting back to you by `followUp`, or another task being completed.
+ * A waiting task leaves Today and Upcoming until then (`domain/waiting.ts`).
+ */
+export type Waiting = { kind: "person"; who: string; followUp: LocalDate } | { kind: "task"; taskId: string };
 
 export type Reminder =
   /** Timed tasks: N minutes before start. */
@@ -63,6 +73,11 @@ export type Task = {
   status: TaskStatus;
   priority: Priority;
   schedule: Schedule;
+  /** The local date it must be done by, independent of the planned date; drives Matrix urgency. */
+  deadline: LocalDate | null;
+  /** Expected minutes. A timed task's duration is its end minus its start, so this is for untimed tasks. */
+  durationMin: number | null;
+  waiting: Waiting | null;
   recurrence: Recurrence | null;
   /** Set on an occurrence detached from a series (edited or completed individually). */
   recurrenceParentId: string | null;
@@ -123,8 +138,10 @@ export type CalendarEvent = {
   color: string | null;
   recurrence: Recurrence | null;
   recurrenceParentId: string | null;
-  /** `ics` events came from a one-time .ics import and are read-only. */
+  /** `ics` events came from a .ics import or a calendar subscription and are read-only. */
   source: "local" | "ics";
+  /** The calendar subscription that owns this event; it is replaced on every refresh. */
+  subscriptionId: string | null;
   /** All-day events only: shown as days until or since the date (D163). */
   countdown: CountdownMode | null;
   /** A pinned countdown shows as a chip at the top of Today. */
@@ -259,6 +276,8 @@ export type Settings = {
   matrixColors: QuadrantColors;
   /** Closing the window hides to the tray (reminders keep firing). */
   closeToTray: boolean;
+  /** `momentum` is on this device's PATH (D264). */
+  cliOnPath: boolean;
   launchAtStartup: boolean;
   /** Look for a new release on GitHub at launch (D59). */
   checkUpdates: boolean;
@@ -280,4 +299,11 @@ export type Settings = {
   /** Input device name for voice (D94); null = system default. */
   voiceMic: string | null;
   pomodoro: { focusMin: number; shortMin: number; longMin: number; longEvery: number; cycles: Cycles };
+  /** Day ends at (D267): the hour, 0–5, when "today" rolls over (`domain/dates.ts` `todayLocal`). */
+  dayEndHour: number;
+  /** One thing (D267): Today shows a single task; Low energy limits it to tasks of 15 minutes or less. Per device. */
+  oneThing: { on: boolean; energy: Energy };
 };
+
+export const ENERGIES = ["normal", "low"] as const;
+export type Energy = (typeof ENERGIES)[number];

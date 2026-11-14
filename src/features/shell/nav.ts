@@ -1,5 +1,7 @@
 import {
   AlarmClock,
+  Archive,
+  Hourglass,
   CalendarDays,
   ChartColumn,
   CalendarRange,
@@ -17,6 +19,8 @@ export const SMART_LIST_NAV: NavDef<SmartListId>[] = [
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "today", label: "Today", icon: Sun },
   { id: "upcoming", label: "Upcoming", icon: CalendarRange },
+  { id: "someday", label: "Someday", icon: Archive },
+  { id: "waiting", label: "Waiting", icon: Hourglass },
 ];
 export const SIDEBAR_SMART_NAV = SMART_LIST_NAV;
 

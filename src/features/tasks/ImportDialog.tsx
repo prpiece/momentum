@@ -2,7 +2,7 @@ import { CalendarDays, Flag } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button, Dialog } from "../../components/ui/Dialog";
 import { Segmented } from "../../components/ui/Segmented";
-import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
+import { formatTime, relativeDayLabel, toLocalDate, todayLocal } from "../../domain/dates";
 import { splitImport } from "../../domain/bulkImport";
 import { parseQuickAdd } from "../../domain/quickAdd";
 import { PRIORITY_LABEL, type Task } from "../../domain/types";
@@ -11,6 +11,7 @@ import { useSettings } from "../../stores/settings";
 import { setImport, toast, useUi } from "../../stores/ui";
 import { withUndo } from "../../stores/undo";
 import { createFromText } from "../../stores/quickAddSubmit";
+import { startExternalImport } from "./startExternalImport";
 
 const PREVIEW = 5;
 const field = "input";
@@ -123,7 +124,7 @@ function ImportBody() {
                   s.kind === "day"
                     ? relativeDayLabel(s.date, today)
                     : s.kind === "timed"
-                      ? `${relativeDayLabel(todayLocal(new Date(s.start)), today)} ${formatTime(new Date(s.start), timeFormat)}`
+                      ? `${relativeDayLabel(toLocalDate(new Date(s.start)), today)} ${formatTime(new Date(s.start), timeFormat)}`
                       : null;
                 return (
                   <li key={i} className="flex items-center gap-2 text-sm" style={{ paddingLeft: `${depth * 1.25}rem` }}>
@@ -147,7 +148,8 @@ function ImportBody() {
             </ul>
           )}
         </div>
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button onClick={() => void startExternalImport()} className="mr-auto">From Todoist or TickTick…</Button>
           <Button onClick={close}>Cancel</Button>
           <Button variant="primary" onClick={run} disabled={!items.length}>
             Import

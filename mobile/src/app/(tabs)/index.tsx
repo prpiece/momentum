@@ -1,9 +1,11 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
-import { fromLocalDate, todayLocal } from "@core/domain/dates";
-import { derive, inSmartList, inSmartScope, sortVMs, type TaskVM } from "@core/domain/taskViews";
+import { formatMinutes, fromLocalDate, todayLocal } from "@core/domain/dates";
+import { derive, inSmartList, inSmartScope, plannedMinutes, sortVMs, type TaskVM } from "@core/domain/taskViews";
 import { useData } from "@core/stores/data";
+import { useSettings } from "@core/stores/settings";
+import { OneThing } from "@/ui/OneThing";
 import { useColors } from "@/theme";
 import { SyncBanner } from "@/ui/Banner";
 import { GettingStarted } from "@/ui/GettingStarted";
@@ -21,14 +23,16 @@ export default function Today() {
   const lists = useData((s) => s.lists);
   const today = todayLocal();
   const [showDone, setShowDone] = useState(false);
+  const oneThing = useSettings((s) => s.settings.oneThing);
   useQuickAddContext({ schedule: { kind: "day", date: today } });
 
   const { overdue, due, done } = useMemo(() => {
     const active = derive(tasks, lists).active;
     const open = sortVMs(active.filter((vm) => inSmartList("today", vm, today)), "date");
     return {
-      overdue: open.filter((vm) => vm.date! < today),
-      due: open.filter((vm) => vm.date === today),
+      // Overdue: a planned date or deadline that has passed; the rest (planned today, deadline today, a follow-up) is Today.
+      overdue: open.filter((vm) => (vm.date !== null && vm.date < today) || (vm.task.deadline !== null && vm.task.deadline < today)),
+      due: open.filter((vm) => !((vm.date !== null && vm.date < today) || (vm.task.deadline !== null && vm.task.deadline < today))),
       done: active.filter((vm) => vm.task.status !== "open" && inSmartScope("today", vm, today)).sort((a, b) => (b.task.completedAt ?? "").localeCompare(a.task.completedAt ?? "")),
     };
   }, [tasks, lists, today]);
@@ -40,25 +44,34 @@ export default function Today() {
   ];
   const total = due.length + done.length;
   const date = fromLocalDate(today).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  const progress = total ? `${done.length} of ${total} done` : `0 of 0 due today${overdue.length ? ` · ${overdue.length} overdue` : ""}`;
+  const planned = plannedMinutes([...overdue, ...due]);
+  const progress = (total ? `${done.length} of ${total} done` : `Nothing planned today${overdue.length ? ` · ${overdue.length} overdue` : ""}`) + (planned ? ` · ${formatMinutes(planned)} planned` : "");
+  const toggleOneThing = () => useSettings.getState().update({ oneThing: { ...oneThing, on: !oneThing.on } });
 
   return (
     <FlatList
-      data={rows}
+      data={oneThing.on ? [] : rows}
       keyExtractor={(r) => (r.kind === "group" ? r.id : `${r.vm.task.id}${r.vm.key ?? ""}`)}
       contentContainerStyle={{ paddingBottom: 24 }}
       ListHeaderComponent={
         <>
-          <PageHeader title="Today" sub={`${date} · ${progress}`} actions={<IconButton icon="search" label="Search" onPress={() => router.push("/browse/search")} />}>
+          <PageHeader title="Today" sub={`${date} · ${progress}`} actions={
+              <>
+                <IconButton icon="crosshair" label={oneThing.on ? "Show all of Today" : "One thing"} onPress={toggleOneThing} />
+                <IconButton icon="search" label="Search" onPress={() => router.push("/browse/search")} />
+              </>
+            }
+          >
             <View style={{ height: 4, borderRadius: 2, backgroundColor: c.surface2, marginTop: 12, overflow: "hidden" }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: total, now: done.length }}>
               <View style={{ width: `${total ? (done.length / total) * 100 : 0}%`, height: "100%", backgroundColor: c.success, borderRadius: 2 }} />
             </View>
           </PageHeader>
           <SyncBanner />
           <GettingStarted />
+          {oneThing.on ? <OneThing vms={[...overdue, ...due]} /> : null}
         </>
       }
-      ListEmptyComponent={<Empty text="All clear for today" hint="Tap + to add a task. It lands here with today's date." />}
+      ListEmptyComponent={oneThing.on ? undefined : <Empty text="All clear for today" hint="Tap + to add a task. It lands here with today's date." />}
       renderItem={({ item }) =>
         item.kind === "task" ? (
           <TaskRow vm={item.vm} />

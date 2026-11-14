@@ -31,6 +31,7 @@ import { checkForUpdate } from "./updater";
 import { playEvent, playSound } from "./sounds";
 import { setStatus, useData } from "../stores/data";
 import { showInCurrentView } from "../features/tasks/viewOptions";
+import { initAgentApi } from "./agentApi";
 
 export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
 export type ReminderAction = { dto: ReminderDTO; action: "done" | "open" | "dismiss" } | { dto: ReminderDTO; action: "snooze"; minutes: number };
@@ -407,6 +408,10 @@ export async function initOs() {
   // A real quit (tray, or closing with close-to-tray off) first writes any settings change still waiting on the save debounce.
   await listen("app:quit", () => void useSettings.getState().flush().catch(console.error).finally(() => void invoke("quit_app")));
 
+  // --- AI agents (D264): the localhost API answers through this window; `momentum` stays on PATH if asked ---
+  await initAgentApi();
+  if (settings().cliOnPath) void invoke("agent_cli_path", { enabled: true }).catch(console.error);
+
   // --- updates (D59) ---------------------------------------------------------
   if (settings().checkUpdates) void checkForUpdate();
 
@@ -418,6 +423,7 @@ export async function initOs() {
     if (a.pomodoro !== b.pomodoro || a.matrix !== b.matrix) publishMiniSoon();
     if (a.voiceShortcut !== b.voiceShortcut) void bindVoice(a.voiceShortcut);
     if (a.closeToTray !== b.closeToTray) void invoke("set_close_to_tray", { enabled: a.closeToTray });
+    if (a.cliOnPath !== b.cliOnPath) void invoke("agent_cli_path", { enabled: a.cliOnPath }).catch((e) => toast(`Couldn't change PATH: ${String(e)}`));
     if (a.launchAtStartup !== b.launchAtStartup) void syncAutostart(a.launchAtStartup);
     if (a.accent !== b.accent) void syncIcon(a.accent);
     if (a.scale !== b.scale) void getCurrentWebview().setZoom(a.scale);

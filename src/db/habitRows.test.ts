@@ -8,7 +8,7 @@ describe("habit rows", () => {
     name: "Water",
     icon: "💧",
     color: "#2f6fed",
-    goal: { kind: "count", target: 8, unit: "glasses" },
+    goal: { kind: "count", target: 8, unit: "glasses", period: "day" },
     frequency: { kind: "weekdays", days: [1, 3, 5] },
     reminders: ["09:00", "15:00"],
     groupId: null,
@@ -21,7 +21,7 @@ describe("habit rows", () => {
   it("round-trips", () => expect(parseHabit(habitToRow(h))).toEqual(h));
 
   it("repairs invalid goal, frequency and reminders", () => {
-    expect(parseGoal({ kind: "count", target: -3 })).toEqual({ kind: "count", target: 1, unit: "" });
+    expect(parseGoal({ kind: "count", target: -3 })).toEqual({ kind: "count", target: 1, unit: "", period: "day" });
     expect(parseGoal("nope")).toEqual({ kind: "once" });
     expect(parseFrequency({ kind: "weekdays", days: [9, "x"] })).toEqual({ kind: "daily" });
     expect(parseFrequency({ kind: "perWeek", count: 12 })).toEqual({ kind: "perWeek", count: 7 });

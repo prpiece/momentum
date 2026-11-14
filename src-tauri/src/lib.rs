@@ -1,4 +1,6 @@
+mod agent;
 mod files;
+mod net;
 mod secrets;
 mod voice;
 
@@ -77,6 +79,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0009_sync.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 10,
+            description: "deadline, duration, someday, waiting; calendar subscriptions",
+            sql: include_str!("../migrations/0010_planning_subscriptions.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -152,13 +160,13 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
-/// Backup export / .ics import: read or write a file the user picked in a native dialog.
-/// Limited to the two extensions the app uses so the command can't touch arbitrary files.
+/// Backup export, .ics import and Todoist/TickTick import: read or write a file the user picked in a
+/// native dialog. Limited to the extensions the app uses so the command can't touch arbitrary files.
 fn checked_path(path: &str) -> Result<&Path, String> {
     let p = Path::new(path);
     match p.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()) {
-        Some(ext) if ext == "json" || ext == "ics" => Ok(p),
-        _ => Err("only .json and .ics files are supported".into()),
+        Some(ext) if ext == "json" || ext == "ics" || ext == "csv" => Ok(p),
+        _ => Err("only .json, .ics and .csv files are supported".into()),
     }
 }
 
@@ -288,6 +296,9 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // reqwest is built with `rustls-no-provider` (via the updater), and only the updater installed a
+    // provider, lazily: a calendar refresh or voice download before the update check panicked. Once, here.
+    let _ = rustls::crypto::ring::default_provider().install_default();
     // webkit2gtk's DMA-BUF renderer shows a blank window under many Linux GPU/driver combinations
     // (AppImage especially); the software path is fast enough for this UI. Respect an explicit choice.
     #[cfg(target_os = "linux")]
@@ -323,9 +334,14 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .manage(CloseToTray(AtomicBool::new(true)))
         .manage(voice::Voice::default())
+        .manage(agent::Agent::default())
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
             quit_app,
+            agent::agent_reply,
+            agent::agent_ready,
+            agent::agent_cli_info,
+            agent::agent_cli_path,
             secrets::secret_get,
             secrets::secret_set,
             secrets::secret_delete,
@@ -342,6 +358,7 @@ pub fn run() {
             files::write_backup_zip,
             files::read_backup_zip,
             files::restore_backup_attachments,
+            net::fetch_ics,
             voice::voice_model_status,
             voice::voice_download,
             voice::voice_cancel_download,
@@ -370,6 +387,10 @@ pub fn run() {
         .setup(move |app| {
             backup_before_migrate(&app.path().app_config_dir()?, latest)?;
             build_tray(app)?;
+            // Agents (D264): a failure here only turns the CLI off.
+            if let Err(e) = agent::start(app.handle()) {
+                eprintln!("could not start the agent API: {e}");
+            }
             // Without it images don't show, but the app still works.
             if let Err(e) = files::allow_asset_dirs(app.handle()) {
                 eprintln!("could not allow the image folders: {e}");
@@ -388,6 +409,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Momentum")
         .run(|_app, _event| {
+            if let tauri::RunEvent::Exit = _event {
+                agent::stop(_app);
+            }
             // Clicking the Dock icon while the window is hidden in the menu bar (close-to-tray).
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {

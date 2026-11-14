@@ -1,10 +1,10 @@
 import { casual } from "chrono-node/en";
 import { addMinutes } from "date-fns";
-import { toLocalDate } from "./dates";
+import { addDaysLocal, formatMinutes, relativeDayLabel, toLocalDate } from "./dates";
 import { bestName } from "./fuzzy";
-import type { Priority, Recurrence, Schedule } from "./types";
+import type { LocalDate, Priority, Recurrence, Schedule, Waiting } from "./types";
 
-export type ChipKind = "date" | "priority" | "tag" | "list" | "repeat";
+export type ChipKind = "date" | "priority" | "tag" | "list" | "repeat" | "deadline" | "duration" | "someday" | "waiting";
 /** `value` is the normalised token (the tag name), for chips whose text is spoken words. */
 export type Chip = { kind: ChipKind; text: string; start: number; end: number; value?: string };
 
@@ -16,8 +16,17 @@ export type ParsedTask = {
   /** Raw `~name` token; the caller resolves it against existing lists. */
   listName: string | null;
   rule: string | null;
+  /** `by fri` (D267). */
+  deadline: LocalDate | null;
+  /** `30m`, `1h30m`, `~2h`. */
+  durationMin: number | null;
+  /** `waiting @sam fri`: a person and the follow-up date. */
+  waiting: Extract<Waiting, { kind: "person" }> | null;
   chips: Chip[];
 };
+
+/** A `waiting @name` without a date follows up this many days later. */
+export const WAIT_DEFAULT_DAYS = 3;
 
 export const DEFAULT_TASK_MINUTES = 60;
 
@@ -109,6 +118,43 @@ function keywordMatches(text: string, listNames: readonly string[]): Match[] {
   return out;
 }
 
+/** A date phrase starting at `from` (after optional spaces), as chrono reads it: its local date and end index. */
+function dateAt(text: string, from: number, now: Date): { date: LocalDate; end: number } | null {
+  const rest = text.slice(from);
+  const lead = rest.length - rest.trimStart().length;
+  const [r] = casual.parse(rest.trimStart(), now, { forwardDate: true });
+  if (!r || r.index !== 0) return null;
+  return { date: toLocalDate(r.start.date()), end: from + lead + r.text.length };
+}
+
+/** Planning tokens (D267): deadline, duration, someday, waiting. Run before the other passes so `~2h` isn't a list. */
+function planningMatches(text: string, now: Date): Match[] {
+  const out: Match[] = [];
+  for (const m of text.matchAll(/(^|\s)by(?=\s)/gi)) {
+    const start = (m.index ?? 0) + m[1].length;
+    const d = dateAt(text, start + 2, now);
+    if (d) out.push({ kind: "deadline", start, end: d.end, apply: (p) => void (p.deadline = d.date) });
+  }
+  for (const m of text.matchAll(/(^|\s)~?(?:(\d{1,2})h(?:(\d{1,2})m)?|(\d{1,3})m(?:in)?)(?=\s|$|[,.;])/gi)) {
+    const min = m[2] ? Number(m[2]) * 60 + Number(m[3] ?? 0) : Number(m[4]);
+    const start = (m.index ?? 0) + m[1].length;
+    if (min >= 1 && min <= 1440) out.push({ kind: "duration", start, end: (m.index ?? 0) + m[0].length, apply: (p) => void (p.durationMin = min) });
+  }
+  for (const m of text.matchAll(/(^|\s)someday\b/gi)) {
+    const start = (m.index ?? 0) + m[1].length;
+    out.push({ kind: "someday", start, end: start + 7, apply: (p) => void (p.schedule = { kind: "someday" }) });
+  }
+  for (const m of text.matchAll(/(^|\s)waiting\s+(?:for\s+|on\s+)?@([\p{L}\p{N}_.\-]+)/giu)) {
+    const start = (m.index ?? 0) + m[1].length;
+    const afterName = (m.index ?? 0) + m[0].length;
+    const d = dateAt(text, afterName, now);
+    const who = m[2];
+    const followUp = d?.date ?? addDaysLocal(toLocalDate(now), WAIT_DEFAULT_DAYS);
+    out.push({ kind: "waiting", value: who, start, end: d?.end ?? afterName, apply: (p) => void (p.waiting = { kind: "person", who, followUp }) });
+  }
+  return out;
+}
+
 function tokenMatches(text: string): Match[] {
   const out: Match[] = [];
   for (const m of text.matchAll(/(^|\s)!(\w+)/g)) {
@@ -153,12 +199,15 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
     tags: [],
     listName: null,
     rule: null,
+    deadline: null,
+    durationMin: null,
+    waiting: null,
     chips: [],
   };
   if (!enabled) return result;
 
   const matches: Match[] = [];
-  for (const m of [...tokenMatches(input), ...(origin === "spoken" ? keywordMatches(input, listNames) : []), ...repeatMatches(input)]) {
+  for (const m of [...planningMatches(input, now), ...tokenMatches(input), ...(origin === "spoken" ? keywordMatches(input, listNames) : []), ...repeatMatches(input)]) {
     if (!matches.some((x) => overlaps(x, m))) matches.push(m);
   }
 
@@ -174,6 +223,7 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
       start,
       end,
       apply: (p) => {
+        if (p.schedule.kind === "someday") return; // `someday` wins over a stray date word
         p.schedule = hasTime
           ? {
               kind: "timed",
@@ -190,7 +240,7 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
   // repeats ("high priority, high priority", "#a #A") are still blanked out of the title.
   const seen = new Set<string>();
   for (const m of matches) {
-    const key = m.kind === "tag" ? `tag:${m.value?.toLowerCase()}` : m.kind === "priority" || m.kind === "list" ? m.kind : null;
+    const key = m.kind === "tag" ? `tag:${m.value?.toLowerCase()}` : m.kind === "priority" || m.kind === "list" || m.kind === "deadline" || m.kind === "duration" || m.kind === "waiting" ? m.kind : null;
     if (key && seen.has(key)) continue;
     if (key) seen.add(key);
     m.apply(result);
@@ -198,6 +248,7 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
   }
   // A repeat with no explicit date starts today; rrule then picks the first matching day.
   if (result.rule && result.schedule.kind === "none") result.schedule = { kind: "day", date: toLocalDate(now) };
+  if (result.schedule.kind === "someday") result.rule = null;
 
   const title = mask(input, matches)
     .replace(/\s+(on|at|by|for)\s*$/i, "")
@@ -230,9 +281,17 @@ export function withoutToken(text: string, chips: readonly Chip[], kind: "priori
 export function withDefaults(
   p: ParsedTask,
   d: { schedule?: Schedule; priority?: Priority; tags?: readonly string[] },
-): { schedule?: Schedule; priority?: Priority; tags: string[]; recurrence: Recurrence | null } {
+): {
+  schedule?: Schedule;
+  priority?: Priority;
+  tags: string[];
+  recurrence: Recurrence | null;
+  deadline?: LocalDate;
+  durationMin?: number;
+  waiting?: Waiting;
+} {
   // A repeat's implied "today" is not a date the user typed, so it never beats the context's date.
-  const typedDate = p.chips.some((c) => c.kind === "date");
+  const typedDate = p.chips.some((c) => c.kind === "date" || c.kind === "someday");
   const schedule = typedDate || !d.schedule ? p.schedule : d.schedule;
   const priority = p.priority ?? d.priority;
   return {
@@ -240,5 +299,17 @@ export function withDefaults(
     ...(priority !== undefined ? { priority } : {}),
     tags: [...new Set([...(d.tags ?? []), ...p.tags])],
     recurrence: p.rule ? { rule: p.rule, exdates: [] } : null,
+    ...(p.deadline ? { deadline: p.deadline } : {}),
+    ...(p.durationMin ? { durationMin: p.durationMin } : {}),
+    ...(p.waiting ? { waiting: p.waiting } : {}),
   };
+}
+
+/** Chip text for the planning tokens (D267), shared by both quick adds; null for other kinds. */
+export function planningChipLabel(kind: ChipKind, p: ParsedTask, today: LocalDate): string | null {
+  if (kind === "deadline" && p.deadline) return `by ${relativeDayLabel(p.deadline, today)}`;
+  if (kind === "duration" && p.durationMin) return formatMinutes(p.durationMin);
+  if (kind === "someday") return "Someday";
+  if (kind === "waiting" && p.waiting) return `Waiting for ${p.waiting.who} · ${relativeDayLabel(p.waiting.followUp, today)}`;
+  return null;
 }
