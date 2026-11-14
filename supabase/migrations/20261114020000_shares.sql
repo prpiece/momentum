@@ -328,10 +328,29 @@ begin
       where r.owner_id = o_after and r.tbl = 'tasks' and r.list_id = l and (r.data->>'assignee_id')::uuid = any(lost);
     end if;
 
-    -- Re-send the list and everything in it (newcomers start from nothing; the rest re-apply it).
+    -- Re-send the list and everything in it (newcomers start from nothing; the rest re-apply it),
+    -- parents first: a device can't insert a task before its list, or a subtask before its parent.
     update public.sync_rows r set version = nextval('public.sync_version'), updated_at = now()
-    where r.owner_id = o_after and (r.list_id = l or (r.tbl = 'task_activity' and r.data->>'task_id' in (
-      select t.id from public.sync_rows t where t.owner_id = o_after and t.tbl = 'tasks' and t.list_id = l)));
+    where r.owner_id = o_after and r.tbl = 'lists' and r.id = l;
+    update public.sync_rows r set version = nextval('public.sync_version'), updated_at = now()
+    where r.owner_id = o_after and r.tbl = 'sections' and r.list_id = l;
+    update public.sync_rows r set version = v.n, updated_at = now()
+    from (
+      with recursive tree(id, depth) as (
+        select t.id, 0 from public.sync_rows t where t.owner_id = o_after and t.tbl = 'tasks' and t.list_id = l and t.data->>'parent_id' is null
+        union all
+        select t.id, tree.depth + 1 from tree join public.sync_rows t
+          on t.owner_id = o_after and t.tbl = 'tasks' and t.list_id = l and t.data->>'parent_id' = tree.id
+        where tree.depth < 6)
+      select id, nextval('public.sync_version') as n from (select id, min(depth) d from tree group by id order by d) o
+    ) v
+    where r.owner_id = o_after and r.tbl = 'tasks' and r.id = v.id;
+    -- Tasks whose parent sits in another list (or is missing) still go, last.
+    update public.sync_rows r set version = nextval('public.sync_version'), updated_at = now()
+    where r.owner_id = o_after and r.tbl = 'tasks' and r.list_id = l and r.updated_at < now();
+    update public.sync_rows r set version = nextval('public.sync_version'), updated_at = now()
+    where r.owner_id = o_after and r.tbl = 'task_activity' and r.data->>'task_id' in (
+      select t.id from public.sync_rows t where t.owner_id = o_after and t.tbl = 'tasks' and t.list_id = l);
   end loop;
 
   for f in select jsonb_object_keys(p_before->'folders') union select jsonb_object_keys(p_after->'folders') loop
@@ -420,6 +439,13 @@ begin
   old_parent := cur->>parent_key;
   new_parent := case when f ? parent_key then f->>parent_key else old_parent end;
 
+  -- An edit (not a create, which carries every column including `id`) to a record that exists
+  -- only where you can't see it: you lost access before your device heard. Refused, so the
+  -- device gets the tombstone, instead of a stray copy in your namespace.
+  if cur is null and not f ? 'id' and exists (select 1 from public.sync_rows r where r.tbl = p_tbl and r.id = p_id and r.owner_id <> me) then
+    raise exception 'no_access' using errcode = '42501';
+  end if;
+
   -- task_activity: lives with its task; viewers' activity is dropped (they can't edit).
   if p_tbl = 'task_activity' then
     o := coalesce(cur_owner, (select r.owner_id from public.sync_rows r where r.tbl = 'tasks' and r.id = new_parent
@@ -442,6 +468,11 @@ begin
       o := coalesce(cur_owner, me);
     else
       o := public.container_owner(me, case when p_tbl in ('lists', 'folders') then 'folder' else 'list' end, new_parent);
+      if o is null and exists (select 1 from public.sync_rows r where r.tbl = case when p_tbl in ('lists', 'folders') then 'folders' else 'lists' end
+                               and r.id = new_parent and r.owner_id <> me) then
+        -- A list or folder you can't see (you lost access before your device heard).
+        raise exception 'no_access' using errcode = '42501';
+      end if;
       if o is null then
         o := coalesce(cur_owner, me); -- an unknown parent: the client's problem, as before sharing
       end if;
