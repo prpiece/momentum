@@ -133,10 +133,11 @@ describe("roles", () => {
   });
 
   it("a list-only member can't reach the folder's other lists", async () => {
-    // L's patch for B's task has nowhere shared to go, so it lands in L's own namespace.
-    await send(L.db, { tbl: "tasks", id: tB, fields: { title: "hijack" } });
+    // Edits and creates aimed at a list it can't see are refused, and leave no stray copy.
+    expect((await send(L.db, { tbl: "tasks", id: tB, fields: { title: "hijack" } })).refused?.[0]?.reason).toBe("no_access");
     expect((await row(O.db, "tasks", tB))?.title).not.toBe("hijack");
-    expect((await send(L.db, task(uid(), B))).refused).toEqual([]);
+    expect((await send(L.db, task(uid(), B))).refused?.[0]?.reason).toBe("no_access");
+    expect((await admin().from("sync_rows").select("id").eq("owner_id", L.id).eq("id", tB)).data).toEqual([]);
   });
 
   it("only editors and the owner can be assigned", async () => {
