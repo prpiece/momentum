@@ -25,3 +25,7 @@ dist-ssr
 
 # Local tooling
 .serena/
+
+# The momentum CLI crate and its copy for the bundle (scripts/build-cli.mjs)
+cli/target
+src-tauri/binaries
