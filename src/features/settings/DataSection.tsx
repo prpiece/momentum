@@ -76,6 +76,21 @@ export function DataSection() {
   );
 }
 
+/**
+ * The privacy promise (D268), also in the README. Each line was checked against the code for v1.3:
+ * no analytics or crash reporting; the clipboard is only written (copy buttons) or read from a paste
+ * you make; Settings → Data → Export holds every task, list, event, subscription, habit and focus
+ * session; nothing needs an account; there is no built-in AI, agents come in through `momentum mcp`.
+ */
+export const PRIVACY_PROMISE = [
+  "No telemetry: no analytics, no tracking, no crash reports.",
+  "Never reads your clipboard. Only a paste you make goes in.",
+  "A full export of everything, any time, in Settings → Data.",
+  "Works without an account. Sync is optional.",
+  "No AI built in. If you want one, connect your own agent (AI agents).",
+  "It goes online only to check for updates, to sync once you sign in, to fetch calendars you subscribe to, to download the voice model if you ask, and to send a problem report you write.",
+];
+
 export function AboutSection() {
   const version = useAppVersion() ?? "dev";
   return (
@@ -85,6 +100,11 @@ export function AboutSection() {
         <div className="text-base font-semibold">Momentum</div>
         <div className="tabular-nums text-xs text-muted">Version {version}</div>
         <div className="mt-1 text-xs text-fg-2">An offline planner for tasks, calendar, habits and focus. Your data stays on this device unless you sign in to sync it. MIT licensed.</div>
+        <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-fg-2" aria-label="Our privacy promise">
+          {PRIVACY_PROMISE.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
         <div className="mt-1 flex gap-3 text-xs">
           <SiteLink page="terms.html">Terms</SiteLink>
           <SiteLink page="privacy.html">Privacy policy</SiteLink>

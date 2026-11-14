@@ -73,6 +73,15 @@
 
 **Design**: a calm, warm look in light, dark or system themes; 10 accent colours tuned for both themes, with Indigo as the default (the taskbar and tray icons take the same colour); a sidebar (left or right) or a single bar at the top or bottom; comfortable or compact density; adjustable text size and zoom; and a phone-style layout with a bottom bar when the window is narrow. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
 
+## Privacy promise
+
+- **No telemetry.** No analytics, tracking or crash reports.
+- **No clipboard reading.** The app only writes to the clipboard (copy buttons); the only thing it reads is a paste you make.
+- **A full export.** Settings → Data → Export saves every task, list, event, calendar subscription, habit and focus session as JSON (with attachments as a zip).
+- **No account needed.** Everything works offline. Sync is optional.
+- **AI through your own agent.** Nothing is built in; connect Claude Code, Claude Desktop, Cursor, Codex or Gemini CLI through `momentum mcp` (below).
+- It goes online only to check for updates, to sync once you sign in, to fetch calendars you subscribe to, to download the voice model when you turn voice on, and to send a problem report you write.
+
 ## AI agents
 
 Your own AI agent can read and change your tasks through the running app (nothing leaves your computer). Turn on Settings → AI agents → Add `momentum` to PATH, then:
