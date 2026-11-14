@@ -2,6 +2,7 @@
  * Plugs the phone's pieces into the shared core (PLAN D229) and loads the stores. Desktop does the
  * same in src/main.tsx with Tauri's SQL plugin, the OS keychain and Sonner.
  */
+import { startWidgets } from "./widgets/start";
 import { getRandomValues, randomUUID } from "expo-crypto";
 import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import * as SecureStore from "expo-secure-store";
@@ -79,4 +80,4 @@ setSyncHost({
   },
 });
 
-export const ready = Promise.all([useSettings.getState().hydrate(), hydrate(), hydrateHabits(), hydrateFocus()]).then(() => startSync());
+export const ready = Promise.all([useSettings.getState().hydrate(), hydrate(), hydrateHabits(), hydrateFocus()]).then(() => (startWidgets(), startSync()));
