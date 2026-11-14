@@ -2,7 +2,7 @@ import { CalendarDays, Flag } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button, Dialog } from "../../components/ui/Dialog";
 import { Segmented } from "../../components/ui/Segmented";
-import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
+import { formatTime, relativeDayLabel, toLocalDate, todayLocal } from "../../domain/dates";
 import { splitImport } from "../../domain/bulkImport";
 import { parseQuickAdd } from "../../domain/quickAdd";
 import { PRIORITY_LABEL, type Task } from "../../domain/types";
@@ -123,7 +123,7 @@ function ImportBody() {
                   s.kind === "day"
                     ? relativeDayLabel(s.date, today)
                     : s.kind === "timed"
-                      ? `${relativeDayLabel(todayLocal(new Date(s.start)), today)} ${formatTime(new Date(s.start), timeFormat)}`
+                      ? `${relativeDayLabel(toLocalDate(new Date(s.start)), today)} ${formatTime(new Date(s.start), timeFormat)}`
                       : null;
                 return (
                   <li key={i} className="flex items-center gap-2 text-sm" style={{ paddingLeft: `${depth * 1.25}rem` }}>

@@ -76,6 +76,7 @@ export function parseIcs(text: string, color: string, now = new Date().toISOStri
         recurrence,
         recurrenceParentId: recId ? `ics:${uid}` : null,
         source: "ics",
+        subscriptionId: null,
         createdAt: now,
         updatedAt: now,
         deletedAt: null,

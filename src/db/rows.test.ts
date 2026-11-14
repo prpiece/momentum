@@ -13,6 +13,9 @@ const base: Task = {
   priority: 2,
   schedule: { kind: "timed", start: "2026-10-25T14:00:00.000Z", end: "2026-10-25T15:00:00.000Z" },
   recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO", exdates: ["2026-10-26T10:00"] },
+  deadline: null,
+  durationMin: null,
+  waiting: null,
   recurrenceParentId: null,
   tags: ["a"],
   checklist: [{ id: "c", title: "Outline", done: true }],
@@ -30,6 +33,19 @@ describe("task rows", () => {
     expect(parseTask(taskToRow(base))).toEqual(base);
     const day: Task = { ...base, schedule: { kind: "day", date: "2026-10-25" }, recurrence: null };
     expect(parseTask(taskToRow(day))).toEqual(day);
+  });
+
+  it("round-trips the planning fields (D267)", () => {
+    const t: Task = { ...base, schedule: { kind: "someday" }, recurrence: null, deadline: "2026-10-30", durationMin: 45, waiting: { kind: "person", who: "Sam", followUp: "2026-11-02" } };
+    expect(parseTask(taskToRow(t))).toEqual(t);
+    const w: Task = { ...base, waiting: { kind: "task", taskId: "t2" } };
+    expect(parseTask(taskToRow(w))).toEqual(w);
+  });
+
+  it("drops bad planning fields: a wait on itself, odd durations, a someday series", () => {
+    const t = parseTask({ ...taskToRow(base), start_at: null, end_at: null, someday: 1, duration_min: 0, deadline: "fri", waiting: JSON.stringify({ kind: "task", taskId: "t1" }) });
+    expect(t).toMatchObject({ schedule: { kind: "someday" }, recurrence: null, durationMin: null, deadline: null, waiting: null });
+    expect(parseTask({ ...taskToRow(base), duration_min: 2000 })?.durationMin).toBeNull();
   });
 
   it("repairs bad fields instead of crashing", () => {
@@ -68,7 +84,7 @@ describe("event rows", () => {
     schedule: { kind: "day", date: "2026-11-02" },
     spanDays: 3,
     color: "#2f6fed",
-    countdown: "until",
+    subscriptionId: null,    countdown: "until",
     pinned: true,
     recurrence: null,
     recurrenceParentId: null,

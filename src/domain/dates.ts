@@ -23,7 +23,21 @@ export function fromLocalDate(s: LocalDate): Date {
   return new Date(y, m - 1, d);
 }
 
-export const todayLocal = (now = new Date()): LocalDate => toLocalDate(now);
+/**
+ * End of day (D267): the hour (0–5) at which "today" rolls over. Before it, it is still yesterday for
+ * Today, overdue and habit days. Set once from settings (`setDayEndHour`); 0 is midnight.
+ * ponytail: module state rather than a parameter on ~90 callers; pass `endHour` explicitly in tests.
+ */
+export const DAY_END_MAX = 5;
+let dayEndHour = 0;
+export const setDayEndHour = (h: number) => void (dayEndHour = Number.isInteger(h) && h >= 0 && h <= DAY_END_MAX ? h : 0);
+export const getDayEndHour = () => dayEndHour;
+
+/** The local date "today" is at `now`, shifted back a day before the end-of-day hour. DST-safe (wall-clock hours). */
+export function todayLocal(now = new Date(), endHour = dayEndHour): LocalDate {
+  const d = toLocalDate(now);
+  return now.getHours() < endHour ? addDaysLocal(d, -1) : d;
+}
 export const addDaysLocal = (s: LocalDate, n: number): LocalDate => toLocalDate(addDays(fromLocalDate(s), n));
 export const daysBetween = (from: LocalDate, to: LocalDate): number =>
   differenceInCalendarDays(fromLocalDate(to), fromLocalDate(from));
@@ -43,6 +57,7 @@ export const hhmm = (d: Date): string => format(d, "HH:mm");
 export function scheduleDate(s: Schedule): LocalDate | null {
   switch (s.kind) {
     case "none":
+    case "someday":
       return null;
     case "day":
       return s.date;
@@ -53,6 +68,17 @@ export function scheduleDate(s: Schedule): LocalDate | null {
 
 export function durationMinutes(s: Schedule): number | null {
   return s.kind === "timed" ? differenceInMinutes(new Date(s.end), new Date(s.start)) : null;
+}
+
+/** A task's duration (D267): a timed task's end minus start, otherwise its own `durationMin`. */
+export const taskMinutes = (t: { schedule: Schedule; durationMin: number | null }): number | null =>
+  durationMinutes(t.schedule) ?? t.durationMin;
+
+/** "4h 10m", "45m", "2h". */
+export function formatMinutes(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m}m`;
 }
 
 export function timed(start: Date, minutes: number): Schedule {

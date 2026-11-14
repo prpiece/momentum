@@ -17,6 +17,9 @@ function vm(priority: Priority, schedule: Schedule = { kind: "none" }): TaskVM {
     priority,
     schedule,
     recurrence: null,
+    deadline: null,
+    durationMin: null,
+    waiting: null,
     recurrenceParentId: null,
     tags: [],
     checklist: [],
@@ -79,5 +82,21 @@ describe("patchForQuadrant", () => {
   it("keeps a timed task's time of day when changing urgency", () => {
     const { p } = apply(vm(3, timed(atLocalTime("2026-11-10", "14:30"), 30)), 1);
     expect(p.schedule?.kind === "timed" && wallKey(new Date(p.schedule.start))).toBe("2026-10-25T14:30");
+  });
+});
+
+describe("deadline urgency (D267)", () => {
+  it("takes urgency from the deadline when there is one", () => {
+    const far = { ...vm(3, { kind: "day", date: "2026-11-20" }) };
+    expect(quadrantOf(far, TODAY, DEFAULT_RULES)).toBe(2);
+    const withDeadline = { ...far, task: { ...far.task, deadline: "2026-10-26" } };
+    expect(quadrantOf(withDeadline, TODAY, DEFAULT_RULES)).toBe(1);
+    const lateDeadline = { ...vm(3, { kind: "day", date: TODAY }), task: { ...far.task, deadline: "2026-11-20" } };
+    expect(quadrantOf(lateDeadline, TODAY, DEFAULT_RULES)).toBe(2);
+  });
+  it("moving a task with a deadline moves the deadline, not the planned date", () => {
+    const v = { ...vm(3, { kind: "day", date: "2026-11-20" }) };
+    const d = { ...v, task: { ...v.task, deadline: "2026-11-21" } };
+    expect(patchForQuadrant(d, 1, TODAY, DEFAULT_RULES)).toEqual({ deadline: TODAY });
   });
 });

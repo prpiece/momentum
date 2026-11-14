@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   addDaysLocal,
+  formatMinutes,
+  getDayEndHour,
+  setDayEndHour,
+  taskMinutes,
+  todayLocal,
   atLocalTime,
   daysBetween,
   durationMinutes,
@@ -73,5 +78,31 @@ describe("moveToDate", () => {
     expect(s.kind === "timed" && wallKey(new Date(s.start))).toBe("2026-03-09T09:30");
     expect(durationMinutes(s)).toBe(45);
     expect(moveToDate({ kind: "none" }, "2026-03-09")).toEqual({ kind: "day", date: "2026-03-09" });
+  });
+});
+
+describe("end of day (D267)", () => {
+  it("before the end-of-day hour it is still yesterday", () => {
+    expect(todayLocal(new Date(2026, 9, 25, 2, 59), 3)).toBe("2026-10-24");
+    expect(todayLocal(new Date(2026, 9, 25, 3, 0), 3)).toBe("2026-10-25");
+    expect(todayLocal(new Date(2026, 9, 25, 0, 0), 0)).toBe("2026-10-25");
+    expect(todayLocal(new Date(2026, 9, 25, 23, 59), 5)).toBe("2026-10-25");
+  });
+  it("holds across a DST change and a month boundary", () => {
+    // 2026-11-01 is the US fall-back night: 01:30 happens twice.
+    expect(todayLocal(new Date(2026, 10, 1, 1, 30), 2)).toBe("2026-10-31");
+    expect(todayLocal(new Date(2026, 10, 1, 2, 0), 2)).toBe("2026-11-01");
+    expect(todayLocal(new Date(2027, 0, 1, 4, 0), 5)).toBe("2026-12-31");
+  });
+  it("setDayEndHour sets the default and ignores bad hours", () => {
+    setDayEndHour(4);
+    expect(todayLocal(new Date(2026, 9, 25, 3, 0))).toBe("2026-10-24");
+    setDayEndHour(9);
+    expect(getDayEndHour()).toBe(0);
+    setDayEndHour(0);
+  });
+  it("formats minutes", () => {
+    expect([formatMinutes(250), formatMinutes(45), formatMinutes(120)]).toEqual(["4h 10m", "45m", "2h"]);
+    expect(taskMinutes({ schedule: { kind: "none" }, durationMin: 20 })).toBe(20);
   });
 });

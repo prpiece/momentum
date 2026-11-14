@@ -1,6 +1,7 @@
 import { format } from "date-fns";
-import { addDaysLocal, fromLocalDate, scheduleDate, toLocalDate, wallKey } from "./dates";
+import { addDaysLocal, fromLocalDate, scheduleDate, taskMinutes, toLocalDate, wallKey } from "./dates";
 import { effective } from "./recurrence";
+import { blockerOpen, followUpDue, isWaiting } from "./waiting";
 import {
   INBOX_ID,
   PRIORITY_LABEL,
@@ -14,8 +15,11 @@ import {
   type TaskList,
 } from "./types";
 
-/** A task as list views see it: recurring tasks show their current occurrence. */
-export type TaskVM = { task: Task; schedule: Schedule; date: LocalDate | null; key: string | null };
+/**
+ * A task as list views see it: recurring tasks show their current occurrence. `blocked`: it waits on a
+ * task that is still open (set by `derive`, which sees every task; a lone `toVM` assumes it is).
+ */
+export type TaskVM = { task: Task; schedule: Schedule; date: LocalDate | null; key: string | null; blocked: boolean };
 
 const vmCache = new WeakMap<Task, TaskVM | null>();
 
@@ -24,22 +28,31 @@ export function toVM(task: Task): TaskVM | null {
   const hit = vmCache.get(task);
   if (hit !== undefined) return hit;
   const eff = effective(task);
-  const vm = eff && { task, schedule: eff.schedule, date: scheduleDate(eff.schedule), key: eff.key };
+  const vm = eff && { task, schedule: eff.schedule, date: scheduleDate(eff.schedule), key: eff.key, blocked: task.waiting?.kind === "task" };
   vmCache.set(task, vm);
   return vm;
 }
 
+/** Still waiting for a person or an open task (D267): out of Today and Upcoming, in Waiting. */
+export const waitingNow = (vm: TaskVM, today: LocalDate) => isWaiting(vm.task.waiting, vm.blocked, today);
+
 export function inSmartList(id: SmartListId, vm: TaskVM, today: LocalDate): boolean {
   const t = vm.task;
-  const open = t.status === "open";
+  if (t.status !== "open") return false;
+  const waiting = waitingNow(vm, today);
   switch (id) {
     case "inbox":
-      return open && t.listId === INBOX_ID;
+      return t.listId === INBOX_ID;
     case "today":
-      // Overdue items stay visible in Today until handled.
-      return open && vm.date !== null && vm.date <= today;
+      // Overdue items stay visible in Today until handled; so do deadlines that have come and a person's follow-up.
+      if (waiting || vm.schedule.kind === "someday") return false;
+      return (vm.date !== null && vm.date <= today) || (t.deadline !== null && t.deadline <= today) || followUpDue(t.waiting, today);
     case "upcoming":
-      return open && vm.date !== null && vm.date > today;
+      return !waiting && vm.date !== null && vm.date > today;
+    case "someday":
+      return vm.schedule.kind === "someday";
+    case "waiting":
+      return waiting;
   }
 }
 
@@ -57,8 +70,19 @@ export function inSmartScope(id: SmartListId, vm: TaskVM, today: LocalDate): boo
       return t.completedAt !== null && toLocalDate(new Date(t.completedAt)) === today;
     case "upcoming":
       return vm.date !== null && vm.date > today;
+    case "someday":
+      return vm.schedule.kind === "someday";
+    case "waiting":
+      return t.waiting !== null;
   }
 }
+
+/** The planned minutes of a set of tasks (Today's header, D267): durations of the open ones. */
+export const plannedMinutes = (vms: readonly TaskVM[]) =>
+  vms.reduce((sum, vm) => sum + (vm.task.status === "open" ? (taskMinutes({ schedule: vm.schedule, durationMin: vm.task.durationMin }) ?? 0) : 0), 0);
+
+/** The deadline has passed (red chip). */
+export const deadlinePassed = (t: Pick<Task, "deadline" | "status">, today: LocalDate) => t.status === "open" && t.deadline !== null && t.deadline < today;
 
 export const isOverdue = (vm: TaskVM, today: LocalDate) => vm.task.status === "open" && vm.date !== null && vm.date < today;
 
@@ -207,8 +231,10 @@ export function derive(tasks: Record<string, Task>, lists: Record<string, TaskLi
   const kids = new Map<string, TaskVM[]>();
   for (const t of Object.values(tasks)) {
     if (t.deletedAt) continue;
-    const vm = toVM(t);
+    let vm = toVM(t);
     if (!vm) continue;
+    // A wait on a task resolves once that task is finished or gone, from any device: derived, not stored.
+    if (t.waiting?.kind === "task" && blockerOpen(t.waiting, tasks) !== vm.blocked) vm = { ...vm, blocked: !vm.blocked };
     vms.push(vm);
     if (t.parentId) {
       const arr = kids.get(t.parentId);

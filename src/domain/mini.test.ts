@@ -9,7 +9,7 @@ const TODAY = "2026-10-25";
 function vm(id: string, priority: Priority, schedule: Schedule, status: Task["status"] = "open"): TaskVM {
   const t: Task = {
     id, title: `T${id}`, description: "", listId: "inbox", parentId: null, sectionId: null, status, priority, schedule,
-    recurrence: null, recurrenceParentId: null, tags: [], checklist: [], reminders: [], sortOrder: 0, pinned: false,
+    recurrence: null, deadline: null, durationMin: null, waiting: null, recurrenceParentId: null, tags: [], checklist: [], reminders: [], sortOrder: 0, pinned: false,
     createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", completedAt: null, deletedAt: null,
   };
   return toVM(t) as TaskVM;

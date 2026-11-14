@@ -19,6 +19,8 @@ export function useCounts(): { smart: Record<SmartListId, number>; lists: Record
       inbox: 0,
       today: 0,
       upcoming: 0,
+      someday: 0,
+      waiting: 0,
     };
     const lists: Record<string, number> = {};
     for (const vm of d.active) {

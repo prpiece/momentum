@@ -49,7 +49,7 @@ export function parseFilter(query: string, now: Date): TaskFilter {
   f.tags = p.tags;
   f.priority = p.priority;
   f.listName = p.listName;
-  if (chips.some((c) => c.kind === "date") && p.schedule.kind !== "none")
+  if (chips.some((c) => c.kind === "date") && (p.schedule.kind === "day" || p.schedule.kind === "timed"))
     f.date = { kind: "on", date: p.schedule.kind === "day" ? p.schedule.date : toLocalDate(new Date(p.schedule.start)) };
   // parseQuickAdd falls back to the whole input when every word was a token.
   f.text = p.chips.length && p.title === rest.trim() ? "" : p.title;

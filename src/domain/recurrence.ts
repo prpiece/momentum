@@ -196,7 +196,7 @@ export function shiftAnchor(anchor: Schedule, from: Schedule, to: Schedule): Sch
   const a = scheduleDate(anchor);
   const f = scheduleDate(from);
   const t = scheduleDate(to);
-  if (!a || !f || !t || to.kind === "none") return anchor;
+  if (!a || !f || !t || to.kind === "none" || to.kind === "someday") return anchor;
   const date = addDaysLocal(a, daysBetween(f, t));
   if (to.kind === "day") return { kind: "day", date };
   return timed(atLocalTime(date, hhmm(new Date(to.start))), durationMinutes(to) ?? 0);

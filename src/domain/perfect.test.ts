@@ -21,7 +21,7 @@ function task(due: LocalDate, handled: LocalDate | null, p: Partial<Task> = {}):
     priority: 0,
     schedule: { kind: "day", date: due },
     recurrence: null,
-    recurrenceParentId: null,
+    deadline: null, durationMin: null, waiting: null, recurrenceParentId: null,
     tags: [],
     checklist: [],
     reminders: [],

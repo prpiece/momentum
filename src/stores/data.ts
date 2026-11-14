@@ -4,6 +4,7 @@ import { canAddChild, canNest, childFolders } from "../domain/folders";
 import { after, before, reorder as reorderItems } from "../domain/order";
 import { detachOccurrence, effective, scheduleForKey, shiftAnchor, splitSeries } from "../domain/recurrence";
 import { scheduleDate } from "../domain/dates";
+import { waitLoops } from "../domain/waiting";
 import { notePush } from "./progress";
 import {
   INBOX_ID,
@@ -135,9 +136,13 @@ export function addTask(input: NewTask, position: "top" | "bottom" = "top"): Tas
     status: "open",
     priority: 0,
     schedule: { kind: "none" },
+    deadline: null,
+    durationMin: null,
+    waiting: null,
     recurrence: null,
     recurrenceParentId: null,
-    tags: [],
+    // A subtask starts with its parent's tags (D267); later edits don't flow down.
+    tags: input.parentId ? [...(get().tasks[input.parentId]?.tags ?? [])] : [],
     checklist: [],
     reminders: [],
     pinned: false,
@@ -151,7 +156,8 @@ export function addTask(input: NewTask, position: "top" | "bottom" = "top"): Tas
     createdAt: now(),
     updatedAt: now(),
   };
-  if (t.schedule.kind === "none") t.recurrence = null;
+  if (t.schedule.kind === "none" || t.schedule.kind === "someday") t.recurrence = null;
+  if (input.parentId && input.tags) t.tags = [...new Set([...(get().tasks[input.parentId]?.tags ?? []), ...input.tags])];
   commit([t]);
   log(t.id, "created");
   return t;
@@ -161,7 +167,8 @@ export function updateTask(id: string, patch: Partial<Task>) {
   const t = get().tasks[id];
   if (!t) return;
   const next: Task = { ...t, ...patch, updatedAt: now() };
-  if (next.schedule.kind === "none") next.recurrence = null;
+  if (next.schedule.kind === "none" || next.schedule.kind === "someday") next.recurrence = null;
+  if (patch.waiting !== undefined && waitLoops(id, patch.waiting, get().tasks)) next.waiting = t.waiting;
   const changed = [next];
   if (patch.listId && patch.listId !== t.listId) {
     log(id, "moved", get().lists[patch.listId]?.name ?? "");
@@ -326,6 +333,7 @@ export function addEvent(input: NewEvent): CalendarEvent {
     recurrence: null,
     recurrenceParentId: null,
     source: "local",
+    subscriptionId: null,
     countdown: null,
     pinned: false,
     deletedAt: null,

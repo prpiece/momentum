@@ -6,7 +6,7 @@ import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { ColorPanel } from "../../components/ui/ColorField";
 import { accentForeground, accentHex, ACCENTS, isHex, ON_LIGHT, parseQuadrantColor, quadrantHex, type QuadrantColor } from "../../domain/color";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
-import { patchForQuadrant, QUADRANT_INFO, QUADRANT_VAR, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
+import { inMatrix, patchForQuadrant, QUADRANT_INFO, QUADRANT_VAR, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
 import { justDragged, onDrop } from "../../lib/dnd";
@@ -44,7 +44,7 @@ export function MatrixView({ vms, defaults }: { vms: readonly TaskVM[]; defaults
   const today = todayLocal();
   const groups = useMemo(() => {
     const out: Record<Quadrant, TaskVM[]> = { 1: [], 2: [], 3: [], 4: [] };
-    for (const vm of topLevelIn(vms.filter((v) => v.task.status === "open"))) out[quadrantOf(vm, today, rules)].push(vm);
+    for (const vm of topLevelIn(vms.filter((v) => v.task.status === "open" && inMatrix(v)))) out[quadrantOf(vm, today, rules)].push(vm);
     for (const q of QUADRANTS) out[q] = sortVMs(out[q], "date");
     return out;
   }, [vms, rules, today]);
@@ -69,7 +69,7 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
   const menu = useMenu();
   const { setNodeRef, isOver } = useDroppable({ id: `quadrant:${q}`, data: { type: "quadrant", q } });
   // New tasks inherit the quadrant's attributes (same rule as dropping a blank task here); tokens typed in the box win (D220).
-  const quadrantDefaults = { ...defaults, ...patchForQuadrant({ task: { priority: 0 }, date: null, schedule: { kind: "none" } }, q, todayLocal(), rules) };
+  const quadrantDefaults = { ...defaults, ...patchForQuadrant({ task: { priority: 0, deadline: null }, date: null, schedule: { kind: "none" } }, q, todayLocal(), rules) };
   return (
     <section
       ref={setNodeRef}

@@ -6,6 +6,7 @@
 import { isInstant, isLocalDate } from "../domain/dates";
 import { isValidRule } from "../domain/recurrence";
 import { isRecord, oneOf } from "../domain/settings";
+import { parseWaiting } from "../domain/waiting";
 import {
   COUNTDOWN_MODES,
   LIST_LAYOUTS,
@@ -60,8 +61,12 @@ function parseChecklistItem(v: unknown): ChecklistItem | null {
 export function scheduleFromRow(r: Row): Schedule {
   if (isInstant(r.start_at) && isInstant(r.end_at)) return { kind: "timed", start: r.start_at, end: r.end_at };
   if (isLocalDate(r.due_date)) return { kind: "day", date: r.due_date };
-  return { kind: "none" };
+  return bool(r.someday) ? { kind: "someday" } : { kind: "none" };
 }
+
+/** Whole minutes, 1 to 24 h; anything else is no duration. */
+export const parseDuration = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) && v >= 1 && v <= 1440 ? Math.round(v) : null;
 
 export function parseTask(r: Row): Task | null {
   if (typeof r.id !== "string" || typeof r.list_id !== "string") return null;
@@ -78,8 +83,12 @@ export function parseTask(r: Row): Task | null {
     status: oneOf(TASK_STATUSES, r.status) ? r.status : "open",
     priority: oneOf(PRIORITIES, r.priority) ? r.priority : 0,
     schedule,
+    deadline: isLocalDate(r.deadline) ? r.deadline : null,
+    durationMin: parseDuration(r.duration_min),
+    // A task can't wait on itself (loops through other tasks are refused when a wait is set).
+    waiting: ((w) => (w?.kind === "task" && w.taskId === r.id ? null : w))(parseWaiting(json(r.waiting))),
     recurrence:
-      rule && schedule.kind !== "none" && isValidRule(rule)
+      rule && (schedule.kind === "day" || schedule.kind === "timed") && isValidRule(rule)
         ? { rule, exdates: arr(r.exdates).filter((x): x is string => typeof x === "string") }
         : null,
     recurrenceParentId: optStr(r.recurrence_parent_id),
@@ -113,6 +122,10 @@ export function taskToRow(t: Task): Row {
     due_date: s.kind === "day" ? s.date : null,
     start_at: s.kind === "timed" ? s.start : null,
     end_at: s.kind === "timed" ? s.end : null,
+    someday: s.kind === "someday" ? 1 : 0,
+    deadline: t.deadline,
+    duration_min: t.durationMin,
+    waiting: t.waiting ? JSON.stringify(t.waiting) : null,
     rrule: t.recurrence?.rule ?? null,
     exdates: JSON.stringify(t.recurrence?.exdates ?? []),
     recurrence_parent_id: t.recurrenceParentId,
@@ -215,6 +228,7 @@ export function parseEvent(r: Row): CalendarEvent | null {
     recurrence: rule && isValidRule(rule) ? { rule, exdates: arr(r.exdates).filter((x): x is string => typeof x === "string") } : null,
     recurrenceParentId: optStr(r.recurrence_parent_id),
     source: r.source === "ics" ? "ics" : "local",
+    subscriptionId: r.source === "ics" ? optStr(r.subscription_id) : null,
     countdown: schedule.kind === "day" && oneOf(COUNTDOWN_MODES, r.countdown) ? r.countdown : null,
     pinned: r.pinned === 1,
     createdAt: isInstant(r.created_at) ? r.created_at : now,
@@ -238,6 +252,7 @@ export function eventToRow(e: CalendarEvent): Row {
     exdates: JSON.stringify(e.recurrence?.exdates ?? []),
     recurrence_parent_id: e.recurrenceParentId,
     source: e.source,
+    subscription_id: e.subscriptionId,
     countdown: e.countdown,
     pinned: e.pinned ? 1 : 0,
     created_at: e.createdAt,

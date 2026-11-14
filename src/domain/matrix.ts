@@ -4,7 +4,7 @@ import { PRIORITIES, type LocalDate, type Priority, type Schedule, type Task } f
 
 /**
  * Eisenhower quadrants are derived, never stored: a task's quadrant follows from its priority
- * and due date under the user's rules, so it can never disagree with them.
+ * and its deadline (or planned date) under the user's rules, so it can never disagree with them.
  */
 export type Quadrant = 1 | 2 | 3 | 4;
 export const QUADRANTS: readonly Quadrant[] = [1, 2, 3, 4];
@@ -33,9 +33,15 @@ export const isImportant = (t: Pick<Task, "priority">, r: MatrixRules) => r.impo
 export const isUrgent = (date: LocalDate | null, today: LocalDate, r: MatrixRules) =>
   date !== null && daysBetween(today, date) <= r.urgentDays;
 
-export function quadrantOf(vm: Pick<TaskVM, "task" | "date">, today: LocalDate, r: MatrixRules): Quadrant {
+/** Urgency comes from the deadline when there is one, otherwise from the planned date (D267). */
+export const urgencyDate = (vm: { task: Pick<Task, "deadline">; date: LocalDate | null }) => vm.task.deadline ?? vm.date;
+
+/** Someday tasks are kept out of the Matrix (D267). */
+export const inMatrix = (vm: Pick<TaskVM, "schedule">) => vm.schedule.kind !== "someday";
+
+export function quadrantOf(vm: { task: Pick<Task, "priority" | "deadline">; date: LocalDate | null }, today: LocalDate, r: MatrixRules): Quadrant {
   const imp = isImportant(vm.task, r);
-  const urg = isUrgent(vm.date, today, r);
+  const urg = isUrgent(urgencyDate(vm), today, r);
   return imp ? (urg ? 1 : 2) : urg ? 3 : 4;
 }
 
@@ -46,7 +52,7 @@ export function quadrantOf(vm: Pick<TaskVM, "task" | "date">, today: LocalDate, 
  * today (keeping a time of day); losing urgency moves it just past the urgency window.
  */
 export function patchForQuadrant(
-  vm: { task: Pick<Task, "priority">; date: LocalDate | null; schedule: Schedule },
+  vm: { task: Pick<Task, "priority" | "deadline">; date: LocalDate | null; schedule: Schedule },
   q: Quadrant,
   today: LocalDate,
   r: MatrixRules,
@@ -58,9 +64,11 @@ export function patchForQuadrant(
     // PRIORITIES is ascending, so the last entry is the highest qualifying level.
     patch.priority = pool[pool.length - 1] ?? vm.task.priority;
   }
-  if (want.urgent !== isUrgent(vm.date, today, r)) {
+  if (want.urgent !== isUrgent(urgencyDate(vm), today, r)) {
     const target = want.urgent ? today : addDaysLocal(today, r.urgentDays + 1);
-    patch.schedule = moveToDate(vm.schedule, target);
+    // A deadline is what makes the task urgent, so that is what moves; the planned date stays.
+    if (vm.task.deadline !== null) patch.deadline = target;
+    else patch.schedule = moveToDate(vm.schedule, target);
   }
   return patch;
 }

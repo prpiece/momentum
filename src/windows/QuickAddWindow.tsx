@@ -1,7 +1,8 @@
-import { CalendarDays, Flag, Hash, List, Mic, Plus, Repeat } from "lucide-react";
+import { CalendarDays, List, Mic, Plus } from "lucide-react";
+import { CHIP_ICON } from "../features/tasks/chipIcons";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatTime, relativeDayLabel, todayLocal } from "../domain/dates";
-import { parseQuickAdd, withoutToken, withToken, type ChipKind } from "../domain/quickAdd";
+import { formatTime, relativeDayLabel, toLocalDate, todayLocal } from "../domain/dates";
+import { parseQuickAdd, planningChipLabel, withoutToken, withToken, type ChipKind } from "../domain/quickAdd";
 import { contextLabel, type QuickAddContext } from "../domain/quickAddContext";
 import { describeRule } from "../domain/recurrence";
 import { PRIORITY_LABEL } from "../domain/types";
@@ -17,7 +18,6 @@ type VoicePhase = { kind: "idle" } | { kind: "listening" } | { kind: "transcribi
 const PRIORITY_OPTIONS = [{ value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" }];
 const nameKey = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 
-const ICON: Record<ChipKind, typeof Flag> = { date: CalendarDays, priority: Flag, tag: Hash, list: List, repeat: Repeat };
 
 /**
  * The small always-on-top window behind the global shortcut. It has no database access: it
@@ -150,7 +150,9 @@ export function QuickAddWindow() {
   const label = (kind: ChipKind, chipText: string, value?: string) => {
     const s = parsed.schedule;
     if (kind === "date" && s.kind === "day") return relativeDayLabel(s.date, today);
-    if (kind === "date" && s.kind === "timed") return `${relativeDayLabel(todayLocal(new Date(s.start)), today)} ${formatTime(new Date(s.start), appearance?.timeFormat ?? "24h")}`;
+    if (kind === "date" && s.kind === "timed") return `${relativeDayLabel(toLocalDate(new Date(s.start)), today)} ${formatTime(new Date(s.start), appearance?.timeFormat ?? "24h")}`;
+    const planning = planningChipLabel(kind, parsed, today);
+    if (planning) return planning;
     if (kind === "priority" && parsed.priority !== null) return PRIORITY_LABEL[parsed.priority];
     if (kind === "repeat" && parsed.rule) return describeRule(parsed.rule);
     if (kind === "list" && parsed.listName) return lists.find((n) => nameKey(n) === nameKey(parsed.listName ?? "")) ?? parsed.listName;
@@ -159,7 +161,7 @@ export function QuickAddWindow() {
   const picker = (kind: "priority" | "list", filled: string | null) => (
     <TokenPicker
       key={kind}
-      icon={ICON[kind]}
+      icon={CHIP_ICON[kind]}
       ariaLabel={kind === "priority" ? "Priority" : "List"}
       empty={kind === "priority" ? "+ Priority" : "+ List"}
       options={kind === "priority" ? PRIORITY_OPTIONS : lists.map((n) => ({ value: n, label: n }))}
@@ -237,7 +239,7 @@ export function QuickAddWindow() {
         )}
         {parsed.chips.map((c) => {
           if (c.kind === "priority" || (c.kind === "list" && lists.length > 0)) return picker(c.kind, label(c.kind, c.text));
-          const Icon = ICON[c.kind];
+          const Icon = CHIP_ICON[c.kind];
           return (
             <span key={`${c.kind}-${c.start}`} className="pchip">
               <Icon size={14} strokeWidth={1.75} />

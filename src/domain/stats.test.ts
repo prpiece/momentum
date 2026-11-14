@@ -16,7 +16,7 @@ const done = (local: string, p: Partial<Task> = {}): Task =>
     priority: 0,
     schedule: { kind: "none" },
     recurrence: null,
-    recurrenceParentId: null,
+    deadline: null, durationMin: null, waiting: null, recurrenceParentId: null,
     tags: [],
     checklist: [],
     reminders: [],

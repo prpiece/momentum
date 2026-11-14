@@ -183,3 +183,61 @@ describe("withDefaults: a view's context vs explicit tokens (D220)", () => {
     expect(withDefaults(parseQuickAdd("water plants every day", NOW), {}).schedule).toEqual({ kind: "day", date: "2026-10-25" });
   });
 });
+
+describe("planning tokens (D267)", () => {
+  it("reads the spec's example: a deadline and a duration", () => {
+    const p = parseQuickAdd("call mom by fri 15m", NOW);
+    expect(p.title).toBe("call mom");
+    expect(p.deadline).toBe("2026-10-30");
+    expect(p.durationMin).toBe(15);
+    expect(p.schedule).toEqual({ kind: "none" });
+    expect(p.chips.map((c) => [c.kind, c.text])).toEqual([
+      ["deadline", "by fri"],
+      ["duration", "15m"],
+    ]);
+  });
+
+  it("reads numeric deadlines and keeps a planned date apart from the deadline", () => {
+    const p = parseQuickAdd("essay tomorrow by 12/3", NOW);
+    expect(p.deadline).toBe("2026-12-03");
+    expect(p.schedule).toEqual({ kind: "day", date: "2026-10-26" });
+    expect(p.title).toBe("essay");
+  });
+
+  it("reads 1h30m, ~2h and 90min as durations, and ~2h is not a list", () => {
+    expect(parseQuickAdd("run 1h30m", NOW).durationMin).toBe(90);
+    const tilde = parseQuickAdd("deep work ~2h", NOW);
+    expect(tilde.durationMin).toBe(120);
+    expect(tilde.listName).toBeNull();
+    expect(parseQuickAdd("read 90min", NOW).durationMin).toBe(90);
+    expect(parseQuickAdd("~Home chores", NOW).listName).toBe("Home");
+  });
+
+  it("someday sets the Someday planned date and drops a repeat", () => {
+    const p = parseQuickAdd("learn piano someday", NOW);
+    expect(p.schedule).toEqual({ kind: "someday" });
+    expect(p.title).toBe("learn piano");
+    expect(parseQuickAdd("water plants daily someday", NOW).rule).toBeNull();
+  });
+
+  it("waiting @sam fri sets a person and the follow-up; no date means three days", () => {
+    const p = parseQuickAdd("contract waiting @sam fri", NOW);
+    expect(p.waiting).toEqual({ kind: "person", who: "sam", followUp: "2026-10-30" });
+    expect(p.title).toBe("contract");
+    expect(p.schedule).toEqual({ kind: "none" });
+    expect(parseQuickAdd("invoice waiting for @Ana", NOW).waiting).toEqual({ kind: "person", who: "Ana", followUp: "2026-10-28" });
+  });
+
+  it("leaves words that only look like tokens alone", () => {
+    const p = parseQuickAdd("stand by me 5", NOW);
+    expect(p.deadline).toBeNull();
+    expect(p.durationMin).toBeNull();
+    expect(parseQuickAdd("email sam@x.com waiting", NOW).waiting).toBeNull();
+  });
+
+  it("withDefaults carries the planning fields to the new task", () => {
+    const r = withDefaults(parseQuickAdd("call mom by fri 15m", NOW), {});
+    expect(r).toMatchObject({ deadline: "2026-10-30", durationMin: 15 });
+    expect(withDefaults(parseQuickAdd("x someday", NOW), { schedule: { kind: "day", date: "2026-10-25" } }).schedule).toEqual({ kind: "someday" });
+  });
+});

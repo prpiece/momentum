@@ -1,22 +1,15 @@
-import { CalendarDays, Flag, Hash, List, Plus, Repeat, Sparkles } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTokenSuggest } from "../../components/ui/TokenSuggest";
-import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
-import { parseQuickAdd, type ChipKind } from "../../domain/quickAdd";
+import { formatTime, relativeDayLabel, toLocalDate, todayLocal } from "../../domain/dates";
+import { parseQuickAdd, planningChipLabel, type ChipKind } from "../../domain/quickAdd";
 import { describeRule } from "../../domain/recurrence";
 import { PRIORITY_LABEL, type Task } from "../../domain/types";
 import { useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { useTokenNames } from "./InlineAdd";
+import { CHIP_ICON } from "./chipIcons";
 import { createFromText, listByName } from "../../stores/quickAddSubmit";
-
-const CHIP_ICON: Record<ChipKind, typeof Flag> = {
-  date: CalendarDays,
-  priority: Flag,
-  tag: Hash,
-  list: List,
-  repeat: Repeat,
-};
 
 export const QUICK_ADD_EVENT = "momentum:quick-add";
 export const QUICK_ADD_POPUP_EVENT = "momentum:quick-add-popup";
@@ -69,9 +62,11 @@ export function QuickAdd(props: {
       if (s.kind === "day") return relativeDayLabel(s.date, today);
       if (s.kind === "timed") {
         const d = new Date(s.start);
-        return `${relativeDayLabel(todayLocal(d), today)} ${formatTime(d, timeFormat)}`;
+        return `${relativeDayLabel(toLocalDate(d), today)} ${formatTime(d, timeFormat)}`;
       }
     }
+    const planning = planningChipLabel(kind, parsed, today);
+    if (planning) return planning;
     if (kind === "priority" && parsed.priority !== null) return PRIORITY_LABEL[parsed.priority];
     if (kind === "repeat" && parsed.rule) return describeRule(parsed.rule);
     if (kind === "list" && parsed.listName) return listByName(parsed.listName)?.name ?? `${parsed.listName} (no such list)`;
