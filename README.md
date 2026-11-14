@@ -5,8 +5,8 @@
 <h1 align="center">Momentum</h1>
 
 <p align="center">
-  An all-in-one, offline desktop planner: tasks, a drag-and-drop calendar, habits, an Eisenhower Matrix, a focus timer and your progress.<br />
-  Local-first. No account, no cloud, no telemetry. Your data never leaves your computer.
+  An all-in-one planner for Windows, macOS, Linux, Android and iPhone: tasks, a drag-and-drop calendar, habits, an Eisenhower Matrix, a focus timer and your progress.<br />
+  Local-first and free. No account needed, no telemetry. Sign in only if you want sync, friends and shared lists.
 </p>
 
 <p align="center">
@@ -18,7 +18,11 @@
 **Tasks**
 - Quick-add bar with natural language: `Study chem tomorrow 5pm !high #school ~Uni every mon` sets the date, time, priority, tag, list and repeat, with each recognised piece shown as a chip. Typing `#` or `~` suggests your tags and lists. Press <kbd>Esc</kbd> to keep the text literal.
 - Bulk import: paste a whole list (split by line or your own separator) and each item becomes a task, read like quick add. Indented lines become subtasks. One undo removes the lot.
-- Smart Lists are live queries, not copies: Inbox, Today (including overdue) and Upcoming (grouped by day). Show completed brings finished tasks back into any view.
+- Smart Lists are live queries, not copies: Inbox, Today (including overdue and anything with today's deadline), Upcoming (grouped by day), Someday and Waiting. Show completed brings finished tasks back into any view.
+- Plan and deadline are separate: `write report fri by mon` plans it for Friday with a Monday deadline. Durations work without a time (`30m`, `~2h`), and Today adds up what you've planned.
+- Waiting for: a task waits on a person until a follow-up date (`waiting @sam fri`), or on another task until that one is done, then comes back by itself.
+- One thing: a switch on Today shows just the next task, with Done and Not now. On a low-energy day it sticks to tasks of 15 minutes or less.
+- Import from Todoist and TickTick export files, with a preview and one undo.
 - Filter any view with the quick-add syntax (`#work !high ~Uni tomorrow`, plus `overdue`, `nodate`, `done`, `wontdo`), and pin a filter to the sidebar to keep it. Click a tag on a task to filter by it.
 - Lists with colours and icons, folders nested up to three deep, tags, and subtasks up to 5 levels. Drag to reorder, or drag onto a list, Today or Upcoming in the sidebar.
 - Subtasks nest under their parent when both are in a view, and stand alone with the parent's name when only the subtask is (a dated subtask in Today, say). Completing a task completes its open subtasks, and the Focus timer lists the subtasks so you can tick them off as you go.
@@ -45,16 +49,25 @@
 - *Arrange Tasks* panel: drag unscheduled tasks onto the grid, or drag a block back to unschedule it.
 - Overlapping items sit side by side, and Month view shows "+N more".
 - Colour items by list, priority or tag. Show or hide completed tasks, habits and focus records.
+- Calendar subscriptions: paste any calendar address (Google's private address, Outlook, iCloud, Proton, Fastmail) and its events show read-only next to your tasks, refreshed every 30 minutes.
 - One-time, read-only `.ics` import (e.g. a Google Calendar export). Re-importing the same file updates the events instead of duplicating them.
 
 **Eisenhower Matrix**: a view mode on any list, Today or Upcoming. Four quadrants derived from priority and the deadline (or planned date), with adjustable rules (default: *important* = Medium/High priority, *urgent* = within 2 days or overdue) and colours you can change. Dragging a task to another quadrant changes its attributes to match.
 
 **Habits**:
-- Goal types: complete once, count up (e.g. 8 glasses), or enter an amount (e.g. 5 km).
+- Goal types: complete once, count up (e.g. 8 glasses), enter an amount (e.g. 5 km), stay under a limit, or quit something. Counts and amounts can be a daily or a weekly total (e.g. 150 pages a week).
 - Frequency: daily, specific weekdays, or X times a week. Streaks follow the frequency.
 - Notes and mood for each check-in, groups, current and best streak, a monthly grid, a yearly heatmap, and weekly/monthly reviews.
 
 **Focus**: Pomodoro and stopwatch timers linked to a task, with a set number of cycles or ∞ and today's sessions alongside.
+
+**Phone app** (Android and iPhone): Today, the calendar, lists, habits and the focus timer, synced with your computer when you're signed in. A Today widget, lock-screen quick add, and full-screen alarms for high-priority reminders on Android.
+
+**With other people** (needs a free account):
+- Friends by @handle or invite link. Send a friend a task (it lands in their Inbox once they accept), focus together, or pick friends as check-in buddies on a habit who can nudge you once a day.
+- Share a list or folder with friends or anyone with a link, as an editor or viewer. Your reminders, tags and pins stay your own, tasks can be assigned, and each task shows who did what.
+
+**Connections**: add and check tasks from Discord (`/task`), Slack (`/momentum`) and Telegram, or through your own webhook URL. Commands include `add`, `today`, `done 2`, `snooze`, `habit` and `send @friend`, replies only you can see, and an optional morning digest. Set up in Settings → Connections.
 
 **Countdowns** are calendar events: pin one and Today shows "23 days until …".
 
@@ -69,7 +82,7 @@
 - Global <kbd>Ctrl Shift A</kbd> opens quick add from anywhere.
 - A mini always-on-top window (<kbd>Ctrl Alt M</kbd>, the tray or the header) shows your current task, the focus timer or the matrix while you work in other apps.
 - Backups are a single `.zip` with your data and note images; restore from `.zip` or older `.json` backups.
-- Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click; you can turn this off in Settings → About & updates. The only other network request is the optional voice model download, which happens only when you start it.
+- Automatic updates: Momentum checks GitHub for a new release at launch and installs it with one click; you can turn this off in Settings → About & updates. Other network requests happen only for things you turn on: the voice model download, calendar subscriptions, and sync when you're signed in.
 
 **Design**: a calm, warm look in light, dark or system themes; 10 accent colours tuned for both themes, with Indigo as the default (the taskbar and tray icons take the same colour); a sidebar (left or right) or a single bar at the top or bottom; comfortable or compact density; adjustable text size and zoom; and a phone-style layout with a bottom bar when the window is narrow. Motion is subtle and respects reduced-motion settings. Keyboard navigation works throughout, and <kbd>?</kbd> shows a shortcut sheet.
 
