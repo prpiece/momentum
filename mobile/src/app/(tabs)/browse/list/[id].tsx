@@ -22,8 +22,9 @@ export default function ListScreen() {
   const sections = useData((s) => s.sections);
   const [showDone, setShowDone] = useState(false);
   const list = lists[id];
-  const title = id === "upcoming" ? "Upcoming" : (list?.name ?? "List");
-  useQuickAddContext(id === "upcoming" ? {} : { listId: id ?? INBOX_ID });
+  const smart = id === "someday" || id === "waiting" ? id : null;
+  const title = id === "upcoming" ? "Upcoming" : smart === "someday" ? "Someday" : smart === "waiting" ? "Waiting" : (list?.name ?? "List");
+  useQuickAddContext(id === "upcoming" || smart === "waiting" ? {} : smart === "someday" ? { schedule: { kind: "someday" } } : { listId: id ?? INBOX_ID });
 
   const { rows, open } = useMemo(() => {
     const d = derive(tasks, lists);
@@ -38,6 +39,11 @@ export default function ListScreen() {
         out.push(task(vm));
       }
       return { rows: out, open: vms.length };
+    }
+    if (smart) {
+      // Someday and Waiting (D267): open tasks, with their list shown.
+      const vms = sortVMs(d.active.filter((v) => inSmartList(smart, v, today)), "manual");
+      return { rows: vms.map((v) => task(v)), open: vms.length };
     }
     // A list (Inbox included): open top-level tasks by section, each followed by its open subtasks.
     const isOpen = (vm: TaskVM) => vm.task.status === "open";
@@ -69,14 +75,14 @@ export default function ListScreen() {
           actions={editable ? <IconButton icon="more-horizontal" label={`${title} options`} onPress={() => void listMenu(list, (v) => resolveColor(c, v, c.muted))} /> : null}
         />
       }
-      ListEmptyComponent={<Empty text="Nothing here" hint={id === "upcoming" ? "Tasks with a date after today show up here." : `Tap + to add to ${title}.`} />}
+      ListEmptyComponent={<Empty text="Nothing here" hint={id === "upcoming" ? "Tasks with a date after today show up here." : smart === "someday" ? "Tasks with no date yet. Add “someday” to a task to put it here." : smart === "waiting" ? "Tasks waiting for someone or another task. Try “Contract waiting @sam fri”." : `Tap + to add to ${title}.`} />}
       renderItem={({ item }) =>
         item.kind === "header" ? (
           <GroupHeader label={item.title} count={item.count} />
         ) : item.kind === "done" ? (
           <GroupHeader label="Done" count={item.count} collapsed={!showDone} onToggle={() => setShowDone(!showDone)} />
         ) : (
-          <TaskRow vm={item.vm} depth={item.depth} showList={id === "upcoming"} />
+          <TaskRow vm={item.vm} depth={item.depth} showList={id === "upcoming" || !!smart} />
         )
       }
     />

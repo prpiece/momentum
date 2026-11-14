@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { droppedSchedule } from "@core/domain/calendar";
-import { atLocalTime, durationMinutes, formatTime, hhmm, relativeDayLabel, scheduleDate, timed, todayLocal } from "@core/domain/dates";
+import { addDaysLocal, atLocalTime, durationMinutes, formatMinutes, formatTime, hhmm, relativeDayLabel, scheduleDate, timed, todayLocal } from "@core/domain/dates";
+import { WAIT_DEFAULT_DAYS } from "@core/domain/quickAdd";
+import { waitLoops } from "@core/domain/waiting";
 import { describeRule, REPEAT_PRESETS } from "@core/domain/recurrence";
 import { BEFORE_PRESETS, DAY_PRESETS, reminderLabel } from "@core/domain/reminders";
 import { derive, sortVMs } from "@core/domain/taskViews";
@@ -65,9 +67,47 @@ export default function TaskSheet() {
   const rule = t.recurrence?.rule ?? null;
 
   const chooseDay = async () => {
-    const day = await askDay(date);
+    const day = await askDay(date, { someday: true, title: "Planned" });
     if (day === undefined) return;
-    setSchedule(day ? droppedSchedule(schedule, day, "keepTime", 0) : { kind: "none" });
+    setSchedule(day === "someday" ? { kind: "someday" } : day ? droppedSchedule(schedule, day, "keepTime", 0) : { kind: "none" });
+  };
+  // Planning fields (D267), the same ones desktop edits.
+  const chooseDeadline = async () => {
+    const day = await askDay(t.deadline, { someday: true, title: "Deadline" });
+    if (day !== undefined && day !== "someday") updateTask(t.id, { deadline: day });
+  };
+  const timedMin = durationMinutes(schedule);
+  const chooseDuration = async () => {
+    if (timedMin !== null) return void (await chooseTime());
+    const m = await choose<number>("Duration", [
+      ...[5, 10, 15, 30, 45, 60, 90, 120].map((v) => ({ value: v, label: formatMinutes(v), icon: "clock" as const, selected: t.durationMin === v })),
+      ...(t.durationMin ? [{ value: 0, label: "No duration", icon: "slash" as const }] : []),
+    ]);
+    if (m !== null) updateTask(t.id, { durationMin: m || null });
+  };
+  const chooseWaiting = async () => {
+    const k = await choose<"person" | "task" | "none">("Waiting for", [
+      { value: "person", label: "A person…", icon: "user" },
+      { value: "task", label: "Another task…", icon: "check-circle" },
+      ...(t.waiting ? [{ value: "none" as const, label: "Not waiting", icon: "slash" as const }] : []),
+    ]);
+    if (k === null) return;
+    if (k === "none") return updateTask(t.id, { waiting: null });
+    if (k === "person") {
+      const who = await askText("Waiting for", { value: t.waiting?.kind === "person" ? t.waiting.who : "", placeholder: "Sam", confirm: "Next" });
+      if (!who?.trim()) return;
+      const followUp = await askDay(t.waiting?.kind === "person" ? t.waiting.followUp : addDaysLocal(today, WAIT_DEFAULT_DAYS));
+      if (followUp) updateTask(t.id, { waiting: { kind: "person", who: who.trim(), followUp } });
+      return;
+    }
+    const other = await choose<string>(
+      "Waiting on",
+      d.active
+        .filter((v) => v.task.id !== t.id && v.task.status === "open" && !waitLoops(t.id, { kind: "task", taskId: v.task.id }, tasks))
+        .slice(0, 30)
+        .map((v) => ({ value: v.task.id, label: v.task.title, selected: t.waiting?.kind === "task" && t.waiting.taskId === v.task.id })),
+    );
+    if (other) updateTask(t.id, { waiting: { kind: "task", taskId: other } });
   };
   const chooseTime = async () => {
     const day = date ?? today;
@@ -125,7 +165,9 @@ export default function TaskSheet() {
     setSub("");
   };
 
-  const due = date ? `${relativeDayLabel(date, today)}${schedule.kind === "timed" ? ` ${formatTime(new Date(schedule.start), timeFormat)}` : ""}` : "";
+  const planned = schedule.kind === "someday" ? "Someday" : date ? `${relativeDayLabel(date, today)}${schedule.kind === "timed" ? ` ${formatTime(new Date(schedule.start), timeFormat)}` : ""}` : "";
+  const minutes = timedMin ?? t.durationMin;
+  const waitingLabel = t.waiting?.kind === "person" ? `${t.waiting.who} · ${relativeDayLabel(t.waiting.followUp, today)}` : t.waiting?.kind === "task" ? (tasks[t.waiting.taskId]?.title ?? "A deleted task") : "";
   const tagNames = t.tags.map((x) => tagsById[x] && `#${tagsById[x].name}`).filter(Boolean).join(" ");
   const kidsDone = kids.filter((k) => k.task.status !== "open").length;
 
@@ -170,7 +212,10 @@ export default function TaskSheet() {
         </View>
 
         <Card style={{ marginTop: 16 }}>
-          <FieldRow first icon="calendar" title="Due" value={due || "No date"} valueColor={date && date < today && !done ? c.danger : undefined} onPress={chooseDay} />
+          <FieldRow first icon="calendar" title="Planned" value={planned || "No date"} valueColor={date && date < today && !done ? c.danger : undefined} onPress={chooseDay} />
+          <FieldRow icon="check-square" title="Deadline" value={t.deadline ? `by ${relativeDayLabel(t.deadline, today)}` : "None"} valueColor={t.deadline && t.deadline < today && !done ? c.danger : undefined} onPress={chooseDeadline} />
+          <FieldRow icon="clock" title="Duration" value={minutes ? formatMinutes(minutes) : "None"} onPress={chooseDuration} />
+          <FieldRow icon="pause-circle" title="Waiting for" value={waitingLabel || "Nothing"} onPress={chooseWaiting} />
           <FieldRow icon="bell" title="Reminder" value={t.reminders.map(reminderLabel).join(", ") || (date ? "None" : "Set a date first")} onPress={chooseReminder} />
           <FieldRow icon="flag" title="Priority" value={PRIORITY_LABEL[t.priority]} valueColor={t.priority ? resolveColor(c, PRIORITY_VAR[t.priority]) : undefined} onPress={choosePriority} />
           <FieldRow icon="list" title="List" value={list?.name ?? "Inbox"} onPress={chooseList} />

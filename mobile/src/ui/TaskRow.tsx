@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, View } from "react-native";
 import Swipeable, { SwipeDirection, type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
-import { formatTime, relativeDayLabel, todayLocal } from "@core/domain/dates";
+import { formatMinutes, formatTime, relativeDayLabel, todayLocal } from "@core/domain/dates";
 import type { TaskVM } from "@core/domain/taskViews";
 import { INBOX_ID, PRIORITY_LABEL, PRIORITY_VAR } from "@core/domain/types";
 import { useData } from "@core/stores/data";
@@ -72,11 +72,24 @@ export function TaskRow({ vm, depth = 0, showList = true }: { vm: TaskVM; depth?
   const ring = t.priority ? resolveColor(c, PRIORITY_VAR[t.priority]) : c.controlBorder;
   const checklist = t.checklist.length ? `${t.checklist.filter((i) => i.done).length}/${t.checklist.length}` : null;
   const listShown = showList && list && list.id !== INBOX_ID ? list : null;
+  // Planning chips (D267): deadline ("by Fri", red once passed), duration without a time, waiting.
+  const deadline = t.deadline ? `by ${relativeDayLabel(t.deadline, today)}` : null;
+  const deadlineLate = !done && t.deadline !== null && t.deadline < today;
+  const duration = vm.schedule.kind !== "timed" && t.durationMin ? formatMinutes(t.durationMin) : null;
+  const waiting = t.waiting ? (t.waiting.kind === "person" ? t.waiting.who : "Waiting") : null;
   const meta = (
     <>
       {when ? <Text style={[s.meta, { color: overdue ? c.danger : c.muted }]}>{when}</Text> : null}
       {t.reminders.length && !done ? <Icon name="bell" size={13} color={c.muted} /> : null}
       {t.recurrence ? <Icon name="repeat" size={13} color={c.muted} /> : null}
+      {deadline ? <Text style={[s.meta, { color: deadlineLate ? c.danger : c.fg2, fontWeight: deadlineLate ? "600" : "400" }]}>{deadline}</Text> : null}
+      {duration ? <Text style={[s.meta, { color: c.muted }]}>{duration}</Text> : null}
+      {waiting ? (
+        <View style={s.listTag}>
+          <Icon name="pause-circle" size={13} color={c.muted} />
+          <Text style={[s.meta, { color: c.muted }]}>{waiting}</Text>
+        </View>
+      ) : null}
       {checklist ? <Text style={[s.meta, { color: c.muted }]}>{checklist}</Text> : null}
       {t.tags.map((id) => (tags[id] ? <Text key={id} style={[s.meta, { color: c.muted }]}>{`#${tags[id].name}`}</Text> : null))}
       {listShown ? (
@@ -87,8 +100,8 @@ export function TaskRow({ vm, depth = 0, showList = true }: { vm: TaskVM; depth?
       ) : null}
     </>
   );
-  const hasMeta = !!(when || t.reminders.length || t.recurrence || checklist || t.tags.length || listShown);
-  const label = [t.title, when ? `due ${when}` : null, overdue ? "overdue" : null, t.priority ? `${PRIORITY_LABEL[t.priority]} priority` : null].filter(Boolean).join(", ");
+  const hasMeta = !!(when || t.reminders.length || t.recurrence || checklist || t.tags.length || listShown || deadline || duration || waiting);
+  const label = [t.title, when ? `planned ${when}` : null, deadline, duration, waiting ? `waiting for ${waiting}` : null, overdue ? "overdue" : null, t.priority ? `${PRIORITY_LABEL[t.priority]} priority` : null].filter(Boolean).join(", ");
 
   return (
     <Swipeable

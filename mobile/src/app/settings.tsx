@@ -5,6 +5,7 @@ import { Alert, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, 
 import { ACCENTS } from "@core/domain/color";
 import { discardDraft, saveDraft, useSettingsDraft } from "@core/stores/settingsDraft";
 import { useColors } from "@/theme";
+import { formatTime } from "@core/domain/dates";
 import { Button, Icon, Label, Segmented, Text } from "@/ui/kit";
 
 /** The settings that matter on a phone. They sync, so they match the computer. */
@@ -36,6 +37,15 @@ export default function Settings() {
       </View>
       <Label>Week starts on</Label>
       <Segmented value={String(s.weekStart)} options={[{ value: "1", label: "Monday" }, { value: "0", label: "Sunday" }, { value: "6", label: "Saturday" }]} onChange={(v) => update({ weekStart: Number(v) as 0 | 1 | 6 })} />
+      <Label>Day ends at</Label>
+      <Segmented
+        value={String(s.dayEndHour)}
+        options={[0, 1, 2, 3, 4, 5].map((h) => ({ value: String(h), label: h ? formatTime(new Date(2026, 0, 1, h), s.timeFormat) : "Midnight" }))}
+        onChange={(v) => update({ dayEndHour: Number(v) })}
+      />
+      <Text variant="meta" style={{ color: c.muted, marginTop: 6 }}>
+        Before this hour, Today and habits still count as the day before.
+      </Text>
       <Label>Time format</Label>
       <Segmented value={s.timeFormat} options={[{ value: "12h", label: "12-hour" }, { value: "24h", label: "24-hour" }]} onChange={(timeFormat) => update({ timeFormat })} />
       <Label>Reminders</Label>

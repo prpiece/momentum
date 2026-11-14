@@ -23,12 +23,13 @@ export default function Browse() {
   const account = useSync((s) => s.account);
   const status = useSync((s) => s.status);
   useQuickAddContext({});
-  const { counts, inbox, upcoming } = useMemo(() => {
+  const { counts, inbox, upcoming, someday, waiting } = useMemo(() => {
     const today = todayLocal();
     const active = derive(tasks, lists).active;
     const counts = new Map<string, number>();
     for (const vm of active) if (vm.task.status === "open") counts.set(vm.task.listId, (counts.get(vm.task.listId) ?? 0) + 1);
-    return { counts, inbox: active.filter((vm) => inSmartList("inbox", vm, today)).length, upcoming: active.filter((vm) => inSmartList("upcoming", vm, today)).length };
+    const count = (id: "inbox" | "upcoming" | "someday" | "waiting") => active.filter((vm) => inSmartList(id, vm, today)).length;
+    return { counts, inbox: count("inbox"), upcoming: count("upcoming"), someday: count("someday"), waiting: count("waiting") };
   }, [tasks, lists]);
   const n = (k: number | undefined) => (k ? String(k) : undefined);
   const colorOf = (v: string) => resolveColor(c, v, c.muted);
@@ -73,6 +74,8 @@ export default function Browse() {
       </Pressable>
       <NavRow icon="inbox" title="Inbox" detail={n(inbox)} onPress={() => open(INBOX_ID)} />
       <NavRow icon="calendar" title="Upcoming" detail={n(upcoming)} onPress={() => open("upcoming")} />
+      <NavRow icon="archive" title="Someday" detail={n(someday)} onPress={() => open("someday")} />
+      <NavRow icon="pause-circle" title="Waiting" detail={n(waiting)} onPress={() => open("waiting")} />
       <View style={s.listsHead}>
         <View style={{ flex: 1 }}>
           <Label inset>Lists</Label>
