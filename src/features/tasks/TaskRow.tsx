@@ -1,9 +1,10 @@
 import { useSortable } from "@dnd-kit/sortable";
-import { ChevronRight, CornerDownRight, ListChecks, ListTree, Pin, Repeat, Bell, FileText } from "lucide-react";
+import { ChevronRight, CornerDownRight, ListChecks, ListTree, Pin, Repeat, Bell, FileText, Hourglass } from "lucide-react";
 import { memo, useState } from "react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
-import { formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
+import { formatMinutes, formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
+import { deadlinePassed } from "../../domain/taskViews";
 import type { TreeRow } from "../../domain/taskViews";
 import { DropLine, dropSide, SORT_TRANSITION } from "../../lib/dnd";
 import { reducedMotion, withTransition } from "../../lib/motion";
@@ -116,6 +117,18 @@ export const TaskRow = memo(function TaskRow(props: {
         {t.reminders.length > 0 && <Bell size={16} strokeWidth={1.75} className="shrink-0" aria-label="Has reminders" />}
         {t.description && <FileText size={16} strokeWidth={1.75} className="shrink-0" aria-label="Has notes" />}
         {t.recurrence && <Repeat size={16} strokeWidth={1.75} className="shrink-0" aria-label="Repeats" />}
+        {t.waiting && (
+          <span className="inline-flex shrink-0 items-center gap-[3px]" title={t.waiting.kind === "person" ? `Waiting for ${t.waiting.who}` : "Waiting on another task"}>
+            <Hourglass size={14} strokeWidth={1.75} />
+            {t.waiting.kind === "person" ? t.waiting.who : null}
+          </span>
+        )}
+        {t.schedule.kind !== "timed" && t.durationMin ? <span className="shrink-0 tabular-nums" aria-label={`Takes ${formatMinutes(t.durationMin)}`}>{formatMinutes(t.durationMin)}</span> : null}
+        {t.deadline && (
+          <span className={`shrink-0 tabular-nums ${deadlinePassed(t, today) ? "font-medium text-danger" : "text-fg-2"}`} aria-label={`Deadline ${relativeDayLabel(t.deadline, today)}`}>
+            by {relativeDayLabel(t.deadline, today)}
+          </span>
+        )}
         {childCount > 0 && (
           <span className="inline-flex shrink-0 items-center gap-[3px] tabular-nums" aria-label={`Subtasks ${doneChildCount} of ${childCount} done`}>
             <ListTree size={16} strokeWidth={1.75} />

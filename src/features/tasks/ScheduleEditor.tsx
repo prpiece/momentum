@@ -47,6 +47,9 @@ export function ScheduleEditor(props: {
               {label}
             </button>
           ))}
+          <button type="button" aria-pressed={s.kind === "someday"} onClick={() => props.onSchedule({ kind: "someday" })} className={`h-7 rounded-full px-2.5 text-xs ${s.kind === "someday" ? "bg-accent text-accent-fg" : "bg-surface-2 text-fg-2 hover:text-fg"}`}>
+            Someday
+          </button>
           <input type="date" aria-label="Date" value={date ?? ""} onChange={(e) => setDate(e.target.value)} className={field} />
           {s.kind !== "none" && (
             <button type="button" aria-label="Clear date" onClick={() => props.onSchedule({ kind: "none" })} className="btn btn-ghost btn-sm icon-btn text-muted">

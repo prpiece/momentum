@@ -106,8 +106,18 @@ export const FEATURES: Feature[] = [
   { id: "lists", title: "Organise with lists and folders", howTo: "Make a list for each part of your life and group lists into folders.", icon: "list", group: "Tasks", since: OLD, core: false,
     commands: [palette("new-list", "New list")] },
 
+  // ---- Planning (v1.3, D267)
+  { id: "planning-tokens", title: "Deadlines, durations, someday and waiting", howTo: "Add these to the task text in any add box: a deadline apart from the planned date, how long it takes, Someday, or who you're waiting for and when to follow up.", icon: "token", group: "Capture", since: "1.3.0", core: false,
+    commands: [token("by fri  by 12/3", "Deadline"), token("30m  1h30m  ~2h", "Duration"), token("someday", "Someday, no date yet"), token("waiting @sam fri", "Waiting for a person, follow up Friday")] },
+  { id: "deadline", title: "Set a deadline", howTo: "A deadline is when it must be done by, apart from when you plan to do it. It shows as “by Fri”, turns red once passed, brings the task into Today on the day, and makes it urgent in the Matrix.", icon: "calendar", group: "Tasks", since: "1.3.0", core: false, commands: [] },
+  { id: "duration", title: "Say how long a task takes", howTo: "Give a task a duration in its details or with “30m”, even without a time. Today's header adds up what's planned.", icon: "timer", group: "Tasks", since: "1.3.0", core: false, commands: [] },
+  { id: "someday-waiting", title: "Someday and Waiting", howTo: "Someday holds tasks with no date yet. Waiting holds tasks waiting for someone or another task; they come back on the follow-up date or when that task is done.", icon: "hourglass", group: "Views", since: "1.3.0", core: false, commands: [] },
+  { id: "one-thing", title: "One thing at a time", howTo: "Turn on One thing in Today's toolbar to see only the next task, with Done and Not now. Low energy shows only tasks of 15 minutes or less.", icon: "target", group: "Views", since: "1.3.0", core: false, commands: [] },
+  { id: "snooze", title: "Snooze a task to a time", howTo: "Right-click a task → Snooze… and pick a day and time; it moves there and reminds you when it starts.", icon: "timer", group: "Tasks", since: "1.3.0", core: false, commands: [] },
+  { id: "day-end", title: "Late nights count as the same day", howTo: "Settings → General → Day ends at: before that hour, Today, overdue and habits still count as the day before.", icon: "sun", group: "Keyboard", since: "1.3.0", core: false, commands: [] },
+
   // ---- Views
-  { id: "smart-views", title: "Inbox, Today and Upcoming", howTo: "New tasks land in Inbox; Today shows what's due and overdue; Upcoming, the days ahead.", icon: "sun", group: "Views", since: OLD, core: false,
+  { id: "smart-views", title: "Inbox, Today and Upcoming", howTo: "New tasks land in Inbox; Today shows what's planned for today, overdue or at its deadline; Upcoming, the days ahead.", icon: "sun", group: "Views", since: OLD, core: false,
     commands: [palette("go-inbox", "Go to Inbox"), palette("go-today", "Go to Today"), palette("go-upcoming", "Go to Upcoming"), keys("G I / G T / G U", "Inbox / Today / Upcoming")] },
   { id: "matrix-mode", title: "Sort tasks by urgent and important", howTo: "Switch any view to Matrix and drag tasks between the four quadrants.", icon: "grid", group: "Views", since: "1.0.0", core: true, done: "view:matrix",
     commands: [palette("matrix-mode", "Show as matrix"), keys("G M", "Matrix mode")] },

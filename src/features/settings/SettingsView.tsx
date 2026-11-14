@@ -1,3 +1,4 @@
+import { formatTime } from "../../domain/dates";
 import { Bell, ChevronLeft, CircleUser, ChevronRight, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Search, Settings2, Wrench } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHead } from "../../components/ui/PageHead";
@@ -244,6 +245,21 @@ export function SettingsView() {
               { value: 6, label: "Saturday" },
             ]}
           />
+        </Row>
+        <Row label="Day ends at">
+          <select
+            aria-label="Day ends at"
+            title="Before this hour it still counts as the day before, for Today, overdue and habits"
+            value={s.dayEndHour}
+            onChange={(e) => update({ dayEndHour: Number(e.target.value) })}
+            className="input w-auto tabular-nums"
+          >
+            {[0, 1, 2, 3, 4, 5].map((h) => (
+              <option key={h} value={h}>
+                {formatTime(new Date(2026, 0, 1, h), s.timeFormat)}
+              </option>
+            ))}
+          </select>
         </Row>
         <Row label="Time format">
           <Segmented
