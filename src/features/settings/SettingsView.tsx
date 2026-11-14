@@ -8,6 +8,7 @@ import { AboutSection, DataSection } from "./DataSection";
 import { NotificationSection } from "./NotificationSection";
 import { SoundsSection } from "./SoundsSection";
 import { UpdatesSection } from "./UpdatesSection";
+import { AgentsPanel } from "./AgentsPanel";
 import { VoiceSection } from "./VoiceSection";
 import { keyLabel } from "../../lib/platform";
 import { VOICE_SECTION_ID } from "../../lib/voice";
@@ -401,6 +402,8 @@ export function SettingsView() {
     "settings-data": (
       <Card>
         <DataSection />
+        {/* Track C moves this to Connections (D258) */}
+        <AgentsPanel />
       </Card>
     ),
     [HELP_SECTION_ID]: (
