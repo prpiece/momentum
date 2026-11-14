@@ -5,6 +5,10 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.2.0
+
+- **No more rewards.** Badges, confetti, the all-done-day count, the app-wide streak and the share image are gone: points built for screenshots got in the way of a calm planner. Progress now shows plain numbers (what you finished, how long you focused, and the activity heatmap), and each habit still keeps its own streak.
+
 ## v1.1.3
 
 - **Move tasks between days.** In Today and Upcoming, drag a task onto another day's task or heading to move it there. It keeps its time. Upcoming now has a heading for each of the next seven days.

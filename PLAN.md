@@ -134,7 +134,6 @@ momentum/
   - Tauri plugins: `notification`, `global-shortcut`, `autostart`, `dialog` and `fs` (export/import).
   - `ical.js` for .ics import, which needs correct TZID and RRULE handling.
   - `updater` and `process` Tauri plugins: signed in-app updates and the restart after one (D59).
-  - `canvas-confetti` (about 6 KB, offline) for the celebration confetti, so we don't maintain a particle system (D63).
   - `@radix-ui/react-tooltip` (MIT, bundled) for tooltips on icon-only controls: hover/focus delay, Escape, collision and `aria-describedby` we'd otherwise hand-roll (D208).
   - `sonner` (MIT, bundled) for toasts: stacking, swipe and hover-pause, exit motion and an accessible live region we'd otherwise hand-roll (D207).
   - `sherpa-onnx` (Rust, statically linked; its build script fetches prebuilt libs in CI) runs Parakeet on-device, and `cpal` captures the microphone in Rust (D81; Linux CI needs `libasound2-dev`). The model download uses `reqwest` (already pulled in by the updater), `sha2` to verify, and `tar` + `bzip2` to unpack.
@@ -573,3 +572,10 @@ A grilling session (Q1–Q38) reset everything after v1.1.3. Specs: `docs/specs/
 - **D267: Planning features in v1.3**, chosen from user research. Planned date gains Someday; a separate Deadline drives Matrix urgency; Duration can be set without a time and Today shows the day's total; Waiting for covers a person (with a follow-up date) or another task; One thing shows Today one task at a time with a low-energy filter (Duration ≤ 15 min); a custom end-of-day hour; focus sessions on the calendar; snooze to a chosen time from any list; Markdown tables in notes; subtasks inherit the parent's tags on creation; weekly totals for count and amount habits (quit and limit habits already exist). Phone: full-screen alarms for high priority, widgets and lock-screen quick add (v1.2).
 - **D268: Positioning.** Free calendar views and reminders, Windows/macOS/Linux plus phone, local-first with no account required, no telemetry or clipboard reading, full export, calm with no AI clutter: AI comes in through your own agent (D264). Settings → About and the README carry this privacy promise.
 - **D269: The repo move waits until the app work is done** (amends D224's "private repo" step). The plan: mirror to a private repo on the other GitHub account, ship a bridge release that points the updater and Pages at the new account, then freeze a public `prpiece/momentum` holding only that release's `latest.json`.
+- **D270: How Track A removed the rewards (v1.2, D256).** Track A uses D270–D279; B and C number elsewhere.
+  - Deleted: the celebration overlay and engine, Today streak, trophy shelf, share card, perfect days, the progress store and `canvas-confetti`. The checkbox's logo badge went too; the tick still draws.
+  - Kept, unused: the `rest_days` and `celebrations` tables stay in `SYNC_TABLES` and the trigger list, so v1.1 clients' rows still apply. Dropping them is a local migration, which Track B owns.
+  - Progress counts every completion. The two-minute rule only guarded trophies.
+  - Sounds keep only the timer alarms (`focusEnd`, `longBreak`); stored picks for the old events are dropped on read. The long break plays its sound instead of a celebration.
+  - The `trophy` list/habit icon key now shows the Award icon, so stored icons still render.
+  - The phone's bundled changelog starts at v1.2.0, its first release (D257).

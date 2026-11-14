@@ -58,7 +58,7 @@
 
 **Countdowns** are calendar events: pin one and Today shows "23 days until …".
 
-**Progress**: your week (tasks done, focus time, perfect days), your perfect-day streak, trophies with levels to climb, 14-day and 12-week charts, an activity heatmap and habit consistency, with optional sounds and celebrations. Share turns your week or month into an image card (numbers only, never task names) to save or copy.
+**Progress**: plain statistics. Tasks done and focus time this week, 14-day and 12-week charts, an activity heatmap and habit consistency. No points, levels or trophies.
 
 **Voice (optional)**: hold <kbd>Ctrl Alt Space</kbd> (changeable) and speak a task, e.g. "call mom tomorrow at 5 priority high list family". Speech recognition runs on your computer with NVIDIA Parakeet after a one-time 482 MB download from Settings → Voice. Say commands too: "open inbox", "pause focus", "open mini window", or "finished <task>" (confirmed before it ticks anything).
 
