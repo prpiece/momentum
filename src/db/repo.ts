@@ -1,5 +1,6 @@
 import type { Activity, ActivityKind, CalendarEvent, Folder, Section, Tag, Task, TaskList } from "../domain/types";
 import { folderDepth } from "../domain/folders";
+import { parseSubscription, subscriptionToRow, type CalendarSubscription } from "../domain/subscriptions";
 import { select, upsert, write } from "./client";
 import {
   eventToRow,
@@ -47,7 +48,13 @@ export async function loadWorkspace(purge = true): Promise<Workspace> {
 
 export const saveTasks = (tasks: Task[]) => write(...tasks.map((t) => upsert("tasks", taskToRow(t))));
 export const saveEvents = (events: CalendarEvent[]) => write(...events.map((e) => upsert("calendar_events", eventToRow(e))));
-export const saveList = (l: TaskList) => write(upsert("lists", listToRow(l)));
+/** Calendar subscriptions (v1.3). `purge` clears removed ones first, as `loadWorkspace` does for events. */
+export async function loadSubscriptions(purge = true): Promise<CalendarSubscription[]> {
+  if (purge) await write(["DELETE FROM calendar_subscriptions WHERE deleted_at IS NOT NULL"]);
+  return parseAll(await select<Row>("SELECT * FROM calendar_subscriptions"), parseSubscription);
+}
+export const saveSubscription = (s: CalendarSubscription) => write(upsert("calendar_subscriptions", subscriptionToRow(s)));
+export const saveList =(l: TaskList) => write(upsert("lists", listToRow(l)));
 export const saveFolder = (f: Folder) => write(upsert("folders", folderToRow(f)));
 export const saveSection = (s: Section) => write(upsert("sections", sectionToRow(s)));
 export const saveTag = (t: Tag) => write(upsert("tags", tagToRow(t)));

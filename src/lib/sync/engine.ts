@@ -11,6 +11,7 @@ import { hydrate } from "../../stores/data";
 import { hydrateFocus } from "../../stores/focus";
 import { hydrateHabits } from "../../stores/habits";
 import { hydrateProgress } from "../../stores/progress";
+import { hydrateSubscriptions } from "../../stores/subscriptions";
 import { useSettings } from "../../stores/settings";
 import { toast } from "../../stores/toast";
 import { restoreSession, supabase, syncConfigured } from "./supabase";
@@ -214,7 +215,7 @@ async function pull(): Promise<boolean> {
     useSettings.setState({ settings: next });
     await saveSettings(next, false);
   }
-  await Promise.all([hydrate(false), hydrateHabits(), hydrateFocus(), hydrateProgress()]);
+  await Promise.all([hydrate(false), hydrateHabits(), hydrateFocus(), hydrateProgress(), hydrateSubscriptions(false)]);
   return true;
 }
 
@@ -429,5 +430,5 @@ export async function wipeLocal() {
     for (const t of (Object.keys(SYNC_TABLES) as SyncTable[]).reverse()) await d.execute(`DELETE FROM ${t}`);
     await d.execute("INSERT INTO lists (id, name, sort_order) VALUES ('inbox', 'Inbox', -1)");
   });
-  await Promise.all([hydrate(false), hydrateHabits(), hydrateFocus(), hydrateProgress()]);
+  await Promise.all([hydrate(false), hydrateHabits(), hydrateFocus(), hydrateProgress(), hydrateSubscriptions(false)]);
 }
