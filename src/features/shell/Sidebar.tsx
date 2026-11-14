@@ -18,6 +18,7 @@ import {
   Search,
   Archive,
   ArchiveRestore,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { type ReactNode, useState, useSyncExternalStore } from "react";
@@ -39,6 +40,10 @@ import { FocusBadge } from "../focus/FocusView";
 import { editTask } from "../tasks/actions";
 import { ListDialog, ListDialogButton } from "../tasks/ListDialog";
 import { useCounts } from "../tasks/selectors";
+import { RequestBadge } from "../friends/RequestBadge";
+import { confirmShareMove } from "../friends/moveGuard";
+import { openShare } from "../friends/friendsUi";
+import { SharedMark } from "../friends/SharedMark";
 import { MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
 
 type Side = "left" | "right";
@@ -52,11 +57,16 @@ onDrop("list", (drag, drop) => {
   if (drag.type !== "task") return;
   const ids = dragged(drag.id);
   const name = useData.getState().lists[drop.listId]?.name ?? "list";
-  withUndo(`Moved ${ids.length > 1 ? `${ids.length} tasks` : "task"} to ${name}`, () => moveTasks(ids, drop.listId));
+  void confirmShareMove("list", drop.listId, ids.length > 1 ? "these tasks" : "this task", useData.getState().tasks[ids[0]]?.listId).then(
+    (ok) => ok && withUndo(`Moved ${ids.length > 1 ? `${ids.length} tasks` : "task"} to ${name}`, () => moveTasks(ids, drop.listId)),
+  );
 });
 
 onDrop("folder", (drag, drop) => {
-  if (drag.type === "folder") moveFolder(drag.id, drop.id);
+  if (drag.type !== "folder") return;
+  const { id: folderId } = drag;
+  if (drop.id) void confirmShareMove("folder", drop.id, "this folder").then((ok) => ok && moveFolder(folderId, drop.id));
+  else moveFolder(folderId, drop.id);
 });
 
 onDrop("smart", (drag, drop) => {
@@ -239,8 +249,10 @@ export function Sidebar() {
       count={counts.lists[l.id]}
       drop={{ type: "list", listId: l.id }}
       indent={indent}
+      badge={<SharedMark kind="list" id={l.id} />}
       menu={() => [
         { label: "Edit list…", icon: <Pencil size={14} />, run: () => setEditList(l) },
+        { label: "Share…", icon: <Share2 size={14} />, run: () => openShare("list", l.id) },
         { label: l.pinned ? "Unpin" : "Pin to top", icon: l.pinned ? <PinOff size={14} /> : <Pin size={14} />, run: () => updateList(l.id, { pinned: !l.pinned }) },
         { label: l.archived ? "Unarchive" : "Archive", icon: l.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />, run: () => updateList(l.id, { archived: !l.archived }) },
         "sep",
@@ -321,7 +333,7 @@ export function Sidebar() {
         </ul>
         <ul className="mt-px space-y-px">
           {MODULE_NAV.map((n) => (
-            <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} badge={n.id === "focus" ? <FocusBadge /> : undefined} />
+            <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} badge={n.id === "focus" ? <FocusBadge /> : n.id === "friends" ? <RequestBadge /> : undefined} />
           ))}
         </ul>
 
@@ -410,12 +422,13 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
     { label: "New list in folder…", icon: <Plus size={14} />, run: () => setNewList(true) },
     ...(canSub ? [{ label: "New subfolder…", icon: <FolderPlus size={14} />, run: onAddSub }] : []),
     { label: "Rename", icon: <Pencil size={14} />, run: onRename },
+    { label: "Share…", icon: <Share2 size={14} />, run: () => openShare("folder", folder.id) },
     ...(folder.parentId ? [{ label: "Move to top level", icon: <ChevronRight size={14} />, run: () => void moveFolder(folder.id, null) }] : []),
     // Keyboard path for nesting (D71): the same targets a drag accepts.
     ...Object.values(folders)
       .filter((f) => f.id !== folder.parentId && canNest(folders, folder.id, f.id))
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map((f) => ({ label: `Move into ${f.name}`, icon: <ChevronRight size={14} />, run: () => void moveFolder(folder.id, f.id) })),
+      .map((f) => ({ label: `Move into ${f.name}`, icon: <ChevronRight size={14} />, run: () => void confirmShareMove("folder", f.id, "this folder").then((ok) => ok && moveFolder(folder.id, f.id)) })),
     "sep",
     {
       label: "Delete folder",
@@ -446,6 +459,7 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
           <ChevronRight size={14} className={`size-3.5 text-muted transition-transform duration-[var(--dur)] ${folder.collapsed ? "" : "rotate-90"}`} />
         </span>
         <span className="ni-label">{folder.name}</span>
+        <SharedMark kind="folder" id={folder.id} />
         {count > 0 && <span key={count} className="ni-n anim-count group-focus-within/nav:opacity-0 group-hover/nav:opacity-0">{count}</span>}
       </button>
       <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center opacity-0 focus-within:opacity-100 group-hover/nav:opacity-100">

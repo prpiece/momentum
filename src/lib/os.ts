@@ -78,6 +78,8 @@ let deliver = (dto: ReminderDTO) => {
 };
 /** Simple one-line notices (focus phases, quick add), gated by their own setting. */
 let notice = (title: string, body: string) => toast(`${title} · ${body}`);
+/** A native notification (a toast in the browser preview). */
+export const showNotice = (title: string, body: string) => notice(title, body);
 /** Flashes the taskbar button. Set once Tauri is up. */
 let flashTaskbar = () => {};
 

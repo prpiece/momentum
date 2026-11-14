@@ -12,6 +12,8 @@ import type { GroupBy, ListLayout, SortBy } from "../../domain/types";
 import { isEmptyFilter, matchesFilter, parseFilter } from "../../domain/filter";
 import { toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
+import { useSocial } from "../../stores/social";
+import { bestRole, sharesCoveringList } from "../../domain/shareAccess";
 import { useSettings } from "../../stores/settings";
 import { setImport, useUi } from "../../stores/ui";
 import { MatrixView } from "../matrix/MatrixView";
@@ -59,6 +61,9 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   const settings = useSettings((s) => s.settings);
   const list = useData((s) => (spec.list ? s.lists[spec.list.id] : undefined));
   const lists = useData((s) => s.lists);
+  const folders = useData((s) => s.folders);
+  const shares = useSocial((s) => s.shares);
+  const viewOnly = !!list && bestRole(sharesCoveringList(shares, folders, list)) === "viewer";
   const tags = useData((s) => s.tags);
   const query = useUi((s) => s.filters[spec.id] ?? "");
   const adhoc = useMemo(() => parseFilter(query, new Date()), [query]);
@@ -152,7 +157,11 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
         </div>
       )}
 
-      {spec.canAdd && layout !== "kanban" && layout !== "matrix" && (
+      {viewOnly && (
+        <p className={`${page} px-[var(--gutter)] pb-3 text-[length:var(--fs-sm)] text-muted`}>View only. This list is shared with you, so you can look but not change it.</p>
+      )}
+
+      {spec.canAdd && !viewOnly && layout !== "kanban" && layout !== "matrix" && (
         <div data-tour="quickadd" className={`${page} px-[var(--gutter)] pb-3`}>
           <QuickAdd
             defaults={spec.defaults(today)}

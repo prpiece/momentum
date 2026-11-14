@@ -5,11 +5,13 @@
  */
 import { isLocalDate } from "../../domain/dates";
 import { isInviteCode } from "../../domain/invite";
+import type { Role } from "../../domain/shareAccess";
+
+export type { Role };
 import { projectUrl, supabase } from "./supabase";
 
 export type Profile = { id: string; handle: string; displayName: string | null; avatar: string | null };
 export type Friend = Profile & { status: "pending" | "accepted"; incoming: boolean; since: string };
-export type Role = "owner" | "editor" | "viewer";
 export type ShareKind = "folder" | "list";
 export type Share = { shareId: string; ownerId: string; kind: ShareKind; containerId: string; name: string | null; role: Role; status: "invited" | "active"; members: number };
 export type Member = Profile & { role: Role; status: "invited" | "active"; joinedAt: string };

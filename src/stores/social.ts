@@ -9,6 +9,7 @@ import { inviteCodeFrom } from "../domain/invite";
 import * as api from "../lib/sync/social";
 import { setLocalState, state, syncNow, useSync } from "../lib/sync/engine";
 import { supabase } from "../lib/sync/supabase";
+import { useHabits } from "./habits";
 
 export type Social = {
   loaded: boolean;
@@ -93,7 +94,7 @@ function start(me: string) {
       const n = e.new as { from_id?: string; habit_id?: string };
       const s = useSocial.getState();
       const from = s.friends.find((f) => f.id === n.from_id) ?? null;
-      onNudge(from, null);
+      onNudge(from, (n.habit_id && useHabits.getState().habits[n.habit_id]?.name) || null);
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "sent_tasks" }, () => void refreshSocial())
     .on("postgres_changes", { event: "*", schema: "public", table: "focus_status" }, (e) => {

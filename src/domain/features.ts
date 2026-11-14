@@ -19,6 +19,7 @@ export const PALETTE_IDS = [
   "go-habits",
   "go-focus",
   "go-progress",
+  "go-friends",
   "go-settings",
   "matrix-mode",
   "show-completed",
@@ -48,11 +49,11 @@ export const GO: Record<string, ViewId> = {
 export const DONE_EVENTS = ["task:created-quickadd", "task:token-used", "view:matrix", "habit:checked", "focus:completed", "palette:opened"] as const;
 export type DoneEvent = (typeof DONE_EVENTS)[number];
 
-export const FEATURE_GROUPS = ["Capture", "Tasks", "Views", "Habits & focus", "Progress", "Keyboard"] as const;
+export const FEATURE_GROUPS = ["Capture", "Tasks", "Views", "Habits & focus", "Progress", "Friends & sharing", "Keyboard"] as const;
 export type FeatureGroup = (typeof FEATURE_GROUPS)[number];
 
 /** Icon keys; the UI maps each to a component, so this module stays free of React. */
-export const FEATURE_ICONS = ["plus", "token", "paste", "mic", "search", "keyboard", "undo", "filter", "check", "list", "sun", "grid", "board", "calendar", "hourglass", "file", "target", "timer", "window", "chart", "share", "palette", "help"] as const;
+export const FEATURE_ICONS = ["plus", "token", "paste", "mic", "search", "keyboard", "undo", "filter", "check", "list", "sun", "grid", "board", "calendar", "hourglass", "file", "target", "timer", "window", "chart", "share", "users", "palette", "help"] as const;
 export type FeatureIcon = (typeof FEATURE_ICONS)[number];
 
 export type FeatureCommand =
@@ -132,6 +133,15 @@ export const FEATURES: Feature[] = [
     commands: [palette("go-progress", "Go to Progress"), keys("G S", "Progress")] },
   { id: "share-card", title: "Share your week", howTo: "Progress → Share makes an image of your numbers, never your task names.", icon: "share", group: "Progress", since: OLD, core: false, commands: [] },
   { id: "sync", title: "Sync across your devices", howTo: "Settings → Account: sign in with your email and the same tasks, habits and settings appear on every device, even after offline edits.", icon: "window", group: "Progress", since: "1.1.0", core: false, commands: [] },
+
+  // ---- Friends & sharing (v1.4)
+  { id: "friends", title: "Add friends", howTo: "Friends → Add friend by @handle, or Copy invite link and send it. Friends see nothing of your tasks unless you share or send them.", icon: "users", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false,
+    commands: [palette("go-friends", "Go to Friends")] },
+  { id: "sent-task", title: "Send a task to a friend", howTo: "Right-click a task → Send to friend…. They accept it from Friends → Requests and get their own copy in Inbox; you only see Accepted, Declined or Waiting.", icon: "share", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
+  { id: "sharing", title: "Share a list or folder", howTo: "Right-click a list or folder → Share…. Invite friends or make a link, and choose who can edit and who can only view.", icon: "list", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
+  { id: "focus-together", title: "Focus together", howTo: "Turn on Let friends see when I'm focusing in Focus. Friends see only that you're focusing and when it ends; Join starts your own session that ends at the same moment.", icon: "timer", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
+  { id: "buddies", title: "Check-in buddies", howTo: "Edit a habit → Check-in buddies, and pick friends who see its name and today's check-in. A buddy can nudge you once a day; switch nudges off per habit.", icon: "target", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
+  { id: "connections", title: "Add tasks from Discord, Slack, Telegram or a webhook", howTo: "Settings → Connections shows a 6-digit code to link a chat, and a private webhook URL. Linked chats can add tasks, list your day and get a daily Digest.", icon: "plus", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
 
   // ---- Keyboard and app
   { id: "appearance", title: "Make it yours", howTo: "Theme, accent, layout and scale are in Settings → Appearance.", icon: "palette", group: "Keyboard", since: OLD, core: false,

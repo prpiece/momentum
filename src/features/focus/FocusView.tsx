@@ -14,6 +14,7 @@ import { useSettings } from "../../stores/settings";
 import { addProgressSection } from "../progress/ProgressView";
 import { toggleDone } from "../tasks/actions";
 import { useDerived } from "../tasks/selectors";
+import { FocusTogether } from "../friends/FocusTogether";
 import { TaskPicker } from "./TaskPicker";
 
 export function focusPhaseLabel(next: Phase | "done"): string {
@@ -229,6 +230,7 @@ export function FocusView() {
             {todays.length} session{todays.length === 1 ? "" : "s"}
           </div>
         </div>
+        <FocusTogether />
         <ul className="-mx-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
           {todays.map((s) => (
             <li key={s.id} className="group flex min-h-10 items-center gap-2.5 rounded-control px-1 text-[length:var(--fs-sm)] hover:bg-surface-2">

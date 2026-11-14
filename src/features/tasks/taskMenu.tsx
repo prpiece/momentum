@@ -1,10 +1,12 @@
-import { Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, Flag, FolderInput, PanelRightOpen, Pin, PinOff, Sun, Sunrise, Trash2 } from "lucide-react";
+import { Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, Flag, FolderInput, PanelRightOpen, Pin, PinOff, Send, Sun, Sunrise, Trash2 } from "lucide-react";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
 import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type LocalDate, type Schedule } from "../../domain/types";
 import { withUndo } from "../../stores/undo";
 import { duplicateTask, moveTasks, setStatus, useData } from "../../stores/data";
 import { openTask, useUi, type MenuEntry } from "../../stores/ui";
+import { openSend } from "../friends/friendsUi";
+import { confirmShareMove } from "../friends/moveGuard";
 import { bulkEdit, deleteTasks, editTask, setWontDo, toggleDone } from "./actions";
 
 /**
@@ -57,12 +59,13 @@ export function taskMenu(id: string, key: string | null): MenuEntry[] {
       .filter((l) => !l.archived && l.id !== t.listId)
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .slice(0, 6)
-      .map((l) => ({ label: `Move to ${l.name}`, icon: <FolderInput size={14} />, run: () => withUndo(`Moved to ${l.name}`, () => moveTasks(ids, l.id)) })),
+      .map((l) => ({ label: `Move to ${l.name}`, icon: <FolderInput size={14} />, run: () => void confirmShareMove("list", l.id, many ? "these tasks" : "this task", t.listId).then((ok) => ok && withUndo(`Moved to ${l.name}`, () => moveTasks(ids, l.id))) })),
     "sep",
     ...(many
       ? []
       : [
           { label: t.pinned ? "Unpin" : "Pin to top", icon: t.pinned ? <PinOff size={14} /> : <Pin size={14} />, run: () => void editTask(id, { pinned: !t.pinned }) },
+          { label: "Send to friend…", icon: <Send size={14} />, run: () => openSend(id) },
           { label: "Duplicate", icon: <Copy size={14} />, run: () => withUndo("Duplicated", () => duplicateTask(id)) },
           { label: t.status === "wont_do" ? "Reopen" : "Won't do", icon: <Ban size={14} />, run: () => setWontDo(id, key) },
         ]),

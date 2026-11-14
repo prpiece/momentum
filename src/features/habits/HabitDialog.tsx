@@ -6,6 +6,10 @@ import { ColorField } from "../../components/ui/ColorField";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { isBuild, type Habit, type HabitFrequency, type HabitGoal } from "../../domain/habits";
 import { addGroup, addHabit, updateHabit, useHabits } from "../../stores/habits";
+import { setBuddies } from "../../lib/sync/social";
+import { useSocial } from "../../stores/social";
+import { attempt } from "../friends/attempt";
+import { BuddyPicker } from "../friends/BuddyPicker";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const field = "input";
@@ -28,6 +32,9 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
   const [reminders, setReminders] = useState<string[]>(habit?.reminders ?? []);
   const [groupId, setGroupId] = useState<string | null>(habit?.groupId ?? null);
   const [newGroup, setNewGroup] = useState("");
+  const mine = useSocial((s) => s.myBuddies).filter((b) => b.habitId === habit?.id);
+  const [buddies, setBuddyIds] = useState<string[]>(() => mine.map((b) => b.buddyId));
+  const [nudges, setNudges] = useState(() => mine.every((b) => b.nudges));
 
   const build = isBuild({ goal });
   const kind = goal.kind === "limit" || goal.kind === "quit" ? goal.kind : "build";
@@ -41,8 +48,11 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
     if (!name.trim()) return;
     const gid = newGroup.trim() ? addGroup(newGroup.trim()).id : groupId;
     const data = { name: name.trim(), icon, color, goal, frequency: freq, reminders: build ? reminders : [], groupId: gid };
-    if (habit) updateHabit(habit.id, data);
-    else addHabit(data);
+    if (habit) {
+      updateHabit(habit.id, data);
+      const before = mine.map((b) => b.buddyId).sort().join();
+      if (before !== [...buddies].sort().join() || (buddies.length > 0 && nudges !== mine.every((b) => b.nudges))) void attempt(() => setBuddies(habit.id, buddies, nudges));
+    } else addHabit(data);
     onClose();
   };
 
@@ -196,6 +206,8 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
           </div>
         </fieldset>
         )}
+
+        {habit && <BuddyPicker buddies={buddies} nudges={nudges} onChange={(b, n) => (setBuddyIds(b), setNudges(n))} />}
 
         <div className="flex flex-wrap items-center gap-2 text-sm">
           Group

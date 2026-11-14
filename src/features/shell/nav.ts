@@ -8,6 +8,7 @@ import {
   Settings,
   Sun,
   Target,
+  Users,
 } from "lucide-react";
 import type { ModuleView, SmartListId, ViewId } from "../../domain/types";
 
@@ -25,6 +26,7 @@ export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
   { id: "habits", label: "Habits", icon: Target },
   { id: "focus", label: "Focus", icon: AlarmClock },
   { id: "progress", label: "Progress", icon: ChartColumn },
+  { id: "friends", label: "Friends", icon: Users },
 ];
 
 
