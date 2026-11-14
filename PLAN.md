@@ -131,6 +131,7 @@ momentum/
 - **Added in the phase that needs them:**
   - `@tanstack/react-virtual` for long lists.
   - `react-markdown` for safe Markdown rendering.
+  - `remark-gfm` for tables (and strikethrough, task-list items) in notes (D267); still no raw HTML.
   - Tauri plugins: `notification`, `global-shortcut`, `autostart`, `dialog` and `fs` (export/import).
   - `ical.js` for .ics import, which needs correct TZID and RRULE handling.
   - `updater` and `process` Tauri plugins: signed in-app updates and the restart after one (D59).

@@ -490,6 +490,11 @@
 .prose-md code { font-family: ui-monospace, 'Cascadia Mono', monospace; font-size: 0.9em; background: var(--surface-2); padding: 0.1em 0.3em; border-radius: var(--r-xs); }
 .prose-md pre { background: var(--surface-2); padding: 0.75em; border-radius: var(--r-control); overflow-x: auto; }
 .prose-md blockquote { border-left: 3px solid var(--border); padding-left: 0.75em; color: var(--fg-2); }
+/* GFM tables in notes (D267): bordered cells, a scrolling wrapper on narrow panels. */
+.prose-md table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.prose-md th, .prose-md td { border: 1px solid var(--border); padding: 0.3em 0.6em; text-align: left; vertical-align: top; }
+.prose-md th { font-weight: 600; background: var(--surface-2); }
+.prose-md del { color: var(--muted); }
 
 /* Motion follows the OS unless Settings → Animations says otherwise (html[data-motion]). */
 @media (prefers-reduced-motion: reduce) {

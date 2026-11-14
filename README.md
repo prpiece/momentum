@@ -25,7 +25,7 @@
 - A quiet sidebar: Inbox, Today, Upcoming, Calendar, Habits, Focus and Progress, then your folders and lists. Or use a single bar at the top or bottom of the window instead.
 - One view switch on every task view: List, Board (a list's sections as columns you can drag to reorder), Timeline or Matrix. Group by list, date, priority or tag, and sort by date, priority, created, title or manual order.
 - Task drawer:
-  - A property column for list, due date, priority and tags, each opening its editor.
+  - A property column for list, planned date, deadline, priority and tags, each opening its editor.
   - Markdown notes with images: paste, drop or add a picture, hover one to copy it back out. Removing an image from the note deletes its file too.
   - Date, time and duration, multiple reminders, repeat rules (presets or custom).
   - Priority, tags, subtasks (delete one from its parent with the hover bin), checklist, pin, duplicate, won't-do.
@@ -47,7 +47,7 @@
 - Colour items by list, priority or tag. Show or hide completed tasks, habits and focus records.
 - One-time, read-only `.ics` import (e.g. a Google Calendar export). Re-importing the same file updates the events instead of duplicating them.
 
-**Eisenhower Matrix**: a view mode on any list, Today or Upcoming. Four quadrants derived from priority and due date, with adjustable rules (default: *important* = Medium/High priority, *urgent* = due within 2 days or overdue) and colours you can change. Dragging a task to another quadrant changes its attributes to match.
+**Eisenhower Matrix**: a view mode on any list, Today or Upcoming. Four quadrants derived from priority and the deadline (or planned date), with adjustable rules (default: *important* = Medium/High priority, *urgent* = within 2 days or overdue) and colours you can change. Dragging a task to another quadrant changes its attributes to match.
 
 **Habits**:
 - Goal types: complete once, count up (e.g. 8 glasses), or enter an amount (e.g. 5 km).

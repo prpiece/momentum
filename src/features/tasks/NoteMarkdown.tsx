@@ -1,6 +1,7 @@
 import { Copy, Maximize2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { imageUrl } from "../../lib/appFiles";
 import { toast } from "../../stores/ui";
 import { ImageLightbox } from "./ImageLightbox";
@@ -58,7 +59,9 @@ async function copyImage(url: string) {
 /** Markdown for task notes: keeps `attachment:` image URLs and resolves them to app-data files (D78). */
 export function NoteMarkdown({ children }: { children: string }) {
   return (
+    // GFM for tables (D267); raw HTML stays off (react-markdown escapes it without rehype-raw).
     <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
       urlTransform={(u) => (u.startsWith(PREFIX) ? u : defaultUrlTransform(u))}
       components={{ img: ({ src, alt }) => (typeof src === "string" && src.startsWith(PREFIX) ? <NoteImage src={src} alt={alt ?? ""} /> : <span className="text-muted">{alt || "Image"}</span>) }}
     >

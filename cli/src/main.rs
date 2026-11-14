@@ -305,7 +305,7 @@ fn task_line(t: &Value) -> String {
         });
     }
     if let Some(d) = t["deadline"].as_str() {
-        bits.push(format!("due {d}"));
+        bits.push(format!("by {d}"));
     }
     if let Some(m) = t["durationMin"].as_u64() {
         bits.push(if m % 60 == 0 { format!("{}h", m / 60) } else if m > 60 { format!("{}h{}m", m / 60, m % 60) } else { format!("{m}m") });
@@ -373,7 +373,7 @@ fn human(op: &str, d: &Value) -> String {
                         Some(false) => "[ ]",
                         None => "[~]",
                     };
-                    let due = if h["dueToday"].as_bool() == Some(true) { "" } else { "  (not due today)" };
+                    let due = if h["dueToday"].as_bool() == Some(true) { "" } else { "  (not today)" };
                     format!("{mark} {}  {}/{} {}  streak {}{due}", s(&h["name"]), h["value"], h["target"], s(&h["goal"]), s(&h["streak"]))
                 })
                 .collect::<Vec<_>>()
