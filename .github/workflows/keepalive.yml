@@ -1,0 +1,22 @@
+# The Supabase free plan pauses a project after a week without traffic (PLAN D259). One read of
+# a public table each week keeps it awake. Uses the same public URL and publishable key the app ships.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    - cron: "17 6 * * 1,4"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read server_meta
+        env:
+          URL: ${{ vars.SUPABASE_URL }}
+          KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test -n "$URL" -a -n "$KEY" || { echo "Set the SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY repository variables"; exit 1; }
+          curl -fsS "$URL/rest/v1/server_meta?select=min_client_schema" -H "apikey: $KEY" -H "authorization: Bearer $KEY"
