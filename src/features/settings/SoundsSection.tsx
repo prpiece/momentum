@@ -6,10 +6,6 @@ import { Switch } from "../../components/ui/Switch";
 import { Line } from "./NotificationSection";
 
 const EVENTS: [SoundEvent, string, string][] = [
-  ["task", "Task completed", "Each time you tick a task off"],
-  ["habit", "Habit checked in", "Each time a habit gets a check-in"],
-  ["streak", "Habit streak milestone", "7, 30, 100 and 365 days in a row"],
-  ["dayDone", "All done today", "Perfect days, weeks, months and years"],
   ["focusEnd", "Focus timer ends", "Plays three times, like an alarm"],
   ["longBreak", "Long break reached", "After the last focus round of a set"],
 ];
@@ -21,8 +17,8 @@ export function SoundsSection() {
 
   return (
     <div className="space-y-4">
-      <Line title="Sound effects" hint="Little sounds for finishing things. Reminder chimes are under Notifications.">
-        <Switch checked={s.enabled} onChange={(enabled) => set({ enabled })} label="Sound effects" />
+      <Line title="Timer sounds" hint="The focus timer's alarms. Reminder chimes are under Notifications.">
+        <Switch checked={s.enabled} onChange={(enabled) => set({ enabled })} label="Timer sounds" />
       </Line>
       <div className={`space-y-3 transition-opacity duration-[var(--dur)] ${s.enabled ? "" : "pointer-events-none opacity-45"}`} aria-disabled={!s.enabled}>
         <Line title="Volume">
@@ -34,7 +30,7 @@ export function SoundsSection() {
             value={s.volume}
             aria-label="Sound volume"
             onChange={(e) => set({ volume: Number(e.target.value) })}
-            onPointerUp={() => playSound(s.picks.task, s.volume)}
+            onPointerUp={() => playSound(s.picks.focusEnd, s.volume)}
             className="w-40 accent-[var(--accent)]"
           />
         </Line>

@@ -52,7 +52,7 @@ export const FEATURE_GROUPS = ["Capture", "Tasks", "Views", "Habits & focus", "P
 export type FeatureGroup = (typeof FEATURE_GROUPS)[number];
 
 /** Icon keys; the UI maps each to a component, so this module stays free of React. */
-export const FEATURE_ICONS = ["plus", "token", "paste", "mic", "search", "keyboard", "undo", "filter", "check", "list", "sun", "grid", "board", "calendar", "hourglass", "file", "target", "timer", "window", "chart", "share", "palette", "help"] as const;
+export const FEATURE_ICONS = ["plus", "token", "paste", "mic", "search", "keyboard", "undo", "filter", "check", "list", "sun", "grid", "board", "calendar", "hourglass", "file", "target", "timer", "window", "chart", "palette", "help"] as const;
 export type FeatureIcon = (typeof FEATURE_ICONS)[number];
 
 export type FeatureCommand =
@@ -128,9 +128,8 @@ export const FEATURES: Feature[] = [
   { id: "auto-focus", title: "Start focus when a time block begins", howTo: "Turn on Start focus at time blocks in Settings → Notifications: a task you've put on the calendar starts a focus session when its time comes, and stops it when the block ends.", icon: "timer", group: "Habits & focus", since: "1.1.2", core: false, commands: [] },
 
   // ---- Progress
-  { id: "progress", title: "See your progress", howTo: "Your week, streaks, trophies and trends in one place.", icon: "chart", group: "Progress", since: OLD, core: false,
+  { id: "progress", title: "See your progress", howTo: "What you finished and how long you focused, by day and week, plus an activity heatmap.", icon: "chart", group: "Progress", since: OLD, core: false,
     commands: [palette("go-progress", "Go to Progress"), keys("G S", "Progress")] },
-  { id: "share-card", title: "Share your week", howTo: "Progress → Share makes an image of your numbers, never your task names.", icon: "share", group: "Progress", since: OLD, core: false, commands: [] },
   { id: "sync", title: "Sync across your devices", howTo: "Settings → Account: sign in with your email and the same tasks, habits and settings appear on every device, even after offline edits.", icon: "window", group: "Progress", since: "1.1.0", core: false, commands: [] },
 
   // ---- Keyboard and app

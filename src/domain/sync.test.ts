@@ -109,7 +109,7 @@ it("tagWinner picks the same id from either side", () => {
 
 it("keyFromId undoes the trigger's row naming", () => {
   expect(keyFromId("habit_checkins", "a|b|2026-01-01")).toEqual({ habit_id: "a|b", date: "2026-01-01" });
-  expect(keyFromId("celebrations", "streak-7")).toEqual({ key: "streak-7" });
+  expect(keyFromId("rest_days", "2026-01-01")).toEqual({ date: "2026-01-01" });
 });
 
 describe("pickProfile", () => {

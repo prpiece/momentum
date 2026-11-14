@@ -12,7 +12,6 @@ import { configureSync, supabase } from "@core/lib/sync/supabase";
 import { hydrate } from "@core/stores/data";
 import { hydrateFocus } from "@core/stores/focus";
 import { hydrateHabits } from "@core/stores/habits";
-import { hydrateProgress } from "@core/stores/progress";
 import { useSettings } from "@core/stores/settings";
 import { router } from "expo-router";
 import { setScopeAsker } from "@core/stores/ask";
@@ -80,4 +79,4 @@ setSyncHost({
   },
 });
 
-export const ready = Promise.all([useSettings.getState().hydrate(), hydrate(), hydrateHabits(), hydrateFocus(), hydrateProgress()]).then(() => startSync());
+export const ready = Promise.all([useSettings.getState().hydrate(), hydrate(), hydrateHabits(), hydrateFocus()]).then(() => startSync());

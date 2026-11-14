@@ -31,18 +31,17 @@ if (popup === "mini") {
   const { ReminderWindow } = await import("./windows/ReminderWindow");
   root.render(<React.StrictMode>{popup === "quickadd" ? <QuickAddWindow /> : <ReminderWindow />}</React.StrictMode>);
 } else {
-  const [{ default: App }, data, habits, focus, progress, { useSettings }, { go }, { initOs }] = await Promise.all([
+  const [{ default: App }, data, habits, focus, { useSettings }, { go }, { initOs }] = await Promise.all([
     import("./App"),
     import("./stores/data"),
     import("./stores/habits"),
     import("./stores/focus"),
-    import("./stores/progress"),
     import("./stores/settings"),
     import("./stores/ui"),
     import("./lib/os"),
   ]);
   // Hydrate before first paint so the saved theme applies without a flash.
-  await Promise.all([useSettings.getState().hydrate(), data.hydrate(), habits.hydrateHabits(), focus.hydrateFocus(), progress.hydrateProgress()]);
+  await Promise.all([useSettings.getState().hydrate(), data.hydrate(), habits.hydrateHabits(), focus.hydrateFocus()]);
   if (!isTauri && import.meta.env.DEV && !Object.keys(data.useData.getState().tasks).length) {
     // Plain-browser dev mode has no database: show sample data so the UI is populated.
     const seed = await import("./dev/seed");

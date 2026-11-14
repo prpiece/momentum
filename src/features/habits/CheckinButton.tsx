@@ -1,8 +1,6 @@
 import { Check, Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
-import { Logo } from "../../components/Logo";
 import { Popover } from "../../components/ui/Popover";
-import { motionOn } from "../../lib/celebrate";
 import { accentForeground } from "../../domain/color";
 import { isBuild, isDone, targetOf, unitOf, type Habit } from "../../domain/habits";
 import type { LocalDate } from "../../domain/types";
@@ -24,7 +22,6 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
   const anchor = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  const [burst, setBurst] = useState(0);
   const r = size / 2 - 3;
   const circ = 2 * Math.PI * r;
   const build = isBuild(habit);
@@ -55,7 +52,6 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
             setDraft(value ? fmt(value) : "");
             setEditing(true);
           } else {
-            if (!done && value + 1 >= target && motionOn()) setBurst(Date.now());
             tapCheckin(habit, date);
           }
         }}
@@ -88,11 +84,6 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
             <Plus size={size * 0.4} className="text-muted" />
           )}
         </span>
-        {burst > 0 && (
-          <span key={burst} className="anim-badge pointer-events-none absolute -top-1 left-1/2 z-10" onAnimationEnd={() => setBurst(0)}>
-            <Logo size={20} />
-          </span>
-        )}
       </button>
       {editing && typed && (
         <Popover anchor={anchor} onClose={() => setEditing(false)} className="w-56 p-3">

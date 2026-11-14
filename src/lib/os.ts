@@ -12,7 +12,7 @@ import { accentForeground, accentHex, type AccentId } from "../domain/color";
 import { todayLocal } from "../domain/dates";
 import type { NotifySettings } from "../domain/types";
 import { isBuild, isDone, targetOf } from "../domain/habits";
-import { checkinOf, setCheckin, setCheckinHandler, useHabits } from "../stores/habits";
+import { checkinOf, setCheckin, useHabits } from "../stores/habits";
 import { buildSnapshot, parseMiniAction } from "../domain/mini";
 import { toggleDone } from "../features/tasks/actions";
 import { derive } from "../domain/taskViews";
@@ -29,8 +29,7 @@ import { snoozeReminder, startReminders, type ReminderDTO } from "./reminderSche
 import { keyLabel } from "./platform";
 import { checkForUpdate } from "./updater";
 import { playEvent, playSound } from "./sounds";
-import { checkLastWeek, checkTrophies, onCheckin, onLongBreak, onTaskDone } from "./celebrate";
-import { setDoneHandler, setStatus, useData } from "../stores/data";
+import { setStatus, useData } from "../stores/data";
 import { showInCurrentView } from "../features/tasks/viewOptions";
 
 export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
@@ -119,18 +118,10 @@ export async function initOs() {
     toast(`Focus started · ${due.title}`, { label: "Stop", run: stopFocus });
     if (isTauri && notifySettings().enabled && notifySettings().focus) notice("Momentum focus", `Focus started · ${due.title}`);
   }, 1000);
-  setDoneHandler(onTaskDone);
-  setCheckinHandler(onCheckin);
-  // A week that just ended, and trophies earned from history (silently, the first time).
-  setTimeout(() => {
-    checkTrophies();
-    checkLastWeek();
-  }, 1500);
   // A phase ending is an alarm, so it rings and shows in-app even with notifications off.
   setPhaseEndHandler((_, next) => {
     const n = notifySettings();
-    if (next === "long") onLongBreak(); // "done" rings the plain focus-end alarm
-    else playEvent("focusEnd", 3);
+    playEvent(next === "long" ? "longBreak" : "focusEnd", 3);
     toast(`Timer done · ${focusPhaseLabel(next)}`);
     flashTaskbar();
     if (isTauri && n.enabled && n.focus) notice("Momentum focus", focusPhaseLabel(next));

@@ -18,7 +18,6 @@ import {
   Palette,
   Plus,
   Search,
-  Share2,
   Sun,
   Target,
   Timer,
@@ -47,7 +46,6 @@ export const FEATURE_ICON: Record<FeatureIcon, LucideIcon> = {
   timer: Timer,
   window: AppWindow,
   chart: ChartColumn,
-  share: Share2,
   palette: Palette,
   help: LifeBuoy,
 };

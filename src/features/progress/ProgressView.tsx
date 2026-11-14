@@ -1,26 +1,17 @@
-import { format } from "date-fns";
-import { Flame, Share2, Users } from "lucide-react";
+import { format, startOfWeek } from "date-fns";
 import { type ReactNode, useMemo, useState } from "react";
 import { AppIcon } from "../../components/ui/AppIcon";
 import { BarChart } from "../../components/ui/BarChart";
-import { Button } from "../../components/ui/Dialog";
 import { PageHead } from "../../components/ui/PageHead";
-import { ToolbarActions } from "../../components/ui/Toolbar";
 import { Segmented } from "../../components/ui/Segmented";
 import { addDaysLocal, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
 import { completionRate } from "../../domain/habits";
-import { weekStartOf } from "../../domain/perfect";
 import { completedPerDay, completedPerWeek, type Bucket } from "../../domain/stats";
-import { perfectSummary } from "../../lib/celebrate";
 import { useData } from "../../stores/data";
 import { useFocus } from "../../stores/focus";
 import { useHabits, valuesOf } from "../../stores/habits";
-import { useProgress } from "../../stores/progress";
 import { useSettings } from "../../stores/settings";
-import { TodayStreak } from "../celebrate/TodayStreak";
-import { TrophyShelf } from "../celebrate/TrophyShelf";
 import { Heatmap } from "./Heatmap";
-import { ShareDialog } from "./ShareDialog";
 
 /** Extra trend charts (focus time) contributed by other features. */
 type Section = { id: string; render: () => ReactNode };
@@ -30,27 +21,22 @@ export const addProgressSection = (s: Section) => void (sections.some((x) => x.i
 const pct = (r: number | null) => (r === null ? "–" : `${Math.round(r * 100)}%`);
 const HEAT_WEEKS = 30;
 
-/** Progress (D166, D182): this week, streaks, trophies, trends, and a place for friends. */
+/** Progress (D166, D256): plain statistics. Completions over time, focus time and the heatmap; no scores. */
 export function ProgressView() {
   const tasks = useData((s) => s.tasks);
   const habits = useHabits((s) => s.habits);
   const checkins = useHabits((s) => s.checkins);
   const sessions = useFocus((s) => s.sessions);
-  const restDays = useProgress((s) => s.restDays);
-  const pushes = useProgress((s) => s.pushes);
   const ws = useSettings((s) => s.settings.weekStart);
   const today = todayLocal();
   const [range, setRange] = useState<"days" | "weeks">("days");
-  const [sharing, setSharing] = useState(false);
   const all = useMemo(() => Object.values(tasks), [tasks]);
 
   const year = useMemo(() => completedPerDay(all, today, 366), [all, today]);
   const heat = useMemo(() => new Map(year.slice(-HEAT_WEEKS * 7 - 7).map((b) => [b.start, b.value])), [year]);
   const days = year.slice(-14);
   const weeks = useMemo(() => completedPerWeek(all, today, 12, ws), [all, today, ws]);
-  // Read from the stores inside; recomputed when anything it reads changes.
-  const perfect = useMemo(() => perfectSummary(), [tasks, checkins, restDays, pushes, ws, today]);
-  const weekStart = weekStartOf(today, ws);
+  const weekStart = toLocalDate(startOfWeek(fromLocalDate(today), { weekStartsOn: ws }));
   const focusMinutes = useMemo(
     () => Object.values(sessions).reduce((n, s) => (toLocalDate(new Date(s.startAt)) >= weekStart ? n + s.seconds / 60 : n), 0),
     [sessions, weekStart],
@@ -60,37 +46,13 @@ export function ProgressView() {
 
   return (
     <div className="h-full overflow-y-auto px-[var(--gutter)] pb-10 pt-6">
-      {sharing && <ShareDialog onClose={() => setSharing(false)} />}
-      <ToolbarActions>
-        <Button variant="secondary" onClick={() => setSharing(true)}>
-          <Share2 size={16} strokeWidth={1.75} /> Share
-        </Button>
-      </ToolbarActions>
       <div className="mb-4">
-        <PageHead title="Progress" sub={`This week, since ${format(fromLocalDate(weekStart), "EEEE d MMMM")}`}>
-          <TodayStreak />
-        </PageHead>
+        <PageHead title="Progress" sub={`This week, since ${format(fromLocalDate(weekStart), "EEEE d MMMM")}`} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-4">
-        <Stat label="Tasks done" value={weeks[weeks.length - 1]?.value ?? 0} />
-        <Stat label="Focus" value={`${Math.floor(focusMinutes / 60)}h ${Math.round(focusMinutes % 60)}m`} />
-        <Stat label="Perfect days" value={perfect.thisWeek} />
-        {/* The one big number on the page (.t-display): the perfect-day streak. */}
-        <section className="card flex items-center gap-3">
-          <Flame size={28} strokeWidth={1.75} className="shrink-0 text-streak" aria-hidden />
-          <div>
-            <div className="t-display leading-none">{perfect.run}</div>
-            <div className="mt-1 text-[length:var(--fs-sm)] leading-tight text-muted">
-              day streak · best <span className="tabular-nums">{perfect.best}</span>
-            </div>
-          </div>
-        </section>
-
-        <Card title="Trophies" hint="levels to climb" className="min-[720px]:col-span-4">
-          <TrophyShelf />
-        </Card>
-
+        <Stat label="Tasks done" className="min-[720px]:col-span-2" value={weeks[weeks.length - 1]?.value ?? 0} />
+        <Stat label="Focus" className="min-[720px]:col-span-2" value={`${Math.floor(focusMinutes / 60)}h ${Math.round(focusMinutes % 60)}m`} />
         <Card
           title="Tasks completed"
           className="min-[720px]:col-span-2"
@@ -131,7 +93,7 @@ export function ProgressView() {
         </Card>
 
         {habitList.length > 0 && (
-          <Card title="Habit consistency" hint="last 30 days" className="min-[720px]:col-span-2">
+          <Card title="Habit consistency" hint="last 30 days" className="min-[720px]:col-span-4">
             <ul className="flex flex-col gap-2.5">
               {habitList
                 .map((h) => ({ h, r: completionRate(h, valuesOf(checkins[h.id]), from30, today, today, ws) }))
@@ -158,25 +120,15 @@ export function ProgressView() {
           </div>
         ))}
 
-        {/* Friends arrive in v1.1/v1.2; until then this is the place they'll appear (D182). */}
-        <Card title="Friends" className={habitList.length > 0 ? "min-[720px]:col-span-2" : "min-[720px]:col-span-4"}>
-          <div className="empty py-4">
-            <span className="eic">
-              <Users size={18} strokeWidth={1.75} />
-            </span>
-            <h2>Friends — coming soon</h2>
-            <p>Compare streaks, trophies and your weekly total with friends. Never your tasks.</p>
-          </div>
-        </Card>
       </div>
     </div>
   );
 }
 
-/** A stat tile: the label, then the value at --fs-xl (D198: only the streak uses the display size). */
-function Stat({ label, value }: { label: string; value: ReactNode }) {
+/** A stat tile: the label, then the value at --fs-xl. */
+function Stat({ label, value, className = "" }: { label: string; value: ReactNode; className?: string }) {
   return (
-    <section className="card flex flex-col gap-0.5">
+    <section className={`card flex flex-col gap-0.5 ${className}`}>
       <h3 className="t-label text-muted">{label}</h3>
       <div className="text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] tabular-nums">{value}</div>
     </section>

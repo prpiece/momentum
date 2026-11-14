@@ -5,7 +5,6 @@ import { EmptyState } from "./components/ui/EmptyState";
 import { Toaster } from "./components/ui/Toaster";
 import { TipProvider } from "./components/ui/Tip";
 import { TOOLBAR_SLOT_ID } from "./components/ui/Toolbar";
-import { CelebrationOverlay } from "./features/celebrate/CelebrationOverlay";
 import { UpdatePrompt } from "./features/shell/UpdatePrompt";
 import { WhatsNew } from "./features/shell/WhatsNew";
 import { onWriteError } from "./db/client";
@@ -136,7 +135,6 @@ export default function App() {
       <ContextMenu />
       <Tour />
       <Toaster />
-      <CelebrationOverlay />
       <WhatsNew />
       <UpdatePrompt />
     </DndRoot>

@@ -38,10 +38,15 @@ describe("parseSettings", () => {
       matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["teal", null, null, "ocean"], closeToTray: false, launchAtStartup: true, checkUpdates: false,
       notify: { enabled: false, style: "popup", corner: "top-right", sound: false, taskReminders: false, habitReminders: false, starts: false, digest: false, digestTime: "21:30", focus: false, quickAdd: false },
       streakReminder: { on: false, time: "20:15" }, autoFocus: true,
-      sounds: { enabled: false, volume: 0.3, picks: { task: "ding", habit: "none", streak: "pop", dayDone: "chime", focusEnd: "marimba", longBreak: "fanfare" } },
+      sounds: { enabled: false, volume: 0.3, picks: { focusEnd: "marimba", longBreak: "fanfare" } },
       onboarded: true, gettingStarted: { dismissed: true, done: ["habits", "tokens"], seenVersion: "1.0.0" }, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
+  });
+
+  it("ignores stored keys for retired reward settings (D256)", () => {
+    const s = parseSettings({ sounds: { enabled: true, volume: 0.5, picks: { task: "ding", habit: "pop", streak: "fanfare", dayDone: "chime", focusEnd: "marimba" } } });
+    expect(s.sounds).toEqual({ enabled: true, volume: 0.5, picks: { focusEnd: "marimba", longBreak: DEFAULT_SETTINGS.sounds.picks.longBreak } });
   });
 
   it("migrates zoom and text size into one scale, clamped to the range", () => {
