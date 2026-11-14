@@ -72,11 +72,10 @@ function scheduleOf(date: string, hhmm: string | null, minutes: number | null): 
 function dueOf(date: string, repeatText: string | null, isRecurring: boolean, minutes: number | null, today: string): Due {
   const abs = ABSOLUTE.exec(date.trim());
   let rule: string | null = null;
-  let repeatTime: string | null = null;
   let lost = false;
   if (isRecurring && repeatText) {
     const r = todoistRepeat(repeatText);
-    if (r) ({ rule, time: repeatTime } = r);
+    if (r) rule = r.rule;
     else lost = true;
   }
   if (abs && isLocalDate(abs[1])) {
