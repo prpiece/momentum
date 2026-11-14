@@ -1,13 +1,17 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatTime, toLocalDate, todayLocal } from "@core/domain/dates";
 import { elapsedMs, remainingMs, type FocusMode } from "@core/domain/focus";
 import { derive, inSmartList } from "@core/domain/taskViews";
 import { useData } from "@core/stores/data";
 import { pauseFocus, resumeFocus, skipPhase, startFocus, stopFocus, tickFocus, useFocus } from "@core/stores/focus";
+import { useSync } from "@core/lib/sync/engine";
 import { useSettings } from "@core/stores/settings";
+import { useSocial } from "@core/stores/social";
+import { joinedEnd, joinFocus, useShareFocus } from "@/social/focusTogether";
+import { nameOf, run } from "@/social/actions";
 import { GUTTER, useColors } from "@/theme";
 import { clock } from "@/ui/FocusBar";
 import { Button, Icon, Segmented, Text } from "@/ui/kit";
@@ -28,6 +32,17 @@ export default function Focus() {
   const [mode, setMode] = useState<FocusMode>("pomodoro");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
+  const account = useSync((st) => st.account);
+  const friends = useSocial((st) => st.friends);
+  const focusing = useSocial((st) => st.focusing);
+  const share = useShareFocus();
+  const together = useMemo(
+    () =>
+      friends
+        .filter((f) => f.status === "accepted" && focusing[f.id] && Date.parse(focusing[f.id]) > now)
+        .map((f) => ({ friend: f, endsAt: focusing[f.id] })),
+    [friends, focusing, now],
+  );
   useEffect(() => {
     const i = setInterval(() => (tickFocus(), setNow(Date.now())), 1000);
     return () => clearInterval(i);
@@ -47,7 +62,10 @@ export default function Focus() {
   const shown = active ? (left ?? elapsedMs(timer, now)) : mode === "pomodoro" ? cfg.focusMin * 60_000 : 0;
   const onId = active ? timer.taskId : taskId;
   const onTask = onId ? tasks[onId] : undefined;
-  const status = active
+  const joinedAt = active ? joinedEnd() : null;
+  const status = joinedAt
+    ? `Focusing together · ends ${formatTime(new Date(joinedAt), timeFormat)}`
+    : active
     ? timer.mode === "pomodoro"
       ? `${PHASE[timer.phase]} · round ${timer.round}${timer.status === "running" && left !== null ? ` · ends ${formatTime(new Date(now + left), timeFormat)}` : ""}`
       : "Stopwatch"
@@ -89,6 +107,27 @@ export default function Focus() {
         <Text variant="secondary" style={{ color: c.fg2, textAlign: "center" }}>
           {status}
         </Text>
+        {account ? (
+          <View style={s.together}>
+            <View style={s.switchRow}>
+              <Text variant="secondary" style={{ flex: 1 }}>
+                Let friends see when I'm focusing
+              </Text>
+              <Switch value={share.on === true} disabled={share.on === null} onValueChange={(v) => void run(() => share.set(v))} accessibilityLabel="Let friends see when I'm focusing" />
+            </View>
+            <Text variant="meta" style={{ color: c.muted }}>
+              They see only that a session is running and when it ends, never the task.
+            </Text>
+            {together.map(({ friend, endsAt }) => (
+              <View key={friend.id} style={s.switchRow}>
+                <Text variant="secondary" style={{ flex: 1 }}>
+                  {`${nameOf(friend)} is focusing until ${formatTime(new Date(endsAt), timeFormat)}`}
+                </Text>
+                {active ? null : <Button label="Join" icon="users" kind="secondary" onPress={() => joinFocus(endsAt)} style={{ minHeight: 44, paddingHorizontal: 12 }} />}
+              </View>
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
       <View style={s.buttons}>
         {!active ? (
@@ -120,5 +159,7 @@ const s = StyleSheet.create({
   task: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingTop: 24 },
   buttons: { paddingHorizontal: GUTTER, gap: 10 },
   big: { minHeight: 56 },
+  together: { alignSelf: "stretch", gap: 8, paddingTop: 16 },
+  switchRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48 },
 });
 

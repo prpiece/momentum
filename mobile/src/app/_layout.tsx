@@ -74,6 +74,10 @@ export default function RootLayout() {
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
         <Stack.Screen name="whats-new" options={{ title: "What's new" }} />
         <Stack.Screen name="report" options={{ title: "Report a problem" }} />
+        <Stack.Screen name="friends" options={{ headerShown: false }} />
+        <Stack.Screen name="share" options={{ headerShown: false }} />
+        <Stack.Screen name="invite/[code]" options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="connections" options={{ title: "Connections" }} />
       </Stack>
       <ToastHost />
       <QuickAddHost />

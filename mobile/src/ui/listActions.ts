@@ -2,7 +2,9 @@ import { router } from "expo-router";
 import { Alert } from "react-native";
 import type { Folder, TaskList } from "@core/domain/types";
 import { addFolder, addList, removeFolder, removeList, updateFolder, updateList, useData } from "@core/stores/data";
-import { askText, choose } from "./Sheet";
+import { useSocial } from "@core/stores/social";
+import { roleFor } from "@/social/roles";
+import { askText, choose, type Choice } from "./Sheet";
 
 /** The list colour presets (`--l-*`), as desktop stores them. */
 export const LIST_COLORS = ["violet", "amber", "blue", "green", "coral", "teal"].map((k) => ({ value: `var(--l-${k})`, label: k[0].toUpperCase() + k.slice(1) }));
@@ -23,13 +25,17 @@ export async function newListOrFolder(folderId: string | null = null) {
 
 export async function listMenu(l: TaskList, colorOf: (v: string) => string) {
   const folders = Object.values(useData.getState().folders);
-  const action = await choose(l.name, [
+  const role = roleFor(useSocial.getState().shares, useData.getState().lists, useData.getState().folders, l.id);
+  // Owners manage the list; members only open its sharing (D262).
+  const manage: Choice<string>[] = role === "viewer" || role === "editor" ? [] : [
     { value: "rename", label: "Rename", icon: "edit-2" },
     { value: "color", label: "Colour", icon: "droplet" },
     ...(folders.length ? [{ value: "move", label: "Move to folder", icon: "folder" } as const] : []),
     { value: "delete", label: "Delete list", icon: "trash-2", danger: true },
-  ]);
-  if (action === "rename") {
+  ];
+  const action = await choose<string>(l.name, [{ value: "share", label: role ? "Sharing" : "Share", icon: "users" }, ...manage]);
+  if (action === "share") router.push({ pathname: "/share", params: { kind: "list", id: l.id } });
+  else if (action === "rename") {
     const name = await askText("Rename list", { value: l.name });
     if (name) updateList(l.id, { name });
   } else if (action === "color") {
@@ -49,11 +55,13 @@ export async function listMenu(l: TaskList, colorOf: (v: string) => string) {
 
 export async function folderMenu(f: Folder) {
   const action = await choose(f.name, [
+    { value: "share", label: "Share", icon: "users" },
     { value: "list", label: "New list in this folder", icon: "plus" },
     { value: "rename", label: "Rename", icon: "edit-2" },
     { value: "delete", label: "Delete folder", detail: "Lists are kept", icon: "trash-2", danger: true },
   ]);
-  if (action === "list") {
+  if (action === "share") router.push({ pathname: "/share", params: { kind: "folder", id: f.id } });
+  else if (action === "list") {
     const name = await askText("New list", { placeholder: "Chemistry", confirm: "Create" });
     if (name) router.push({ pathname: "/browse/list/[id]", params: { id: addList(name, f.id).id } });
   } else if (action === "rename") {

@@ -17,7 +17,10 @@ import { useSettings } from "@core/stores/settings";
 import { router } from "expo-router";
 import { setScopeAsker } from "@core/stores/ask";
 import { setTaskOpener } from "@core/stores/quickAddSubmit";
+import { setNudgeHandler, startSocial } from "@core/stores/social";
 import { setToast } from "@core/stores/toast";
+import * as Notifications from "expo-notifications";
+import { startFocusPublishing } from "./social/focusTogether";
 import { showToast } from "./ui/Toast";
 import { databasePath, openDatabase } from "./db/sqlite";
 
@@ -80,4 +83,13 @@ setSyncHost({
   },
 });
 
-export const ready = Promise.all([useSettings.getState().hydrate(), hydrate(), hydrateHabits(), hydrateFocus(), hydrateProgress()]).then(() => startSync());
+// Check-in buddies' nudges (v1.4) arrive over Realtime while the app is open: show them as a local notification.
+setNudgeHandler((from, habit) =>
+  void Notifications.scheduleNotificationAsync({ content: { title: "Momentum", body: `${from ? `@${from.handle}` : "A friend"} nudged you about ${habit ? `"${habit}"` : "your habit"}` }, trigger: null }),
+);
+startFocusPublishing();
+
+export const ready = Promise.all([useSettings.getState().hydrate(), hydrate(), hydrateHabits(), hydrateFocus(), hydrateProgress()]).then(() => {
+  startSocial(); // follows the signed-in account that startSync restores
+  return startSync();
+});

@@ -1,5 +1,5 @@
 import * as Notifications from "expo-notifications";
-import { useNavigation, usePreventRemove } from "expo-router";
+import { router, useNavigation, usePreventRemove } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { ACCENTS } from "@core/domain/color";
@@ -59,6 +59,8 @@ export default function Settings() {
         <Text style={{ color: c.fg, fontSize: 16, flex: 1 }}>Start focus at time blocks</Text>
         <Switch value={s.autoFocus} onValueChange={(autoFocus) => update({ autoFocus })} accessibilityLabel="Start focus at time blocks" />
       </View>
+      <Label>Connections</Label>
+      <Button label="Discord, Slack, Telegram and webhook" icon="link" kind="secondary" onPress={() => router.push("/connections")} />
       <Text style={{ color: c.muted, marginTop: 24, fontSize: 13 }}>These settings sync with your other devices when you're signed in.</Text>
     </ScrollView>
     {dirty ? (
