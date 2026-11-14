@@ -1,6 +1,8 @@
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
-import { AppState } from "react-native";
+import * as SecureStore from "expo-secure-store";
+import { Alert, AppState, Platform } from "react-native";
+import { isAlarm } from "@core/domain/alarms";
 import { remainingMs } from "@core/domain/focus";
 import { upcomingFires, type ReminderTarget } from "@core/domain/reminders";
 import { derive } from "@core/domain/taskViews";
@@ -9,6 +11,7 @@ import { autoStartFocus, startFocus, useFocus } from "@core/stores/focus";
 import { useHabits, valuesOf } from "@core/stores/habits";
 import { useSettings } from "@core/stores/settings";
 import { toggleDone } from "@core/stores/taskActions";
+import { alarmsSupported, canUseFullScreenIntent, openFullScreenIntentSettings, setAlarms, type Alarm } from "../modules/momentum-alarm";
 
 /*
  * Reminders as OS-scheduled local notifications (PLAN D230): the next week's fires are handed to
@@ -69,6 +72,22 @@ async function respond(r: Notifications.NotificationResponse) {
   if (target) open(target);
 }
 
+const ASKED = "alarmPermissionAsked";
+
+/**
+ * Call when a high-priority task gets a reminder. Android 14+ makes the user grant full-screen
+ * intents in settings, so explain once and open the page; if they say no, alarms stay normal heads-up notifications.
+ */
+export async function askAlarmPermission() {
+  if (!alarmsSupported || canUseFullScreenIntent()) return;
+  if ((await SecureStore.getItemAsync(ASKED).catch(() => null)) === "1") return;
+  await SecureStore.setItemAsync(ASKED, "1").catch(() => undefined);
+  Alert.alert("Let alarms take over the screen?", "High-priority reminders can ring like an alarm clock, even on the lock screen. Android needs you to allow this in settings. Without it they show as normal notifications.", [
+    { text: "Not now", style: "cancel" },
+    { text: "Open settings", onPress: openFullScreenIntentSettings },
+  ]);
+}
+
 /** Asks once, the first time there's something to remind about. */
 async function allowed() {
   const p = await Notifications.getPermissionsAsync();
@@ -98,16 +117,34 @@ async function apply() {
   const timer = useFocus.getState().timer;
   const focusLeft = timer.status === "running" ? remainingMs(timer, now, settings.pomodoro) : null;
 
+  const priority = (id: string) => tasks[id]?.priority;
+  const ringing = (f: (typeof fires)[number]) => isAlarm(f, priority);
   for (const n of await Notifications.getAllScheduledNotificationsAsync()) if (!n.identifier.endsWith(SNOOZED)) await Notifications.cancelScheduledNotificationAsync(n.identifier);
-  if ((!fires.length && !blocks.length && focusLeft === null) || !(await allowed())) return;
+  if ((!fires.length && !blocks.length && focusLeft === null) || !(await allowed())) return void setAlarms([]);
 
   const at = (date: Date) => ({ type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL }) as const;
-  for (const f of fires)
+  // Android rings high-priority reminders as full-screen alarms through the native module; iOS marks them time-sensitive.
+  const alarms: Alarm[] = [];
+  for (const f of fires) {
+    const alarm = ringing(f);
+    if (alarm && alarmsSupported && f.target.kind === "task") {
+      const url = `momentum://task/${encodeURIComponent(f.target.id)}?key=${encodeURIComponent(f.target.occurrenceKey ?? "")}`;
+      alarms.push({ id: f.key, at: f.at.getTime(), title: f.title, body: f.body, url });
+      continue;
+    }
     await Notifications.scheduleNotificationAsync({
       identifier: f.key,
-      content: { title: f.title, body: f.body, data: { target: f.target }, categoryIdentifier: f.target.kind === "task" ? "task" : "reminder" },
+      content: {
+        title: f.title,
+        body: f.body,
+        data: { target: f.target },
+        categoryIdentifier: f.target.kind === "task" ? "task" : "reminder",
+        ...(alarm && Platform.OS === "ios" ? { interruptionLevel: "timeSensitive" as const } : {}),
+      },
       trigger: at(f.at),
     });
+  }
+  setAlarms(alarms);
   for (const b of blocks)
     await Notifications.scheduleNotificationAsync({
       identifier: `autofocus:${b.task.id}:${b.start.toISOString()}`,
