@@ -7,6 +7,18 @@ step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
 ## v1.2.0
 
+- **Momentum on your phone.** The Android and iPhone app shows the same tasks, calendar, habits and focus timer, synced within seconds when you're signed in. It has a Today widget, lock-screen quick add, and full-screen alarms for high-priority reminders on Android.
+- **Deadlines, separate from when you plan to work.** "Write report fri by mon" plans it for Friday with a Monday deadline. The Matrix now judges urgency by the deadline.
+- **Durations without a time.** Type "30m" or "~2h" and Today adds up what you've planned ("4h 10m planned").
+- **Someday and Waiting for.** Park a task for someday, or mark it as waiting on a person (it comes back on the follow-up date) or on another task (it comes back once that's done).
+- **One thing.** A switch on Today shows only the next task, with Done and Not now. On a low-energy day it sticks to short tasks.
+- **Your AI agent can use Momentum.** The `momentum` command and its MCP server let Claude Code, Claude Desktop, Cursor, Codex and Gemini CLI list, add and complete your tasks. Set it up in Settings → AI agents.
+- **Calendar subscriptions.** Paste any calendar address (Google's private address, Outlook, iCloud, Proton, Fastmail) to see its events next to your tasks.
+- **Import from Todoist and TickTick.** Bring in lists, sections, subtasks, priorities, dates and tags from their export files, with a preview first and one undo.
+- **Friends.** Add friends by @handle or invite link. Send each other tasks, focus together, and pick check-in buddies for a habit who can nudge you once a day.
+- **Shared lists and folders.** Invite friends or anyone with a link as an editor or viewer. Your reminders, tags and pins stay your own, and tasks can be assigned.
+- **Connections.** Add and check tasks from Discord, Slack and Telegram, or send them in through your own webhook, and get a morning digest of your day.
+- **Smaller things.** Choose when your day ends (for night owls), snooze a task to a chosen time from any list, see past focus sessions on the calendar, use tables in notes, give habits weekly totals, and subtasks start with their parent's tags.
 - **No more rewards.** Badges, confetti, the all-done-day count, the app-wide streak and the share image are gone: points built for screenshots got in the way of a calm planner. Progress now shows plain numbers (what you finished, how long you focused, and the activity heatmap), and each habit still keeps its own streak.
 
 ## v1.1.3
