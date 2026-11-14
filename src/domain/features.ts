@@ -115,6 +115,7 @@ export const FEATURES: Feature[] = [
   { id: "calendar", title: "Plan on the calendar", howTo: "Drag tasks onto time slots, and add events of your own.", icon: "calendar", group: "Views", since: OLD, core: false,
     commands: [palette("go-calendar", "Go to Calendar"), keys("G C", "Calendar"), keys("D / X / W / M / A", "Day / 5 days / week / month / agenda"), keys("T", "Jump to today"), keys("← →", "Previous / next")] },
   { id: "countdowns", title: "Count down to a date", howTo: "Turn on Show countdown on an all-day event, and pin it to Today.", icon: "hourglass", group: "Views", since: "1.0.0", core: false, commands: [] },
+  { id: "calendar-subscriptions", title: "Follow a calendar", howTo: "Settings → Data → Calendar subscriptions: paste an .ics address (Google, Outlook, iCloud…) and its events appear here and on your phone, read-only.", icon: "calendar", group: "Views", since: "1.3.0", core: false, commands: [] },
   { id: "ics-import", title: "Import a calendar", howTo: "Settings → Data → Import an .ics file.", icon: "file", group: "Views", since: OLD, core: false, commands: [] },
 
   // ---- Habits & focus
