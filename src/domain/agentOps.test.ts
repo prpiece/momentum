@@ -33,7 +33,7 @@ describe("parseRequest", () => {
   });
   it("refuses unknown fields and unknown operations", () => {
     expect(() => parseRequest("get", { id: "a", sql: "x" })).toThrow(/Unknown field: sql/);
-    expect(() => parseRequest("delete", { id: "a" })).toThrow(AgentError);
+    expect(() => parseRequest("purge", { id: "a" })).toThrow(AgentError);
     expect(() => parseRequest("add", { text: "x", status: "done" })).toThrow(/Unknown field/);
     expect(() => parseRequest("get", "nope")).toThrow(/object/);
   });
@@ -45,7 +45,7 @@ describe("parseRequest", () => {
   it("validates a patch field by field", () => {
     const patch = parseRequest("update", { id: "a", title: " New ", priority: "High", date: "2026-11-01", deadline: "none", durationMin: 30, tags: ["#a", "b"], list: "Work" });
     expect(patch).toEqual({
-      op: "update", id: "a",
+      op: "update", id: "a", scope: "this",
       patch: { title: "New", priority: 3, planned: { kind: "day", date: "2026-11-01" }, deadline: null, durationMin: 30, tags: ["a", "b"], list: "Work" },
     });
     expect((parseRequest("update", { id: "a", date: "someday", durationMin: null }) as { patch: object }).patch).toEqual({ planned: { kind: "someday" }, durationMin: null });

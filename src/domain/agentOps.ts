@@ -46,6 +46,8 @@ export function agentTask(t: Task, schedule: Schedule, ctx: { lists: Record<stri
 }
 
 export type Planned = { kind: "none" } | { kind: "someday" } | { kind: "day"; date: LocalDate };
+/** Which occurrences an update to a recurring task changes. */
+export type AgentScope = "this" | "following" | "all";
 export type TaskPatch = {
   title?: string;
   description?: string;
@@ -61,7 +63,10 @@ export type AgentRequest =
   | { op: "search"; text: string; limit: number }
   | { op: "get"; id: string }
   | { op: "add"; text: string; list: string | null; parentId: string | null }
-  | { op: "update"; id: string; patch: TaskPatch }
+  | { op: "update"; id: string; patch: TaskPatch; scope: AgentScope }
+  | { op: "delete"; id: string; withSubtasks: boolean }
+  | { op: "restore"; id: string }
+  | { op: "trash"; limit: number }
   | { op: "complete" | "reopen"; id: string }
   | { op: "habits" };
 
@@ -104,7 +109,7 @@ function planned(v: unknown): Planned {
 
 /** Validates an update's fields. Anything outside the allow-list is refused rather than ignored. */
 export function parsePatch(args: Args): TaskPatch {
-  only(args, ["id", "title", "description", "priority", "list", "date", "deadline", "durationMin", "tags"]);
+  only(args, ["id", "scope", "title", "description", "priority", "list", "date", "deadline", "durationMin", "tags"]);
   const p: TaskPatch = {};
   if ("title" in args) p.title = str(args, "title", true).trim();
   if ("description" in args) p.description = str(args, "description") ?? "";
@@ -117,9 +122,10 @@ export function parsePatch(args: Args): TaskPatch {
   if ("list" in args) p.list = str(args, "list", true).trim();
   if ("date" in args) p.planned = planned(args.date);
   if ("deadline" in args) {
-    const d = planned(args.deadline);
-    if (d.kind === "someday") throw new AgentError('deadline must be YYYY-MM-DD or "none".');
-    p.deadline = d.kind === "day" ? d.date : null;
+    const v = args.deadline;
+    if (v === null || v === "" || v === "none") p.deadline = null;
+    else if (isLocalDate(v)) p.deadline = v;
+    else throw new AgentError('deadline must be YYYY-MM-DD or "none".');
   }
   if ("durationMin" in args) {
     const v = args.durationMin;
@@ -129,8 +135,10 @@ export function parsePatch(args: Args): TaskPatch {
   }
   if ("tags" in args) {
     const v = args.tags;
-    if (!Array.isArray(v) || v.some((x) => typeof x !== "string" || !x.trim() || /\s/.test(x.trim()))) throw new AgentError("tags must be a list of single-word names.");
-    p.tags = v.map((x: string) => x.trim().replace(/^#/, ""));
+    const names = Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x.trim().replace(/^#/, "") : "")) : [];
+    if (!Array.isArray(v) || names.some((n) => !n || /^#|\s/.test(n))) throw new AgentError("tags must be a list of single-word names.");
+    // "work" and "Work" are one tag.
+    p.tags = names.filter((n, i) => names.findIndex((m) => m.toLowerCase() === n.toLowerCase()) === i);
   }
   if (Object.keys(p).length === 0) throw new AgentError("Nothing to update: give at least one field.");
   return p;
@@ -154,8 +162,23 @@ export function parseRequest(op: unknown, raw: unknown): AgentRequest {
     case "add":
       only(args, ["text", "list", "parentId"]);
       return { op, text: str(args, "text", true), list: str(args, "list")?.trim() || null, parentId: str(args, "parentId")?.trim() || null };
-    case "update":
-      return { op, id: str(args, "id", true).trim(), patch: parsePatch(args) };
+    case "update": {
+      const scope = args.scope ?? "this";
+      if (scope !== "this" && scope !== "following" && scope !== "all") throw new AgentError('scope must be "this", "following" or "all".');
+      return { op, id: str(args, "id", true).trim(), patch: parsePatch(args), scope };
+    }
+    case "delete": {
+      only(args, ["id", "withSubtasks"]);
+      const w = args.withSubtasks ?? false;
+      if (typeof w !== "boolean") throw new AgentError("withSubtasks must be true or false.");
+      return { op, id: str(args, "id", true).trim(), withSubtasks: w };
+    }
+    case "restore":
+      only(args, ["id"]);
+      return { op, id: str(args, "id", true).trim() };
+    case "trash":
+      only(args, ["limit"]);
+      return { op, limit: limitOf(args) };
     case "habits":
       only(args, []);
       return { op };

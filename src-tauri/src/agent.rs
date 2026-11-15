@@ -311,7 +311,12 @@ pub fn agent_cli_path(app: AppHandle, enabled: bool) -> Result<(), String> {
     {
         // A copy, not a link: it must be named `momentum.exe`, which can't live next to Momentum.exe.
         // Refreshed on every launch, so an update replaces it.
-        fs::copy(&cli, &link).map_err(|e| e.to_string())?;
+        match refresh_copy(&cli, &link) {
+            Refresh::Copied => {}
+            Refresh::Replaced => eprintln!("momentum.exe was in use; replaced it by renaming the old copy aside"),
+            Refresh::KeptOld if link.exists() => eprintln!("momentum.exe is in use and couldn't be replaced; the existing copy stays until it is closed"),
+            Refresh::KeptOld => return Err("couldn't copy the momentum command to its folder".into()),
+        }
         // Tells the copy where the app is, so `momentum` can start it in the tray.
         if let Ok(app_exe) = std::env::current_exe() {
             fs::write(dir.join("app.txt"), app_exe.to_string_lossy().as_bytes()).map_err(|e| e.to_string())?;
@@ -345,26 +350,54 @@ fn path_has(path: &str, dir: &str) -> bool {
     path.split(';').any(|p| same_dir(p, dir))
 }
 
+/// The data of the `Path` value in `reg query` output. The name is matched case-insensitively
+/// (Windows stores `Path`, `PATH` or `path`), and `None` means no such value is listed.
+fn parse_path_value(text: &str) -> Option<String> {
+    text.lines().find_map(|l| {
+        let l = l.trim();
+        let (name, rest) = l.split_once(char::is_whitespace)?;
+        let rest = rest.trim_start();
+        let (kind, data) = rest.split_once(char::is_whitespace).unwrap_or((rest, ""));
+        (name.eq_ignore_ascii_case("path") && kind.starts_with("REG_")).then(|| data.trim().to_string())
+    })
+}
+
+/// The PATH to write, or `None` when nothing changes. Adding never produces a shorter PATH than
+/// the one read: that would drop entries, so it is an error instead of a write.
+fn next_path(current: &str, dir: &str, add: bool) -> Result<Option<String>, String> {
+    let next = if add { path_with(current, dir) } else { path_without(current, dir) };
+    if next == current {
+        return Ok(None);
+    }
+    if add && next.len() < current.len() {
+        return Err("refusing to write a shorter PATH than the one read".into());
+    }
+    Ok(Some(next))
+}
+
 /// Edits the user's PATH through `reg.exe` (the value stays REG_EXPAND_SZ so `%VARS%` survive), then
-/// broadcasts the change so new terminals see it.
+/// broadcasts the change so new terminals see it. Any doubt about what the current value is aborts
+/// without writing: a wrong guess would replace the user's whole PATH.
 #[cfg(windows)]
 fn windows_path(dir: &Path, add: bool) -> Result<(), String> {
     use std::{os::windows::process::CommandExt, process::Command};
     const NO_WINDOW: u32 = 0x0800_0000;
     let run = |args: &[&str]| Command::new("reg").args(args).creation_flags(NO_WINDOW).output().map_err(|e| e.to_string());
     let out = run(&["query", r"HKCU\Environment", "/v", "Path"])?;
-    // A missing value is fine: the user has no PATH of their own yet.
-    let text = String::from_utf8_lossy(&out.stdout).into_owned();
-    let current = text
-        .lines()
-        .find_map(|l| l.trim().strip_prefix("Path").filter(|r| r.starts_with(char::is_whitespace)))
-        .map(|r| r.trim().trim_start_matches("REG_EXPAND_SZ").trim_start_matches("REG_SZ").trim().to_string())
-        .unwrap_or_default();
+    let current = if out.status.success() {
+        parse_path_value(&String::from_utf8_lossy(&out.stdout)).ok_or("couldn't read your PATH, so it was left alone")?
+    } else {
+        // Failed: either the user has no PATH value yet, or the read itself failed. Tell them apart by
+        // listing the whole key (the error text is localized): only a readable key without a Path value is "none yet".
+        let all = run(&["query", r"HKCU\Environment"])?;
+        if all.status.success() && parse_path_value(&String::from_utf8_lossy(&all.stdout)).is_none() {
+            String::new()
+        } else {
+            return Err("couldn't read your PATH, so it was left alone".into());
+        }
+    };
     let d = dir.to_string_lossy();
-    let next = if add { path_with(&current, &d) } else { path_without(&current, &d) };
-    if next == current {
-        return Ok(());
-    }
+    let Some(next) = next_path(&current, &d, add)? else { return Ok(()) };
     let r = run(&["add", r"HKCU\Environment", "/v", "Path", "/t", "REG_EXPAND_SZ", "/d", &next, "/f"])?;
     if !r.status.success() {
         return Err(String::from_utf8_lossy(&r.stderr).trim().to_string());
@@ -375,6 +408,35 @@ fn windows_path(dir: &Path, add: bool) -> Result<(), String> {
         .creation_flags(NO_WINDOW)
         .output();
     Ok(())
+}
+
+#[cfg(windows)]
+#[derive(Debug, PartialEq)]
+enum Refresh {
+    Copied,
+    /// The old copy was in use: it was renamed aside and the new one put in its place.
+    Replaced,
+    /// Neither worked; the existing copy stays (and still runs).
+    KeptOld,
+}
+
+/// Puts a fresh copy of `src` at `dst`. A running `momentum.exe` (an MCP client holds it) can't be
+/// overwritten but can be renamed, so on failure: copy to a temp name, move the old one aside, rename in.
+#[cfg(windows)]
+fn refresh_copy(src: &Path, dst: &Path) -> Refresh {
+    if fs::copy(src, dst).is_ok() {
+        return Refresh::Copied;
+    }
+    let (tmp, old) = (dst.with_extension("exe.new"), dst.with_extension("exe.old"));
+    let swapped = fs::copy(src, &tmp).is_ok() && {
+        let _ = fs::remove_file(&old);
+        fs::rename(dst, &old).is_ok() && fs::rename(&tmp, dst).is_ok()
+    };
+    if swapped {
+        return Refresh::Replaced;
+    }
+    let _ = fs::remove_file(&tmp);
+    Refresh::KeptOld
 }
 
 #[cfg(test)]
@@ -442,5 +504,50 @@ mod tests {
         assert_eq!(path_without(&once, dir), r"C:\Tools;%USERPROFILE%\bin");
         assert_eq!(path_without(&path_without(&once, dir), dir), r"C:\Tools;%USERPROFILE%\bin");
         assert_eq!(path_with("", dir), dir);
+    }
+
+    #[test]
+    fn reads_the_path_value_whatever_its_name_case() {
+        for name in ["Path", "PATH", "path"] {
+            let out = format!("\r\nHKEY_CURRENT_USER\\Environment\r\n    {name}    REG_EXPAND_SZ    C:\\Tools;%USERPROFILE%\\My Bin\r\n\r\n");
+            assert_eq!(parse_path_value(&out).as_deref(), Some(r"C:\Tools;%USERPROFILE%\My Bin"), "{name}");
+        }
+        assert_eq!(parse_path_value("    Path    REG_SZ    C:\\a").as_deref(), Some(r"C:\a"));
+        assert_eq!(parse_path_value("    TEMP    REG_EXPAND_SZ    C:\\t\r\n    Pathext    REG_SZ    .EXE").as_deref(), None);
+        assert_eq!(parse_path_value("    Path    REG_EXPAND_SZ    ").as_deref(), Some(""));
+        assert_eq!(parse_path_value("ERROR: The system was unable to find the specified registry key or value."), None);
+    }
+
+    #[test]
+    fn adding_never_shortens_the_path() {
+        let dir = r"C:\bin";
+        assert_eq!(next_path(r"C:\a;C:\b;", dir, true).unwrap(), Some(r"C:\a;C:\b;C:\bin".to_string()));
+        assert_eq!(next_path(&format!("C:\\a;{dir}"), dir, true).unwrap(), None);
+        assert_eq!(next_path("", dir, true).unwrap(), Some(dir.to_string()));
+        assert_eq!(next_path(&format!("C:\\a;{dir}"), dir, false).unwrap(), Some(r"C:\a".to_string()));
+        assert_eq!(next_path(r"C:\a", dir, false).unwrap(), None);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn refreshing_the_copy_survives_a_locked_exe() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let d = std::env::temp_dir().join(format!("momentum-copy-test-{}", std::process::id()));
+        fs::create_dir_all(&d).unwrap();
+        let (src, dst) = (d.join("src.exe"), d.join("momentum.exe"));
+        fs::write(&src, b"new").unwrap();
+        fs::write(&dst, b"old").unwrap();
+        assert_eq!(refresh_copy(&src, &dst), Refresh::Copied);
+        // Held open without sharing: neither overwrite nor rename can touch it, so the old copy stays.
+        let held = fs::OpenOptions::new().read(true).share_mode(0).open(&dst).unwrap();
+        assert_eq!(refresh_copy(&src, &dst), Refresh::KeptOld);
+        drop(held);
+        // Held with read and delete sharing (how a running exe is mapped): overwrite fails, rename works.
+        let running = fs::OpenOptions::new().read(true).share_mode(1 | 4).open(&dst).unwrap();
+        fs::write(&src, b"newer").unwrap();
+        assert_eq!(refresh_copy(&src, &dst), Refresh::Replaced);
+        drop(running);
+        assert_eq!(fs::read(&dst).unwrap(), b"newer");
+        let _ = fs::remove_dir_all(&d);
     }
 }
