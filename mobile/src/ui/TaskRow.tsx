@@ -8,6 +8,7 @@ import { INBOX_ID, PRIORITY_LABEL, PRIORITY_VAR } from "@core/domain/types";
 import { useData } from "@core/stores/data";
 import { useSettings } from "@core/stores/settings";
 import { toggleDone } from "@core/stores/taskActions";
+import { canEdit } from "@/social/roles";
 import { GUTTER, resolveColor, useColors } from "@/theme";
 import { tick } from "./haptics";
 import { Icon, Text } from "./kit";
@@ -28,7 +29,7 @@ export function useComplete(vm: Pick<TaskVM, "task" | "key"> | null) {
   return {
     checked: done || filling,
     toggle: () => {
-      if (!vm) return;
+      if (!vm || !canEdit(vm.task.listId)) return;
       if (done) return toggleDone(vm.task.id, vm.key);
       if (filling) return;
       tick();
@@ -65,6 +66,7 @@ export function TaskRow({ vm, depth = 0, showList = true }: { vm: TaskVM; depth?
   const [width, setWidth] = useState(360);
   const { checked, toggle } = useComplete(vm);
   const done = t.status !== "open";
+  const editable = canEdit(t.listId);
   const today = todayLocal();
   const time = vm.schedule.kind === "timed" ? formatTime(new Date(vm.schedule.start), timeFormat) : null;
   const when = vm.date === null ? null : vm.date === today ? time : `${relativeDayLabel(vm.date, today)}${time ? ` ${time}` : ""}`;
@@ -111,21 +113,24 @@ export function TaskRow({ vm, depth = 0, showList = true }: { vm: TaskVM; depth?
       rightThreshold={width * 0.35}
       overshootFriction={8}
       renderLeftActions={() =>
-        done ? null : (
+        done || !editable ? null : (
           <View style={[s.action, { backgroundColor: c.successSoft, width }]}>
             <Icon name="check" color={c.success} />
             <Text style={{ fontWeight: "600", fontSize: 14 }}>Complete</Text>
           </View>
         )
       }
-      renderRightActions={() => (
-        <View style={[s.action, { backgroundColor: c.accentSoft, width, justifyContent: "flex-end" }]}>
-          <Text style={{ fontWeight: "600", fontSize: 14 }}>Reschedule</Text>
-          <Icon name="calendar" color={c.accentText} />
-        </View>
-      )}
+      renderRightActions={() =>
+        editable ? (
+          <View style={[s.action, { backgroundColor: c.accentSoft, width, justifyContent: "flex-end" }]}>
+            <Text style={{ fontWeight: "600", fontSize: 14 }}>Reschedule</Text>
+            <Icon name="calendar" color={c.accentText} />
+          </View>
+        ) : null
+      }
       onSwipeableWillOpen={(dir) => {
         swipe.current?.close();
+        if (!editable) return;
         if (dir === SwipeDirection.RIGHT) toggle();
         else void reschedule([{ source: "task", id: t.id, key: vm.key }]);
       }}
@@ -135,7 +140,7 @@ export function TaskRow({ vm, depth = 0, showList = true }: { vm: TaskVM; depth?
         onPress={() => openTaskDetails(vm)}
         accessibilityLabel={label}
         accessibilityHint="Opens the task"
-        accessibilityActions={[{ name: "complete", label: done ? "Mark not done" : "Complete" }, { name: "reschedule", label: "Reschedule" }, { name: "activate", label: "Open" }]}
+        accessibilityActions={editable ? [{ name: "complete", label: done ? "Mark not done" : "Complete" }, { name: "reschedule", label: "Reschedule" }, { name: "activate", label: "Open" }] : [{ name: "activate", label: "Open" }]}
         onAccessibilityAction={(e) => (e.nativeEvent.actionName === "complete" ? toggle() : e.nativeEvent.actionName === "reschedule" ? void reschedule([{ source: "task", id: t.id, key: vm.key }]) : openTaskDetails(vm))}
         style={({ pressed }) => [s.row, { paddingLeft: GUTTER - 11 + depth * 28, backgroundColor: pressed ? c.surface2 : c.surface }]}
       >

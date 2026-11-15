@@ -1,6 +1,6 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { fromLocalDate, relativeDayLabel, scheduleDate, toLocalDate, todayLocal } from "@core/domain/dates";
 import { parseQuickAdd } from "@core/domain/quickAdd";
 import { INBOX_ID, PRIORITY_LABEL, PRIORITY_VAR, type Priority } from "@core/domain/types";
@@ -8,6 +8,7 @@ import { useData, type NewTask } from "@core/stores/data";
 import { createFromText, listNames } from "@core/stores/quickAddSubmit";
 import { create } from "zustand";
 import { FONTS, resolveColor, useColors } from "@/theme";
+import { canEdit } from "@/social/roles";
 import { tick } from "./haptics";
 import { Icon, Text, type IconName } from "./kit";
 import { pickDate } from "./pickDate";
@@ -31,12 +32,28 @@ export function QuickAddHost() {
   // Tool-row choices override the screen's defaults; typed tokens still win over both (withDefaults).
   const [over, setOver] = useState<Defaults>({});
   const input = useRef<ComponentRef<typeof TextInput>>(null);
-  const defaults = { ...context, ...over };
+  // iOS can't present a second Modal over an open one, so the sheet steps aside while a picker is up (H18).
+  const [away, setAway] = useState(false);
+  const picking = async <T,>(pick: () => Promise<T>): Promise<T> => {
+    if (Platform.OS !== "ios") return pick();
+    const wait = () => new Promise((r) => setTimeout(r, 450));
+    setAway(true);
+    await wait();
+    try {
+      return await pick();
+    } finally {
+      await wait();
+      setAway(false);
+    }
+  };
+  const merged = { ...context, ...over };
+  // A view-only list takes no new tasks (H17): fall back to the default list.
+  const defaults = canEdit(merged.listId) ? merged : { ...merged, listId: undefined };
   useEffect(() => {
-    if (!open) return;
+    if (!open || away) return;
     const t = setTimeout(() => input.current?.focus(), 250);
     return () => clearTimeout(t);
-  }, [open]);
+  }, [open, away]);
   const parsed = useMemo(() => (draft.trim() ? parseQuickAdd(draft, new Date(), true, listNames()) : null), [draft]);
   const setDraft = (draft: string) => useQuickAdd.setState({ draft });
   const close = () => (useQuickAdd.setState({ open: false }), setOver({}));
@@ -68,7 +85,7 @@ export function QuickAddHost() {
       icon: "calendar",
       label: "Set date",
       run: async () => {
-        const picked = await pickDate("date", date ? fromLocalDate(date) : new Date());
+        const picked = await picking(() => pickDate("date", date ? fromLocalDate(date) : new Date()));
         if (picked) setOver({ ...over, schedule: { kind: "day", date: toLocalDate(picked) } });
       },
     },
@@ -76,7 +93,7 @@ export function QuickAddHost() {
       icon: "flag",
       label: "Set priority",
       run: async () => {
-        const p = await choose<Priority>("Priority", ([3, 2, 1, 0] as Priority[]).map((p) => ({ value: p, label: PRIORITY_LABEL[p], icon: "flag", color: p ? resolveColor(c, PRIORITY_VAR[p]) : c.muted, selected: (defaults.priority ?? 0) === p })));
+        const p = await picking(() => choose<Priority>("Priority", ([3, 2, 1, 0] as Priority[]).map((p) => ({ value: p, label: PRIORITY_LABEL[p], icon: "flag", color: p ? resolveColor(c, PRIORITY_VAR[p]) : c.muted, selected: (defaults.priority ?? 0) === p }))));
         if (p !== null) setOver({ ...over, priority: p });
       },
     },
@@ -85,10 +102,10 @@ export function QuickAddHost() {
       label: "Choose list",
       run: async () => {
         const options = Object.values(lists)
-          .filter((l) => !l.archived)
+          .filter((l) => !l.archived && canEdit(l.id))
           .sort((a, b) => Number(b.id === INBOX_ID) - Number(a.id === INBOX_ID) || a.sortOrder - b.sortOrder)
           .map((l) => ({ value: l.id, label: l.name, color: l.id === INBOX_ID ? undefined : resolveColor(c, l.color, c.muted), icon: l.id === INBOX_ID ? ("inbox" as const) : undefined, selected: (defaults.listId ?? INBOX_ID) === l.id }));
-        const id = await choose("List", options);
+        const id = await picking(() => choose("List", options));
         if (id) setOver({ ...over, listId: id });
       },
     },
@@ -96,7 +113,7 @@ export function QuickAddHost() {
   ];
 
   return (
-    <Sheet visible={open} onClose={close} label="Add a task">
+    <Sheet visible={open && !away} onClose={close} label="Add a task">
       <View style={s.body}>
         <TextInput
           ref={input}

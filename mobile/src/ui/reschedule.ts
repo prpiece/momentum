@@ -5,6 +5,7 @@ import { editOccurrence, updateTask, useData } from "@core/stores/data";
 import { applySchedule, currentSchedule, type Ref } from "@core/stores/schedule";
 import { useSettings } from "@core/stores/settings";
 import { withUndo } from "@core/stores/undo";
+import { canEdit } from "@/social/roles";
 import { pickDate } from "./pickDate";
 import { choose } from "./Sheet";
 
@@ -45,6 +46,8 @@ const moved = (to: Schedule, current: Schedule, date: LocalDate | null): Schedul
  * recurring one by this occurrence only.
  */
 export async function reschedule(refs: Ref[]) {
+  const all = useData.getState().tasks;
+  refs = refs.filter((r) => r.source !== "task" || canEdit(all[r.id]?.listId));
   if (!refs.length) return;
   const first = currentSchedule(refs[0]);
   const date = await askDay(scheduleDate(first));

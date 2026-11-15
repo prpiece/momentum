@@ -11,6 +11,7 @@ import type { LocalDate, Task, WeekStart } from "@core/domain/types";
 import { useData } from "@core/stores/data";
 import { applySchedule, currentSchedule } from "@core/stores/schedule";
 import { useSettings } from "@core/stores/settings";
+import { canEdit } from "@/social/roles";
 import { resolveColor, useColors, type Colors } from "@/theme";
 import { lift, snapTick, tick } from "@/ui/haptics";
 import { Empty, IconButton, Segmented, Text } from "@/ui/kit";
@@ -171,7 +172,7 @@ function Block({ item, top, height, left, width, day, days, colIndex, colW, c }:
   const reduceMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const lifted = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const editable = !item.readOnly && (item.source === "task" || item.source === "event");
+  const editable = !item.readOnly && (item.source === "task" || item.source === "event") && (item.source !== "task" || canEdit(useData.getState().tasks[item.id]?.listId));
   const ref = { source: item.source, id: item.id, key: item.key };
   const settle = () => (setDrag(null), (scale.value = reduceMotion ? 1 : withSpring(1, { damping: 18, stiffness: 300 })));
 

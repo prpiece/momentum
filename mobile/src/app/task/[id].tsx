@@ -22,7 +22,7 @@ import { askDay } from "@/ui/reschedule";
 import { askText, choose } from "@/ui/Sheet";
 import { Ring, useComplete } from "@/ui/TaskRow";
 import { sendToFriend } from "@/social/actions";
-import { useRole } from "@/social/roles";
+import { canEdit, useRole } from "@/social/roles";
 
 /**
  * A task's sheet (S4): title and notes, then the fields people change most, with repeat and
@@ -141,7 +141,7 @@ export default function TaskSheet() {
   };
   const chooseList = async () => {
     const options = Object.values(lists)
-      .filter((l) => !l.archived)
+      .filter((l) => !l.archived && canEdit(l.id))
       .sort((a, b) => Number(b.id === INBOX_ID) - Number(a.id === INBOX_ID) || a.sortOrder - b.sortOrder)
       .map((l) => ({ value: l.id, label: l.name, icon: l.id === INBOX_ID ? ("inbox" as const) : undefined, color: l.id === INBOX_ID ? undefined : resolveColor(c, l.color, c.muted), selected: l.id === t.listId }));
     const to = await choose("List", options);
@@ -254,7 +254,7 @@ export default function TaskSheet() {
         </View>
         {kids.map((k) => (
           <Pressable key={k.task.id} onPress={() => router.push({ pathname: "/task/[id]", params: { id: k.task.id, key: k.key ?? "" } })} style={s.subRow}>
-            <Ring checked={k.task.status !== "open"} color={c.controlBorder} size={20} onPress={() => toggleDone(k.task.id, k.key)} label={`Complete ${k.task.title}`} />
+            <Ring checked={k.task.status !== "open"} color={c.controlBorder} size={20} onPress={viewer ? () => undefined : () => toggleDone(k.task.id, k.key)} label={`Complete ${k.task.title}`} />
             <Text variant="secondary" style={{ flex: 1, color: k.task.status !== "open" ? c.muted : c.fg, textDecorationLine: k.task.status !== "open" ? "line-through" : "none" }}>
               {k.task.title}
             </Text>
