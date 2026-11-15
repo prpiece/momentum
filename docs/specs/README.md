@@ -10,6 +10,7 @@ One spec per release, built from the decisions in `PLAN.md` and the ADRs in `doc
 | v1.3 | [Connectors and planning](v1.3-connectors-planning.md) | B | v1.2 |
 | v1.4 | [Friends, shares and connections](v1.4-social-connections.md) | C | v1.1 sync; merges after v1.3 |
 | v1.5 | [Pro plan](v1.5-pro.md) | — | v1.4 |
+| v1.2.4 | [Test findings](v1.2.4-test-findings/README.md) (244 entries from a full test pass) | — | v1.2.3 |
 | — | Repo moves to the other GitHub account and goes private (D269) | — | after the app work |
 
 ## Building fast (D258)
