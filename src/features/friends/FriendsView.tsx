@@ -1,5 +1,5 @@
 import { Link2, Users } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { PageHead } from "../../components/ui/PageHead";
 import { handleFrom, inviteUrl } from "../../domain/invite";
@@ -90,6 +90,8 @@ function Signed() {
   const loaded = useSocial((s) => s.loaded);
   const friends = useMemo(() => all.filter((f) => f.status === "accepted" || !f.incoming), [all]);
   const behind = useServerVersion((s) => s.state) === "behind";
+  // Opening Friends always shows the latest requests, whatever Realtime missed.
+  useEffect(() => void refreshSocial(), []);
 
   const copy = async () => {
     try {

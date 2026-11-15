@@ -103,6 +103,8 @@ function start(me: string) {
       onNudge(from, (n.habit_id && useHabits.getState().habits[n.habit_id]?.name) || null);
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "sent_tasks" }, () => void refreshSocial())
+    // Friend requests and share changes: the server touches this account's own ping row (RLS-private).
+    .on("postgres_changes", { event: "*", schema: "public", table: "social_pings", filter: `account_id=eq.${me}` }, () => void refreshSocial())
     .on("postgres_changes", { event: "*", schema: "public", table: "focus_status" }, (e) => {
       const r = e.new as { account_id?: string; ends_at?: string | null };
       if (!r.account_id || r.account_id === me) return;
@@ -112,7 +114,7 @@ function start(me: string) {
       useSocial.setState({ focusing });
     })
     .subscribe();
-  // ponytail: friendships and share invitations aren't on Realtime; a 3-minute refresh covers them.
+  // A safety net for a dropped Realtime connection, or a server without social_pings (schema < 3).
   timer = setInterval(() => void refreshSocial(), 180_000);
 }
 

@@ -119,3 +119,32 @@ describe("friend links", () => {
     expect((await a.db.rpc("transfer_share_as", { p_share: a.id, p_to: a.id, me: a.id })).error).not.toBeNull();
   });
 });
+
+describe("instant updates (social_pings)", () => {
+  const pingedAt = async (u: User) => (await u.db.from("social_pings").select("at").eq("account_id", u.id).maybeSingle()).data?.at as string | undefined;
+
+  it("touches both people's ping when a request is sent, accepted or removed", async () => {
+    const [a, b] = await Promise.all([user(), user()]);
+    await rpc(a.db, "request_friend", { p_handle: b.handle });
+    const first = await pingedAt(b);
+    expect(first).toBeTruthy();
+    expect(await pingedAt(a)).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 20));
+    await rpc(b.db, "respond_friend", { p_account: a.id, p_accept: true });
+    expect(Date.parse((await pingedAt(b))!)).toBeGreaterThan(Date.parse(first!));
+    await rpc(a.db, "remove_friend", { p_account: b.id });
+    expect(await pingedAt(a)).toBeTruthy();
+  });
+
+  it("lets each account read only its own ping, and nobody write one", async () => {
+    const [a, b, c] = await Promise.all([user(), user(), user()]);
+    await rpc(a.db, "request_friend", { p_handle: b.handle });
+    const { data } = await c.db.from("social_pings").select("account_id");
+    expect(data).toEqual([]);
+    const { data: own } = await b.db.from("social_pings").select("account_id");
+    expect(own).toEqual([{ account_id: b.id }]);
+    const { error } = await c.db.from("social_pings").insert({ account_id: c.id });
+    expect(error).not.toBeNull();
+    expect(await refusal(c.db, "social_ping", { p_accounts: [a.id] })).toBeTruthy();
+  });
+});

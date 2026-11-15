@@ -1,9 +1,9 @@
-import { router } from "expo-router";
-import { useMemo, type ReactNode } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSync } from "@core/lib/sync/engine";
 import { respondFriend, respondSentTask, respondShare, nudge } from "@core/lib/sync/social";
-import { act, requestCount, useSocial } from "@core/stores/social";
+import { act, refreshSocial, requestCount, useSocial } from "@core/stores/social";
 import { toast } from "@core/stores/toast";
 import { GUTTER, useColors } from "@/theme";
 import { Button, Empty, IconButton, Label, NavRow, PageHeader, Text } from "@/ui/kit";
@@ -12,6 +12,8 @@ import { askText } from "@/ui/Sheet";
 
 /** Friends (v1.4): friends, Requests with a badge, Add friend, invite links and your check-in buddies' habits. */
 export default function Friends() {
+  // Opening Friends always shows the latest requests, whatever Realtime missed.
+  useFocusEffect(useCallback(() => void refreshSocial(), []));
   const c = useColors();
   const account = useSync((s) => s.account);
   const friends = useSocial((s) => s.friends);

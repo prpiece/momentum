@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { deleteAccount, keepAccount, loadAccount, saveHandle, sendCode, statusText, verifyCode, type Device, type Profile } from "../../lib/sync/account";
-import { signOut, syncNow, useSync } from "../../lib/sync/engine";
+import { clearSyncIssues, signOut, syncNow, useSync } from "../../lib/sync/engine";
 import { syncConfigured } from "../../lib/sync/supabase";
 import { Spinner } from "../../components/ui/Spinner";
 import { SiteLink } from "./SiteLink";
@@ -210,7 +210,12 @@ function SignedIn({ account }: { account: string }) {
 
       {issues.length > 0 && (
         <div>
-          <p className="t-label mb-1 text-muted">Sync issues</p>
+          <div className="mb-1 flex items-center justify-between">
+            <p className="t-label text-muted">Sync issues</p>
+            <button type="button" className="btn btn-ghost" onClick={() => void clearSyncIssues()}>
+              Clear
+            </button>
+          </div>
           <ul className="space-y-1 text-[length:var(--fs-sm)] text-fg-2">
             {issues.slice(0, 10).map((i, n) => (
               <li key={n}>

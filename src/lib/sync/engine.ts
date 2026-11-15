@@ -56,6 +56,12 @@ export async function deviceId(): Promise<string> {
   return id;
 }
 
+/** Settings → Account → Sync issues → Clear: the list is history, not state to act on. */
+export async function clearSyncIssues() {
+  useSync.setState({ issues: [] });
+  await transact((d) => setState(d, "issues", "[]"));
+}
+
 async function addIssues(found: SyncIssue[]) {
   if (!found.length) return;
   const issues = [...found, ...useSync.getState().issues].slice(0, 50);
@@ -364,10 +370,13 @@ export async function startSync() {
       // Rows with pending local edits used to fail NOT NULL (D251). They apply now: pull everything again once
       // to recover the changes those failures dropped (pending local fields still win), and drop the reports.
       const notNull = (i: SyncIssue) => /NOT NULL constraint failed/.test(i.reason);
-      if (old.some(notNull)) await setLocalState("cursor", "0");
+      // Tasks naming a list, parent or section that never arrived apply now too (to the Inbox, v1.2.2).
+      const taskRefs = (i: SyncIssue) => i.tbl === "tasks" && /FOREIGN KEY constraint failed/.test(i.reason);
+      if (old.some((i) => notNull(i) || taskRefs(i))) await setLocalState("cursor", "0");
       // Orphaned activity rows used to be reported as foreign-key issues; they're skipped now, so drop the old reports.
-      const fixed = (i: SyncIssue) => notNull(i) || (i.tbl === "task_activity" && /FOREIGN KEY constraint failed/.test(i.reason));
-      const issues = old.filter((i) => !fixed(i));
+      const fixed = (i: SyncIssue) => notNull(i) || taskRefs(i) || (i.tbl === "task_activity" && /FOREIGN KEY constraint failed/.test(i.reason));
+      const weekAgo = Date.now() - 7 * 86_400_000;
+      const issues = old.filter((i) => !fixed(i) && Date.parse(i.at) > weekAgo);
       useSync.setState({ issues });
       if (issues.length < old.length) await setLocalState("issues", JSON.stringify(issues));
     }
