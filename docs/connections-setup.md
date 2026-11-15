@@ -6,7 +6,7 @@ The bots and the webhook all run through one Edge Function, `inbound` (ADR 0008)
 
 ## 1. Deploy the database and the function
 
-1. `supabase link --project-ref <project>`, then `supabase db push` to apply the v1.4 migrations.
+1. `supabase link --project-ref <project>`, then `supabase db push` to apply the v1.4 and v1.2.1 migrations (the owner runs this; it changes the live server).
 2. `supabase functions deploy inbound` (`config.toml` already sets `verify_jwt = false` for it: the platforms don't send Supabase tokens, and each adapter checks its own caller).
 3. Pick a random Digest secret, e.g. `openssl rand -hex 24`. Then, in the SQL editor:
    ```sql
@@ -53,7 +53,27 @@ In GitHub → Settings → Secrets and variables → Actions → **Variables**, 
 
 ## Using it
 
-Settings → Connections → **Link a chat** shows a 6-digit code for 10 minutes. Send `/task link <code>` (Discord), `/momentum link <code>` (Slack) or `link <code>` (Telegram), then `help`. **Webhook** gives a secret URL that takes `POST {"text": "buy milk tomorrow"}`.
+Settings → Connections → **Link a chat** shows a 6-digit code for 10 minutes. Send `/task link <code>` (Discord), `/momentum link <code>` (Slack) or `link <code>` (Telegram), then `help`. **Webhook** gives a secret URL that takes `POST {"text": "buy milk tomorrow"}` (adds a task) or `POST {"command": "today"}` (runs a command; the reply is in `{"ok": true, "reply": "…"}`).
+
+Every connection has the same commands (D288), the same ones the CLI has:
+
+| Command | Does |
+|---|---|
+| `add <text>` | adds a task, with the app's quick-add tokens (`tomorrow 5pm`, `30m`, `by fri`, `!high`, `#tag`, `~List`) |
+| `today` · `week` · `overdue` · `inbox` · `waiting` · `list <name>` · `search <text>` · `trash` | numbered listings (titles only; `search` shows done tasks last) |
+| `view N` | one task's details and its full id |
+| `update N <tokens>` | changes the date, deadline, duration, priority, list or tags (tags are added) |
+| `done N` · `reopen N` · `snooze N <when>` · `move N <list>` · `deadline N <date>` | |
+| `delete N` · `delete N with subtasks` · `restore N` | moves one task to the Trash, or brings it back (with its trashed parent) |
+| `habits` · `habit <name>` | today's habits, or a check-in |
+| `send @friend <text>` · `focus` | |
+| `digest on <time>` · `digest off` · `unlink` | chats only |
+
+`N` is a number from the connection's last listing (kept for an hour) or a task's full id (`view` shows it). Delete takes one task at a time, never a list of them, and refuses a task with subtasks unless you add `with subtasks`.
+
+Each connection is **Add only** or **Full access**. Add only runs `add` (and `help`, `link`, `unlink`) and nothing that reads or changes other tasks; switching a chat to Add only turns its Digest off. Chats start with full access, the webhook starts add-only: anyone holding its URL can then only add tasks. The app sets this with `set_connection_permission(id, 'add' | 'full')` and `set_webhook_permission('add' | 'full')`, and reads it from `my_connections()` and `webhook_permission()`.
+
+The server's `server_meta.schema_version` (D289) is 1 from the v1.2.1 migration on; every later migration bumps it.
 
 ## Local testing
 

@@ -455,9 +455,12 @@ language sql stable security definer set search_path = '' as $$
   where l.account_id = public.me() order by l.created_at;
 $$;
 
+/* An add-only chat reads nothing, so its Digest stops too. */
 create function public.set_connection_permission(p_id uuid, p_permission text) returns void
 language sql security definer set search_path = '' as $$
-  update public.chat_links set permission = p_permission where id = p_id and account_id = public.me();
+  update public.chat_links set permission = p_permission,
+    digest_time = case when p_permission = 'add' then null else digest_time end
+  where id = p_id and account_id = public.me();
 $$;
 
 /* The webhook's permission, or null when there's no webhook. */
