@@ -19,3 +19,10 @@ export function useRole(listId: string | undefined) {
   const role = useMemo(() => roleFor(shares, lists, folders, listId), [shares, lists, folders, listId]);
   return { role, viewer: role === "viewer" };
 }
+
+/** Whether you may change tasks in this list: false only for a view-only share (D262). Non-reactive; read at tap time. */
+// TODO(v1.2.1): switch to @core canEdit
+export function canEdit(listId: string | undefined): boolean {
+  const d = useData.getState();
+  return roleFor(useSocial.getState().shares, d.lists, d.folders, listId) !== "viewer";
+}

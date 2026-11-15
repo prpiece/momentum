@@ -1,7 +1,8 @@
+import { useToday } from "@/ui/useToday";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList } from "react-native";
-import { relativeDayLabel, todayLocal } from "@core/domain/dates";
+import { relativeDayLabel } from "@core/domain/dates";
 import { derive, inSmartList, sortVMs, type TaskVM } from "@core/domain/taskViews";
 import { INBOX_ID } from "@core/domain/types";
 import { useData } from "@core/stores/data";
@@ -26,12 +27,12 @@ export default function ListScreen() {
   const smart = id === "someday" || id === "waiting" ? id : null;
   const title = id === "upcoming" ? "Upcoming" : smart === "someday" ? "Someday" : smart === "waiting" ? "Waiting" : (list?.name ?? "List");
   const { role, viewer } = useRole(id);
+  const today = useToday();
   // A viewer can't add here (D262): the + falls back to the default list.
   useQuickAddContext(id === "upcoming" || smart === "waiting" || viewer ? {} : smart === "someday" ? { schedule: { kind: "someday" } } : { listId: id ?? INBOX_ID });
 
   const { rows, open } = useMemo(() => {
     const d = derive(tasks, lists);
-    const today = todayLocal();
     const task = (vm: TaskVM, depth = 0): Row => ({ kind: "task", vm, depth, key: `${vm.task.id}${vm.key ?? ""}` });
     if (id === "upcoming") {
       const out: Row[] = [];
@@ -62,7 +63,7 @@ export default function ListScreen() {
     const done = mine.filter((v) => !isOpen(v)).sort((a, b) => (b.task.completedAt ?? "").localeCompare(a.task.completedAt ?? ""));
     if (done.length) out.push({ kind: "done", key: "done", count: done.length }, ...(showDone ? done.map((v) => task(v)) : []));
     return { rows: out, open: d.active.filter((v) => v.task.listId === id && isOpen(v)).length };
-  }, [id, tasks, lists, sections, showDone]);
+  }, [id, tasks, lists, sections, showDone, today]);
 
   const editable = list && id !== INBOX_ID;
   return (

@@ -102,7 +102,8 @@ async function apply() {
   const settings = useSettings.getState().settings;
   const active = derive(tasks, lists).active;
   // Time blocks that auto-start focus: their own notification replaces the plain "starting now" one.
-  const blocks = settings.autoFocus
+  const focusNotices = settings.notify.enabled && settings.notify.focus;
+  const blocks = settings.autoFocus && focusNotices
     ? active.flatMap(({ task, schedule }) => (schedule.kind === "timed" && Date.parse(schedule.start) > now && Date.parse(schedule.start) <= now + DAYS * 86_400_000 ? [{ task, start: new Date(schedule.start) }] : []))
         .sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 10)
     : [];
@@ -115,7 +116,7 @@ async function apply() {
     .filter((f) => !(f.key.startsWith("start:") && f.target.kind === "task" && blockIds.has(f.target.id)))
     .slice(0, LIMIT - blocks.length);
   const timer = useFocus.getState().timer;
-  const focusLeft = timer.status === "running" ? remainingMs(timer, now, settings.pomodoro) : null;
+  const focusLeft = focusNotices && timer.status === "running" ? remainingMs(timer, now, settings.pomodoro) : null;
 
   const priority = (id: string) => tasks[id]?.priority;
   const ringing = (f: (typeof fires)[number]) => isAlarm(f, priority);

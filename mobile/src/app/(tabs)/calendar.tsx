@@ -5,12 +5,14 @@ import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "re
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { calendarItems, coversDay, dayRange, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, movedSpan, rangeTitle, resizedEnd, resizedSchedule, stepAnchor, viewDays, type CalItem } from "@core/domain/calendar";
-import { addDaysLocal, durationMinutes, formatTime, fromLocalDate, relativeDayLabel, todayLocal } from "@core/domain/dates";
+import { addDaysLocal, durationMinutes, formatTime, fromLocalDate, relativeDayLabel } from "@core/domain/dates";
 import { derive } from "@core/domain/taskViews";
 import type { LocalDate, Task, WeekStart } from "@core/domain/types";
 import { useData } from "@core/stores/data";
 import { applySchedule, currentSchedule } from "@core/stores/schedule";
 import { useSettings } from "@core/stores/settings";
+import { useToday } from "@/ui/useToday";
+import { canEdit } from "@/social/roles";
 import { resolveColor, useColors, type Colors } from "@/theme";
 import { lift, snapTick, tick } from "@/ui/haptics";
 import { Empty, IconButton, Segmented, Text } from "@/ui/kit";
@@ -38,7 +40,7 @@ const newAt = (day: LocalDate, minute: number | null) => router.push({ pathname:
 
 export default function Calendar() {
   const c = useColors();
-  const today = todayLocal();
+  const today = useToday();
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<View_>("agenda");
   const [anchor, setAnchor] = useState(today);
@@ -93,7 +95,7 @@ function Grid({ days, items, c }: { days: LocalDate[]; items: CalItem[]; c: Colo
   const colW = (width - GUTTER) / days.length;
   const timeFormat = useSettings((s) => s.settings.timeFormat);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
-  const today = todayLocal();
+  const today = useToday();
   useEffect(() => {
     // Open at the current hour (or 8:00), not midnight.
     const h = days.includes(today) ? Math.max(0, new Date().getHours() - 1) : 8;
@@ -139,7 +141,7 @@ function Grid({ days, items, c }: { days: LocalDate[]; items: CalItem[]; c: Colo
 
 function Column({ day, width, days, colIndex, items, c }: { day: LocalDate; width: number; days: LocalDate[]; colIndex: number; items: CalItem[]; c: Colors }) {
   const placed = useMemo(() => layoutDay(items, day), [items, day]);
-  const nowMin = day === todayLocal() ? minutesInDay(new Date(), day) : null;
+  const nowMin = day === useToday() ? minutesInDay(new Date(), day) : null;
   // Tap on empty space creates an item at that time (snapped by the event screen).
   const tap = Gesture.Tap()
     .runOnJS(true)
@@ -171,7 +173,7 @@ function Block({ item, top, height, left, width, day, days, colIndex, colW, c }:
   const reduceMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const lifted = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const editable = !item.readOnly && (item.source === "task" || item.source === "event");
+  const editable = !item.readOnly && (item.source === "task" || item.source === "event") && (item.source !== "task" || canEdit(useData.getState().tasks[item.id]?.listId));
   const ref = { source: item.source, id: item.id, key: item.key };
   const settle = () => (setDrag(null), (scale.value = reduceMotion ? 1 : withSpring(1, { damping: 18, stiffness: 300 })));
 
@@ -251,7 +253,7 @@ function Block({ item, top, height, left, width, day, days, colIndex, colW, c }:
 
 function Month({ days, anchor, items, c, picked, onDay }: { days: LocalDate[]; anchor: LocalDate; items: CalItem[]; c: Colors; picked: LocalDate; onDay: (d: LocalDate) => void }) {
   const month = anchor.slice(0, 7);
-  const today = todayLocal();
+  const today = useToday();
   return (
     <ScrollView>
       <View style={s.weekdays}>
@@ -287,7 +289,7 @@ function Month({ days, anchor, items, c, picked, onDay }: { days: LocalDate[]; a
 }
 
 function Agenda({ days, items, c, plain }: { days: LocalDate[]; items: CalItem[]; c: Colors; plain?: boolean }) {
-  const today = todayLocal();
+  const today = useToday();
   const timeFormat = useSettings((s) => s.settings.timeFormat);
   const withItems = days.map((d) => ({ d, on: itemsOnDay(items, d) })).filter((x) => x.on.length);
   return (

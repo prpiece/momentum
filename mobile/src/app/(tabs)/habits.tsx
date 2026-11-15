@@ -1,7 +1,7 @@
+import { useToday } from "@/ui/useToday";
 import { router } from "expo-router";
 import { useMemo } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { todayLocal } from "@core/domain/dates";
 import { currentStreak, frequencyLabel, isDone, isDueToday, isWeeklyTotal, periodValue, targetOf, unitOf, type Habit } from "@core/domain/habits";
 import { setCheckin, tapCheckin, useHabits, valuesOf } from "@core/stores/habits";
 import { useSettings } from "@core/stores/settings";
@@ -19,7 +19,7 @@ export default function Habits() {
   const habits = useHabits((s) => s.habits);
   const checkins = useHabits((s) => s.checkins);
   const weekStart = useSettings((s) => s.settings.weekStart);
-  const today = todayLocal();
+  const today = useToday();
   useQuickAddContext({ schedule: { kind: "day", date: today } });
   const { todo, done, notToday } = useMemo(() => {
     const live = Object.values(habits)

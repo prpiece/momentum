@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { HABIT_HEX } from "@core/db/habitRows";
 import { addDaysLocal, fromLocalDate, todayLocal } from "@core/domain/dates";
 import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isScheduled, type Habit, type HabitFrequency, type GoalPeriod, type HabitGoal } from "@core/domain/habits";
 import { addHabit, removeHabit, setCheckin, tapCheckin, updateHabit, useHabits, valuesOf } from "@core/stores/habits";
@@ -27,7 +28,7 @@ const KIND_HINT: Record<Kind, string> = {
   limit: "Stay at or under a cap, like 30 min of social media.",
   quit: "Log a slip when it happens. Every other day counts.",
 };
-const COLORS = ["blue", "violet", "coral", "amber", "teal"].map((k) => ({ value: `var(--h-${k})`, label: k[0].toUpperCase() + k.slice(1) }));
+const COLORS = Object.entries(HABIT_HEX).map(([k, hex]) => ({ value: hex, label: k[0].toUpperCase() + k.slice(1) }));
 const PERIODS: { value: GoalPeriod; label: string }[] = [
   { value: "day", label: "Per day" },
   { value: "week", label: "Per week" },

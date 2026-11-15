@@ -3,6 +3,7 @@ import { AppState } from "react-native";
 import { todayLocal } from "@core/domain/dates";
 import { todayWidgetProps } from "@core/domain/todayWidget";
 import { useData } from "@core/stores/data";
+import { useSettings } from "@core/stores/settings";
 
 let timeout: ReturnType<typeof setTimeout> | undefined;
 let update: typeof import("./today").updateTodayWidgets = () => {};
@@ -22,6 +23,11 @@ export function startWidgets(): () => void {
   update = (require("./today") as typeof import("./today")).updateTodayWidgets;
   push();
   const unsub = useData.subscribe(push);
+  // A new "day ends at" hour or a day rolling over with the app open changes what Today holds.
+  let hour = useSettings.getState().settings.dayEndHour;
+  const unsubSettings = useSettings.subscribe((s) => s.settings.dayEndHour !== hour && ((hour = s.settings.dayEndHour), push()));
+  let day = todayLocal();
+  const roll = setInterval(() => todayLocal() !== day && ((day = todayLocal()), push()), 30_000);
   const app = AppState.addEventListener("change", (s) => s === "active" && push());
-  return () => (unsub(), app.remove(), clearTimeout(timeout));
+  return () => (unsub(), unsubSettings(), clearInterval(roll), app.remove(), clearTimeout(timeout));
 }
