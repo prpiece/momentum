@@ -5,6 +5,12 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.2.2
+
+- **Sync stops repeating the same error.** A task whose list never reached your device now lands in your Inbox instead of failing every sync, and an incomplete change for a task you don't have is skipped quietly.
+- **Chats answer faster after a quiet spell.** Discord and Slack show "thinking…" sooner, so the first command after a while no longer times out.
+- **Connections work on the live server.** Linked chats, the webhook and the morning digest can now read your account.
+
 ## v1.2.1
 
 - **Trash.** Deleted tasks stay in Trash for 30 days, where you can restore them or delete them for good. Restoring a subtask brings its parent back too.
