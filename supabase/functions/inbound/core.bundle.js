@@ -4808,6 +4808,13 @@ function fromLocalDate(s) {
 	const [y, m, d] = s.split("-").map(Number);
 	return new Date(y, m - 1, d);
 }
+let dayEndHour = 0;
+const setDayEndHour = (h) => void (dayEndHour = Number.isInteger(h) && h >= 0 && h <= 5 ? h : 0);
+/** The local date "today" is at `now`, shifted back a day before the end-of-day hour. DST-safe (wall-clock hours). */
+function todayLocal(now = /* @__PURE__ */ new Date(), endHour = dayEndHour) {
+	const d = toLocalDate(now);
+	return now.getHours() < endHour ? addDaysLocal(d, -1) : d;
+}
 const addDaysLocal = (s, n) => toLocalDate(addDays(fromLocalDate(s), n));
 /** Wall-clock `HH:mm` on a local date. DST-safe: built from components, not by adding milliseconds. */
 function atLocalTime(date, hhmm) {
@@ -4815,7 +4822,48 @@ function atLocalTime(date, hhmm) {
 	const [h, mi] = hhmm.split(":").map(Number);
 	return new Date(y, m - 1, d, h, mi);
 }
+/** Minute-precision wall-clock key, stable across DST and time-zone changes. */
+const wallKey = (d) => format(d, "yyyy-MM-dd'T'HH:mm");
 const hhmm = (d) => format(d, "HH:mm");
+const zoneFormats = /* @__PURE__ */ new Map();
+function zoneFormat(tz) {
+	let f = zoneFormats.get(tz);
+	if (!f) {
+		f = new Intl.DateTimeFormat("en-US", {
+			timeZone: tz,
+			hourCycle: "h23",
+			year: "numeric",
+			month: "numeric",
+			day: "numeric",
+			hour: "numeric",
+			minute: "numeric",
+			second: "numeric"
+		});
+		zoneFormats.set(tz, f);
+	}
+	return f;
+}
+/** Whether `tz` is an IANA zone this runtime knows. */
+function isZone(tz) {
+	try {
+		zoneFormat(tz);
+		return true;
+	} catch {
+		return false;
+	}
+}
+/** Wall-clock components of `d` in zone `tz`, as a "floating" Date (the components in its UTC fields). */
+function wallIn(d, tz) {
+	const p = {};
+	for (const x of zoneFormat(tz).formatToParts(d)) if (x.type !== "literal") p[x.type] = Number(x.value);
+	return new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second));
+}
+/** The instant whose wall clock in `tz` is the floating `f` (a time in a DST gap lands an hour off). */
+function fromWall(f, tz) {
+	let t = f.getTime();
+	for (let i = 0; i < 2; i++) t = f.getTime() - (wallIn(new Date(t), tz).getTime() - t);
+	return new Date(t);
+}
 /** The local date a schedule falls on (a timed task's start day). */
 function scheduleDate(s) {
 	switch (s.kind) {
@@ -4844,7 +4892,11 @@ function moveToDate(s, date) {
 	};
 }
 // src/domain/fuzzy.ts
-const letters = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+/** Lower-cased, accents and NFC/NFD differences removed ("Café" = "cafe"), so search and name matching ignore them (QA-12). */
+const fold = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/ß/g, "ss").toLowerCase();
+/** List names match quick add's `~Name`: whitespace dropped, accents and case ignored. */
+const nameKey = (name) => fold(name.replace(/\s+/g, ""));
+const letters = (s) => fold(s).replace(/[^\p{L}\p{N}]/gu, "");
 function editDistance(a, b) {
 	let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
 	for (let i = 1; i <= a.length; i++) {
@@ -4923,8 +4975,58 @@ const DAYS = {
 };
 const DAY_WORD = "(?:mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(?:day|nesday|sday|urday|rsday)?s?";
 const dayCode = (w) => DAYS[w.toLowerCase().replace(/(day|nesday|sday|urday|rsday)?s?$/, "")];
-function repeatMatches(text) {
+/** Characters a `#tag` / `~List` / `@name` may contain; shared with autocomplete so both read a token the same way (QA-10, QA-11). */
+const TOKEN_CHARS = String.raw`\p{L}\p{N}\p{M}_\-/`;
+/** A token word: chars, optionally dotted ("v1.2"). Not followed by more word chars or `'`/`+` ("#don't", "#c++" are not tags). */
+const TOKEN_WORD = String.raw`([${TOKEN_CHARS}]+(?:\.[${TOKEN_CHARS}]+)*)(?![${TOKEN_CHARS}'’+])`;
+/** Chrono with a bare hour 1-7 read as the afternoon ("at 5", "9 to 5"), as people mean it (QA-02, QA-03). */
+const chrono = casual.clone();
+chrono.refiners.unshift({ refine: (_ctx, results) => {
+	for (const r of results) {
+		if (/\b(?:in|within|ago|later|from|hours?|mins?|minutes?)\b/i.test(r.text)) continue;
+		const pm = (c) => {
+			const h = c.get("hour");
+			if (h !== null && c.isCertain("hour") && !c.isCertain("meridiem") && h >= 1 && h <= 7) c.assign("hour", h + 12);
+		};
+		pm(r.start);
+		if (r.end) {
+			const sh = r.start.get("hour") ?? 0;
+			const eh = r.end.get("hour");
+			if (eh !== null && r.end.isCertain("hour") && !r.end.isCertain("meridiem") && eh < 12 && eh <= sh) r.end.assign("hour", eh + 12);
+			else pm(r.end);
+		}
+	}
+	return results;
+} });
+const CHRONO_OPTS = { forwardDate: true };
+/** Words that are ordinary language as often as dates: only a date when introduced by one of these (QA-08). */
+const AMBIGUOUS_DAY = /^(?:sat|sun|mon|wed|mar|may|march|now)$/i;
+const DATE_INTRO = /\b(?:on|next|this|last|by|every|until|till|from|before|after|since)\s+$/i;
+/**
+* Date phrases in `text`, as chrono reads them. A phrase with no time of day is read from the start of
+* today, so "fri" on a Friday afternoon is today (chrono otherwise compares its implied noon to `now`, QA-01).
+* `strict` drops lone ambiguous words and stems of possessives/compounds ("tomorrow's", "tomorrow-ish").
+*/
+function parseDates(text, now, strict = true) {
+	const midnight = new Map(chrono.parse(text, startOfDay(now), CHRONO_OPTS).map((r) => [r.index, r]));
+	return chrono.parse(text, now, CHRONO_OPTS).map((r) => r.start.isCertain("hour") ? r : midnight.get(r.index) ?? r).filter((r) => {
+		if (!strict) return true;
+		if (/^(?:['’]s\b|-\p{L})/u.test(text.slice(r.index + r.text.length))) return false;
+		return !(AMBIGUOUS_DAY.test(r.text.trim()) && !DATE_INTRO.test(text.slice(0, r.index)));
+	});
+}
+const ORDINALS = {
+	first: 1,
+	second: 2,
+	third: 3,
+	fourth: 4,
+	fifth: 5,
+	last: -1
+};
+const ordinal = (w) => ORDINALS[w.toLowerCase()] ?? parseInt(w, 10);
+function repeatMatches(text, now) {
 	const out = [];
+	let ending = "";
 	const add = (re, rule) => {
 		for (const m of text.matchAll(re)) {
 			const r = rule(m);
@@ -4933,10 +5035,21 @@ function repeatMatches(text) {
 				kind: "repeat",
 				start,
 				end: start + m[0].length,
-				apply: (p) => void (p.rule = r)
+				apply: (p) => void (p.rule = r + ending)
 			});
 		}
 	};
+	add(/\b(?:bi-?weekly|fortnightly|every\s+fortnight)\b/gi, () => "FREQ=WEEKLY;INTERVAL=2");
+	add(new RegExp(String.raw`\b(?:every\s+)?(first|second|third|fourth|fifth|last|\d(?:st|nd|rd|th))\s+(${DAY_WORD})\b(\s+of\s+(?:the\s+|every\s+)?month)?`, "gi"), (m) => {
+		const n = ordinal(m[1]);
+		if (!/^every/i.test(m[0]) && !m[3]) return null;
+		return n && n >= -1 && n <= 5 ? `FREQ=MONTHLY;BYDAY=${n}${dayCode(m[2])}` : null;
+	});
+	add(/\b(?:monthly|every\s+month)\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)\b|\bevery\s+(\d{1,2})(?:st|nd|rd|th)\b/gi, (m) => {
+		const d = Number(m[1] ?? m[2]);
+		return d >= 1 && d <= 31 ? `FREQ=MONTHLY;BYMONTHDAY=${d}` : null;
+	});
+	add(/\bevery\s+weekend\b/gi, () => "FREQ=WEEKLY;BYDAY=SA,SU");
 	const UNIT = {
 		day: "DAILY",
 		week: "WEEKLY",
@@ -4956,6 +5069,29 @@ function repeatMatches(text) {
 		const codes = m[1].split(/\s*(?:,|and|&)\s*/i).map(dayCode).filter(Boolean);
 		return codes.length ? `FREQ=WEEKLY;BYDAY=${[...new Set(codes)].join(",")}` : null;
 	});
+	if (out.length) {
+		for (const m of text.matchAll(/\b(?:until|till|through)\s+/gi)) {
+			const d = dateAt(text, (m.index ?? 0) + m[0].length - 1, now);
+			if (!d || ending) continue;
+			ending = `;UNTIL=${d.date.replace(/-/g, "")}T235959Z`;
+			out.push({
+				kind: "repeat",
+				start: m.index ?? 0,
+				end: d.end,
+				apply: () => void 0
+			});
+		}
+		for (const m of text.matchAll(/(?<=^|\s)(?:x(\d{1,3})|(\d{1,3})\s+times)\b/gi)) {
+			if (ending) break;
+			ending = `;COUNT=${m[1] ?? m[2]}`;
+			out.push({
+				kind: "repeat",
+				start: m.index ?? 0,
+				end: (m.index ?? 0) + m[0].length,
+				apply: () => void 0
+			});
+		}
+	}
 	return out;
 }
 /** Keyword forms of the tokens (D89), so they can be spoken: "priority high", "high priority", "tag chem", "list School". A list must exist (fuzzily). */
@@ -4971,7 +5107,7 @@ function keywordMatches(text, listNames) {
 			apply: (r) => void (r.priority = p)
 		});
 	}
-	for (const m of text.matchAll(/(^|\s)(?:hash\s?tag|tag)[\s:,]+([\p{L}\p{N}_\-/]+)/giu)) {
+	for (const m of text.matchAll(new RegExp(String.raw`(^|\s)(?:hash\s?tag|tag)[\s:,]+([${TOKEN_CHARS}]+)`, "giu"))) {
 		const start = (m.index ?? 0) + m[1].length;
 		const tag = m[2];
 		out.push({
@@ -5006,7 +5142,7 @@ function keywordMatches(text, listNames) {
 function dateAt(text, from, now) {
 	const rest = text.slice(from);
 	const lead = rest.length - rest.trimStart().length;
-	const [r] = casual.parse(rest.trimStart(), now, { forwardDate: true });
+	const [r] = parseDates(rest.trimStart(), now, false);
 	if (!r || r.index !== 0) return null;
 	return {
 		date: toLocalDate(r.start.date()),
@@ -5026,8 +5162,8 @@ function planningMatches(text, now) {
 			apply: (p) => void (p.deadline = d.date)
 		});
 	}
-	for (const m of text.matchAll(/(^|\s)~?(?:(\d{1,2})\s?(?:h|hrs?|hours?)(?:\s?(\d{1,3})\s?(?:m|mins?|minutes?))?|(\d{1,4})\s?(?:m|mins?|minutes?))(?=\s|$|[,.;])/gi)) {
-		const min = m[2] ? Number(m[2]) * 60 + Number(m[3] ?? 0) : Number(m[4]);
+	for (const m of text.matchAll(/(^|[\s(\[])(?<!\b(?:in|within)\s)~?(?:(\d{1,2}(?:\.\d+)?)\s?(?:h|hrs?|hours?)(?:\s?(\d{1,3})\s?(?:m|mins?|minutes?))?|(\d{1,4})\s?(?:m|mins?|minutes?))(?=\s|$|[,.;)\]])/gi)) {
+		const min = m[2] ? Math.round(Number(m[2]) * 60) + Number(m[3] ?? 0) : Number(m[4]);
 		const start = (m.index ?? 0) + m[1].length;
 		if (min >= 1 && min <= 1440) out.push({
 			kind: "duration",
@@ -5045,7 +5181,7 @@ function planningMatches(text, now) {
 			apply: (p) => void (p.schedule = { kind: "someday" })
 		});
 	}
-	for (const m of text.matchAll(/(^|\s)waiting\s+(?:for\s+|on\s+)?@([\p{L}\p{N}_.\-]+)/giu)) {
+	for (const m of text.matchAll(/(^|\s)waiting\s+(?:for\s+|on\s+)?@([\p{L}\p{N}\p{M}_.\-]+)/giu)) {
 		const start = (m.index ?? 0) + m[1].length;
 		const afterName = (m.index ?? 0) + m[0].length;
 		const d = dateAt(text, afterName, now);
@@ -5065,7 +5201,7 @@ function planningMatches(text, now) {
 	}
 	return out;
 }
-function tokenMatches(text) {
+function tokenMatches(text, listNames) {
 	const out = [];
 	for (const m of text.matchAll(/(^|\s)!(\w+)/g)) {
 		const p = PRIORITY_WORDS[m[2].toLowerCase()];
@@ -5078,7 +5214,7 @@ function tokenMatches(text) {
 			apply: (r) => void (r.priority = p)
 		});
 	}
-	for (const m of text.matchAll(/(^|\s)#([\p{L}\p{N}_\-/]+)/gu)) {
+	for (const m of text.matchAll(new RegExp(String.raw`(^|\s)#${TOKEN_WORD}`, "gu"))) {
 		const start = (m.index ?? 0) + m[1].length;
 		const tag = m[2];
 		out.push({
@@ -5089,13 +5225,31 @@ function tokenMatches(text) {
 			apply: (r) => void r.tags.push(tag)
 		});
 	}
-	for (const m of text.matchAll(/(^|\s)~([\p{L}\p{N}_\-]+)/gu)) {
+	for (const m of text.matchAll(new RegExp(String.raw`(^|\s)~${TOKEN_WORD}`, "gu"))) {
 		const start = (m.index ?? 0) + m[1].length;
-		const name = m[2];
+		let name = m[2];
+		let end = start + name.length + 1;
+		const words = [];
+		for (const w of text.slice(end).matchAll(new RegExp(String.raw`\s+[${TOKEN_CHARS}]+`, "gu"))) {
+			if ((w.index ?? 0) !== (words.length ? words[words.length - 1].end - end : 0)) break;
+			words.push({
+				text: w[0],
+				end: end + (w.index ?? 0) + w[0].length
+			});
+			if (words.length === 3) break;
+		}
+		for (let k = words.length; k > 0; k--) {
+			const full = name + words.slice(0, k).map((w) => w.text).join("");
+			if (listNames.some((n) => nameKey(n) === nameKey(full))) {
+				name = full;
+				end = words[k - 1].end;
+				break;
+			}
+		}
 		out.push({
 			kind: "list",
 			start,
-			end: start + name.length + 1,
+			end,
 			apply: (r) => void (r.listName = name)
 		});
 	}
@@ -5126,12 +5280,12 @@ function parseQuickAdd(input, now, enabled = true, listNames = [], origin = "typ
 	const matches = [];
 	for (const m of [
 		...planningMatches(input, now),
-		...tokenMatches(input),
+		...tokenMatches(input, listNames),
 		...origin === "spoken" ? keywordMatches(input, listNames) : [],
-		...repeatMatches(input)
+		...repeatMatches(input, now)
 	]) if (!matches.some((x) => overlaps(x, m))) matches.push(m);
 	let explicitEnd = false;
-	const [date] = casual.parse(mask(input, matches), now, { forwardDate: true });
+	const [date] = parseDates(mask(input, matches), now);
 	if (date) {
 		const start = date.index;
 		const end = start + date.text.length;
@@ -5180,7 +5334,7 @@ function parseQuickAdd(input, now, enabled = true, listNames = [], origin = "typ
 		date: toLocalDate(now)
 	};
 	if (result.schedule.kind === "someday") result.rule = null;
-	result.title = mask(input, matches).replace(/\s+(on|at|by|for)\s*$/i, "").replace(/\s+/g, " ").replace(/\s+([,.;:!?])(?=\s|$)/g, "$1").replace(/([,;:])(?:[\s,;:.]*[,;:.])+/g, "$1").replace(/^[\s,;:.]+|[\s,;:.]+$/g, "").trim() || input.trim();
+	result.title = mask(input, matches).replace(/\(\s*\)|\[\s*\]|["“”]\s*["“”]/g, " ").replace(/\s+(on|at|by|for|due)\s*$/i, "").replace(/\s+/g, " ").replace(/\s+([,.;:!?])(?=\s|$)/g, "$1").replace(/([,;:])(?:[\s,;:.]*[,;:.])+/g, "$1").replace(/^[\s,;:.]+|[\s,;:.]+$/g, "").trim() || input.trim();
 	return result;
 }
 // node_modules/rrule/dist/esm/weekday.js
@@ -7945,9 +8099,13 @@ function rdatesToString(param, rdates, tzid) {
 // src/domain/recurrence.ts
 const toFloating = (d) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()));
 const MAX_SCAN = 2e4;
+/** A rule we can expand (TIME-12): it parses, yields a first occurrence without throwing, and is at most hourly. */
 function isValidRule(rule) {
 	try {
-		return RRule.parseString(rule).freq !== void 0;
+		const opts = parse(rule);
+		if (opts.freq === void 0 || opts.freq > RRule.HOURLY) return false;
+		new RRule(opts).after(/* @__PURE__ */ new Date(0), true);
+		return true;
 	} catch {
 		return false;
 	}
@@ -7961,12 +8119,41 @@ function parse(rule) {
 	const { dtstart: _d, tzid: _t, ...opts } = RRule.parseString(rule);
 	return opts;
 }
+/**
+* Month-end clamping (TIME-18): a plain monthly rule from the 29th–31st falls on the month's last
+* day when the month is shorter, and a plain yearly rule from Feb 29 falls on Feb 28 in common
+* years, as countdowns already count (TIME-14). Explicit BY* rules are left as RFC 5545 has them.
+*/
+function clamped(opts, start) {
+	if (Object.keys(opts).some((k) => ![
+		"freq",
+		"interval",
+		"count",
+		"until",
+		"wkst"
+	].includes(k))) return opts;
+	const day = start.getUTCDate();
+	if (opts.freq === RRule.MONTHLY && day > 28) return {
+		...opts,
+		bymonthday: Array.from({ length: day - 27 }, (_, i) => 28 + i),
+		bysetpos: -1
+	};
+	if (opts.freq === RRule.YEARLY && start.getUTCMonth() === 1 && day === 29) return {
+		...opts,
+		bymonth: 2,
+		bymonthday: [28, 29],
+		bysetpos: -1
+	};
+	return opts;
+}
+/** The rrule for a rule string from a floating start. */
+const ruleFrom = (rule, start) => new RRule({
+	...clamped(parse(rule), start),
+	dtstart: start,
+	tzid: null
+});
 function build(rule, anchor) {
-	return new RRule({
-		...parse(rule),
-		dtstart: toFloating(anchor),
-		tzid: null
-	});
+	return ruleFrom(rule, toFloating(anchor));
 }
 /** `YYYY-MM-DD` for day schedules, `YYYY-MM-DDTHH:mm` for timed ones. */
 function keyOf(kind, floating) {
@@ -7988,21 +8175,52 @@ function occurrence(base, floating) {
 		schedule: scheduleForKey(base, key)
 	};
 }
-/** First occurrence (at or after `from`, default: the series start) that isn't excluded. */
-function nextOccurrence(t, from) {
+/**
+* How a series expands. Normally in the viewer's floating wall-clock time. A timed rule that
+* carries `DTSTART;TZID=…` (imported .ics, TIME-04) expands in that zone's wall clock instead,
+* so a UTC or London series keeps its real times when the viewer's DST differs. Keys stay the
+* viewer's wall clock either way.
+*/
+function expansion(t) {
 	const anchor = anchorOf(t.schedule);
 	if (!anchor || !t.recurrence) return null;
+	const { rule } = t.recurrence;
+	const tz = t.schedule.kind === "timed" ? RRule.parseString(rule).tzid : null;
+	if (!tz || !isZone(tz)) return {
+		rrule: build(rule, anchor),
+		toF: toFloating,
+		key: (f) => keyOf(t.schedule.kind, f),
+		occ: (f) => occurrence(t.schedule, f)
+	};
+	const dur = durationMinutes(t.schedule) ?? 0;
+	return {
+		rrule: ruleFrom(rule, wallIn(anchor, tz)),
+		toF: (d) => wallIn(d, tz),
+		key: (f) => wallKey(fromWall(f, tz)),
+		occ: (f) => {
+			const start = fromWall(f, tz);
+			return {
+				key: wallKey(start),
+				schedule: timed(start, dur)
+			};
+		}
+	};
+}
+/** First occurrence (at or after `from`, default: the series start) that isn't excluded. */
+function nextOccurrence(t, from) {
+	const x = expansion(t);
+	if (!x || !t.recurrence) return null;
 	const ex = new Set(t.recurrence.exdates);
-	const min = from ? toFloating(from) : null;
+	const min = from ? x.toF(from) : null;
 	let found = null;
-	build(t.recurrence.rule, anchor).all((f, i) => {
+	x.rrule.all((f, i) => {
 		if (i > MAX_SCAN) return false;
 		if (min && f < min) return true;
-		if (ex.has(keyOf(t.schedule.kind, f))) return true;
+		if (ex.has(x.key(f))) return true;
 		found = f;
 		return false;
 	});
-	return found ? occurrence(t.schedule, found) : null;
+	return found ? x.occ(found) : null;
 }
 /**
 * What a task looks like right now in list views: its own schedule, or for a series the
@@ -8057,6 +8275,11 @@ const TASK_STATUSES = [
 	"done",
 	"wont_do"
 ];
+const LIST_LAYOUTS = [
+	"list",
+	"kanban",
+	"timeline"
+];
 const INBOX_ID = "inbox";
 // src/domain/settings.ts
 function oneOf(allowed, v) {
@@ -8080,6 +8303,8 @@ function parseWaiting(v) {
 	};
 	return null;
 }
+/** The task a wait is still blocked on is open and not deleted. */
+const blockerOpen = (w, tasks) => w?.kind === "task" && tasks[w.taskId]?.status === "open" && !tasks[w.taskId]?.deletedAt;
 /**
 * Still waiting: a person before the follow-up date, or a task while `blocked` (its blocker is open,
 * computed by `derive`). Once it comes back the task returns to its normal views, wait still shown.
@@ -8208,6 +8433,21 @@ function taskToRow(t) {
 		deleted_at: t.deletedAt
 	};
 }
+function parseList(r) {
+	if (typeof r.id !== "string") return null;
+	return {
+		id: r.id,
+		name: str(r.name, "Untitled"),
+		color: optStr(r.color),
+		icon: optStr(r.emoji),
+		folderId: optStr(r.folder_id),
+		pinned: bool(r.pinned),
+		archived: bool(r.archived),
+		tint: bool(r.tint),
+		layout: oneOf(LIST_LAYOUTS, r.layout) ? r.layout : "list",
+		sortOrder: num(r.sort_order)
+	};
+}
 // src/domain/taskViews.ts
 const vmCache = /* @__PURE__ */ new WeakMap();
 /** Null for a recurring series with no occurrences left. Cached per (immutable) task object. */
@@ -8227,6 +8467,8 @@ function toVM(task) {
 }
 /** Still waiting for a person or an open task (D267): out of Today and Upcoming, in Waiting. */
 const waitingNow = (vm, today) => isWaiting(vm.task.waiting, vm.blocked, today);
+/** The day a view files a task under. A timed block follows End-of-day like "today" does (HAB-13); the rest use their date. */
+const dayOf = (vm) => vm.schedule.kind === "timed" ? todayLocal(new Date(vm.schedule.start)) : vm.date;
 function inSmartList(id, vm, today) {
 	const t = vm.task;
 	if (t.status !== "open") return false;
@@ -8235,20 +8477,25 @@ function inSmartList(id, vm, today) {
 		case "inbox": return t.listId === INBOX_ID;
 		case "today":
 			if (waiting || vm.schedule.kind === "someday") return false;
-			return vm.date !== null && vm.date <= today || t.deadline !== null && t.deadline <= today || followUpDue(t.waiting, today);
-		case "upcoming": return !waiting && vm.date !== null && vm.date > today;
+			return dayOf(vm) !== null && dayOf(vm) <= today || t.deadline !== null && t.deadline <= today || followUpDue(t.waiting, today);
+		case "upcoming": return !waiting && dayOf(vm) !== null && dayOf(vm) > today && !(t.deadline !== null && t.deadline <= today) && !followUpDue(t.waiting, today);
 		case "someday": return vm.schedule.kind === "someday";
 		case "waiting": return waiting;
 	}
 }
-const isOverdue = (vm, today) => vm.task.status === "open" && vm.date !== null && vm.date < today;
+/** A timed block is overdue once it has ended before today, so one running past midnight isn't (HAB-12). */
+const isOverdue = (vm, today) => {
+	if (vm.task.status !== "open" || vm.date === null) return false;
+	const s = vm.schedule;
+	return (s.kind === "timed" ? todayLocal(new Date(Math.max(Date.parse(s.start), Date.parse(s.end) - 1))) : vm.date) < today;
+};
 /**
 * Lower is better; null = no match. Every query word must hit: exact 0, prefix 1,
 * word-start 2, substring 3.
 */
 function matchScore(text, query) {
-	const hay = text.toLowerCase();
-	const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+	const hay = fold(text);
+	const words = fold(query).split(/\s+/).filter(Boolean);
 	if (!words.length) return null;
 	let score = 0;
 	for (const w of words) {
@@ -8260,4 +8507,41 @@ function matchScore(text, query) {
 	}
 	return score;
 }
-export { INBOX_ID, addDaysLocal, bestName, detachOccurrence, effective, inSmartList, isOverdue, matchScore, moveToDate, parseQuickAdd, parseTask, taskToRow, toLocalDate, toVM };
+let memo = null;
+/** Derived once per store change, shared by every view. */
+function derive(tasks, lists) {
+	if (memo && memo.tasks === tasks && memo.lists === lists) return memo.out;
+	const vms = [];
+	const kids = /* @__PURE__ */ new Map();
+	for (const t of Object.values(tasks)) {
+		if (t.deletedAt) continue;
+		let vm = toVM(t);
+		if (!vm) continue;
+		if (t.waiting?.kind === "task" && blockerOpen(t.waiting, tasks) !== vm.blocked) vm = {
+			...vm,
+			blocked: !vm.blocked
+		};
+		vms.push(vm);
+		if (t.parentId) {
+			const arr = kids.get(t.parentId);
+			if (arr) arr.push(vm);
+			else kids.set(t.parentId, [vm]);
+		}
+	}
+	for (const arr of kids.values()) arr.sort((a, b) => a.task.sortOrder - b.task.sortOrder);
+	const out = {
+		vms,
+		byId: new Map(vms.map((v) => [v.task.id, v])),
+		childrenOf: (id) => kids.get(id) ?? [],
+		active: vms.filter((v) => !lists[v.task.listId]?.archived),
+		roots: []
+	};
+	out.roots = out.active.filter((v) => !v.task.parentId);
+	memo = {
+		tasks,
+		lists,
+		out
+	};
+	return out;
+}
+export { INBOX_ID, addDaysLocal, bestName, derive, detachOccurrence, effective, inSmartList, isOverdue, matchScore, moveToDate, parseList, parseQuickAdd, parseTask, setDayEndHour, taskToRow, toLocalDate, toVM, todayLocal };

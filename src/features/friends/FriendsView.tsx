@@ -33,7 +33,7 @@ function OpenInvite() {
             ? "Saved. It's applied when you sign in."
             : r === "friend"
               ? "You're now friends."
-              : "You've been invited to a share. Accept it under Requests.",
+              : "You joined the share.",
       );
       if (r !== "invalid") setText("");
     } catch (err) {

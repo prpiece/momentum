@@ -38,9 +38,15 @@ let onNudge: (from: api.Profile | null, habitName: string | null) => void = () =
 export const setNudgeHandler = (fn: typeof onNudge) => void (onNudge = fn);
 
 let refreshing: Promise<void> | null = null;
+let dirty = false;
+/** One refresh at a time. A call during a refresh reruns it once afterwards, so an action's own change is never missed (SOC-16). */
 export function refreshSocial(): Promise<void> {
   if (!useSync.getState().account) return Promise.resolve();
-  refreshing ??= (async () => {
+  if (refreshing) {
+    dirty = true;
+    return refreshing;
+  }
+  const load = async () => {
     const me = useSync.getState().account!;
     // An old server lacks these calls: say so once (Friends, Connections) rather than fail each one (D289).
     await checkServerVersion().catch(() => undefined);
@@ -49,6 +55,12 @@ export function refreshSocial(): Promise<void> {
       api.myFriends(), api.incomingTasks(), api.outgoingTasks(), api.myShares(), api.buddyHabits(), api.myBuddies(), api.friendsFocusing(me),
     ]);
     useSocial.setState({ loaded: true, friends, incomingTasks, outgoingTasks, shares, buddyHabits, myBuddies, focusing: Object.fromEntries(focus.map((f) => [f.id, f.endsAt])) });
+  };
+  refreshing = (async () => {
+    do {
+      dirty = false;
+      await load();
+    } while (dirty);
   })().catch((e) => console.error("social refresh failed", e)).finally(() => (refreshing = null));
   return refreshing;
 }

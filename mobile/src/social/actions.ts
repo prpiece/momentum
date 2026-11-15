@@ -4,7 +4,7 @@
  */
 import Constants from "expo-constants";
 import { Alert, Platform, Share } from "react-native";
-import { inviteUrl } from "@core/domain/invite";
+import { inviteCodeFrom, inviteUrl } from "@core/domain/invite";
 import type { Habit } from "@core/domain/habits";
 import type { Task } from "@core/domain/types";
 import { useSync } from "@core/lib/sync/engine";
@@ -68,8 +68,25 @@ export async function sendToFriend(task: Task, subtasks: string[]) {
   }
 }
 
-/** Opens a pasted link or code (or one the OS handed over) and says what came of it. */
-export async function openLink(text: string) {
+/**
+ * Opens a pasted link or code (or one the OS handed over) and says what came of it. A link from
+ * outside the app (`confirm`) shows who it is from and what it grants, and waits for a tap (SOC-01).
+ */
+export async function openLink(text: string, confirm = false) {
+  const code = inviteCodeFrom(text);
+  if (confirm && code && useSync.getState().account) {
+    const info = await run(() => api.inviteInfo(code));
+    const who = info ? `@${info.creator.handle}` : null;
+    if (!who) return void toast("That invite has expired or isn't valid.");
+    const what = info!.kind === "friend" ? "become friends" : `join "${info!.shareName ?? "a shared list"}" as ${info!.role ?? "a member"}`;
+    const ok = await new Promise<boolean>((done) =>
+      Alert.alert("Accept invite?", `${who} invited you to ${what}.`, [
+        { text: "Cancel", style: "cancel", onPress: () => done(false) },
+        { text: "Accept", onPress: () => done(true) },
+      ], { onDismiss: () => done(false) }),
+    );
+    if (!ok) return;
+  }
   const r = await run(() => openInvite(text));
   if (!r) return;
   toast(r === "saved" ? "Invite saved. It applies once you sign in." : r === "friend" ? "You're now friends." : r === "share" ? "You joined the share." : "That isn't a Momentum invite link.");

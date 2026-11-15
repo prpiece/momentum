@@ -6,7 +6,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import * as core from "./core.bundle.js";
-import type { LocalDate, Schedule, Task } from "./core.bundle.js";
+import type { LocalDate, Schedule, Task, TaskList } from "./core.bundle.js";
+import { chatViews } from "./view.ts";
 
 export type Source = "discord" | "slack" | "telegram";
 /** What a connection may do (D288): add tasks only, or every command. */
@@ -143,8 +144,12 @@ const hookListings = (db: SupabaseClient, account: string): Listings => ({
 
 async function tasksOf(c: Ctx) {
   const tasks = (await records(c.db, c.link.account_id, "tasks")).map((r) => core.parseTask(r)).filter((t): t is Task => !!t && !t.deletedAt);
-  const vms = tasks.map((t) => core.toVM(shiftTask(t, c.tz))).filter((v): v is NonNullable<typeof v> => !!v);
-  return { tasks, vms };
+  const lists = (await records(c.db, c.link.account_id, "lists")).map((r) => core.parseList(r)).filter((l): l is TaskList => !!l);
+  const [s] = await records(c.db, c.link.account_id, "settings");
+  const dayEndHour = typeof s?.dayEndHour === "number" ? s.dayEndHour : 0;
+  // The app's own views: no tasks of deleted or archived lists, waits on finished tasks resolved (see chatViews).
+  const vms = chatViews(tasks.map((t) => shiftTask(t, c.tz)), lists);
+  return { tasks, vms, dayEndHour };
 }
 
 async function listsOf(c: Ctx) {
@@ -152,7 +157,8 @@ async function listsOf(c: Ctx) {
   return lists.map((l) => ({ id: l.id, name: typeof l.name === "string" ? l.name : "" }));
 }
 
-const today = (tz: string): LocalDate => core.toLocalDate(toWall(new Date(), tz));
+/** The user's today: their zone's wall clock, and the End-of-day setting (a day runs to that hour). */
+const today = (tz: string, dayEndHour = 0): LocalDate => core.todayLocal(toWall(new Date(), tz), dayEndHour);
 
 type Shown = { task: Task; key: string | null; date: string | null };
 
@@ -250,8 +256,9 @@ async function add(c: Ctx, text: string): Promise<string> {
 }
 
 async function show(c: Ctx, cmd: "today" | "week" | "overdue" | "inbox" | "waiting"): Promise<string> {
-  const { vms } = await tasksOf(c);
-  const d = today(c.tz);
+  const { vms, dayEndHour } = await tasksOf(c);
+  core.setDayEndHour(dayEndHour); // timed blocks follow End-of-day too; set synchronously before filtering
+  const d = today(c.tz, dayEndHour);
   const open = vms.filter((v) => v.task.status === "open");
   switch (cmd) {
     case "today":

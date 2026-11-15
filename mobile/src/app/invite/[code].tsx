@@ -10,7 +10,7 @@ export default function Invite() {
   const c = useColors();
   const { code } = useLocalSearchParams<{ code: string }>();
   useEffect(() => {
-    void openLink(code).finally(() => router.replace(useSync.getState().account ? "/friends" : "/account"));
+    void openLink(code, true).finally(() => router.replace(useSync.getState().account ? "/friends" : "/account"));
   }, [code]);
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.surface }}>

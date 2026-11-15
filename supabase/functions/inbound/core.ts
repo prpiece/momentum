@@ -5,9 +5,9 @@
  */
 export { parseQuickAdd } from "../../../src/domain/quickAdd";
 export { bestName } from "../../../src/domain/fuzzy";
-export { parseTask, taskToRow } from "../../../src/db/rows";
-export { toVM, inSmartList, isOverdue, matchScore } from "../../../src/domain/taskViews";
-export { addDaysLocal, toLocalDate, moveToDate } from "../../../src/domain/dates";
+export { parseTask, parseList, taskToRow } from "../../../src/db/rows";
+export { derive, toVM, inSmartList, isOverdue, matchScore } from "../../../src/domain/taskViews";
+export { addDaysLocal, toLocalDate, todayLocal, setDayEndHour, moveToDate } from "../../../src/domain/dates";
 export { detachOccurrence, effective } from "../../../src/domain/recurrence";
 export { INBOX_ID } from "../../../src/domain/types";
-export type { Task, Schedule, LocalDate } from "../../../src/domain/types";
+export type { Task, TaskList, Schedule, LocalDate } from "../../../src/domain/types";
