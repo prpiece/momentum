@@ -26,8 +26,15 @@ The bots and the webhook all run through one Edge Function, `inbound` (ADR 0008)
    ```bash
    curl -X PUT "https://discord.com/api/v10/applications/$DISCORD_APP_ID/commands" \
      -H "Authorization: Bot $DISCORD_BOT_TOKEN" -H "Content-Type: application/json" \
+     -H "User-Agent: DiscordBot (https://github.com/prpiece/momentum, 1.2.1)" \
      -d '[{"name":"task","description":"Momentum: add, today, done 2, help…","type":1,"integration_types":[0,1],"contexts":[0,1,2],"options":[{"name":"command","description":"e.g. add buy milk tomorrow","type":3,"required":true}]}]'
    ```
+   On Windows PowerShell, inline JSON gets split at the spaces (Discord answers "invalid JSON", code 50109), and `Invoke-RestMethod` is blocked by Discord's firewall ("internal network error", code 40333). Save the JSON to a file and send it with `curl.exe`:
+   ```powershell
+   '[{"name":"task","description":"Momentum: add, today, done 2, help","type":1,"integration_types":[0,1],"contexts":[0,1,2],"options":[{"name":"command","description":"e.g. add buy milk tomorrow","type":3,"required":true}]}]' | Set-Content -Encoding ascii "$env:TEMP\task-command.json"
+   curl.exe -X PUT "https://discord.com/api/v10/applications/$env:DISCORD_APP_ID/commands" -H "Authorization: Bot $env:DISCORD_BOT_TOKEN" -H "Content-Type: application/json" -H "User-Agent: DiscordBot (https://github.com/prpiece/momentum, 1.2.1)" --data-binary "@$env:TEMP\task-command.json"
+   ```
+   Success prints the command back as JSON with `"name":"task"`.
 
 ## 3. Slack
 
