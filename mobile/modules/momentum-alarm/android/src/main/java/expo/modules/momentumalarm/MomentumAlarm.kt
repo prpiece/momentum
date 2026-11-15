@@ -116,6 +116,7 @@ class AlarmReceiver : BroadcastReceiver() {
       .setContentIntent(open)
       .setFullScreenIntent(ring, true)
       .setAutoCancel(true)
+      .setTimeoutAfter(60_000) // stop ringing after a minute instead of until the battery dies
       .build()
     n.flags = n.flags or Notification.FLAG_INSISTENT // repeat the sound until cancelled
     c.getSystemService(NotificationManager::class.java).notify(nid, n)

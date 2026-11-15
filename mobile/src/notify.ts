@@ -20,8 +20,8 @@ import { alarmsSupported, canUseFullScreenIntent, openFullScreenIntentSettings, 
  */
 
 const DAYS = 7;
-/** iOS keeps at most 64 pending notifications; leave room for the focus timer and snoozes. */
-const LIMIT = 60;
+/** iOS keeps at most 64 pending notifications; leave room for the focus timer (1) and snoozes. */
+const LIMIT = 56;
 const SNOOZE_MIN = 10;
 const CHANNEL = "reminders";
 const FOCUS_ID = "focus";
@@ -88,11 +88,17 @@ export async function askAlarmPermission() {
   ]);
 }
 
-/** Asks once, the first time there's something to remind about. */
-async function allowed() {
+/** Ask in context: call from the action that sets a reminder or starts a timer, never at launch (MOB-08). */
+export async function askNotificationPermission() {
   const p = await Notifications.getPermissionsAsync();
   if (p.granted || !p.canAskAgain) return p.granted;
   return (await Notifications.requestPermissionsAsync()).granted;
+}
+const allowed = async () => (await Notifications.getPermissionsAsync()).granted;
+
+/** Cancels every pending notification that isn't in `keep` (snoozes stay). Scheduling first means a kill mid-run never leaves none. */
+async function prune(keep: Set<string>) {
+  for (const n of await Notifications.getAllScheduledNotificationsAsync()) if (!n.identifier.endsWith(SNOOZED) && !keep.has(n.identifier)) await Notifications.cancelScheduledNotificationAsync(n.identifier);
 }
 
 async function apply() {
@@ -120,8 +126,8 @@ async function apply() {
 
   const priority = (id: string) => tasks[id]?.priority;
   const ringing = (f: (typeof fires)[number]) => isAlarm(f, priority);
-  for (const n of await Notifications.getAllScheduledNotificationsAsync()) if (!n.identifier.endsWith(SNOOZED)) await Notifications.cancelScheduledNotificationAsync(n.identifier);
-  if ((!fires.length && !blocks.length && focusLeft === null) || !(await allowed())) return void setAlarms([]);
+  const keep = new Set<string>();
+  if ((!fires.length && !blocks.length && focusLeft === null) || !(await allowed())) return void (await prune(keep), setAlarms([]));
 
   const at = (date: Date) => ({ type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL }) as const;
   // Android rings high-priority reminders as full-screen alarms through the native module; iOS marks them time-sensitive.
@@ -133,6 +139,7 @@ async function apply() {
       alarms.push({ id: f.key, at: f.at.getTime(), title: f.title, body: f.body, url });
       continue;
     }
+    keep.add(f.key);
     await Notifications.scheduleNotificationAsync({
       identifier: f.key,
       content: {
@@ -146,18 +153,24 @@ async function apply() {
     });
   }
   setAlarms(alarms);
-  for (const b of blocks)
+  for (const b of blocks) {
+    const identifier = `autofocus:${b.task.id}:${b.start.toISOString()}`;
+    keep.add(identifier);
     await Notifications.scheduleNotificationAsync({
-      identifier: `autofocus:${b.task.id}:${b.start.toISOString()}`,
+      identifier,
       content: { title: `Focus starts now: ${b.task.title}`, body: "Tap to start the timer", data: { focusTask: b.task.id } },
       trigger: at(b.start),
     });
-  if (focusLeft !== null && timer.status === "running")
+  }
+  if (focusLeft !== null && timer.status === "running") {
+    keep.add(FOCUS_ID);
     await Notifications.scheduleNotificationAsync({
       identifier: FOCUS_ID,
       content: timer.phase === "focus" ? { title: "Focus session done", body: "Time for a break." } : { title: "Break's over", body: "Back to focus." },
       trigger: at(new Date(now + focusLeft)),
     });
+  }
+  await prune(keep);
 }
 
 let chain = Promise.resolve();

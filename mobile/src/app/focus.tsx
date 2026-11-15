@@ -12,6 +12,7 @@ import { useSettings } from "@core/stores/settings";
 import { useSocial } from "@core/stores/social";
 import { joinedEnd, joinFocus, useShareFocus } from "@/social/focusTogether";
 import { nameOf, run } from "@/social/actions";
+import { askNotificationPermission } from "@/notify";
 import { GUTTER, useColors } from "@/theme";
 import { clock } from "@/ui/FocusBar";
 import { Button, Icon, Segmented, Text } from "@/ui/kit";
@@ -131,7 +132,7 @@ export default function Focus() {
       </ScrollView>
       <View style={s.buttons}>
         {!active ? (
-          <Button label="Start" icon="play" onPress={() => startFocus(mode, taskId)} style={s.big} />
+          <Button label="Start" icon="play" onPress={() => (void askNotificationPermission(), startFocus(mode, taskId))} style={s.big} />
         ) : (
           <>
             {timer.status === "running" ? <Button label="Pause" icon="pause" onPress={pauseFocus} style={s.big} /> : <Button label="Resume" icon="play" onPress={resumeFocus} style={s.big} />}

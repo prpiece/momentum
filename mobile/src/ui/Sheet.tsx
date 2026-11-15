@@ -60,14 +60,19 @@ type Ask =
   | { kind: "choose"; title: string; options: Choice<unknown>[]; resolve: (v: unknown) => void }
   | { kind: "text"; title: string; value: string; placeholder: string; confirm: string; resolve: (v: unknown) => void };
 const useAsk = create<{ ask: Ask | null }>(() => ({ ask: null }));
+/** A new ask replaces an open one; the replaced one resolves null so its caller doesn't hang (MOB-06). */
+const show = (ask: Ask) => {
+  useAsk.getState().ask?.resolve(null);
+  useAsk.setState({ ask });
+};
 
 /** Pick one option from a sheet. Resolves null when dismissed. */
 export const choose = <T,>(title: string, options: Choice<T>[]) =>
-  new Promise<T | null>((resolve) => useAsk.setState({ ask: { kind: "choose", title, options, resolve: resolve as (v: unknown) => void } }));
+  new Promise<T | null>((resolve) => show({ kind: "choose", title, options, resolve: resolve as (v: unknown) => void }));
 /** Ask for a name (new list, rename). Resolves the trimmed text, or null when dismissed or empty. */
 export const askText = (title: string, opts: { value?: string; placeholder?: string; confirm?: string } = {}) =>
   new Promise<string | null>((resolve) =>
-    useAsk.setState({ ask: { kind: "text", title, value: opts.value ?? "", placeholder: opts.placeholder ?? "", confirm: opts.confirm ?? "Save", resolve: resolve as (v: unknown) => void } }),
+    show({ kind: "text", title, value: opts.value ?? "", placeholder: opts.placeholder ?? "", confirm: opts.confirm ?? "Save", resolve: resolve as (v: unknown) => void }),
   );
 
 /** Renders `choose` and `askText` (once, in the root layout). */
@@ -75,6 +80,7 @@ export function AskHost() {
   const c = useColors();
   const ask = useAsk((s) => s.ask);
   const [text, setText] = useState<string | null>(null);
+  useEffect(() => setText(null), [ask]);
   const close = (v: unknown) => {
     ask?.resolve(v);
     setText(null);

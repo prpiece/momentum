@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { droppedSchedule } from "@core/domain/calendar";
@@ -17,7 +17,7 @@ import { deleteTasks, editTask, toggleDone } from "@core/stores/taskActions";
 import { FONTS, GUTTER, resolveColor, useColors } from "@/theme";
 import { Button, Card, FieldRow, Icon, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
-import { askAlarmPermission } from "@/notify";
+import { askAlarmPermission, askNotificationPermission } from "@/notify";
 import { askDay } from "@/ui/reschedule";
 import { askText, choose } from "@/ui/Sheet";
 import { Ring, useComplete } from "@/ui/TaskRow";
@@ -47,7 +47,38 @@ export default function TaskSheet() {
   const [notes, setNotes] = useState((t?.description ?? "").replace(ATTACHMENT, "").trim());
   const [more, setMore] = useState(false);
   const [sub, setSub] = useState("");
-  useEffect(() => setTitle(t?.title ?? ""), [t?.title]);
+  // Text edits save shortly after typing, on blur and on unmount (a swiped-away sheet may never fire onEndEditing, MOB-04).
+  // `draft` holds unsaved edits; fields follow the store only when untouched and unfocused, so a stale blur can't overwrite newer remote notes (MOB-03).
+  const draft = useRef<{ title?: string; notes?: string }>({});
+  const focused = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const flush = useRef(() => {});
+  flush.current = () => {
+    clearTimeout(timer.current);
+    const { title: nt, notes: nn } = draft.current;
+    draft.current = {};
+    if (!t || t.deletedAt) return;
+    if (nt !== undefined) {
+      if (nt.trim() && nt.trim() !== t.title) updateTask(t.id, { title: nt.trim() });
+      else if (!nt.trim()) setTitle(t.title);
+    }
+    if (nn !== undefined) {
+      const next = [nn.trim(), ...attachments].filter(Boolean).join("\n\n");
+      if (next !== t.description) updateTask(t.id, { description: next });
+    }
+  };
+  const edited = (patch: { title?: string; notes?: string }) => {
+    draft.current = { ...draft.current, ...patch };
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => flush.current(), 800);
+  };
+  useEffect(() => () => flush.current(), []);
+  useEffect(() => {
+    if (draft.current.title === undefined && !focused.current) setTitle(t?.title ?? "");
+  }, [t?.title]);
+  useEffect(() => {
+    if (draft.current.notes === undefined && !focused.current) setNotes((t?.description ?? "").replace(ATTACHMENT, "").trim());
+  }, [t?.description]);
   const { viewer } = useRole(t?.listId);
   const complete = useComplete(t ? { task: t, key: occurrence ?? vm?.key ?? null } : null);
 
@@ -131,7 +162,7 @@ export default function TaskSheet() {
     if (r === "none") return updateTask(t.id, { reminders: [] });
     const on = t.reminders.some((x) => same(x, r));
     updateTask(t.id, { reminders: on ? t.reminders.filter((x) => !same(x, r)) : [...t.reminders, r] });
-    if (!on && t.priority === 3) void askAlarmPermission();
+    if (!on) void askNotificationPermission().then(() => (t.priority === 3 ? askAlarmPermission() : undefined));
   };
   const choosePriority = async () => {
     const p = await choose<Priority>("Priority", ([3, 2, 1, 0] as Priority[]).map((p) => ({ value: p, label: PRIORITY_LABEL[p], icon: "flag", color: p ? resolveColor(c, PRIORITY_VAR[p]) : c.muted, selected: t.priority === p })));
@@ -191,8 +222,10 @@ export default function TaskSheet() {
           <View style={{ flex: 1, paddingTop: 6 }}>
             <TextInput
               value={title}
-              onChangeText={setTitle}
-              onEndEditing={() => title.trim() && title !== t.title && updateTask(t.id, { title: title.trim() })}
+              onChangeText={(v) => (setTitle(v), edited({ title: v }))}
+              onFocus={() => (focused.current = true)}
+              onBlur={() => (focused.current = false)}
+              onEndEditing={() => flush.current()}
               multiline
               editable={!viewer}
               maxFontSizeMultiplier={2}
@@ -201,11 +234,10 @@ export default function TaskSheet() {
             />
             <TextInput
               value={notes}
-              onChangeText={setNotes}
-              onEndEditing={() => {
-                const next = [notes.trim(), ...attachments].filter(Boolean).join("\n\n");
-                if (next !== t.description) updateTask(t.id, { description: next });
-              }}
+              onChangeText={(v) => (setNotes(v), edited({ notes: v }))}
+              onFocus={() => (focused.current = true)}
+              onBlur={() => (focused.current = false)}
+              onEndEditing={() => flush.current()}
               multiline
               editable={!viewer}
               placeholder="Add notes"
@@ -281,6 +313,7 @@ export default function TaskSheet() {
           icon="clock"
           style={{ flex: 1 }}
           onPress={() => {
+            void askNotificationPermission();
             startFocus("pomodoro", t.id);
             router.replace("/focus");
           }}

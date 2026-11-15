@@ -17,7 +17,8 @@ const ROLE = { owner: "Owner", editor: "Can edit", viewer: "Can view" } as const
 /** Sharing a list or folder (v1.4, D262): members and roles, invite a friend, a link with a role, leave, stop sharing, transfer. */
 export default function ShareScreen() {
   const c = useColors();
-  const { kind, id } = useLocalSearchParams<{ kind: api.ShareKind; id: string }>();
+  const { kind: rawKind, id } = useLocalSearchParams<{ kind?: string; id: string }>();
+  const kind: api.ShareKind = rawKind === "folder" ? "folder" : "list"; // a deep link can carry anything
   const me = useSync((s) => s.account);
   const shares = useSocial((s) => s.shares);
   const lists = useData((s) => s.lists);

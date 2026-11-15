@@ -12,6 +12,7 @@ import { pickDate } from "@/ui/pickDate";
 import { askText, choose } from "@/ui/Sheet";
 import { useSocial } from "@core/stores/social";
 import { chooseBuddies, nameOf } from "@/social/actions";
+import { askNotificationPermission } from "@/notify";
 
 type Kind = HabitGoal["kind"];
 const KINDS = [
@@ -33,6 +34,8 @@ const PERIODS: { value: GoalPeriod; label: string }[] = [
   { value: "day", label: "Per day" },
   { value: "week", label: "Per week" },
 ];
+/** A typed number; decimal-pad types "," in many locales (MOB-05). */
+const num = (text: string) => Number(text.replace(",", "."));
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const goalOf = (kind: Kind, n: number, unit: string, period: GoalPeriod = "day"): HabitGoal =>
@@ -68,7 +71,7 @@ export default function HabitScreen() {
 
   const save = () => {
     if (!name.trim()) return;
-    const patch: Partial<Habit> = { name: name.trim(), goal: goalOf(kind, Number(n) || 0, unit.trim(), period), frequency, color, reminders };
+    const patch: Partial<Habit> = { name: name.trim(), goal: goalOf(kind, num(n) || 0, unit.trim(), period), frequency, color, reminders };
     if (h) updateHabit(h.id, patch);
     else addHabit({ ...patch, name: name.trim() });
     router.back();
@@ -82,7 +85,7 @@ export default function HabitScreen() {
     if (f === "daily") setFrequency({ kind: "daily" });
     else if (f === "perWeek") {
       const k = await askText("Times a week", { value: frequency.kind === "perWeek" ? String(frequency.count) : "3", confirm: "Save" });
-      if (k && Number(k) >= 1) setFrequency({ kind: "perWeek", count: Math.min(7, Math.round(Number(k))) });
+      if (k && num(k) >= 1) setFrequency({ kind: "perWeek", count: Math.min(7, Math.round(num(k))) });
     } else if (f === "weekdays") {
       // Toggle days one at a time until Done.
       let days = frequency.kind === "weekdays" ? frequency.days : [1, 2, 3, 4, 5];
@@ -103,6 +106,7 @@ export default function HabitScreen() {
     if (r === null) return;
     if (r) return setReminders(reminders.filter((x) => x !== r));
     const d = await pickDate("time", fromLocalDate(todayLocal()));
+    if (d) void askNotificationPermission();
     if (d) setReminders([...new Set([...reminders, `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`])].sort());
   };
 
@@ -114,7 +118,7 @@ export default function HabitScreen() {
     if (!h) return;
     if (h.goal.kind === "once") return tapCheckin(h, d);
     const v = await askText(fromLocalDate(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }), { value: String(values.get(d) ?? 0), confirm: "Save" });
-    if (v !== null && !Number.isNaN(Number(v))) setCheckin(h.id, d, { value: Math.max(0, Number(v)) });
+    if (v !== null && !Number.isNaN(num(v))) setCheckin(h.id, d, { value: Math.max(0, num(v)) });
   };
   const rate = h ? completionRate(h, values, addDaysLocal(today, -29), today, today, weekStart) : null;
   const stat = (big: string, small: string) => (

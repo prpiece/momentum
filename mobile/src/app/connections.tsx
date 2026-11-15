@@ -4,7 +4,7 @@ import { hhmm } from "@core/domain/dates";
 import { useSync } from "@core/lib/sync/engine";
 import * as api from "@core/lib/sync/social";
 import { toast } from "@core/stores/toast";
-import { GUTTER, useColors } from "@/theme";
+import { FONTS, GUTTER, useColors } from "@/theme";
 import { Button, Label, NavRow, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
 import { choose } from "@/ui/Sheet";
@@ -78,6 +78,7 @@ export default function Connections() {
       ]);
   };
   const makeWebhook = async () => {
+    if (webhook && !(await new Promise<boolean>((ok) => Alert.alert("Regenerate the webhook?", "The old URL stops working.", [{ text: "Cancel", style: "cancel", onPress: () => ok(false) }, { text: "Regenerate", style: "destructive", onPress: () => ok(true) }], { onDismiss: () => ok(false) })))) return;
     const s = await run(api.createWebhook);
     if (s) {
       setSecret(s);
@@ -85,7 +86,7 @@ export default function Connections() {
     }
   };
   const left = code ? Math.max(0, code.until - now) : 0;
-  const mono = { fontFamily: "monospace", color: c.fg } as const;
+  const mono = { fontFamily: FONTS.mono, color: c.fg } as const;
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>

@@ -15,7 +15,10 @@ import { pickDate } from "@/ui/pickDate";
 /** `new` (from a calendar tap: a task or an event at that slot) or one event to edit. */
 export default function EventScreen() {
   const { id, key, day, minute } = useLocalSearchParams<{ id: string; key?: string; day?: string; minute?: string }>();
-  return id === "new" ? <NewItem day={day ?? toLocalDate(new Date())} minute={minute ? Number(minute) : null} /> : <EditEvent id={id} occurrence={key || null} />;
+  // Deep-link params are untrusted: ignore a malformed day or minute.
+  const okDay = day && /^\d{4}-\d\d-\d\d$/.test(day) ? (day as LocalDate) : toLocalDate(new Date());
+  const m = minute ? Number(minute) : NaN;
+  return id === "new" ? <NewItem day={okDay} minute={Number.isInteger(m) && m >= 0 && m < 1440 ? m : null} /> : <EditEvent id={id} occurrence={key || null} />;
 }
 
 function NewItem({ day, minute }: { day: LocalDate; minute: number | null }) {
