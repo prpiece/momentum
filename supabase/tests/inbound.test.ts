@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { webcrypto } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { handle, type Env, type Opts } from "../functions/inbound/app";
-import { fromWall, parseClock, parseCommand, toWall } from "../functions/inbound/bot";
+import { fromWall, parseClock, parseCommand, runChat, SERVER_PROBLEM, toWall } from "../functions/inbound/bot";
 import { bundle, OUT } from "../../scripts/bundle-inbound.mjs";
 import { admin, replica, rpc, SECRET, send, uid, URL, user, type User } from "./helpers";
 
@@ -477,5 +477,15 @@ describe("Slack install", () => {
     expect((await admin().from("slack_installs").select("team_id").eq("team_id", "T1")).data).toEqual([{ team_id: "T1" }]);
     const u = await user();
     expect((await u.db.from("slack_installs").select("*")).data ?? []).toEqual([]);
+  });
+});
+
+describe("a failed chat lookup", () => {
+  it("says the server had a problem instead of 'not linked'", async () => {
+    const failing = { message: "permission denied for table chat_links", code: "42501" };
+    const chain = { select: () => chain, eq: () => chain, maybeSingle: async () => ({ data: null, error: failing }) };
+    const db = { from: () => chain, rpc: async () => ({ data: true, error: null }) } as unknown as Parameters<typeof runChat>[0];
+    const chat = { source: "discord" as const, externalId: "1", label: null, reply: {} };
+    expect(await runChat(db, chat, "today")).toBe(SERVER_PROBLEM);
   });
 });

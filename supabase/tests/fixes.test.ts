@@ -2,8 +2,11 @@
  * v1.2.1 server fixes (docs/specs/v1.2.1-fixes.md, G3): each test reproduces one finding.
  * Run with `npm run test:server`.
  */
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
+const MIGRATIONS = join(__dirname, "..", "migrations");
 import { admin, ANON, folder, list, opts, pull, refusal, row, rpc, send, task, uid, URL, user, type User } from "./helpers";
 
 async function invite(owner: User, share: string, member: User, role: "editor" | "viewer") {
@@ -136,6 +139,18 @@ describe("server version (D289)", () => {
   it("anyone can read schema_version", async () => {
     const { data, error } = await createClient(URL, ANON, opts).from("server_meta").select("schema_version").single();
     expect(error).toBeNull();
-    expect(data?.schema_version).toBe(1);
+    expect(data?.schema_version).toBe(2);
+  });
+});
+
+describe("the server functions' role", () => {
+  // The live project gives the service role no table privileges by default (a local stack does), so
+  // every direct read from `inbound` failed there. Every table any migration creates must be reachable.
+  const tables = [...new Set(readdirSync(MIGRATIONS).flatMap((f) =>
+    [...readFileSync(join(MIGRATIONS, f), "utf8").matchAll(/create table (?:if not exists )?public\.(\w+)/gi)].map((m) => m[1])))];
+
+  it.each(tables)("can read %s", async (t) => {
+    const { error } = await admin().from(t).select("*").limit(1);
+    expect(error).toBeNull();
   });
 });

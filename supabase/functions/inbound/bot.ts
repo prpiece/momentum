@@ -90,6 +90,7 @@ export const HELP = [
 
 export const UNLINKED =
   "This chat isn't linked to Momentum yet. In the app open Settings → Connections, choose Link a chat, then send: link <code>";
+export const SERVER_PROBLEM = "Momentum's server had a problem reading your account. Try again in a moment.";
 
 export const ADD_ONLY_REPLY = "This connection can only add tasks. To use every command, give it full access in Settings → Connections.";
 
@@ -588,8 +589,13 @@ async function run(c: Ctx, { cmd, arg }: Parsed): Promise<string> {
  * instructions or link with a code; `plainAdds` makes a message without a command word an `add`.
  */
 export async function runChat(db: SupabaseClient, chat: Chat, text: string, plainAdds = false): Promise<string> {
-  const { data: link } = await db.from("chat_links").select("id, account_id, source, external_id, permission")
+  const { data: link, error: lookup } = await db.from("chat_links").select("id, account_id, source, external_id, permission")
     .eq("source", chat.source).eq("external_id", chat.externalId).maybeSingle();
+  // A failed lookup is a server problem, never "not linked": that sent people to re-link for nothing.
+  if (lookup) {
+    console.error("chat_links lookup failed", lookup);
+    return SERVER_PROBLEM;
+  }
   const key = link ? `chat:${link.id}` : `ext:${chat.source}:${chat.externalId}`;
   const { data: ok } = await db.rpc("hit_rate", { p_key: key, p_max: 60, p_window: "1 hour" });
   if (!ok) return "That's a lot of commands. Try again in a while.";
