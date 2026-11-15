@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSync } from "../../lib/sync/engine";
+import { checkServerVersion, useServerVersion } from "../../lib/sync/serverVersion";
 import * as api from "../../lib/sync/social";
 import { toast } from "../../stores/toast";
 import { confirm } from "../../stores/ui";
 import { openSettingsPage } from "../../stores/settings";
 import { copyText } from "../friends/attempt";
+import { ServerUpdateNotice } from "../friends/ServerUpdateNotice";
 import { useNow } from "../focus/FocusView";
 
 const CODE_MS = 10 * 60_000;
@@ -169,9 +171,13 @@ function Webhook() {
 /** Settings → Connections: chats that add tasks and send a Digest, and a private webhook (D263, ADR 0008). */
 export function ConnectionsSection() {
   const account = useSync((s) => s.account);
+  const behind = useServerVersion((s) => s.state) === "behind";
   const [chats, setChats] = useState<api.Connection[]>([]);
   const load = useCallback(() => {
-    if (account) api.myConnections().then(setChats, () => undefined);
+    if (account && !behind) api.myConnections().then(setChats, () => undefined);
+  }, [account, behind]);
+  useEffect(() => {
+    if (account) void checkServerVersion().catch(() => undefined);
   }, [account]);
   useEffect(load, [load]);
 
@@ -184,6 +190,8 @@ export function ConnectionsSection() {
         </button>
       </div>
     );
+
+  if (behind) return <ServerUpdateNotice />;
 
   return (
     <>

@@ -8,6 +8,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { inviteCodeFrom } from "../domain/invite";
 import { canEdit } from "../domain/shareAccess";
 import * as api from "../lib/sync/social";
+import { checkServerVersion, resetServerVersion, serverBehind } from "../lib/sync/serverVersion";
 import { setLocalState, state, syncNow, useSync } from "../lib/sync/engine";
 import { supabase } from "../lib/sync/supabase";
 import { setEditGuard, useData } from "./data";
@@ -41,6 +42,9 @@ export function refreshSocial(): Promise<void> {
   if (!useSync.getState().account) return Promise.resolve();
   refreshing ??= (async () => {
     const me = useSync.getState().account!;
+    // An old server lacks these calls: say so once (Friends, Connections) rather than fail each one (D289).
+    await checkServerVersion().catch(() => undefined);
+    if (serverBehind()) return void useSocial.setState({ ...empty, loaded: true });
     const [friends, incomingTasks, outgoingTasks, shares, buddyHabits, myBuddies, focus] = await Promise.all([
       api.myFriends(), api.incomingTasks(), api.outgoingTasks(), api.myShares(), api.buddyHabits(), api.myBuddies(), api.friendsFocusing(me),
     ]);
@@ -133,6 +137,7 @@ export function startSocial() {
     if (account) start(account);
     else {
       stop();
+      resetServerVersion();
       useSocial.setState(empty);
     }
   };
