@@ -28,6 +28,8 @@ jobs:
   # Creates the single draft every build job uploads to.
   release:
     needs: test
+    # A manual run from a branch would draft a release tagged with the branch name (RUST-13).
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
     outputs:
       id: ${{ steps.create.outputs.id }}

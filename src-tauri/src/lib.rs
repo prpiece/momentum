@@ -6,7 +6,7 @@ mod voice;
 
 use std::{
     fs,
-    path::Path,
+    path::{Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -126,7 +126,7 @@ fn prune_backups(dir: &Path) -> std::io::Result<()> {
     let excess = dbs.len().saturating_sub(KEEP_BACKUPS);
     for old in &dbs[..excess] {
         let path = old.path();
-        fs::remove_file(&path)?;
+        let _ = fs::remove_file(&path);
         for ext in ["-wal", "-shm"] {
             let _ = fs::remove_file(format!("{}{ext}", path.display()));
         }
@@ -141,6 +141,9 @@ struct CloseToTray(AtomicBool);
 fn set_close_to_tray(state: tauri::State<CloseToTray>, enabled: bool) {
     state.0.store(enabled, Ordering::Relaxed);
 }
+
+/// Set once a quit has been requested, so the second exit request goes through.
+static QUITTING: AtomicBool = AtomicBool::new(false);
 
 /// Quits after the main window has saved pending settings (it answers `app:quit` with `quit_app`);
 /// exits anyway after 1.5s if the page never answers.
@@ -172,7 +175,19 @@ fn checked_path(path: &str) -> Result<&Path, String> {
 
 #[tauri::command]
 fn write_text_file(path: String, contents: String) -> Result<(), String> {
-    fs::write(checked_path(&path)?, contents).map_err(|e| e.to_string())
+    write_atomic(checked_path(&path)?, contents.as_bytes())
+}
+
+/// Writes next to the target and renames, so a failed write cannot destroy an earlier file (RUST-12).
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
+    let result = fs::write(&tmp, bytes).and_then(|()| fs::rename(&tmp, path));
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    result.map_err(|e| e.to_string())
 }
 
 const PNG_MAGIC: &[u8] = &[0x89, b'P', b'N', b'G'];
@@ -193,12 +208,18 @@ fn check_png(path: &str, bytes: &[u8]) -> Result<(), String> {
 #[tauri::command]
 fn write_png(path: String, bytes: Vec<u8>) -> Result<(), String> {
     check_png(&path, &bytes)?;
-    fs::write(&path, bytes).map_err(|e| e.to_string())
+    write_atomic(Path::new(&path), &bytes)
 }
+
+const MAX_TEXT_BYTES: u64 = 64 * 1024 * 1024;
 
 #[tauri::command]
 fn read_text_file(path: String) -> Result<String, String> {
-    fs::read_to_string(checked_path(&path)?).map_err(|e| e.to_string())
+    let p = checked_path(&path)?;
+    if fs::metadata(p).map_err(|e| e.to_string())?.len() > MAX_TEXT_BYTES {
+        return Err("that file is larger than 64 MB".into());
+    }
+    fs::read_to_string(p).map_err(|e| e.to_string())
 }
 
 /// Where manual and pre-migration backups go (created on demand).
@@ -371,7 +392,12 @@ pub fn run() {
         // Closing the main window either hides it to the tray or quits the whole app. The hidden
         // popup windows would otherwise keep the process alive with no way back in.
         .on_window_event(|window, event| {
+            // A popup closed by Alt+F4 or Cmd+W would be destroyed and could never be shown again.
             if window.label() != "main" {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
                 return;
             }
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -385,8 +411,13 @@ pub fn run() {
             }
         })
         .setup(move |app| {
-            backup_before_migrate(&app.path().app_config_dir()?, latest)?;
-            build_tray(app)?;
+            // A failed backup or tray must not stop the app from opening; the backup retries next launch.
+            if let Err(e) = backup_before_migrate(&app.path().app_config_dir()?, latest) {
+                eprintln!("could not back up the database before migrating: {e}");
+            }
+            if let Err(e) = build_tray(app) {
+                eprintln!("could not build the tray icon: {e}");
+            }
             // Agents (D264): a failure here only turns the CLI off.
             if let Err(e) = agent::start(app.handle()) {
                 eprintln!("could not start the agent API: {e}");
@@ -409,6 +440,13 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Momentum")
         .run(|_app, _event| {
+            // Cmd+Q, Dock > Quit and OS shutdown: let the main window flush settings first (once).
+            if let tauri::RunEvent::ExitRequested { api, code: None, .. } = &_event {
+                if !QUITTING.swap(true, Ordering::Relaxed) {
+                    api.prevent_exit();
+                    request_quit(_app);
+                }
+            }
             if let tauri::RunEvent::Exit = _event {
                 agent::stop(_app);
             }
@@ -422,7 +460,21 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{check_png, fit_rect};
+    use super::{check_png, fit_rect, write_atomic};
+
+    #[test]
+    fn atomic_write_replaces_and_leaves_no_temp() {
+        let dir = std::env::temp_dir().join(format!("momentum-atomic-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let f = dir.join("a.json");
+        std::fs::write(&f, "old").unwrap();
+        write_atomic(&f, b"new").unwrap();
+        assert_eq!(std::fs::read_to_string(&f).unwrap(), "new");
+        assert!(!dir.join("a.json.tmp").exists());
+        // A missing folder fails without touching anything.
+        assert!(write_atomic(&dir.join("nope").join("a.json"), b"x").is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn png_writes_are_validated() {

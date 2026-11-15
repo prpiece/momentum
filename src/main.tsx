@@ -7,6 +7,7 @@ import "./styles/tokens.css";
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri, setDriver } from "./db/client";
 import { configureSync } from "./lib/sync/supabase";
+import { installLinkGuard } from "./lib/links";
 
 // Opening the database runs the migrations registered in src-tauri/src/lib.rs.
 if (isTauri) {
@@ -20,6 +21,7 @@ if (isTauri) {
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
+installLinkGuard();
 const popup = new URLSearchParams(location.search).get("window");
 
 if (popup === "mini") {
@@ -41,7 +43,24 @@ if (popup === "mini") {
     import("./lib/os"),
   ]);
   // Hydrate before first paint so the saved theme applies without a flash.
-  await Promise.all([useSettings.getState().hydrate(), data.hydrate(), habits.hydrateHabits(), focus.hydrateFocus()]);
+  try {
+    await Promise.all([useSettings.getState().hydrate(), data.hydrate(), habits.hydrateHabits(), focus.hydrateFocus()]);
+  } catch (e) {
+    // A failed migration or a database from a newer version would otherwise leave a blank window (RUST-06).
+    const dir = isTauri ? await invoke<string>("backups_dir").catch(() => "") : "";
+    const box = document.getElementById("root") as HTMLElement;
+    box.style.cssText = "padding:32px;font:14px system-ui;max-width:640px";
+    box.replaceChildren();
+    const h = document.createElement("h1");
+    h.textContent = "Momentum could not open its database";
+    const p = document.createElement("p");
+    p.textContent = String(e instanceof Error ? e.message : e) + (dir ? " Your pre-update backups are in: " + dir : "");
+    const b = document.createElement("button");
+    b.textContent = "Quit";
+    b.onclick = () => void invoke("quit_app");
+    box.append(h, p, b);
+    throw e;
+  }
   if (isTauri)
     void import("./stores/subscriptions").then(async (s) => {
       s.setFeedFetcher(async (url) => (await import("@tauri-apps/api/core")).invoke<string>("fetch_ics", { url }));

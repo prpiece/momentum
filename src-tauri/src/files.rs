@@ -55,9 +55,15 @@ pub fn image_dir(app: AppHandle, kind: String) -> Result<String, String> {
     Ok(dir(&app, &kind)?.to_string_lossy().into_owned())
 }
 
+const IMAGE_SRC_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif"];
+
 /// Copy a file the user picked (dialog) into the folder as `name`.
 #[tauri::command]
 pub fn import_image(app: AppHandle, kind: String, name: String, src: String) -> Result<(), String> {
+    let ext = Path::new(&src).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    if !ext.is_some_and(|e| IMAGE_SRC_EXTS.contains(&e.as_str())) {
+        return Err("that is not an image file".into());
+    }
     let size = fs::metadata(&src).map_err(|e| e.to_string())?.len();
     if size > MAX_IMAGE_BYTES {
         return Err("image is larger than 10 MB".into());
@@ -112,7 +118,19 @@ fn zip_path(path: &str) -> Result<&Path, String> {
     }
 }
 
+/// Builds the zip beside the target and renames it into place, so a failure keeps an earlier file (RUST-12).
 fn zip_backup(zip_file: &Path, json: &str, folders: &[(&str, &Path)]) -> AnyResult<()> {
+    let mut tmp = zip_file.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = std::path::PathBuf::from(tmp);
+    let built = zip_backup_to(&tmp, json, folders).and_then(|()| Ok(fs::rename(&tmp, zip_file)?));
+    if built.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    built
+}
+
+fn zip_backup_to(zip_file: &Path, json: &str, folders: &[(&str, &Path)]) -> AnyResult<()> {
     let mut zip = zip::ZipWriter::new(fs::File::create(zip_file)?);
     zip.start_file(JSON_ENTRY, zip::write::SimpleFileOptions::default())?;
     zip.write_all(json.as_bytes())?;

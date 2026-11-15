@@ -19,7 +19,16 @@ fn feed_url(url: &str) -> Result<String, String> {
 #[tauri::command]
 pub async fn fetch_ics(url: String) -> Result<String, String> {
     let url = feed_url(&url)?;
-    let client = reqwest::Client::builder().timeout(Duration::from_secs(30)).build().map_err(|e| e.to_string())?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        // No https -> http downgrade on redirect.
+        .redirect(reqwest::redirect::Policy::custom(|a| {
+            if a.previous().len() >= 5 || (a.previous().last().is_some_and(|u| u.scheme() == "https") && a.url().scheme() != "https") {
+                a.stop()
+            } else {
+                a.follow()
+            }
+        })).build().map_err(|e| e.to_string())?;
     // The error text must not echo the URL: private feed addresses carry a secret token.
     let net = |e: reqwest::Error| format!("Couldn't reach the calendar ({})", e.without_url());
     let mut resp = client.get(url).send().await.map_err(net)?;

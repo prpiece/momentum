@@ -145,7 +145,13 @@ async fn download_and_install(app: &AppHandle, v: &Voice) -> Result<(), String> 
     let existing = fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
     set_status(app, v, ModelStatus::Downloading { received: existing, total: MODEL_BYTES });
     if existing < MODEL_BYTES {
-        let mut req = reqwest::Client::new().get(MODEL_URL);
+        let mut req = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(20))
+            // A stalled connection errors out (resumable from the .part) instead of hanging forever.
+            .read_timeout(Duration::from_secs(30))
+            .build()
+            .map_err(|e| e.to_string())?
+            .get(MODEL_URL);
         if existing > 0 {
             req = req.header(reqwest::header::RANGE, format!("bytes={existing}-"));
         }
@@ -331,7 +337,11 @@ fn record(app: AppHandle, mic: Option<String>, stop: mpsc::Receiver<()>, started
         Err(e) => return fail(&started, format!("Couldn't start the microphone: {e}")),
     };
     let _ = started.send(Ok(notice));
+    // The buffer is full after MAX_SECONDS: close the microphone then, even if the stop never arrives.
     while let Err(mpsc::RecvTimeoutError::Timeout) = stop.recv_timeout(Duration::from_millis(60)) {
+        if buf.lock().unwrap().len() >= max {
+            break;
+        }
         // RMS of speech sits around 0.01..0.3; stretch it so the meter moves.
         let _ = app.emit("voice:level", (f32::from_bits(level.load(Ordering::Relaxed)) * 6.0).min(1.0));
     }
