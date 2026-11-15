@@ -271,6 +271,126 @@ describe("commands", () => {
   });
 });
 
+describe("every command from every connection (D288)", () => {
+  let u: User, chat: (text: string) => Promise<string>;
+  const home = uid(), habitId = uid(), parent = uid(), child = uid();
+  const taskRow = (id: string, title: string, extra: Record<string, unknown> = {}) => ({
+    tbl: "tasks", id,
+    fields: { id, title, list_id: "inbox", status: "open", priority: 0, tags: "[]", checklist: "[]", reminders: "[]", exdates: "[]", sort_order: 0, pinned: 0, created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z", deleted_at: null, ...extra },
+  });
+
+  beforeAll(async () => {
+    u = await user();
+    await send(u.db,
+      { tbl: "lists", id: home, fields: { id: home, name: "Home", deleted_at: null } },
+      { tbl: "habits", id: habitId, fields: { id: habitId, name: "Read", goal: '{"kind":"once"}', deleted_at: null } },
+      taskRow(parent, "Plan trip"), taskRow(child, "Book flights", { parent_id: parent }),
+    );
+    chat = await linkedTelegram(u);
+  });
+
+  const tasks = async () => [...(await replica(u.db)).entries()].filter(([k]) => k.startsWith("tasks/")).map(([, v]) => v);
+  const byTitle = async (t: string) => (await tasks()).find((x) => x.title === t);
+  const stored = async (id: string) => (await admin().from("sync_rows").select("data").eq("owner_id", u.id).eq("tbl", "tasks").eq("id", id).single()).data?.data as Record<string, unknown>;
+
+  it("update changes the date, deadline, duration, priority, list and tags", async () => {
+    await chat("add Paint fence");
+    await chat("search paint");
+    expect(await chat("update 1 tomorrow 30m by dec 24 !high #diy ~Home")).toBe('Updated "Paint fence": date, deadline, duration, priority, list, tags.');
+    const t = await byTitle("Paint fence");
+    expect(t).toMatchObject({ list_id: home, priority: 3, duration_min: 30 });
+    expect(t?.deadline).toMatch(/-12-24$/);
+    expect(t?.due_date).toBeTruthy();
+    expect(await chat("update 1 hello")).toContain("Nothing to change");
+    expect(await chat("update 1 ~Nowhere")).toContain("No list");
+  });
+
+  it("view shows one task's details and its full id", async () => {
+    await chat("search paint");
+    const id = String((await byTitle("Paint fence"))?.id);
+    const v = await chat("view 1");
+    for (const s of ["Paint fence", "List: Home", "Priority: high", "Duration: 30m", "Tags: #diy", `id: ${id}`]) expect(v).toContain(s);
+    expect(await chat(`view ${id}`)).toBe(v);
+  });
+
+  it("done and reopen, by number or full id", async () => {
+    await chat("search paint");
+    expect(await chat("done 1")).toBe('Done: "Paint fence".');
+    expect(await chat("search paint")).toBe('Matching "paint"\n1. Paint fence (done)');
+    expect(await chat("reopen 1")).toBe('Reopened "Paint fence".');
+    expect((await byTitle("Paint fence"))?.status).toBe("open");
+    expect(await chat(`reopen ${(await byTitle("Paint fence"))?.id}`)).toContain("already open");
+  });
+
+  it("reopen undoes done on a repeating task's occurrence", async () => {
+    await chat("add Water plants every day");
+    await chat("search water");
+    await chat("done 1");
+    expect(await chat("reopen 1")).toBe('Reopened "Water plants".');
+    expect((await tasks()).filter((t) => t.title === "Water plants").map((t) => t.status)).toEqual(["open", "open"]);
+  });
+
+  it("delete moves one task to the Trash, subtasks only when asked, and restore brings it back", async () => {
+    expect(await chat("delete all")).toContain("Which one?");
+    expect(await chat(`delete ${parent} ${child}`)).toContain("one task at a time");
+    expect(await chat(`delete ${parent}`)).toContain('"Plan trip" has 1 subtask. To move them to the Trash too, send: delete');
+    expect((await stored(parent)).deleted_at).toBeNull();
+    expect(await chat(`delete ${parent} with subtasks`)).toBe(`Moved "Plan trip" with 1 subtask ("Book flights") to the Trash. To undo: restore ${parent}`);
+    expect((await stored(parent)).deleted_at).toBeTruthy();
+    expect((await stored(child)).deleted_at).toBeTruthy();
+    expect(await chat("trash")).toContain("Plan trip");
+    expect(await chat(`restore ${parent}`)).toBe('Restored "Plan trip".');
+    expect((await stored(parent)).deleted_at).toBeNull();
+    expect((await stored(child)).deleted_at).toBeNull();
+    // Restoring a subtask brings back its trashed parent.
+    await chat(`delete ${parent} with subtasks`);
+    expect(await chat(`restore ${child}`)).toBe('Restored "Book flights" and its parent "Plan trip".');
+    expect((await stored(parent)).deleted_at).toBeNull();
+    expect(await chat(`restore ${child}`)).toContain("isn't in the Trash");
+    // A number from a listing works too.
+    await chat("search book");
+    await chat("delete 1");
+    expect(await chat("restore 1")).toBe('Restored "Book flights".');
+  });
+
+  it("habits shows today's habits", async () => {
+    expect(await chat("habits")).toBe("Habits today\nRead: not yet");
+    await chat("habit read");
+    expect(await chat("habits")).toBe("Habits today\nRead: done");
+  });
+
+  it("an add-only chat can only add", async () => {
+    const [link] = await rpc<{ id: string; permission: string }[]>(u.db, "my_connections");
+    expect(link.permission).toBe("full");
+    await chat("digest on 7:00");
+    await rpc(u.db, "set_connection_permission", { p_id: link.id, p_permission: "add" });
+    expect((await rpc<{ digest_time: string | null }[]>(u.db, "my_connections"))[0].digest_time).toBeNull();
+    expect(await chat("today")).toContain("can only add tasks");
+    expect(await chat("digest on 7:00")).toContain("can only add tasks");
+    expect(await chat(`delete ${parent}`)).toContain("can only add tasks");
+    expect(await chat("add from an add-only chat")).toBe('Added "from an add-only chat".');
+    await rpc(u.db, "set_connection_permission", { p_id: link.id, p_permission: "full" });
+    expect(await chat("search add-only")).toContain("1. from an add-only chat");
+  });
+
+  it("the webhook takes commands, and starts add-only", async () => {
+    const secret = await rpc<string>(u.db, "create_webhook");
+    const post = async (body: unknown) => {
+      const r = await handle(new Request(`${base}/webhook/${secret}`, { method: "POST", body: JSON.stringify(body) }), env, opts);
+      return { status: r.status, body: (await r.json()) as { reply?: string; error?: string } };
+    };
+    expect(await rpc(u.db, "webhook_permission")).toBe("add");
+    expect(await post({ command: "today" })).toMatchObject({ status: 403 });
+    expect(await post({ command: "add hook task" })).toEqual({ status: 200, body: { ok: true, reply: 'Added "hook task".' } });
+    expect((await post({ text: "plain hook task" })).status).toBe(200);
+    await rpc(u.db, "set_webhook_permission", { p_permission: "full" });
+    expect((await post({ command: "search plain hook" })).body.reply).toBe('Matching "plain hook"\n1. plain hook task');
+    expect((await post({ command: "done 1" })).body.reply).toBe('Done: "plain hook task".');
+    expect((await post({ command: "unlink" })).body.reply).toContain("only works in a chat");
+    expect(await rpc(u.db, "webhook_permission")).toBe("full");
+  });
+});
+
 describe("speed and limits", () => {
   it("defers a slow reply and follows up privately", async () => {
     const u = await user();

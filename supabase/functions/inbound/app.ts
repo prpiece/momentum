@@ -7,7 +7,7 @@
  *   POST /slack          Slack slash command `/momentum …` (signing secret)
  *   GET  /slack/oauth    Slack OAuth install redirect
  *   POST /telegram       Telegram bot webhook (secret token header), private chats only
- *   POST /webhook/<key>  the personal webhook, `{ "text": "…" }`, add only
+ *   POST /webhook/<key>  the personal webhook: `{ "text": "…" }` adds, `{ "command": "…" }` runs a command (D288)
  *   POST /send           a sent task from a signed-in friend (their access token)
  *   POST /digest         pg_cron's Digest run (shared secret)
  */
@@ -203,7 +203,7 @@ export async function handle(req: Request, env: Env, opts: Opts = {}): Promise<R
     const hook = /^\/webhook\/([0-9a-f]{48})$/.exec(path);
     if (hook) {
       const body = await req.json().catch(() => null);
-      const r = await runWebhook(db, hook[1], body?.text);
+      const r = await runWebhook(db, hook[1], body);
       return json(r.body, r.status);
     }
     return json({ error: "not found" }, 404);
