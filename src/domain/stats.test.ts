@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { atLocalTime, setDayEndHour } from "./dates";
-import { completedPerDay, completedPerWeek, dayStreaks, heatLevel, niceScale } from "./stats";
+import { focusPerDay, sessionDay, completedPerDay, completedPerWeek, dayStreaks, heatLevel, niceScale } from "./stats";
 import type { Task } from "./types";
 
 const TODAY = "2026-10-25";
@@ -88,5 +88,24 @@ describe("motivation stats", () => {
 
   it("grades heat", () => {
     expect([0, 1, 5, 10].map((v) => heatLevel(v, 10))).toEqual([0, 1, 2, 4]);
+  });
+});
+
+describe("focus sessions by day", () => {
+  it("HAB-03: a 01:00 session belongs to the previous day when the day ends at 3", () => {
+    setDayEndHour(3);
+    try {
+      const startAt = atLocalTime("2026-10-26", "01:00").toISOString();
+      expect(sessionDay(startAt)).toBe("2026-10-25");
+      expect(focusPerDay([{ startAt, seconds: 1800 }], "2026-10-25", 1)[0].value).toBe(30);
+    } finally {
+      setDayEndHour(0);
+    }
+  });
+  it("HAB-16: values stay unrounded so totals round once", () => {
+    const startAt = atLocalTime("2026-10-25", "10:00").toISOString();
+    const [b] = focusPerDay([{ startAt, seconds: 90 }, { startAt, seconds: 90 }], "2026-10-25", 1);
+    expect(b.value).toBe(3);
+    expect(focusPerDay([{ startAt, seconds: 90 }], "2026-10-25", 1)[0].value).toBe(1.5);
   });
 });

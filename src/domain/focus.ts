@@ -78,12 +78,12 @@ export function stop(s: TimerState, now: number, c: PomodoroConfig, newId: strin
   return { state: { status: "idle" }, session: s.phase === "focus" ? sessionOf(s, now, c, newId) : null };
 }
 
-/** Sessions shorter than a minute aren't worth recording. */
+/** Sessions shorter than a minute aren't worth recording. A late pomodoro tick ends the session where the phase ended, not at `now` (HAB-06). */
 function sessionOf(s: Active, now: number, c: PomodoroConfig, id: string): FocusSession | null {
   const raw = elapsedMs(s, now);
   const ms = s.mode === "pomodoro" ? Math.min(raw, phaseMs("focus", c)) : raw;
   if (ms < 60_000) return null;
-  return { id, taskId: s.taskId, mode: s.mode, startAt: new Date(s.sessionStart).toISOString(), endAt: new Date(now).toISOString(), seconds: Math.round(ms / 1000) };
+  return { id, taskId: s.taskId, mode: s.mode, startAt: new Date(s.sessionStart).toISOString(), endAt: new Date(now - (raw - ms)).toISOString(), seconds: Math.round(ms / 1000) };
 }
 
 /**
@@ -127,14 +127,17 @@ export function formatClock(ms: number): string {
 
 export type AutoFocus = { key: string; taskId: string; title: string; start: number; end: number };
 
-/** The not-done time-blocked task whose start fell in the last 60s, unless it is the block we already started. Not-done = the open tasks the caller passes in. */
+// Wide enough that a tray-throttled tick (about 1/min) can't skip a block's start (HAB-14).
+const AUTO_WINDOW_MS = 5 * 60_000;
+
+/** The not-done time-blocked task whose start fell in the last 5 min, unless it is the block we already started. Not-done = the open tasks the caller passes in. */
 export function dueAutoFocus(tasks: readonly TaskVM[], now: number, lastKey: string | null): AutoFocus | null {
   for (const { task, schedule, key } of tasks) {
     if (task.status !== "open" || schedule.kind !== "timed") continue;
     const start = Date.parse(schedule.start);
     const end = Date.parse(schedule.end);
     const k = `${task.id}:${key ?? ""}:${schedule.start}`;
-    if (now >= start && now - start < 60_000 && end > now && k !== lastKey) return { key: k, taskId: task.id, title: task.title, start, end };
+    if (now >= start && now - start < AUTO_WINDOW_MS && end > now && k !== lastKey) return { key: k, taskId: task.id, title: task.title, start, end };
   }
   return null;
 }

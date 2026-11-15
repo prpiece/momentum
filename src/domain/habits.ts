@@ -60,7 +60,7 @@ export type CheckinMap = ReadonlyMap<LocalDate, number>;
 export const isBuild = (h: Pick<Habit, "goal">) => h.goal.kind === "once" || h.goal.kind === "count" || h.goal.kind === "amount";
 /** The number the day's value is measured against (cap for limit, 1 for quit). */
 export const targetOf = (h: Pick<Habit, "goal">) =>
-  h.goal.kind === "once" ? 1 : h.goal.kind === "quit" ? 1 : h.goal.kind === "limit" ? Math.max(0, h.goal.cap) : Math.max(1, h.goal.target);
+  h.goal.kind === "once" ? 1 : h.goal.kind === "quit" ? 1 : h.goal.kind === "limit" ? Math.max(0, h.goal.cap) : h.goal.target;
 /** Whether the day succeeded: target reached (build), or not over the cap / no slip (limit, quit). */
 export function isDone(h: Pick<Habit, "goal">, value: number | undefined): boolean {
   const v = value ?? 0;
@@ -111,8 +111,13 @@ export function weekTotal(checkins: CheckinMap, weekStart: LocalDate): number {
 
 /** Habits judged by the week: per-week frequencies and weekly-total goals. */
 const byWeek = (h: Habit) => h.frequency.kind === "perWeek" || isWeeklyTotal(h);
+// A per-week target can't exceed the days the habit existed that week (the partial first week, HAB-08).
 const weekMet = (h: Habit, checkins: CheckinMap, w: LocalDate, today: LocalDate) =>
-  isWeeklyTotal(h) ? weekTotal(checkins, w) >= targetOf(h) : weekDoneCount(h, checkins, w, today) >= weeklyTarget(h);
+  isWeeklyTotal(h) ? weekTotal(checkins, w) >= targetOf(h) : weekDoneCount(h, checkins, w, today) >= Math.min(weeklyTarget(h), Math.max(1, 7 - Math.max(0, daysBetween(w, h.startDate))));
+
+/** Whether `date` counts as done: the week's total for weekly goals, the week's target for per-week habits, else the day's value. */
+export const isDoneOn = (h: Habit, checkins: CheckinMap, date: LocalDate, ws: WeekStart) =>
+  byWeek(h) ? weekMet(h, checkins, weekStartOf(date, ws), date) : isDone(h, checkins.get(date));
 
 /** Progress for the habit's period: this week's total for a weekly goal, otherwise the day's value. */
 export const periodValue = (h: Habit, checkins: CheckinMap, date: LocalDate, ws: WeekStart) =>
@@ -121,7 +126,7 @@ export const periodValue = (h: Habit, checkins: CheckinMap, date: LocalDate, ws:
 /** Show it in Today: scheduled today and not done yet (per-week: this week's target not met yet). */
 export function isDueToday(h: Habit, checkins: CheckinMap, today: LocalDate, ws: WeekStart): boolean {
   if (h.archived || !isScheduled(h, today)) return false;
-  if (isWeeklyTotal(h)) return true;
+  if (isWeeklyTotal(h)) return !weekMet(h, checkins, weekStartOf(today, ws), today) || (checkins.get(today) ?? 0) > 0;
   if (h.frequency.kind === "perWeek") return weekDoneCount(h, checkins, weekStartOf(today, ws), today) < weeklyTarget(h) || isDone(h, checkins.get(today));
   return true;
 }

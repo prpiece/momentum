@@ -7,5 +7,5 @@ export function fitItems(avail: number, widths: readonly number[], gap: number, 
   if (span(widths.length) <= avail) return widths.length;
   let k = widths.length - 1;
   while (k > 0 && span(k) + more > avail) k--;
-  return k;
+  return Math.max(0, k);
 }

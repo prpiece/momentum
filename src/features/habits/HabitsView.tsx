@@ -7,7 +7,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { PageHead } from "../../components/ui/PageHead";
 import { ToolbarActions } from "../../components/ui/Toolbar";
 import { addDaysLocal, fromLocalDate, todayLocal } from "../../domain/dates";
-import { currentStreak, frequencyLabel, isBuild, isDone, isScheduled, type Habit } from "../../domain/habits";
+import { currentStreak, frequencyLabel, isBuild, isDoneOn, isDueToday, isScheduled, type Habit } from "../../domain/habits";
 import { DropLine, dropSide, onDrop, SORT_TRANSITION } from "../../lib/dnd";
 import { removeGroup, reorderHabit, updateHabit, useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
@@ -49,7 +49,8 @@ export function HabitsView() {
   const [dialog, setDialog] = useState<{ habit?: Habit } | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const today = todayLocal();
-  const [date, setDate] = useState(today);
+  const [picked, setDate] = useState<string | null>(null);
+  const date = picked ?? today; // follows midnight until a day is picked (HAB-15)
 
   const habits = useMemo(() => Object.values(habitMap).sort((a, b) => a.sortOrder - b.sortOrder), [habitMap]);
   const active = habits.filter((h) => !h.archived);
@@ -60,8 +61,9 @@ export function HabitsView() {
   }, [groupMap, active]);
   const current = (selected && habitMap[selected]) || active[0] || null;
   const checkins = useHabits((s) => s.checkins);
-  const dueToday = active.filter((h) => isScheduled(h, today));
-  const doneToday = dueToday.filter((h) => isDone(h, checkins[h.id]?.[today]?.value)).length;
+  const ws = useSettings((s) => s.settings.weekStart);
+  const dueToday = active.filter((h) => isDueToday(h, valuesOf(checkins[h.id]), today, ws));
+  const doneToday = dueToday.filter((h) => isDoneOn(h, valuesOf(checkins[h.id]), today, ws)).length;
   const week = Array.from({ length: 7 }, (_, i) => addDaysLocal(today, i - 6));
 
   if (!habits.length)
@@ -186,7 +188,7 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
   const values = valuesOf(records);
   const streak = currentStreak(h, values, todayLocal(), ws);
   const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver, index, activeIndex } = useSortable({ id: `habit:${h.id}`, data: { type: "habit", id: h.id }, transition: SORT_TRANSITION });
-  const scheduled = isScheduled(h, props.date) || h.frequency.kind === "perWeek";
+  const scheduled = isScheduled({ ...h, startDate: props.date < h.startDate ? props.date : h.startDate }, props.date) || h.frequency.kind === "perWeek";
 
   return (
     <li

@@ -21,3 +21,7 @@ describe("fitItems", () => {
     expect(fitItems(0, [], 2, 50)).toBe(0);
   });
 });
+
+it("HAB-17: never negative, even with no room and no items", () => {
+  expect(fitItems(-5, [], 4, 10)).toBe(0);
+});

@@ -2,7 +2,7 @@ import { AppIcon } from "../../components/ui/AppIcon";
 import { ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { todayLocal } from "../../domain/dates";
-import { isDone, isDueToday } from "../../domain/habits";
+import { isDoneOn, isDueToday } from "../../domain/habits";
 import { useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { go, openContextMenu, toggleCollapsed, useUi } from "../../stores/ui";
@@ -21,7 +21,7 @@ export function TodayHabits() {
     [habits, checkins, today, ws],
   );
   if (!due.length) return null;
-  const doneCount = due.filter((h) => isDone(h, checkins[h.id]?.[today]?.value)).length;
+  const doneCount = due.filter((h) => isDoneOn(h, valuesOf(checkins[h.id]), today, ws)).length;
   return (
     <section className="pb-2" aria-label="Today's habits">
       <button type="button" onClick={() => toggleCollapsed("today:habits")} aria-expanded={!collapsed} className="flex items-center gap-1.5 px-2 pb-1.5 t-label text-fg-2 hover:text-fg">

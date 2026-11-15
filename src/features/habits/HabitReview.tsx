@@ -14,8 +14,8 @@ export function HabitReview({ habits }: { habits: Habit[] }) {
   const ws = useSettings((s) => s.settings.weekStart);
   const checkins = useHabits((s) => s.checkins);
   const today = todayLocal();
-  const [weekStart, setWeekStart] = useState(() => toLocalDate(startOfWeek(new Date(), { weekStartsOn: ws })));
-  const [month, setMonth] = useState(() => toLocalDate(startOfMonth(new Date())));
+  const [weekStart, setWeekStart] = useState(() => toLocalDate(startOfWeek(fromLocalDate(todayLocal()), { weekStartsOn: ws })));
+  const [month, setMonth] = useState(() => toLocalDate(startOfMonth(fromLocalDate(todayLocal()))));
   const days = Array.from({ length: 7 }, (_, i) => addDaysLocal(weekStart, i));
   const monthEnd = addDaysLocal(toLocalDate(addMonths(fromLocalDate(month), 1)), -1);
 

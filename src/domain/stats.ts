@@ -6,6 +6,19 @@ export type Bucket = { start: LocalDate; label: string; value: number };
 
 const localDay = (iso: string) => todayLocal(new Date(iso));
 
+/** The day a focus session counts on: same End-of-day rule as completed tasks (HAB-03). */
+export const sessionDay = localDay;
+
+/** Focus minutes per day for the `n` days ending `today`; unrounded, so totals round once at the end (HAB-16). */
+export function focusPerDay(sessions: Iterable<{ startAt: string; seconds: number }>, today: LocalDate, n: number): Bucket[] {
+  const by = new Map<LocalDate, number>();
+  for (const s of sessions) by.set(localDay(s.startAt), (by.get(localDay(s.startAt)) ?? 0) + s.seconds / 60);
+  return Array.from({ length: n }, (_, i) => {
+    const d = addDaysLocal(today, i - n + 1);
+    return { start: d, label: d, value: by.get(d) ?? 0 };
+  });
+}
+
 /** Tasks completed per local day for the `n` days ending `today`. */
 export function completedPerDay(tasks: readonly Task[], today: LocalDate, n: number): Bucket[] {
   const counts = new Map<LocalDate, number>();

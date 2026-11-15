@@ -90,15 +90,22 @@ describe("focus timer", () => {
   });
 });
 
+it("HAB-06: a pomodoro phase noticed 3 h late ends at the phase boundary", () => {
+  const min = 60_000;
+  const r = advance(start("pomodoro", null, 0), 3 * 60 * min, C, "x");
+  expect(r.session).toMatchObject({ seconds: 25 * 60, startAt: new Date(0).toISOString(), endAt: new Date(25 * min).toISOString() });
+});
+
 describe("dueAutoFocus", () => {
   const vm = (id: string, start: string, end: string, status: "open" | "done" = "open") =>
     ({ task: { id, title: id, status }, schedule: { kind: "timed", start, end }, date: null, key: null }) as unknown as TaskVM;
   const block = vm("a", "2026-10-25T14:00:00.000Z", "2026-10-25T15:00:00.000Z");
   const at = (s: string) => Date.parse(s);
-  it("returns a block that started within the last minute", () => {
+  it("returns a block that started within the last 5 minutes (a throttled tick still catches it, HAB-14)", () => {
     expect(dueAutoFocus([block], at("2026-10-25T14:00:30.000Z"), null)?.taskId).toBe("a");
     expect(dueAutoFocus([block], at("2026-10-25T13:59:59.000Z"), null)).toBeNull();
-    expect(dueAutoFocus([block], at("2026-10-25T14:01:00.000Z"), null)).toBeNull();
+    expect(dueAutoFocus([block], at("2026-10-25T14:03:00.000Z"), null)?.taskId).toBe("a");
+    expect(dueAutoFocus([block], at("2026-10-25T14:05:00.000Z"), null)).toBeNull();
   });
   it("skips done tasks, day tasks and a block already started", () => {
     const now = at("2026-10-25T14:00:10.000Z");

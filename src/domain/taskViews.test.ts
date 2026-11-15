@@ -248,3 +248,32 @@ describe("matchScore ignores accents and Unicode form (QA-12)", () => {
     expect(matchScore("İstanbul", "istanbul")).not.toBeNull();
   });
 });
+
+describe("v1.2.4 smart list fixes", () => {
+  it("HAB-11: a future-dated task whose deadline or follow-up has come is in Today only", () => {
+    const dl = mk({ schedule: day("2026-10-30"), deadline: TODAY });
+    expect(lists("today", "upcoming")(dl)).toEqual(["today"]);
+    const fu = mk({ schedule: day("2026-10-30"), waiting: { kind: "person", who: "Sam", followUp: TODAY } });
+    expect(lists("today", "upcoming")(fu)).toEqual(["today"]);
+  });
+  it("HAB-12: a block running past midnight isn't overdue", () => {
+    const t = mk({ schedule: timed(atLocalTime("2026-10-24", "23:00"), 120) });
+    expect(isOverdue(vm(t), TODAY)).toBe(false);
+    expect(isOverdue(vm(mk({ schedule: timed(atLocalTime("2026-10-24", "20:00"), 60) })), TODAY)).toBe(true);
+  });
+  it("HAB-13: a 01:30 block belongs to the day that started at 3 a.m. before it", () => {
+    setDayEndHour(3);
+    try {
+      const t = mk({ schedule: timed(atLocalTime("2026-10-26", "01:30"), 30) });
+      expect(lists("today", "upcoming")(t)).toEqual(["today"]); // TODAY = Sun 25th is still running
+    } finally {
+      setDayEndHour(0);
+    }
+  });
+  it("HAB-20: lists with negative sortOrder group in numeric order", () => {
+    const L = (id: string, sortOrder: number) => ({ id, name: id, sortOrder }) as unknown as TaskList;
+    const ls = new Map([["a", L("a", -2)], ["b", L("b", -1)]]);
+    const g = groupVMs([vm(mk({ listId: "b" })), vm(mk({ listId: "a" }))], "list", { today: TODAY, lists: ls, tags: new Map() });
+    expect(g.map((x) => x.label)).toEqual(["a", "b"]);
+  });
+});

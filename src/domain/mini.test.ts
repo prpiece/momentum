@@ -104,3 +104,9 @@ describe("miniClockMs", () => {
     expect(miniClockMs({ status: "idle" }, 0, 2000)).toBe(0);
   });
 });
+
+it("HAB-18: tasks still waiting are left out of the matrix counts", () => {
+  const w = vm("w", 3, day(TODAY));
+  const waiting = toVM({ ...w.task, waiting: { kind: "person", who: "Sam", followUp: "2026-12-01" } }) as TaskVM;
+  expect(snap([waiting, vm("a", 3, day(TODAY))]).matrix.map((q) => q.count)).toEqual([1, 0, 0, 0]);
+});

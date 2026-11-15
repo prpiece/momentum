@@ -4,10 +4,9 @@ import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { BarChart } from "../../components/ui/BarChart";
 import { NumField } from "../../components/ui/NumField";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
-import { formatMinutes, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
+import { formatMinutes, fromLocalDate, todayLocal } from "../../domain/dates";
 import { DEFAULT_POMODORO, elapsedMs, formatClock, NO_PICK, phaseMs, remainingMs, type FocusMode, type FocusPick, type Phase } from "../../domain/focus";
-import { perWeek, type Bucket } from "../../domain/stats";
-import { addDaysLocal } from "../../domain/dates";
+import { focusPerDay, perWeek, sessionDay } from "../../domain/stats";
 import { useData } from "../../stores/data";
 import { deleteSession, pauseFocus, resumeFocus, setFocusTask, skipPhase, startFocus, stopFocus, useFocus } from "../../stores/focus";
 import { useSettings } from "../../stores/settings";
@@ -36,20 +35,6 @@ export function useNow(active: boolean, ms = 1000) {
   return active ? now : Date.now();
 }
 
-/** Focus minutes per local day for the last `n` days. */
-function minutesPerDay(sessions: Record<string, { startAt: string; seconds: number }>, n: number): Bucket[] {
-  const by = new Map<string, number>();
-  for (const s of Object.values(sessions)) {
-    const d = toLocalDate(new Date(s.startAt));
-    by.set(d, (by.get(d) ?? 0) + s.seconds / 60);
-  }
-  const today = todayLocal();
-  return Array.from({ length: n }, (_, i) => {
-    const d = addDaysLocal(today, i - n + 1);
-    return { start: d, label: d, value: Math.round(by.get(d) ?? 0) };
-  });
-}
-
 addProgressSection({
   id: "focus",
   render: () => <FocusStats />,
@@ -58,10 +43,10 @@ addProgressSection({
 function FocusStats() {
   const sessions = useFocus((s) => s.sessions);
   const ws = useSettings((s) => s.settings.weekStart);
-  const days = useMemo(() => minutesPerDay(sessions, 14), [sessions]);
+  const days = useMemo(() => focusPerDay(Object.values(sessions), todayLocal(), 14).map((b) => ({ ...b, value: Math.round(b.value) })), [sessions]);
   const week = useMemo(() => {
-    const map = new Map(minutesPerDay(sessions, 21).map((b) => [b.start, b.value]));
-    return perWeek((d) => map.get(d) ?? 0, todayLocal(), 1, ws)[0]?.value ?? 0;
+    const map = new Map(focusPerDay(Object.values(sessions), todayLocal(), 21).map((b) => [b.start, b.value]));
+    return Math.round(perWeek((d) => map.get(d) ?? 0, todayLocal(), 1, ws)[0]?.value ?? 0);
   }, [sessions, ws]);
   if (!Object.keys(sessions).length) return null;
   return (
@@ -100,7 +85,7 @@ export function FocusView() {
   const clock = t.status === "done" ? `${Math.round(t.focusMs / 60_000)}m` : t.status === "idle" ? (mode === "pomodoro" ? formatClock(cfg.focusMin * 60_000) : "00:00") : formatClock(remaining ?? elapsed);
   const today = todayLocal();
   const todays = Object.values(sessions)
-    .filter((s) => toLocalDate(new Date(s.startAt)) === today)
+    .filter((s) => sessionDay(s.startAt) === today)
     .sort((a, b) => b.startAt.localeCompare(a.startAt));
   const todayMin = Math.round(todays.reduce((n, s) => n + s.seconds, 0) / 60);
   const boundPick: FocusPick = t.status === "idle" ? pick : t.status === "done" ? { taskId: t.taskId, subIds: [] } : { taskId: t.taskId, subIds: t.subIds };

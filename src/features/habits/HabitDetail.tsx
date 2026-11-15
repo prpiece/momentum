@@ -108,7 +108,7 @@ function Stat({ icon, label, value, unit }: { icon?: React.ReactNode; label: str
 }
 
 function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws: WeekStart }) {
-  const [month, setMonth] = useState(() => toLocalDate(startOfMonth(new Date())));
+  const [month, setMonth] = useState(() => toLocalDate(startOfMonth(fromLocalDate(todayLocal()))));
   const days = viewDays("month", month, ws);
   const m = fromLocalDate(month).getMonth();
   const today = todayLocal();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal } from "./dates";
-import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal, periodValue } from "./habits";
+import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDoneOn, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal, periodValue } from "./habits";
 
 // 2026-10-25 is a Sunday. Weeks start Monday (weekStart = 1).
 const TODAY = "2026-10-25";
@@ -162,5 +162,30 @@ describe("weekly totals for count and amount (D267)", () => {
     // The current week (5 of 20 km so far) is still open, so only the met week counts.
     expect(completionRate(run, m, "2026-10-12", "2026-10-25", "2026-10-25", WS)).toBe(1);
     expect(completionRate(run, m, "2026-10-12", "2026-10-25", "2026-10-26", WS)).toBe(0.5);
+  });
+});
+
+describe("v1.2.4 fixes", () => {
+  it("HAB-02: a target below 1 is honoured", () => {
+    const h = habit({ kind: "daily" }, { kind: "amount", target: 0.5, unit: "L", period: "day" });
+    expect(isDone(h, 0.5)).toBe(true);
+    expect(isDone(h, 0.4)).toBe(false);
+  });
+  it("HAB-08: a partial first week is judged against the days that exist", () => {
+    // Start Thu 2026-10-22; Thu..Sun done; per-week 5 can only ever reach 4 in week 1
+    const h = habit({ kind: "perWeek", count: 5 }, { kind: "once" }, "2026-10-22");
+    const c = new Map(["2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"].map((d) => [d, 1]));
+    expect(currentStreak(h, c, TODAY, WS).count).toBe(1);
+    expect(completionRate(h, c, "2026-10-22", TODAY, TODAY, WS)).toBe(1);
+  });
+  it("HAB-09: one done-on rule for weekly totals and per-week habits", () => {
+    const wk = habit({ kind: "daily" }, { kind: "amount", target: 20, unit: "km", period: "week" });
+    const c = new Map([["2026-10-20", 21]]);
+    expect(isDoneOn(wk, c, TODAY, WS)).toBe(true); // week met, even though today's value is 0
+    expect(isDueToday(wk, c, TODAY, WS)).toBe(false); // and it leaves Today
+    expect(isDueToday(wk, new Map([...c, [TODAY, 1]]), TODAY, WS)).toBe(true); // unless logged today
+    const pw = habit({ kind: "perWeek", count: 2 });
+    expect(isDoneOn(pw, new Map([["2026-10-20", 1], ["2026-10-21", 1]]), TODAY, WS)).toBe(true);
+    expect(isDoneOn(pw, new Map([["2026-10-20", 1]]), TODAY, WS)).toBe(false);
   });
 });

@@ -37,6 +37,9 @@ export function toVM(task: Task): TaskVM | null {
 /** Still waiting for a person or an open task (D267): out of Today and Upcoming, in Waiting. */
 export const waitingNow = (vm: TaskVM, today: LocalDate) => isWaiting(vm.task.waiting, vm.blocked, today);
 
+/** The day a view files a task under. A timed block follows End-of-day like "today" does (HAB-13); the rest use their date. */
+const dayOf = (vm: TaskVM): LocalDate | null => (vm.schedule.kind === "timed" ? todayLocal(new Date(vm.schedule.start)) : vm.date);
+
 export function inSmartList(id: SmartListId, vm: TaskVM, today: LocalDate): boolean {
   const t = vm.task;
   if (t.status !== "open") return false;
@@ -47,9 +50,10 @@ export function inSmartList(id: SmartListId, vm: TaskVM, today: LocalDate): bool
     case "today":
       // Overdue items stay visible in Today until handled; so do deadlines that have come and a person's follow-up.
       if (waiting || vm.schedule.kind === "someday") return false;
-      return (vm.date !== null && vm.date <= today) || (t.deadline !== null && t.deadline <= today) || followUpDue(t.waiting, today);
+      return (dayOf(vm) !== null && dayOf(vm)! <= today) || (t.deadline !== null && t.deadline <= today) || followUpDue(t.waiting, today);
     case "upcoming":
-      return !waiting && vm.date !== null && vm.date > today;
+      // Not also in Today through a deadline or a follow-up that has come (HAB-11).
+      return !waiting && dayOf(vm) !== null && dayOf(vm)! > today && !(t.deadline !== null && t.deadline <= today) && !followUpDue(t.waiting, today);
     case "someday":
       return vm.schedule.kind === "someday";
     case "waiting":
@@ -85,7 +89,12 @@ export const plannedMinutes = (vms: readonly TaskVM[]) =>
 /** The deadline has passed (red chip). */
 export const deadlinePassed = (t: Pick<Task, "deadline" | "status">, today: LocalDate) => t.status === "open" && t.deadline !== null && t.deadline < today;
 
-export const isOverdue = (vm: TaskVM, today: LocalDate) => vm.task.status === "open" && vm.date !== null && vm.date < today;
+/** A timed block is overdue once it has ended before today, so one running past midnight isn't (HAB-12). */
+export const isOverdue = (vm: TaskVM, today: LocalDate) => {
+  if (vm.task.status !== "open" || vm.date === null) return false;
+  const s = vm.schedule;
+  return (s.kind === "timed" ? todayLocal(new Date(Math.max(Date.parse(s.start), Date.parse(s.end) - 1))) : vm.date) < today;
+};
 
 /** Sortable key: all-day items sort before timed items on the same day; undated last. */
 function dateKey(vm: TaskVM): string {
@@ -130,6 +139,7 @@ function dateBucket(vm: TaskVM, today: LocalDate): [string, string] {
 export function groupVMs(vms: readonly TaskVM[], groupBy: GroupBy, ctx: GroupCtx): Group[] {
   if (groupBy === "none") return [{ key: "all", label: "", items: [...vms] }];
   const groups = new Map<string, Group>();
+  const listOrder = new Map<string, number>(); // numeric: a padded string sorts negatives wrongly (HAB-20)
   const put = (key: string, label: string, vm: TaskVM) => {
     let g = groups.get(key);
     if (!g) groups.set(key, (g = { key, label, items: [] }));
@@ -144,14 +154,16 @@ export function groupVMs(vms: readonly TaskVM[], groupBy: GroupBy, ctx: GroupCtx
       put(String(3 - t.priority), PRIORITY_LABEL[t.priority], vm);
     } else if (groupBy === "list") {
       const list = ctx.lists.get(t.listId);
-      put(`${String(list?.sortOrder ?? 0).padStart(12, "0")}${t.listId}`, list?.name ?? "Unknown list", vm);
+      const key = `${t.listId}`;
+      listOrder.set(key, list?.sortOrder ?? 0);
+      put(key, list?.name ?? "Unknown list", vm);
     } else {
       const names = t.tags.map((id) => ctx.tags.get(id)?.name).filter((n): n is string => !!n);
       if (!names.length) put("￿", "No tag", vm);
       for (const n of names) put(n.toLowerCase(), `#${n}`, vm);
     }
   }
-  return [...groups.values()].sort((a, b) => a.key.localeCompare(b.key));
+  return [...groups.values()].sort((a, b) => (listOrder.get(a.key) ?? 0) - (listOrder.get(b.key) ?? 0) || a.key.localeCompare(b.key));
 }
 
 /**

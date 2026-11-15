@@ -3,7 +3,7 @@ import { select, upsert, write } from "../db/client";
 import { habitToRow, parseCheckin, parseGroup, parseHabit } from "../db/habitRows";
 import { parseAll, type Row } from "../db/rows";
 import { todayLocal } from "../domain/dates";
-import { isDone, type CheckinMap, type Habit, type HabitCheckin, type HabitGroup, type Mood } from "../domain/habits";
+import { isBuild, isDone, type CheckinMap, type Habit, type HabitCheckin, type HabitGroup, type Mood } from "../domain/habits";
 import { after, reorder } from "../domain/order";
 import type { LocalDate } from "../domain/types";
 import { uid } from "./data";
@@ -125,7 +125,10 @@ export function setCheckin(habitId: string, date: LocalDate, patch: Partial<Pick
     return { checkins: { ...s.checkins, [habitId]: forHabit } };
   });
   void write(empty ? ["DELETE FROM habit_checkins WHERE habit_id = $1 AND date = $2", [habitId, date]] : checkinUpsert(next));
-  if (useHabits.getState().habits[habitId] && next.value > prev.value) trackDone("habit:checked");
+  const habit = get().habits[habitId];
+  if (!habit) return;
+  if (date < habit.startDate && !empty) updateHabit(habitId, { startDate: date }); // an earlier check-in backfills the start (HAB-07)
+  if (isBuild(habit) && next.value > prev.value) trackDone("habit:checked"); // a slip on a quit habit isn't a check-in (HAB-10)
 }
 
 /** Tap: once-habits toggle; counted habits add `delta` (the row's menu offers −1). Check-ins toast an Undo. */
