@@ -3,6 +3,7 @@ import { addDaysLocal, moveToDate, todayLocal } from "../domain/dates";
 import { GO } from "../domain/features";
 import { clampScale } from "../domain/settings";
 import type { Priority } from "../domain/types";
+import { dialogOpen } from "./openDialogs";
 import { focusFilter } from "../features/tasks/FilterBar";
 import { bulkEdit, deleteTasks, toggleDone } from "../features/tasks/actions";
 import { focusQuickAdd } from "../features/tasks/QuickAdd";
@@ -92,7 +93,7 @@ export function useGlobalShortcuts() {
         const { settings, update } = useSettings.getState();
         return update({ scale: e.key === "0" ? 1 : clampScale(settings.scale + (e.key === "-" ? -0.1 : 0.1)) });
       }
-      if (typing(e)) return;
+      if (typing(e) || dialogOpen()) return;
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault();
         return void undoLast();

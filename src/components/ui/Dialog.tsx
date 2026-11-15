@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { exitGhost } from "../../lib/motion";
+import { trackDialog } from "../../lib/openDialogs";
 import { lockScroll } from "../../lib/scrollLock";
 import { Tip } from "./Tip";
 
@@ -16,10 +17,11 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
   }, []);
 
   useEffect(() => lockScroll(), []);
+  useEffect(() => trackDialog(), []);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    const first = ref.current?.querySelector<HTMLElement>("[autofocus], input, textarea, select, button");
+    const first = ref.current?.querySelector<HTMLElement>("[autofocus], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])");
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
       // Stacked dialogs (an image viewer over a task window): only the top one reacts.
@@ -30,7 +32,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
       }
       if (e.key === "Tab" && ref.current) {
         // Minimal focus trap.
-        const items = [...ref.current.querySelectorAll<HTMLElement>("button, input, textarea, select, [tabindex='0']")];
+        const items = [...ref.current.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex='0']")];
         const [a, b] = [items[0], items[items.length - 1]];
         if (e.shiftKey && document.activeElement === a) (e.preventDefault(), b?.focus());
         else if (!e.shiftKey && document.activeElement === b) (e.preventDefault(), a?.focus());
