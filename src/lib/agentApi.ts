@@ -6,10 +6,11 @@
 import { AgentError, agentTask, applyPlanned, parseRequest, type AgentRequest, type AgentTask } from "../domain/agentOps";
 import { timed, todayLocal } from "../domain/dates";
 import { matchesFilter, nameKey, parseFilter } from "../domain/filter";
-import { currentStreak, goalLabel, isBuild, isDone, isDueToday, targetOf } from "../domain/habits";
+import { currentStreak, goalLabel, isBuild, isDone, isDueToday, isWeeklyTotal, periodValue, targetOf } from "../domain/habits";
+import { effective } from "../domain/recurrence";
 import { derive, inSmartList, matchScore, sortVMs, type TaskVM } from "../domain/taskViews";
-import { SMART_LISTS, type SmartListId, type Task } from "../domain/types";
-import { ensureTags, setStatus, updateTask, useData } from "../stores/data";
+import { MAX_SUBTASK_DEPTH, SMART_LISTS, type SmartListId, type Task } from "../domain/types";
+import { deleteTasks, depthOf, editOccurrence, ensureTags, restoreTasks, setStatus, updateTask, useData } from "../stores/data";
 import { useHabits, valuesOf } from "../stores/habits";
 import { createFromText, listByName } from "../stores/quickAddSubmit";
 import { useSettings } from "../stores/settings";
@@ -68,10 +69,11 @@ function search(text: string, limit: number) {
 }
 
 function add(r: Extract<AgentRequest, { op: "add" }>) {
-  const { lists, shape, d } = view();
+  const { lists } = view();
   const defaults: Partial<Task> = {};
   if (r.parentId) {
     const parent = find(r.parentId);
+    if (depthOf(parent.task.id) + 1 > MAX_SUBTASK_DEPTH) throw new AgentError(`Subtasks can only nest ${MAX_SUBTASK_DEPTH} levels deep.`);
     defaults.parentId = parent.task.id;
     defaults.listId = parent.task.listId;
   } else if (r.list) {
@@ -82,7 +84,9 @@ function add(r: Extract<AgentRequest, { op: "add" }>) {
   const notes: string[] = [];
   const t = createFromText(r.text, defaults, true, () => false, "typed", (name, to) => notes.push(`No list named “${name}”; added to ${to}.`));
   if (!t) throw new AgentError("Nothing to add.");
-  const vm = derive(useData.getState().tasks, lists).byId.get(t.id) ?? d.byId.get(t.id);
+  // Read it back with a fresh view: a tag created by this add isn't in the one from before it.
+  const { d, shape } = view();
+  const vm = d.byId.get(t.id);
   if (!vm) throw new AgentError("The task was added but could not be read back.");
   return { task: shape(vm), ...(notes.length ? { note: notes.join(" ") } : {}) };
 }
@@ -111,9 +115,17 @@ function update(r: Extract<AgentRequest, { op: "update" }>) {
     else patch.durationMin = p.durationMin;
   }
   if (schedule !== vm.task.schedule) patch.schedule = schedule;
-  updateTask(vm.task.id, patch);
-  return get(vm.task.id);
+  const before = taskIds();
+  const key = vm.task.recurrence ? effective(vm.task)?.key : null;
+  // A recurring task changes only this occurrence unless the caller says following or all.
+  if (key) editOccurrence(vm.task.id, key, r.scope, patch);
+  else updateTask(vm.task.id, patch);
+  return get(newTaskId(before) ?? vm.task.id);
 }
+
+const taskIds = () => new Set(Object.keys(useData.getState().tasks));
+/** The task a store action just created (a detached occurrence), if any. */
+const newTaskId = (before: Set<string>) => Object.keys(useData.getState().tasks).find((id) => !before.has(id));
 
 function get(id: string) {
   const vm = find(id);
@@ -126,8 +138,53 @@ function finish(id: string, to: "done" | "open") {
   const vm = find(id);
   if (to === "done" && vm.task.status !== "open") throw new AgentError(`“${vm.task.title}” is already ${vm.task.status === "done" ? "done" : "closed"}.`);
   if (to === "open" && vm.task.status === "open") throw new AgentError(`“${vm.task.title}” is already open.`);
+  const before = taskIds();
   setStatus(vm.task.id, to);
-  return get(vm.task.id);
+  // Completing a recurring task detaches the finished occurrence; the series may be gone (its last one).
+  return get(newTaskId(before) ?? vm.task.id);
+}
+
+/** Delete takes the full id: a prefix is fine for reading but too easy to get wrong when removing. */
+function remove(r: Extract<AgentRequest, { op: "delete" }>) {
+  const vm = find(r.id);
+  if (vm.task.id !== r.id) throw new AgentError("Deleting needs the task's full id (from get_task or list_tasks), not a shortened one.");
+  const { d, shape } = view();
+  const subs = liveDescendants(vm.task.id).flatMap((t) => (d.byId.get(t.id) ? [shape(d.byId.get(t.id) as TaskVM)] : []));
+  if (subs.length && !r.withSubtasks) throw new AgentError(`“${vm.task.title}” has ${subs.length} subtask${subs.length === 1 ? "" : "s"}. Pass withSubtasks: true to delete them too.`);
+  const removed = shape(vm);
+  deleteTasks([vm.task.id]);
+  return { deleted: removed, subtasks: subs, note: "Moved to the Trash; restore_task brings it back." };
+}
+
+function liveDescendants(id: string): Task[] {
+  const all = Object.values(useData.getState().tasks).filter((t) => !t.deletedAt);
+  const out: Task[] = [];
+  const walk = (pid: string) => all.filter((t) => t.parentId === pid).forEach((c) => (out.push(c), walk(c.id)));
+  walk(id);
+  return out;
+}
+
+const trashed = () => Object.values(useData.getState().tasks).filter((t) => t.deletedAt).sort((a, b) => (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""));
+
+function trash(limit: number) {
+  const { lists, tags } = useData.getState();
+  const all = trashed();
+  const shape = (t: Task) => ({ ...agentTask(t, t.schedule, { lists, tags, subtasks: all.filter((k) => k.parentId === t.id).length }), deletedAt: t.deletedAt });
+  return { total: all.length, tasks: all.slice(0, limit).map(shape) };
+}
+
+function restore(id: string) {
+  const all = trashed();
+  const exact = all.find((t) => t.id === id);
+  const prefixed = exact ? [exact] : id.length >= 4 ? all.filter((t) => t.id.startsWith(id)) : [];
+  if (prefixed.length !== 1) throw new AgentError(prefixed.length ? `Several trashed tasks start with ${id}; use more of the id.` : `No task in the Trash with id ${id}.`);
+  const t = prefixed[0];
+  // Subtasks deleted together with it (same moment) come back with it.
+  const family = [t.id];
+  const walk = (pid: string) => all.filter((k) => k.parentId === pid && k.deletedAt === t.deletedAt).forEach((k) => (family.push(k.id), walk(k.id)));
+  walk(t.id);
+  restoreTasks(family);
+  return get(t.id);
 }
 
 function habits() {
@@ -139,11 +196,12 @@ function habits() {
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((h) => {
       const values = valuesOf(checkins[h.id]);
-      const value = values.get(date) ?? 0;
+      // A weekly goal is measured over the week, not just today.
+      const value = periodValue(h, values, date, ws);
       const streak = currentStreak(h, values, date, ws);
       return {
         id: h.id, name: h.name, kind: h.goal.kind, goal: goalLabel(h.goal), dueToday: isDueToday(h, values, date, ws),
-        value, target: targetOf(h), done: isBuild(h) ? isDone(h, value) : null, streak: `${streak.count} ${streak.unit}${streak.count === 1 ? "" : "s"}`,
+        period: isWeeklyTotal(h) ? "week" : "day", value, target: targetOf(h), done: isBuild(h) ? isDone(h, value) : null, streak: `${streak.count} ${streak.unit}${streak.count === 1 ? "" : "s"}`,
       };
     });
   return { date, habits: rows };
@@ -159,6 +217,9 @@ export function runAgentRequest(op: unknown, args: unknown): unknown {
     case "get": return get(r.id);
     case "add": return add(r);
     case "update": return update(r);
+    case "delete": return remove(r);
+    case "restore": return restore(r.id);
+    case "trash": return trash(r.limit);
     case "complete": return finish(r.id, "done");
     case "reopen": return finish(r.id, "open");
     case "habits": return habits();
