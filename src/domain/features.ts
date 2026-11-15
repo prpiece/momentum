@@ -20,6 +20,7 @@ export const PALETTE_IDS = [
   "go-focus",
   "go-progress",
   "go-friends",
+  "go-trash",
   "go-settings",
   "matrix-mode",
   "show-completed",
@@ -139,6 +140,9 @@ export const FEATURES: Feature[] = [
     commands: [keys("Ctrl Alt M", "Show or hide the mini window")] },
   { id: "streak-reminder", title: "Save a streak before it breaks", howTo: "At 18:00 (change it in Settings → Notifications) you get one reminder for habits with a running streak that you haven't done yet. Weekly habits are reminded on the week's last day.", icon: "target", group: "Habits & focus", since: "1.1.2", core: false, commands: [] },
   { id: "auto-focus", title: "Start focus when a time block begins", howTo: "Turn on Start focus at time blocks in Settings → Notifications: a task you've put on the calendar starts a focus session when its time comes, and stops it when the block ends.", icon: "timer", group: "Habits & focus", since: "1.1.2", core: false, commands: [] },
+
+  { id: "trash", title: "Get a deleted task back", howTo: "Deleted tasks wait in Trash for 30 days. Open Trash to Restore one, or Delete forever.", icon: "undo", group: "Tasks", since: "1.2.1", core: false,
+    commands: [palette("go-trash", "Go to Trash")] },
 
   // ---- Progress
   { id: "progress", title: "See your progress", howTo: "What you finished and how long you focused, by day and week, plus an activity heatmap.", icon: "chart", group: "Progress", since: OLD, core: false,

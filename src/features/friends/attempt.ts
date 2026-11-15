@@ -8,7 +8,7 @@ export async function attempt(fn: () => Promise<unknown>, pull = false): Promise
     await act(fn, pull);
     return true;
   } catch (e) {
-    toast(e instanceof SocialError ? e.message : "Something went wrong. Try again.");
+    toast(e instanceof SocialError ? e.message : `Couldn't finish that${e instanceof Error && e.message ? `: ${e.message}` : "."}`);
     return false;
   }
 }

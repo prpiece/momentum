@@ -101,7 +101,7 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (v: strin
   );
 }
 
-const DEFAULT_VIEWS: { id: ViewId; label: string }[] = [...SMART_LIST_NAV, ...MODULE_NAV];
+const DEFAULT_VIEWS: { id: ViewId; label: string }[] = [...SMART_LIST_NAV, ...MODULE_NAV].filter((n) => n.id !== "trash");
 
 type Page = { id: string; title: string; icon: LucideIcon };
 const PAGES: Page[] = [

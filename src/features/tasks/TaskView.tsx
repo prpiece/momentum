@@ -13,7 +13,7 @@ import { isEmptyFilter, matchesFilter, parseFilter } from "../../domain/filter";
 import { plannedMinutes, toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
 import { useSocial } from "../../stores/social";
-import { bestRole, sharesCoveringList } from "../../domain/shareAccess";
+import { canEdit } from "../../domain/shareAccess";
 import { useSettings } from "../../stores/settings";
 import { setImport, useUi } from "../../stores/ui";
 import { MatrixView } from "../matrix/MatrixView";
@@ -63,7 +63,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   const lists = useData((s) => s.lists);
   const folders = useData((s) => s.folders);
   const shares = useSocial((s) => s.shares);
-  const viewOnly = !!list && bestRole(sharesCoveringList(shares, folders, list)) === "viewer";
+  const viewOnly = !!list && !canEdit(list.id, { [list.id]: list }, folders, shares);
   const tags = useData((s) => s.tags);
   const query = useUi((s) => s.filters[spec.id] ?? "");
   const adhoc = useMemo(() => parseFilter(query, new Date()), [query]);

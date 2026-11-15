@@ -9,6 +9,8 @@ type SettingsStore = {
   settings: Settings;
   hydrate: () => Promise<void>;
   update: (patch: Partial<Settings>) => void;
+  /** Swap in a whole settings object (a restored backup) and save it now, dropping any pending debounced save of the old one. */
+  replace: (settings: Settings) => Promise<void>;
   /** Writes a pending debounced save now; awaited before the app quits. */
   flush: () => Promise<void>;
 };
@@ -27,6 +29,12 @@ export const useSettings = create<SettingsStore>((set, get) => ({
       saveTimer = undefined;
       void saveSettings(get().settings);
     }, 250);
+  },
+  replace: async (settings) => {
+    clearTimeout(saveTimer);
+    saveTimer = undefined;
+    set({ settings });
+    await saveSettings(settings);
   },
   flush: async () => {
     if (!saveTimer) return;

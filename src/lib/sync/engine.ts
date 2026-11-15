@@ -169,7 +169,8 @@ export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings"
   }
 }
 
-async function pull(): Promise<boolean> {
+/** Pulls what the server has changed and applies it; returns the rows it received. */
+async function pull(): Promise<RemoteRow[]> {
   let cursor = Number((await state("cursor")) ?? 0);
   const remote: RemoteRow[] = [];
   for (;;) {
@@ -183,7 +184,7 @@ async function pull(): Promise<boolean> {
     if (last) cursor = last.version;
     if ((data as unknown[]).length < PAGE) break;
   }
-  if (!remote.length) return false;
+  if (!remote.length) return [];
 
   const at = new Date().toISOString();
   const { settings, issues } = await transact(async (d) => {
@@ -215,7 +216,7 @@ async function pull(): Promise<boolean> {
     await saveSettings(next, false);
   }
   await Promise.all([hydrate(false), hydrateHabits(), hydrateFocus(), hydrateSubscriptions(false)]);
-  return true;
+  return remote;
 }
 
 // ---------- scheduling ----------
@@ -258,17 +259,22 @@ async function namePlatform(device: string): Promise<boolean> {
   return !error && !!data?.length;
 }
 
+/** PostgREST's "JWT expired" codes. */
+export const isExpiredJwt = (err: unknown) => typeof err === "object" && err !== null && "code" in err && (err.code === "PGRST301" || err.code === "PGRST303");
+
+/** The server ended this session (signed out everywhere, revoked): keep the data, ask to sign in again. */
+async function endedSession() {
+  await signOut("keep");
+  toast("You were signed out. Your data is still on this device; sign in again to keep syncing.");
+}
+
 async function runOnce() {
   if (!useSync.getState().account) return;
   if (!host.online()) return useSync.setState({ status: { kind: "offline" } });
   if (!(await supabase.auth.getSession()).data.session) {
     const restored = await restoreSession();
     if (restored === "offline") return useSync.setState({ status: { kind: "offline" } });
-    if (restored === "ended") {
-      // The server ended this session (signed out everywhere, revoked): keep the data, ask to sign in again.
-      await signOut("keep");
-      return toast("You were signed out. Your data is still on this device; sign in again to keep syncing.");
-    }
+    if (restored === "ended") return endedSession();
   }
   useSync.setState({ status: { kind: "syncing" } });
   try {
@@ -281,11 +287,13 @@ async function runOnce() {
     if (!named) named = await namePlatform(device);
     useSync.setState({ status: { kind: "idle", at: new Date().toISOString() } });
   } catch (err) {
-    // An access token the server no longer accepts: drop it, and the next run re-checks the session.
-    if (typeof err === "object" && err !== null && "code" in err && (err.code === "PGRST301" || err.code === "PGRST303")) {
-      await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
-      again = true;
-      return;
+    // An access token the server no longer accepts: refresh the session from the stored refresh token. Only a
+    // refresh the server refuses ends sign-in; a plain sign-out here would delete that token (H14).
+    if (isExpiredJwt(err)) {
+      const restored = await restoreSession();
+      if (restored === "ok") return void (again = true);
+      if (restored === "ended") return endedSession();
+      return useSync.setState({ status: { kind: "offline" } });
     }
     console.error("Sync failed", err);
     useSync.setState({ status: host.online() ? { kind: "error", message: err instanceof Error ? err.message : String(err) } : { kind: "offline" } });
@@ -360,32 +368,49 @@ export async function signInSituation(account: string): Promise<"resume" | "fres
 }
 
 /**
- * Turns sync on for `account` (D118). `fresh`: back up, queue every local row as a create
- * (rerunning this is safe: the queue is rebuilt, creates are upserts), then sync.
+ * Queues every local row as a create, except those the server already sent (`skip`): a second device must
+ * not push its default Inbox over the server's copy (H15). Returns the row counts.
+ */
+export async function queueLocalRows(d: Driver, skip: readonly RemoteRow[], at: string): Promise<Partial<Record<SyncTable, number>>> {
+  const counts: Partial<Record<SyncTable, number>> = {};
+  const cols = await columnsOf(d);
+  for (const t of Object.keys(SYNC_TABLES) as SyncTable[]) {
+    const pairs = cols[t].flatMap((c) => [`'${t === "habit_checkins" && c === "value" ? "_delta" : c}'`, c]);
+    if (!cols[t].includes("deleted_at")) pairs.push("'deleted_at'", "NULL");
+    const rowId = t === "habit_checkins" ? "habit_id || '|' || date" : SYNC_TABLES[t][0];
+    const have = JSON.stringify(skip.filter((r) => r.tbl === t).map((r) => r.id));
+    const res = await d.execute(
+      `INSERT INTO sync_outbox (tbl, row_id, fields, created_at) SELECT '${t}', ${rowId}, json_object(${pairs.join(", ")}), $1 FROM ${t} WHERE (${rowId}) NOT IN (SELECT value FROM json_each($2))`,
+      [at, have],
+    );
+    if (res.rowsAffected) counts[t] = res.rowsAffected;
+  }
+  return counts;
+}
+
+/**
+ * Turns sync on for `account` (D118). `fresh`: back up, pull what the server has, then queue the local rows it
+ * doesn't (rerunning this is safe: the queue is rebuilt, creates are upserts), then sync.
  * `resume`: the same account again, carry on from the cursor.
  */
 export async function enableSync(account: string, mode: "fresh" | "resume"): Promise<FirstSync> {
-  const counts: FirstSync["counts"] = {};
+  let counts: FirstSync["counts"] = {};
   if (mode === "fresh") {
     await snapshotDatabase("before-sign-in");
     await transact(async (d) => {
       await d.execute("DELETE FROM sync_outbox");
       await d.execute("DELETE FROM sync_state WHERE key IN ('cursor', 'former_account')");
-      const cols = await columnsOf(d);
+    });
+    // Pull first: the server's rows land here, and only what it lacks gets queued.
+    const theirs = await pull();
+    await transact(async (d) => {
       const at = new Date().toISOString();
-      for (const t of Object.keys(SYNC_TABLES) as SyncTable[]) {
-        const pairs = cols[t].flatMap((c) => [`'${t === "habit_checkins" && c === "value" ? "_delta" : c}'`, c]);
-        if (!cols[t].includes("deleted_at")) pairs.push("'deleted_at'", "NULL");
-        const rowId = t === "habit_checkins" ? "habit_id || '|' || date" : SYNC_TABLES[t][0];
-        const res = await d.execute(
-          `INSERT INTO sync_outbox (tbl, row_id, fields, created_at) SELECT '${t}', ${rowId}, json_object(${pairs.join(", ")}), $1 FROM ${t}`,
-          [at],
-        );
-        if (res.rowsAffected) counts[t] = res.rowsAffected;
+      counts = await queueLocalRows(d, theirs, at);
+      if (!theirs.some((r) => r.tbl === "settings")) {
+        const s = useSettings.getState().settings;
+        const user = Object.fromEntries(USER_SETTING_KEYS.map((k) => [k, s[k]]));
+        await d.execute("INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('settings', 'user', $1, $2)", [JSON.stringify(user), at]);
       }
-      const s = useSettings.getState().settings;
-      const user = Object.fromEntries(USER_SETTING_KEYS.map((k) => [k, s[k]]));
-      await d.execute("INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('settings', 'user', $1, $2)", [JSON.stringify(user), at]);
       await setState(d, "account", account);
       await setState(d, "record", "1");
     });

@@ -9,12 +9,15 @@ import {
   addTask,
   deleteOccurrence,
   deleteTasks,
+  depthOf,
   editOccurrence,
   moveSection,
+  moveTasks,
   moveFolder,
   removeFolder,
   replaceAll,
   restoreTasks,
+  setEditGuard,
   setParent,
   setStatus,
   undoable,
@@ -169,5 +172,57 @@ describe("nested folders", () => {
     expect(folders[b.id]).toBeUndefined();
     expect(folders[c.id].parentId).toBe(a.id);
     expect(lists[l.id].folderId).toBe(a.id);
+  });
+});
+
+describe("v1.2.1 store fixes", () => {
+  it("restoring a subtask restores its trashed parent", () => {
+    const p = addTask({ title: "P" });
+    const c = addTask({ title: "C", parentId: p.id });
+    deleteTasks([p.id]);
+    restoreTasks([c.id]);
+    expect(live().map((t) => t.id).sort()).toEqual([p.id, c.id].sort());
+  });
+
+  it("H10: following and all treat someday like none", () => {
+    const mk = () => addTask({ title: "S", schedule: { kind: "day", date: "2026-10-26" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const a = mk();
+    editOccurrence(a.id, "2026-10-28", "following", { schedule: { kind: "someday" } });
+    expect(live().filter((t) => t.schedule.kind === "someday").every((t) => t.recurrence === null)).toBe(true);
+    const b = mk();
+    editOccurrence(b.id, "2026-10-28", "all", { schedule: { kind: "someday" } });
+    expect(useData.getState().tasks[b.id].recurrence).toBeNull();
+  });
+
+  it("setParent into another list keeps the new parent", () => {
+    const p1 = addTask({ title: "P1", listId: "work" });
+    const c = addTask({ title: "C", parentId: p1.id, listId: "work" });
+    const p2 = addTask({ title: "P2" });
+    expect(setParent(c.id, p2.id)).toBe(true);
+    expect(useData.getState().tasks[c.id]).toMatchObject({ parentId: p2.id, listId: p2.listId });
+  });
+
+  it("depthOf and descendants survive a parent cycle", () => {
+    const a = addTask({ title: "A" });
+    const b = addTask({ title: "B", parentId: a.id });
+    useData.setState((s) => ({ tasks: { ...s.tasks, [a.id]: { ...s.tasks[a.id], parentId: b.id } } }));
+    expect(depthOf(a.id)).toBeGreaterThan(0);
+    expect(() => deleteTasks([a.id])).not.toThrow();
+  });
+});
+
+describe("H11 view-only lists", () => {
+  it("refuses every task write to a list the guard rejects, whichever path it takes", () => {
+    const t = addTask({ title: "Shared", listId: "ro" });
+    setEditGuard((id) => id !== "ro");
+    try {
+      updateTask(t.id, { title: "x" });
+      setStatus(t.id, "done");
+      deleteTasks([t.id]);
+      moveTasks([t.id], "inbox");
+      expect(useData.getState().tasks[t.id]).toMatchObject({ title: "Shared", status: "open", deletedAt: null, listId: "ro" });
+    } finally {
+      setEditGuard(() => true);
+    }
   });
 });

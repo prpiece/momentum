@@ -456,7 +456,7 @@ function Checklist({ task }: { task: Task }) {
               role="checkbox"
               aria-checked={it.done}
               aria-label={it.title}
-              onClick={() => set(items.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))}
+              onClick={(e) => e.detail < 2 && set(items.map((x) => (x.id === it.id ? { ...x, done: !x.done } : x)))}
               className="check sm"
             >
               <Check strokeWidth={2.75} />

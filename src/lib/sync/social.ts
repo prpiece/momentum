@@ -5,9 +5,11 @@
  */
 import { isLocalDate } from "../../domain/dates";
 import { isInviteCode } from "../../domain/invite";
+import { failureText, isMissingFunction, SERVER_UPDATE_MESSAGE } from "../../domain/serverStatus";
 import type { Role } from "../../domain/shareAccess";
 
 export type { Role };
+import { markServerBehind } from "./serverVersion";
 import { projectUrl, supabase } from "./supabase";
 
 export type Profile = { id: string; handle: string; displayName: string | null; avatar: string | null };
@@ -65,15 +67,32 @@ const MESSAGES: Record<string, string> = {
   too_many_invites: "That's a lot of links today. Try again tomorrow.",
   too_many_sent: "You've sent a lot of tasks today. Try again tomorrow.",
 };
+/** What each server call does, for "Couldn't …" toasts (D289). */
+const WHAT: Record<string, string> = {
+  my_friends: "load your friends", request_friend: "send the friend request", respond_friend: "answer the friend request", remove_friend: "remove the friend",
+  block_account: "block that account", find_profile: "look up that handle", create_friend_invite: "make an invite link", create_share_invite: "make a share link",
+  revoke_invite: "revoke the invite", invite_info: "read that invite", redeem_invite: "open that invite", my_shares: "load your shares", share_people: "load the people in this share",
+  create_share: "start sharing", invite_to_share: "invite them to the share", set_member_role: "change their role", respond_share: "answer the share invitation",
+  remove_member: "remove them from the share", delete_share: "stop sharing", transfer_share: "hand over the share", audience: "check who would see this",
+  incoming_tasks: "load tasks sent to you", outgoing_tasks: "load tasks you sent", respond_sent_task: "answer the sent task", set_focus: "share your focus session",
+  buddy_habits: "load your buddies' habits", my_buddies: "load your check-in buddies", set_buddies: "save your check-in buddies", nudge: "send the nudge",
+  create_link_code: "make a link code", my_connections: "load your connections", remove_connection: "remove the connection", set_digest: "save the digest time",
+  has_webhook: "check your webhook", create_webhook: "make a webhook", delete_webhook: "delete the webhook",
+};
 export class SocialError extends Error {}
-function fail(message: string): never {
+/** `what` says what failed; a function the server lacks means the server is behind the app. */
+function fail(message: string, what = "finish that", error?: { code?: string } | null): never {
+  if (isMissingFunction(error ?? null)) {
+    markServerBehind();
+    throw new SocialError(`${SERVER_UPDATE_MESSAGE}.`);
+  }
   const code = Object.keys(MESSAGES).find((k) => message.includes(k));
-  throw new SocialError(code ? MESSAGES[code] : "Something went wrong. Try again.");
+  throw new SocialError(code ? MESSAGES[code] : failureText(what, { message }));
 }
 
 async function call(fn: string, args: Record<string, unknown> = {}): Promise<unknown> {
   const { data, error } = await supabase.rpc(fn, args);
-  if (error) fail(error.message);
+  if (error) fail(error.message, WHAT[fn] ?? fn.replace(/_/g, " "), error);
   return data;
 }
 
@@ -91,7 +110,7 @@ export const blockAccount = (id: string) => call("block_account", { p_account: i
 export const findProfile = async (handle: string): Promise<Profile | null> => all(await call("find_profile", { p_handle: handle }), (r) => profile(r))[0] ?? null;
 export async function reportAccount(id: string, body: string, appVersion: string, platform: string) {
   const { error } = await supabase.from("reports").insert({ name: "Account report", email: "in-app@momentum.invalid", body, app_version: appVersion, platform, reported_id: id });
-  if (error) fail(error.message);
+  if (error) fail(error.message, "send the report", error);
 }
 
 // ---------- invite links ----------
@@ -148,7 +167,7 @@ export const audience = async (kind: ShareKind, id: string): Promise<Profile[]> 
 /** Sends through the inbound function (ADR 0008), which checks the friendship. */
 export async function sendTask(to: string, task: SentPayload): Promise<void> {
   const { error } = await supabase.functions.invoke("inbound/send", { body: { to, task } });
-  if (error) fail(String((await (error as { context?: Response }).context?.json?.().catch(() => null))?.error ?? error.message));
+  if (error) fail(String((await (error as { context?: Response }).context?.json?.().catch(() => null))?.error ?? error.message), "send the task");
 }
 export const incomingTasks = async (): Promise<IncomingTask[]> =>
   all(await call("incoming_tasks"), (r) => {
@@ -167,13 +186,13 @@ export const respondSentTask = async (id: string, accept: boolean) => str(await 
 
 export async function setShareFocus(on: boolean, me: string) {
   const { error } = await supabase.from("profiles").update({ share_focus: on }).eq("id", me);
-  if (error) fail(error.message);
+  if (error) fail(error.message, "change Focus sharing");
 }
 /** Publishes a running session's end (or null when it stops); a no-op unless sharing is on. */
 export const setFocus = (endsAt: string | null) => call("set_focus", { p_ends_at: endsAt }).then(() => undefined);
 export async function friendsFocusing(me: string): Promise<{ id: string; endsAt: string }[]> {
   const { data, error } = await supabase.from("focus_status").select("account_id, ends_at").neq("account_id", me).gt("ends_at", new Date().toISOString());
-  if (error) fail(error.message);
+  if (error) fail(error.message, "check who is focusing");
   return all(data, (r) => (typeof r.account_id === "string" && typeof r.ends_at === "string" ? { id: r.account_id, endsAt: r.ends_at } : null));
 }
 

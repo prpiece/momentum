@@ -21,6 +21,7 @@ export function TaskCheckbox(props: {
       aria-label={props.label}
       onClick={(e) => {
         e.stopPropagation();
+        if (e.detail > 1) return; // the second click of a double click would undo the first
         props.onToggle();
       }}
       onPointerDown={(e) => e.stopPropagation()}

@@ -1,5 +1,6 @@
 import type { Activity, ActivityKind, CalendarEvent, Folder, Section, Tag, Task, TaskList } from "../domain/types";
 import { folderDepth } from "../domain/folders";
+import { TRASH_DAYS } from "../domain/trash";
 import { parseSubscription, subscriptionToRow, type CalendarSubscription } from "../domain/subscriptions";
 import { select, upsert, write } from "./client";
 import {
@@ -29,10 +30,11 @@ export type Workspace = {
   tags: Tag[];
 };
 
-/** `purge`: drop soft-deleted rows first (at launch; not when sync refreshes mid-session, which would end undo). */
+/** `purge`: drop old soft-deleted rows first (at launch; not when sync refreshes mid-session, which would end undo). */
 export async function loadWorkspace(purge = true): Promise<Workspace> {
-  // Soft-deleted rows only exist to make undo cheap within a session.
-  if (purge) await write(["DELETE FROM tasks WHERE deleted_at IS NOT NULL"], ["DELETE FROM calendar_events WHERE deleted_at IS NOT NULL"]);
+  // Soft-deleted events only exist to make undo cheap; tasks wait in the Trash.
+  const cutoff = new Date(Date.now() - TRASH_DAYS * 86_400_000).toISOString();
+  if (purge) await write(["DELETE FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < $1", [cutoff]], ["DELETE FROM calendar_events WHERE deleted_at IS NOT NULL"]);
   const [tasks, events, lists, folders, sections, tags] = await Promise.all(
     ["tasks", "calendar_events", "lists", "folders", "sections", "tags"].map((t) => select<Row>(`SELECT * FROM ${t}`)),
   );
@@ -47,6 +49,7 @@ export async function loadWorkspace(purge = true): Promise<Workspace> {
 }
 
 export const saveTasks = (tasks: Task[]) => write(...tasks.map((t) => upsert("tasks", taskToRow(t))));
+export const purgeTasks = (ids: string[]) => write(...ids.map((id): [string, unknown[]] => ["DELETE FROM tasks WHERE id = $1", [id]]));
 export const saveEvents = (events: CalendarEvent[]) => write(...events.map((e) => upsert("calendar_events", eventToRow(e))));
 /** Calendar subscriptions (v1.3). `purge` clears removed ones first, as `loadWorkspace` does for events. */
 export async function loadSubscriptions(purge = true): Promise<CalendarSubscription[]> {

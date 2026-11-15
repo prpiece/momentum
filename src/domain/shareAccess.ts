@@ -34,3 +34,14 @@ export function sharesCoveringFolder<S extends ShareLike>(shares: readonly S[], 
 export function bestRole(covering: readonly ShareLike[]): Role | null {
   return covering.reduce<Role | null>((best, s) => (best === null || RANK[s.role] > RANK[best] ? s.role : best), null);
 }
+
+type Lists = Readonly<Record<string, { id: string; folderId: string | null }>>;
+
+/**
+ * The one rule for "may I change this list's tasks": false only when every share covering it is
+ * view-only (H11). An unshared or unknown list is yours to edit.
+ */
+export function canEdit(listId: string, lists: Lists, folders: Folders, shares: readonly ShareLike[]): boolean {
+  const list = lists[listId];
+  return !list || bestRole(sharesCoveringList(shares, folders, list)) !== "viewer";
+}

@@ -1,4 +1,4 @@
-import { addMonths, format, startOfMonth, startOfWeek } from "date-fns";
+import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Flame, Pencil } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { viewDays } from "../../domain/calendar";
@@ -112,7 +112,7 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
   const days = viewDays("month", month, ws);
   const m = fromLocalDate(month).getMonth();
   const today = todayLocal();
-  const rate = completionRate(habit, values, month, toLocalDate(addMonths(fromLocalDate(month), 1)), today, ws);
+  const rate = completionRate(habit, values, month, toLocalDate(endOfMonth(fromLocalDate(month))), today, ws);
   return (
     <section>
       <div className="mb-2 flex items-center gap-1">

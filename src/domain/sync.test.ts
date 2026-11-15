@@ -29,6 +29,11 @@ describe("planApply", () => {
     expect(ops).toEqual([{ kind: "upsert", tbl: "lists", id: "l1", row: { id: "l1", name: "Work", color: null } }]);
   });
 
+  it("H13: merges a personal-layer patch onto the record instead of keeping only the highest version", () => {
+    const ops = planApply([rr("tasks", "t1", { title: "Shared", list_id: "l1" }, 5), rr("tasks", "t1", { title: "Mine" }, 9)], new Map(), COLS);
+    expect(ops).toEqual([{ kind: "upsert", tbl: "tasks", id: "t1", row: { id: "t1", title: "Mine", list_id: "l1" } }]);
+  });
+
   it("keeps fields this device hasn't pushed yet, but takes the rest", () => {
     const pending = pendingFields([ob(1, "lists", "l1", { name: "Mine" })]);
     const ops = planApply([rr("lists", "l1", { id: "l1", name: "Theirs", color: "#fff" })], pending, COLS);

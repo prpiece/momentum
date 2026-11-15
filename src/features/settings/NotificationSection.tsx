@@ -78,7 +78,7 @@ export function NotificationSection() {
       <Line title="Notifications" hint="Reminders keep firing while Momentum sits in the tray.">
         <Switch checked={n.enabled} onChange={(enabled) => set({ enabled })} label="Notifications" />
       </Line>
-      <div className={`space-y-4 transition-opacity duration-[var(--dur)] ${n.enabled ? "" : "pointer-events-none opacity-45"}`} aria-disabled={!n.enabled}>
+      <div className={`space-y-4 transition-opacity duration-[var(--dur)] ${n.enabled ? "" : "pointer-events-none opacity-45"}`} aria-disabled={!n.enabled} inert={!n.enabled}>
         <div className="space-y-3 border-t border-border pt-4">
           <div className="t-label text-muted">What notifies</div>
           {KINDS.map(([k, title, hint]) => (

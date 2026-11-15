@@ -28,6 +28,7 @@ import { PhoneBar } from "./features/shell/PhoneBar";
 import { Sidebar } from "./features/shell/Sidebar";
 import { Tour } from "./features/shell/Tour";
 import { BackgroundLayer } from "./features/shell/BackgroundLayer";
+import { TrashView } from "./features/trash/TrashView";
 import { WindowControls } from "./features/shell/WindowControls";
 import { TaskDrawer } from "./features/tasks/TaskDrawer";
 import { TaskView } from "./features/tasks/TaskView";
@@ -41,7 +42,7 @@ import { toast, useUi } from "./stores/ui";
 
 
 /** Views that are not task lists: the background image stays off them. */
-const PAGE_VIEWS: readonly string[] = ["settings", "calendar", "habits", "progress", "focus", "friends"];
+const PAGE_VIEWS: readonly string[] = ["settings", "calendar", "habits", "progress", "focus", "friends", "trash"];
 
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "settings") return <SettingsView />;
@@ -50,6 +51,7 @@ function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
   if (view === "progress") return <ProgressView />;
   if (view === "focus") return <FocusView />;
   if (view === "friends") return <FriendsView />;
+  if (view === "trash") return <TrashView />;
   if (spec) return <TaskView spec={spec} />;
   const nav = navFor(view);
   return (

@@ -59,6 +59,7 @@ function DoneCheck({ item }: { item: CalItem }) {
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
+        if (e.detail > 1) return; // the second click of a double click would undo the first
         toggleDone(item.id, item.key);
       }}
       className={`check mt-px size-3 [&>svg]:size-2 ${item.done ? "" : (["", "p-low", "p-med", "p-high"][item.priority] ?? "")}`}
@@ -97,15 +98,24 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
         bottom: edge === "end" ? minutesInDay(new Date(next.end), day) : placed.bottom,
       });
     };
+    // A cancelled resize drops the preview and changes nothing.
+    const cancel = () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", cancel);
+      setPreview(null);
+    };
     const up = () => {
       markDragged();
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", cancel);
       setPreview(null);
       if (next !== schedule) void applySchedule(item, next);
     };
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", cancel);
   };
 
   const label = item.start && item.end ? `${formatTime(item.start, timeFormat)} – ${formatTime(item.end, timeFormat)}` : "";

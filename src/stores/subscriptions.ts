@@ -29,8 +29,9 @@ export const setFeedFetcher = (fn: typeof fetchIcs) => void (fetchIcs = fn);
 const message = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : "Couldn't refresh the calendar.");
 
 /** Bring one subscription's events in step with its feed. Writes only what changed. Throws on a bad feed (events are left alone). */
-async function apply(sub: CalendarSubscription) {
+async function apply(sub: CalendarSubscription, stillHere: () => boolean = () => true) {
   const text = await fetchIcs(sub.url);
+  if (!stillHere()) return 0; // removed while the feed downloaded: don't bring its events back
   const { events } = subscriptionEvents(sub, text, new Date().toISOString(), ACCENT_PRESETS[1].hex);
   const existing = Object.values(useData.getState().events).filter((e) => e.subscriptionId === sub.id);
   const { upsert, remove } = diffSubscription(existing, events);
@@ -48,7 +49,7 @@ export async function refreshSubscription(id: string) {
   if (!sub || get().status[id]?.busy) return;
   patchStatus(id, { busy: true });
   try {
-    await apply(sub);
+    await apply(sub, () => !!get().subs[id]);
     patchStatus(id, { busy: false, at: new Date().toISOString(), error: null });
   } catch (e) {
     patchStatus(id, { busy: false, error: message(e) });

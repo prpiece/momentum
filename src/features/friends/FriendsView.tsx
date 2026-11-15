@@ -4,6 +4,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { PageHead } from "../../components/ui/PageHead";
 import { handleFrom, inviteUrl } from "../../domain/invite";
 import { useSync } from "../../lib/sync/engine";
+import { useServerVersion } from "../../lib/sync/serverVersion";
 import * as api from "../../lib/sync/social";
 import { openInvite, refreshSocial, useSocial } from "../../stores/social";
 import { toast } from "../../stores/toast";
@@ -12,6 +13,7 @@ import { go } from "../../stores/ui";
 import { BuddiesSection } from "./BuddiesSection";
 import { FriendRow } from "./FriendRow";
 import { RequestsSection } from "./RequestsSection";
+import { ServerUpdateNotice } from "./ServerUpdateNotice";
 import { copyText } from "./attempt";
 
 const STATUS = { pending: "Waiting", accepted: "Accepted", declined: "Declined" } as const;
@@ -87,6 +89,7 @@ function Signed() {
   const outgoing = useSocial((s) => s.outgoingTasks);
   const loaded = useSocial((s) => s.loaded);
   const friends = useMemo(() => all.filter((f) => f.status === "accepted" || !f.incoming), [all]);
+  const behind = useServerVersion((s) => s.state) === "behind";
 
   const copy = async () => {
     try {
@@ -96,6 +99,14 @@ function Signed() {
       toast(e instanceof api.SocialError ? e.message : "Couldn't make a link.");
     }
   };
+
+  if (behind)
+    return (
+      <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col gap-6 px-[var(--gutter)] pb-10 pt-6">
+        <PageHead title="Friends" />
+        <ServerUpdateNotice />
+      </div>
+    );
 
   return (
     <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col gap-6 px-[var(--gutter)] pb-10 pt-6">

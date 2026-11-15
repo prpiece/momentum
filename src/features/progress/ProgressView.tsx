@@ -4,7 +4,7 @@ import { AppIcon } from "../../components/ui/AppIcon";
 import { BarChart } from "../../components/ui/BarChart";
 import { PageHead } from "../../components/ui/PageHead";
 import { Segmented } from "../../components/ui/Segmented";
-import { addDaysLocal, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
+import { addDaysLocal, formatMinutes, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
 import { completionRate } from "../../domain/habits";
 import { completedPerDay, completedPerWeek, type Bucket } from "../../domain/stats";
 import { useData } from "../../stores/data";
@@ -52,7 +52,7 @@ export function ProgressView() {
 
       <div className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-4">
         <Stat label="Tasks done" className="min-[720px]:col-span-2" value={weeks[weeks.length - 1]?.value ?? 0} />
-        <Stat label="Focus" className="min-[720px]:col-span-2" value={`${Math.floor(focusMinutes / 60)}h ${Math.round(focusMinutes % 60)}m`} />
+        <Stat label="Focus" className="min-[720px]:col-span-2" value={formatMinutes(focusMinutes)} />
         <Card
           title="Tasks completed"
           className="min-[720px]:col-span-2"
