@@ -1,7 +1,8 @@
+import { useToday } from "@/ui/useToday";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
-import { formatMinutes, fromLocalDate, todayLocal } from "@core/domain/dates";
+import { formatMinutes, fromLocalDate } from "@core/domain/dates";
 import { derive, inSmartList, inSmartScope, plannedMinutes, sortVMs, type TaskVM } from "@core/domain/taskViews";
 import { useData } from "@core/stores/data";
 import { useSettings } from "@core/stores/settings";
@@ -21,7 +22,7 @@ export default function Today() {
   const c = useColors();
   const tasks = useData((s) => s.tasks);
   const lists = useData((s) => s.lists);
-  const today = todayLocal();
+  const today = useToday();
   const [showDone, setShowDone] = useState(false);
   const oneThing = useSettings((s) => s.settings.oneThing);
   useQuickAddContext({ schedule: { kind: "day", date: today } });

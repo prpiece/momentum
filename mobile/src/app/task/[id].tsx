@@ -162,8 +162,13 @@ export default function TaskSheet() {
   const chooseRepeat = async () => {
     const r = await choose<string>("Repeat", [{ value: "", label: "Doesn't repeat", selected: !rule }, ...REPEAT_PRESETS.map((p) => ({ value: p.rule, label: p.label, selected: p.rule === rule })), ...(rule && !REPEAT_PRESETS.some((p) => p.rule === rule) ? [{ value: rule, label: describeRule(rule), selected: true }] : [])]);
     if (r === null || r === (rule ?? "")) return;
-    // A repeat needs a start date: today when the task has none.
-    const anchored = schedule.kind === "none" ? { schedule: { kind: "day", date: today } as Schedule } : {};
+    // A repeat needs a start date: today when the task has none; a Someday task has to pick one, or the repeat would be dropped.
+    let anchored = schedule.kind === "none" ? { schedule: { kind: "day", date: today } as Schedule } : {};
+    if (r && schedule.kind === "someday") {
+      const day = await askDay(today);
+      if (!day) return;
+      anchored = { schedule: { kind: "day", date: day } as Schedule };
+    }
     updateTask(t.id, { ...anchored, recurrence: r ? { rule: r, exdates: [] } : null });
   };
   const addSub = () => {
