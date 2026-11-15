@@ -264,9 +264,17 @@ function DayColumn(props: {
       to = Math.max(from + SNAP, Math.min(MINUTES_PER_DAY, Math.ceil(m / SNAP) * SNAP));
       setSel({ from, to });
     };
+    // A cancelled gesture (touch taken over by scrolling, capture lost) creates nothing and leaves no selection or listeners.
+    const cancel = () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", cancel);
+      setSel(null);
+    };
     const up = (ev: PointerEvent) => {
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", cancel);
       const length = moved ? to - from : 60;
       props.onCreate({
         anchor: { x: ev.clientX, y: ev.clientY },
@@ -276,6 +284,7 @@ function DayColumn(props: {
     };
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", cancel);
   };
 
   const now = new Date();

@@ -133,7 +133,7 @@ function DoneBox({ t, small }: { t: MiniTask; small?: boolean }) {
       role="checkbox"
       aria-checked={false}
       aria-label={`Complete ${t.title}`}
-      onClick={() => void send({ type: "toggle", id: t.id, key: t.key })}
+      onClick={(e) => e.detail < 2 && void send({ type: "toggle", id: t.id, key: t.key })}
       className={`check ${small ? "sm" : ""}`}
     >
       <Check strokeWidth={2.75} />

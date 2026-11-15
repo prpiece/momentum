@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { droppedSchedule } from "../../domain/calendar";
 import { todayLocal } from "../../domain/dates";
+import { rangeBetween } from "../../domain/focus";
 import { flattenTree, groupVMs, sortVMs, topLevelIn, type TaskVM, type TreeRow } from "../../domain/taskViews";
 import type { ViewId, ViewOptions } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
@@ -97,9 +98,8 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
     const sel = useUi.getState().selection;
     if (e.ctrlKey || e.metaKey) return setSelection(sel.includes(id) ? sel.filter((s) => s !== id) : [...sel, id]);
     if (e.shiftKey && sel.length) {
-      const a = taskIds.indexOf(sel[sel.length - 1]);
-      const b = taskIds.indexOf(id);
-      return setSelection(taskIds.slice(Math.min(a, b), Math.max(a, b) + 1));
+      // An anchor that's no longer in this list (filtered or scrolled out of the view) starts the range at the clicked row.
+      return setSelection(rangeBetween(taskIds, sel[sel.length - 1], id));
     }
     setSelection([id]);
     openTask(id, derived.byId.get(id)?.key ?? null);
