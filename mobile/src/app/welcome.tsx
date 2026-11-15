@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HABIT_HEX } from "@core/db/habitRows";
 import type { HabitFrequency, HabitGoal } from "@core/domain/habits";
 import { parseQuickAdd } from "@core/domain/quickAdd";
 import { setLocalState } from "@core/lib/sync/engine";
@@ -13,10 +14,10 @@ import { Button, Icon, Text } from "@/ui/kit";
 
 const EXAMPLES = ["Call mum tomorrow 6pm", "Gym every Mon Wed", "Groceries #errand"];
 const HABITS: { name: string; sub: string; goal: HabitGoal; frequency: HabitFrequency; color: string }[] = [
-  { name: "Drink water", sub: "8 glasses a day", goal: { kind: "count", target: 8, unit: "glasses", period: "day" }, frequency: { kind: "daily" }, color: "var(--h-blue)" },
-  { name: "Read", sub: "20 minutes a day", goal: { kind: "amount", target: 20, unit: "min", period: "day" }, frequency: { kind: "daily" }, color: "var(--h-violet)" },
-  { name: "Exercise", sub: "3 times a week", goal: { kind: "once" }, frequency: { kind: "perWeek", count: 3 }, color: "var(--h-coral)" },
-  { name: "Less social media", sub: "At most 30 minutes a day", goal: { kind: "limit", cap: 30, unit: "min" }, frequency: { kind: "daily" }, color: "var(--h-amber)" },
+  { name: "Drink water", sub: "8 glasses a day", goal: { kind: "count", target: 8, unit: "glasses", period: "day" }, frequency: { kind: "daily" }, color: HABIT_HEX.blue },
+  { name: "Read", sub: "20 minutes a day", goal: { kind: "amount", target: 20, unit: "min", period: "day" }, frequency: { kind: "daily" }, color: HABIT_HEX.violet },
+  { name: "Exercise", sub: "3 times a week", goal: { kind: "once" }, frequency: { kind: "perWeek", count: 3 }, color: HABIT_HEX.coral },
+  { name: "Less social media", sub: "At most 30 minutes a day", goal: { kind: "limit", cap: 30, unit: "min" }, frequency: { kind: "daily" }, color: HABIT_HEX.amber },
 ];
 
 /** First run (S14): welcome, a first task that teaches the parser, an optional starter habit, then Today. No account, no permission asks. */

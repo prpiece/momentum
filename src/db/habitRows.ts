@@ -40,6 +40,16 @@ export function parseFrequency(v: unknown): HabitFrequency {
   return { kind: "daily" };
 }
 
+/** The habit palette's light-theme hexes (`--h-*` in tokens.css); older rows stored `var(--h-*)`. */
+export const HABIT_HEX: Record<string, string> = { blue: "#3470c2", violet: "#7a45c8", coral: "#c8432b", amber: "#a86400", teal: "#0b7a75" };
+
+function parseHabitColor(v: unknown): string {
+  if (typeof v !== "string") return "#5b5bd6";
+  if (/^#[0-9a-f]{6}$/i.test(v)) return v;
+  const m = /^var\(--h-([a-z]+)\)$/.exec(v);
+  return (m && HABIT_HEX[m[1]]) || "#5b5bd6";
+}
+
 export function parseHabit(r: Row): Habit | null {
   if (typeof r.id !== "string" || typeof r.name !== "string") return null;
   const reminders = json(r.reminders);
@@ -49,7 +59,7 @@ export function parseHabit(r: Row): Habit | null {
     id: r.id,
     name: r.name,
     icon: typeof r.icon === "string" && r.icon ? r.icon : "check",
-    color: typeof r.color === "string" && /^#[0-9a-f]{6}$/i.test(r.color) ? r.color : "#5b5bd6",
+    color: parseHabitColor(r.color),
     goal,
     // "x per week" needs a target to reach, so avoid-habits are daily or on set days.
     frequency: isBuild({ goal }) || frequency.kind !== "perWeek" ? frequency : { kind: "daily" },

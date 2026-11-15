@@ -20,6 +20,11 @@ describe("habit rows", () => {
 
   it("round-trips", () => expect(parseHabit(habitToRow(h))).toEqual(h));
 
+  it("maps the stored var(--h-*) colours to their hex (H16)", () => {
+    expect(parseHabit({ ...habitToRow(h), color: "var(--h-violet)" })?.color).toBe("#7a45c8");
+    expect(parseHabit({ ...habitToRow(h), color: "var(--h-nope)" })?.color).toBe("#5b5bd6");
+  });
+
   it("repairs invalid goal, frequency and reminders", () => {
     expect(parseGoal({ kind: "count", target: -3 })).toEqual({ kind: "count", target: 1, unit: "", period: "day" });
     expect(parseGoal("nope")).toEqual({ kind: "once" });
