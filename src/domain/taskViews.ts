@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { addDaysLocal, fromLocalDate, scheduleDate, taskMinutes, toLocalDate, wallKey } from "./dates";
+import { addDaysLocal, fromLocalDate, scheduleDate, taskMinutes, toLocalDate, todayLocal, wallKey } from "./dates";
 import { effective } from "./recurrence";
 import { blockerOpen, followUpDue, isWaiting } from "./waiting";
 import {
@@ -67,7 +67,7 @@ export function inSmartScope(id: SmartListId, vm: TaskVM, today: LocalDate): boo
     case "inbox":
       return t.listId === INBOX_ID;
     case "today":
-      return t.completedAt !== null && toLocalDate(new Date(t.completedAt)) === today;
+      return t.completedAt !== null && todayLocal(new Date(t.completedAt)) === today;
     case "upcoming":
       return vm.date !== null && vm.date > today;
     case "someday":

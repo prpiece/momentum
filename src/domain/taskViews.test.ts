@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDaysLocal, atLocalTime, timed } from "./dates";
+import { addDaysLocal, atLocalTime, setDayEndHour, timed } from "./dates";
 import { derive, flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, plannedMinutes, sortVMs, toVM, type TaskVM } from "./taskViews";
 import type { Schedule, SmartListId, Task, TaskList } from "./types";
 
@@ -54,6 +54,18 @@ describe("smart lists", () => {
     expect(lists(...all)(mk({ status: "done", priority: 3, schedule: day(TODAY) }))).toEqual([]);
     expect(lists(...all)(mk({ status: "wont_do" }))).toEqual([]);
     expect(isOverdue(vm(mk({ status: "done", schedule: day("2026-10-01") })), TODAY)).toBe(false);
+  });
+
+  it("Today's completed scope respects the end-of-day hour", () => {
+    setDayEndHour(3);
+    try {
+      const at = (hhmm: string) => atLocalTime(TODAY, hhmm).toISOString();
+      expect(inSmartScope("today", vm(mk({ status: "done", completedAt: at("01:00") })), TODAY)).toBe(false);
+      expect(inSmartScope("today", vm(mk({ status: "done", completedAt: at("04:00") })), TODAY)).toBe(true);
+      expect(inSmartScope("today", vm(mk({ status: "done", completedAt: atLocalTime(addDaysLocal(TODAY, 1), "01:00").toISOString() })), TODAY)).toBe(true);
+    } finally {
+      setDayEndHour(0);
+    }
   });
 
   it("scopes finished tasks for Show completed", () => {

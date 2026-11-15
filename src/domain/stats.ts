@@ -1,10 +1,10 @@
 import { startOfWeek } from "date-fns";
-import { addDaysLocal, fromLocalDate, toLocalDate } from "./dates";
+import { addDaysLocal, fromLocalDate, toLocalDate, todayLocal } from "./dates";
 import type { LocalDate, Task, WeekStart } from "./types";
 
 export type Bucket = { start: LocalDate; label: string; value: number };
 
-const localDay = (iso: string) => toLocalDate(new Date(iso));
+const localDay = (iso: string) => todayLocal(new Date(iso));
 
 /** Tasks completed per local day for the `n` days ending `today`. */
 export function completedPerDay(tasks: readonly Task[], today: LocalDate, n: number): Bucket[] {
