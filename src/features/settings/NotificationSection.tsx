@@ -1,3 +1,4 @@
+import { trayName } from "../../lib/platform";
 import { AlarmClock, BellRing, Check, Monitor, PanelBottom, PanelTop } from "lucide-react";
 import type { ReactNode } from "react";
 import { Segmented } from "../../components/ui/Segmented";
@@ -58,7 +59,7 @@ function Preview({ style }: { style: NotifySettings["style"] }) {
           <Monitor size={14} className="mt-0.5 shrink-0 text-muted" />
           <div className="min-w-0">
             <div className="truncate text-xs font-semibold">Dentist appointment</div>
-            <div className="text-[length:var(--fs-xs)] text-muted">Windows notification</div>
+            <div className="text-[length:var(--fs-xs)] text-muted">System notification</div>
           </div>
         </div>
       )}
@@ -75,7 +76,7 @@ export function NotificationSection() {
 
   return (
     <div className="space-y-4">
-      <Line title="Notifications" hint="Reminders keep firing while Momentum sits in the tray.">
+      <Line title="Notifications" hint={`Reminders keep firing while Momentum sits in the ${trayName}.`}>
         <Switch checked={n.enabled} onChange={(enabled) => set({ enabled })} label="Notifications" />
       </Line>
       <div className={`space-y-4 transition-opacity duration-[var(--dur)] ${n.enabled ? "" : "pointer-events-none opacity-45"}`} aria-disabled={!n.enabled} inert={!n.enabled}>
@@ -106,7 +107,7 @@ export function NotificationSection() {
               onChange={(style) => set({ style })}
               options={[
                 { value: "popup", label: "Popup" },
-                { value: "system", label: "Windows" },
+                { value: "system", label: "System" },
                 { value: "both", label: "Both" },
               ]}
             />

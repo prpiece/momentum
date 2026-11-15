@@ -37,12 +37,12 @@ const STEPS: Step[] = [
     interactive: true,
     body: (
       <>
-        <p>Momentum is the planner you do with friends (friends are coming soon). It starts with getting things out of your head: type a task and press Enter. Try one now.</p>
+        <p>Momentum is the planner you do with friends. It starts with getting things out of your head: type a task and press Enter. Try one now.</p>
         <div className="flex flex-wrap gap-1.5">
           <Token>tomorrow 5pm</Token> <Token>!high</Token> <Token>#school</Token> <Token>~Work</Token> <Token>every mon</Token>
         </div>
         <Tip>
-          Press <Kbd>N</Kbd> in the app, or <Kbd>Ctrl Shift A</Kbd> from any other app. Everything works offline.
+          Press <Kbd>N</Kbd> in the app, or <Kbd>Ctrl Shift A</Kbd> from any other app (change it in Settings). Everything works offline.
         </Tip>
       </>
     ),
@@ -68,7 +68,7 @@ const STEPS: Step[] = [
       <>
         <p>Check in your habits each day, and run a focus timer on a task.</p>
         <Tip>
-          <Kbd>Ctrl Alt M</Kbd> keeps the timer and your next tasks on top while you work elsewhere.
+          <Kbd>Ctrl Alt M</Kbd> keeps the timer and your next tasks on top while you work elsewhere. You can change the key in Settings.
         </Tip>
       </>
     ),

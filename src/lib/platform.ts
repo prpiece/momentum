@@ -1,6 +1,8 @@
 import { macKeys } from "../domain/keys";
 
 export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent);
+/** What the OS calls the area the app icon lives in when the window is closed. */
+export const trayName = isMac ? "menu bar" : "tray";
 
 /** A shortcut as written for Windows/Linux ("Ctrl K"), spelled for this computer. */
 export const keyLabel = (keys: string) => (isMac ? macKeys(keys) : keys);

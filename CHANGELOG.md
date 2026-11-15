@@ -21,6 +21,7 @@ step-by-step tour. Screenshot lines are left out of the GitHub notes.
 - **Trash.** Deleted tasks stay in Trash for 30 days, where you can restore them or delete them for good. Restoring a subtask brings its parent back too.
 - **Safer AI agents.** Agents can delete a task to the Trash and restore it. A delete needs the task's full id, never touches subtasks unless asked, and only removes one task at a time.
 - **Chats can do more.** From Discord, Slack, Telegram or your webhook you can now view, update, complete, reopen, delete and restore tasks, not just add them. Each connection can be set to add-only, and the webhook starts that way.
+  Correction: only the webhook starts add-only. The app has no per-connection add-only setting yet.
 - **Quick add reads durations properly.** "5pm 30m" makes a 30-minute task, and "15 min", "1 h 30 min" and "90 minutes" are always durations.
 - **Back-to-back tasks stack** on the calendar instead of squeezing side by side.
 - **View-only shares stay view-only** everywhere on desktop and phone.

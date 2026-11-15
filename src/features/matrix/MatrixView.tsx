@@ -196,7 +196,7 @@ function QuadrantColorPicker() {
   return (
     <>
       <div className="mt-4 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Colours</h3>
+        <h3 className="text-sm font-semibold">Colors</h3>
         <span className="flex gap-1">
           <button type="button" className={link} onClick={() => update({ matrixColors: [accent, accent, accent, accent] })}>Use accent for all</button>
           <button type="button" className={link} disabled={colors.every((c) => c === null)} onClick={() => update({ matrixColors: [null, null, null, null] })}>Reset</button>

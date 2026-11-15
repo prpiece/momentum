@@ -78,7 +78,7 @@ export function BackgroundSection() {
           onChange={choose}
           options={[
             { value: "none", label: "None" },
-            { value: "color", label: "Colour" },
+            { value: "color", label: "Color" },
             { value: "image", label: "Image", disabled: !isTauri },
           ]}
         />

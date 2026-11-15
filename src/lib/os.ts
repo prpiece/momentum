@@ -33,6 +33,17 @@ import { setStatus, useData } from "../stores/data";
 import { showInCurrentView } from "../features/tasks/viewOptions";
 import { initAgentApi } from "./agentApi";
 
+/** Keys a global shortcut must never take: copy, paste, close, reload and the like, in any app. */
+const SYSTEM_SHORTCUTS = new Set(["CommandOrControl+Shift+I", "CommandOrControl+Shift+J", "CommandOrControl+Shift+C", "CommandOrControl+Shift+T", "CommandOrControl+Shift+N", "CommandOrControl+Shift+Z"]);
+
+/** Why a recorded accelerator can't be a global shortcut, or null when it can. Ctrl or ⌘ plus Shift or Alt keeps clear of the common single-modifier keys (Ctrl C, Alt F4 and so on). */
+export function shortcutProblem(accel: string): string | null {
+  const mods = accel.split("+").slice(0, -1);
+  if (!mods.includes("CommandOrControl") || !(mods.includes("Shift") || mods.includes("Alt"))) return "Use Ctrl or ⌘ with Shift or Alt. Plain Ctrl keys clash with copy, paste and close.";
+  if (SYSTEM_SHORTCUTS.has(accel)) return "That shortcut is used by the browser or system. Pick another.";
+  return null;
+}
+
 export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
 export type ReminderAction = { dto: ReminderDTO; action: "done" | "open" | "dismiss" } | { dto: ReminderDTO; action: "snooze"; minutes: number };
 

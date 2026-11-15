@@ -13,7 +13,8 @@ import { SubscriptionsPanel } from "./SubscriptionsPanel";
 import { UpdatesSection } from "./UpdatesSection";
 import { AgentsPanel } from "./AgentsPanel";
 import { VoiceSection } from "./VoiceSection";
-import { keyLabel } from "../../lib/platform";
+import { keyLabel, trayName } from "../../lib/platform";
+import { shortcutProblem } from "../../lib/os";
 import { VOICE_SECTION_ID } from "../../lib/voice";
 import { TagsSection } from "./TagsSection";
 import { HelpSection } from "../help/HelpSection";
@@ -91,7 +92,10 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (v: strin
         if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
         if (!e.ctrlKey && !e.altKey && !e.metaKey) return;
         const key = e.code.startsWith("Key") ? e.code.slice(3) : e.code.startsWith("Digit") ? e.code.slice(5) : e.code;
-        onChange([e.ctrlKey || e.metaKey ? "CommandOrControl" : "", e.altKey ? "Alt" : "", e.shiftKey ? "Shift" : "", key].filter(Boolean).join("+"));
+        const accel = [e.ctrlKey || e.metaKey ? "CommandOrControl" : "", e.altKey ? "Alt" : "", e.shiftKey ? "Shift" : "", key].filter(Boolean).join("+");
+        const problem = shortcutProblem(accel);
+        if (problem) toast(problem);
+        else onChange(accel);
         setRecording(false);
       }}
       className={`btn min-w-40 tabular-nums ${recording ? "border-accent-text bg-accent-soft text-fg" : "btn-secondary"}`}
@@ -285,10 +289,10 @@ export function SettingsView() {
           <Toggle checked={s.showCompleted} onChange={(v) => update({ showCompleted: v })} text="Show completed tasks" />
         </Row>
         <Row label="Closing the window">
-          <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text="Keep running in the tray" />
+          <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text={`Keep running in the ${trayName}`} />
         </Row>
         <Row label="Launch at login">
-          <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text="Start minimized to the tray" />
+          <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text={`Start minimized to the ${trayName}`} />
         </Row>
         <Row label="Global quick add">
           <ShortcutInput value={s.quickAddShortcut} onChange={(v) => (v === s.voiceShortcut ? toast("That shortcut is already push-to-talk.") : update({ quickAddShortcut: v }))} />

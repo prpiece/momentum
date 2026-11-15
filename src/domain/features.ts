@@ -86,24 +86,24 @@ const token = (t: string, text: string): FeatureCommand => ({ kind: "token", tok
 export const FEATURES: Feature[] = [
   // ---- Capture
   { id: "quick-add", title: "Add a task", howTo: "Type in the box at the top of a view and press Enter.", icon: "plus", group: "Capture", since: OLD, core: true, done: "task:created-quickadd",
-    commands: [palette("new-task", "New task", "N"), keys("N", "Focus quick add"), keys("Ctrl Shift A", "Quick add from any app")] },
+    commands: [palette("new-task", "New task", "N"), keys("N", "Focus quick add"), keys("Ctrl Shift A", "Quick add from any app (changeable in Settings)")] },
   { id: "tokens", title: "Set details as you type", howTo: "Add a date, priority, tag or list to the task text, in any add box, and it's picked out for you.", icon: "token", group: "Capture", since: OLD, core: true, done: "task:token-used",
     commands: [token("tomorrow 5pm", "Date and time"), token("every mon", "Repeat"), token("!high  !2", "Priority"), token("#tag", "Tag"), token("~List", "List")] },
   { id: "bulk-import", title: "Paste many tasks at once", howTo: "Paste a list of lines and each one becomes a task.", icon: "paste", group: "Capture", since: OLD, core: false,
     commands: [palette("import", "Import tasks…")] },
   { id: "external-import", title: "Import from Todoist or TickTick", howTo: "Settings → Data → Import from Todoist or TickTick (or Import tasks…). Pick the export file, check the preview, import; one Undo takes it all back.", icon: "file", group: "Capture", since: "1.3.0", core: false, commands: [] },
   { id: "voice", title: "Add tasks by voice", howTo: "Hold the shortcut and say the task, or say “open today”, “start focus”, “show matrix”.", icon: "mic", group: "Capture", since: OLD, core: false,
-    commands: [keys("Ctrl Alt Space", "Hold to talk")] },
+    commands: [keys("Ctrl Alt Space", "Hold to talk (changeable in Settings)")] },
   { id: "palette", title: "Search and run commands", howTo: "Find any task, list or tag, or run a command by name.", icon: "search", group: "Capture", since: OLD, core: true, done: "palette:opened",
     commands: [keys("Ctrl K", "Open the command palette")] },
 
   // ---- Tasks
   { id: "task-keys", title: "Work through tasks from the keyboard", howTo: "Move, open, complete and reschedule without the mouse.", icon: "keyboard", group: "Tasks", since: OLD, core: false,
-    commands: [keys("↑ ↓  or  J K", "Move between tasks"), keys("Enter", "Open the task"), keys("Space  or  C", "Complete"), keys("1 2 3 / 0", "Priority high, medium, low / none"), keys("T / Shift T", "Do today / tomorrow"), keys("Delete", "Delete"), keys("Ctrl / Shift + click", "Select several"), keys("Esc", "Close the drawer or clear the selection")] },
+    commands: [keys("↑ ↓  or  J K", "Move between tasks"), keys("Enter", "Open the task"), keys("Space  or  C", "Complete"), keys("1 2 3 / 0", "Priority low, medium, high / none"), keys("T / Shift T", "Do today / tomorrow"), keys("Delete", "Delete"), keys("Ctrl / Shift + click", "Select several"), keys("Esc", "Close the drawer or clear the selection")] },
   { id: "undo", title: "Undo anything", howTo: "Every change can be taken back.", icon: "undo", group: "Tasks", since: OLD, core: false,
     commands: [keys("Ctrl Z", "Undo the last change")] },
-  { id: "filter", title: "Filter a view", howTo: "Filter with the same words you add tasks with, and pin a filter to the navigation.", icon: "filter", group: "Tasks", since: OLD, core: false,
-    commands: [keys("/", "Filter the current view"), token("overdue  nodate", "Overdue or undated"), token("done  wontdo", "Finished tasks, anywhere")] },
+  { id: "filter", title: "Filter a view", howTo: "Filter with the same words you add tasks with, put a minus in front to leave something out, and pin a filter to the navigation.", icon: "filter", group: "Tasks", since: OLD, core: false,
+    commands: [keys("/", "Filter the current view"), token("overdue  nodate", "Overdue or undated"), token("done  wontdo", "Finished tasks, anywhere"), token("someday", "Someday, no date yet"), token("30m", "Exact duration"), token("by fri", "Deadline on or before the day"), token("waiting @sam", "Waiting for a person"), token("-#tag  -~list  -!high", "Leave out a tag, list or priority")] },
   { id: "show-completed", title: "Show completed tasks", howTo: "Show or hide finished tasks in every view, in Settings or from the palette.", icon: "check", group: "Tasks", since: "1.0.0", core: false,
     commands: [palette("show-completed", "Toggle completed tasks")] },
   { id: "lists", title: "Organise with lists and folders", howTo: "Make a list for each part of your life and group lists into folders.", icon: "list", group: "Tasks", since: OLD, core: false,
@@ -137,7 +137,7 @@ export const FEATURES: Feature[] = [
   { id: "focus", title: "Focus with a timer", howTo: "Start a Pomodoro, optionally on a task or some of its subtasks, and finish a session.", icon: "timer", group: "Habits & focus", since: OLD, core: true, done: "focus:completed",
     commands: [palette("go-focus", "Go to Focus"), keys("G F", "Focus")] },
   { id: "mini-window", title: "Keep the timer on top", howTo: "The mini window shows your next tasks, the timer and the matrix while you work elsewhere.", icon: "window", group: "Habits & focus", since: OLD, core: false,
-    commands: [keys("Ctrl Alt M", "Show or hide the mini window")] },
+    commands: [keys("Ctrl Alt M", "Show or hide the mini window (changeable in Settings)")] },
   { id: "streak-reminder", title: "Save a streak before it breaks", howTo: "At 18:00 (change it in Settings → Notifications) you get one reminder for habits with a running streak that you haven't done yet. Weekly habits are reminded on the week's last day.", icon: "target", group: "Habits & focus", since: "1.1.2", core: false, commands: [] },
   { id: "auto-focus", title: "Start focus when a time block begins", howTo: "Turn on Start focus at time blocks in Settings → Notifications: a task you've put on the calendar starts a focus session when its time comes, and stops it when the block ends.", icon: "timer", group: "Habits & focus", since: "1.1.2", core: false, commands: [] },
 
@@ -150,13 +150,13 @@ export const FEATURES: Feature[] = [
   { id: "sync", title: "Sync across your devices", howTo: "Settings → Account: sign in with your email and the same tasks, habits and settings appear on every device, even after offline edits.", icon: "window", group: "Progress", since: "1.1.0", core: false, commands: [] },
 
   // ---- Friends & sharing (v1.4)
-  { id: "friends", title: "Add friends", howTo: "Friends → Add friend by @handle, or Copy invite link and send it. Friends see nothing of your tasks unless you share or send them.", icon: "users", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false,
+  { id: "friends", title: "Add friends", howTo: "Friends → Add friend by @handle, or Copy invite link and send it. Friends see nothing of your tasks unless you share or send them.", icon: "users", group: "Friends & sharing", since: "1.2.0", requires: "signedIn", core: false,
     commands: [palette("go-friends", "Go to Friends")] },
-  { id: "sent-task", title: "Send a task to a friend", howTo: "Right-click a task → Send to friend…. They accept it from Friends → Requests and get their own copy in Inbox; you only see Accepted, Declined or Waiting.", icon: "share", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
-  { id: "sharing", title: "Share a list or folder", howTo: "Right-click a list or folder → Share…. Invite friends or make a link, and choose who can edit and who can only view.", icon: "list", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
-  { id: "focus-together", title: "Focus together", howTo: "Turn on Let friends see when I'm focusing in Focus. Friends see only that you're focusing and when it ends; Join starts your own session that ends at the same moment.", icon: "timer", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
-  { id: "buddies", title: "Check-in buddies", howTo: "Edit a habit → Check-in buddies, and pick friends who see its name and today's check-in. A buddy can nudge you once a day; switch nudges off per habit.", icon: "target", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
-  { id: "connections", title: "Add tasks from Discord, Slack, Telegram or a webhook", howTo: "Settings → Connections shows a 6-digit code to link a chat, and a private webhook URL. Linked chats can add tasks, list your day and get a daily Digest.", icon: "plus", group: "Friends & sharing", since: "1.4.0", requires: "signedIn", core: false, commands: [] },
+  { id: "sent-task", title: "Send a task to a friend", howTo: "Right-click a task → Send to friend…. They accept it from Friends → Requests and get their own copy in Inbox; you only see Accepted, Declined or Waiting.", icon: "share", group: "Friends & sharing", since: "1.2.0", requires: "signedIn", core: false, commands: [] },
+  { id: "sharing", title: "Share a list or folder", howTo: "Right-click a list or folder → Share…. Invite friends or make a link, and choose who can edit and who can only view.", icon: "list", group: "Friends & sharing", since: "1.2.0", requires: "signedIn", core: false, commands: [] },
+  { id: "focus-together", title: "Focus together", howTo: "Turn on Let friends see when I'm focusing in Focus. Friends see only that you're focusing and when it ends; Join starts your own session that ends at the same moment.", icon: "timer", group: "Friends & sharing", since: "1.2.0", requires: "signedIn", core: false, commands: [] },
+  { id: "buddies", title: "Check-in buddies", howTo: "Edit a habit → Check-in buddies, and pick friends who see its name and today's check-in. A buddy can nudge you once a day; switch nudges off per habit.", icon: "target", group: "Friends & sharing", since: "1.2.0", requires: "signedIn", core: false, commands: [] },
+  { id: "connections", title: "Add tasks from Discord, Slack, Telegram or a webhook", howTo: "Settings → Connections shows a 6-digit code to link a chat, and a private webhook URL. Linked chats can add tasks, list your day and get a daily Digest.", icon: "plus", group: "Friends & sharing", since: "1.2.0", requires: "signedIn", core: false, commands: [] },
 
   // ---- Keyboard and app
   { id: "appearance", title: "Make it yours", howTo: "Theme, accent, layout and scale are in Settings → Appearance.", icon: "palette", group: "Keyboard", since: OLD, core: false,
