@@ -5,6 +5,17 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.2.1
+
+- **Trash.** Deleted tasks stay in Trash for 30 days, where you can restore them or delete them for good. Restoring a subtask brings its parent back too.
+- **Safer AI agents.** Agents can delete a task to the Trash and restore it. A delete needs the task's full id, never touches subtasks unless asked, and only removes one task at a time.
+- **Chats can do more.** From Discord, Slack, Telegram or your webhook you can now view, update, complete, reopen, delete and restore tasks, not just add them. Each connection can be set to add-only, and the webhook starts that way.
+- **Quick add reads durations properly.** "5pm 30m" makes a 30-minute task, and "15 min", "1 h 30 min" and "90 minutes" are always durations.
+- **Back-to-back tasks stack** on the calendar instead of squeezing side by side.
+- **View-only shares stay view-only** everywhere on desktop and phone.
+- **Clearer errors.** When the server needs an update, sharing and connections say so instead of "Something went wrong".
+- **Fixes:** restoring a backup keeps its settings; an expired sign-in refreshes instead of signing you out; signing in on a second device no longer overwrites your data; shortcuts and undo wait while a dialog is open; habit colours stay what you picked on the phone; quick add pickers open on iPhone; the phone's Today and widgets roll over to the new day; "Day ends at" now counts for Today's done list and the charts; and several security fixes for shared lists.
+
 ## v1.2.0
 
 - **Momentum on your phone.** The Android and iPhone app shows the same tasks, calendar, habits and focus timer, synced within seconds when you're signed in. It has a Today widget, lock-screen quick add, and full-screen alarms for high-priority reminders on Android.
