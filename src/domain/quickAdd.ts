@@ -135,7 +135,7 @@ function planningMatches(text: string, now: Date): Match[] {
     const d = dateAt(text, start + 2, now);
     if (d) out.push({ kind: "deadline", start, end: d.end, apply: (p) => void (p.deadline = d.date) });
   }
-  for (const m of text.matchAll(/(^|\s)~?(?:(\d{1,2})h(?:(\d{1,2})m)?|(\d{1,3})m(?:in)?)(?=\s|$|[,.;])/gi)) {
+  for (const m of text.matchAll(/(^|\s)~?(?:(\d{1,2})\s?(?:h|hrs?|hours?)(?:\s?(\d{1,3})\s?(?:m|mins?|minutes?))?|(\d{1,4})\s?(?:m|mins?|minutes?))(?=\s|$|[,.;])/gi)) {
     const min = m[2] ? Number(m[2]) * 60 + Number(m[3] ?? 0) : Number(m[4]);
     const start = (m.index ?? 0) + m[1].length;
     if (min >= 1 && min <= 1440) out.push({ kind: "duration", start, end: (m.index ?? 0) + m[0].length, apply: (p) => void (p.durationMin = min) });
@@ -211,6 +211,7 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
     if (!matches.some((x) => overlaps(x, m))) matches.push(m);
   }
 
+  let explicitEnd = false;
   const [date] = casual.parse(mask(input, matches), now, { forwardDate: true });
   if (date) {
     const start = date.index;
@@ -218,6 +219,7 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
     const from = date.start.date();
     const hasTime = date.start.isCertain("hour");
     const until = date.end?.date();
+    explicitEnd = !!until && until > from;
     matches.push({
       kind: "date",
       start,
@@ -246,6 +248,9 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
     m.apply(result);
     result.chips.push({ kind: m.kind, text: input.slice(m.start, m.end), start: m.start, end: m.end, ...(m.value ? { value: m.value } : {}) });
   }
+  // A duration token sets the end of a timed task that has no `until` (`5pm 30m`).
+  if (result.schedule.kind === "timed" && !explicitEnd && result.durationMin)
+    result.schedule = { ...result.schedule, end: addMinutes(new Date(result.schedule.start), result.durationMin).toISOString() };
   // A repeat with no explicit date starts today; rrule then picks the first matching day.
   if (result.rule && result.schedule.kind === "none") result.schedule = { kind: "day", date: toLocalDate(now) };
   if (result.schedule.kind === "someday") result.rule = null;
