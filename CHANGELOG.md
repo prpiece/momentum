@@ -5,6 +5,11 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.2.3
+
+- **Friend requests arrive instantly.** A request, an accepted friend or a share invite now shows up on the other person's screen within seconds, and opening Friends always shows the latest.
+- **Clear old sync issues.** Settings → Account → Sync issues has a Clear button, and entries older than a week are hidden. Old reports for changes the app now handles are cleared on their own, and those changes are fetched again.
+
 ## v1.2.2
 
 - **Sync stops repeating the same error.** A task whose list never reached your device now lands in your Inbox instead of failing every sync, and an incomplete change for a task you don't have is skipped quietly.
