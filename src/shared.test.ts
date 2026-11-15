@@ -3,6 +3,7 @@
  * desktop-only modules or browser globals. Desktop-only files in them are listed as exceptions.
  */
 import { readdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { expect, it } from "vitest";
@@ -70,8 +71,9 @@ it("maps every synced column in shared code, so the phone never drops a field (P
 });
 
 it("derives store build numbers from the shared version", async () => {
-  // @ts-expect-error: plain .js config, no types
-  const { default: config } = await import("../mobile/app.config.js");
+  // Node's own require: going through Vite would read mobile/tsconfig.json, which needs mobile's
+  // node_modules (expo/tsconfig.base), and CI installs only the desktop's.
+  const config = createRequire(import.meta.url)("../mobile/app.config.js");
   expect(config.versionCode("1.2.0")).toBe(10200);
   expect(config.versionCode("2.10.3")).toBe(21003);
   expect(() => config.versionCode("1.100.0")).toThrow();
