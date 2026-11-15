@@ -37,6 +37,8 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
       </button>
       {open && (
         <Popover anchor={anchor} onClose={() => (setCheckin(habit.id, date, { note: note.trim() }), setOpen(false))} align="end" className="w-64 p-3">
+          {/* The popover is inside a draggable habit row (React events cross the portal): selecting text must not start a drag. */}
+          <div onPointerDown={(e) => e.stopPropagation()}>
           <div className="mb-2 flex justify-between" role="radiogroup" aria-label="Mood">
             {MOODS.map((m) => (
               <button
@@ -54,6 +56,7 @@ export function NoteButton({ habit, date }: { habit: Habit; date: LocalDate }) {
           </div>
           <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="How did it go?" aria-label="Note" className="input min-h-20 w-full resize-none" />
           <p className="mt-1 text-[length:var(--fs-xs)] text-muted">Saved when you close this.</p>
+          </div>
         </Popover>
       )}
     </>

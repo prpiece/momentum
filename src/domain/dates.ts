@@ -76,8 +76,9 @@ export const taskMinutes = (t: { schedule: Schedule; durationMin: number | null 
 
 /** "4h 10m", "45m", "2h". */
 export function formatMinutes(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = Math.round(min % 60);
+  const total = Math.round(min); // round first: rounding only the remainder gave "1h 60m"
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m}m`;
 }
 

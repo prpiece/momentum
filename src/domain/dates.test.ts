@@ -103,6 +103,7 @@ describe("end of day (D267)", () => {
   });
   it("formats minutes", () => {
     expect([formatMinutes(250), formatMinutes(45), formatMinutes(120)]).toEqual(["4h 10m", "45m", "2h"]);
+    expect([formatMinutes(119.6), formatMinutes(59.6), formatMinutes(0)]).toEqual(["2h", "1h", "0m"]);
     expect(taskMinutes({ schedule: { kind: "none" }, durationMin: 20 })).toBe(20);
   });
 });

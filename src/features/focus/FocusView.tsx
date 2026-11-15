@@ -4,7 +4,7 @@ import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { BarChart } from "../../components/ui/BarChart";
 import { NumField } from "../../components/ui/NumField";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
-import { fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
+import { formatMinutes, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
 import { DEFAULT_POMODORO, elapsedMs, formatClock, NO_PICK, phaseMs, remainingMs, type FocusMode, type FocusPick, type Phase } from "../../domain/focus";
 import { perWeek, type Bucket } from "../../domain/stats";
 import { addDaysLocal } from "../../domain/dates";
@@ -68,7 +68,7 @@ function FocusStats() {
     <section className="card mt-6">
       <div className="card-h">
         <h3>Focus time · last 14 days</h3>
-        <span className="text-[length:var(--fs-sm)] tabular-nums text-muted">this week {Math.floor(week / 60)}h {week % 60}m</span>
+        <span className="text-[length:var(--fs-sm)] tabular-nums text-muted">this week {formatMinutes(week)}</span>
       </div>
       <BarChart
         title="Focus minutes per day, last 14 days"

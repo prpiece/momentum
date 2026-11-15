@@ -20,7 +20,7 @@ export function SoundsSection() {
       <Line title="Timer sounds" hint="The focus timer's alarms. Reminder chimes are under Notifications.">
         <Switch checked={s.enabled} onChange={(enabled) => set({ enabled })} label="Timer sounds" />
       </Line>
-      <div className={`space-y-3 transition-opacity duration-[var(--dur)] ${s.enabled ? "" : "pointer-events-none opacity-45"}`} aria-disabled={!s.enabled}>
+      <div className={`space-y-3 transition-opacity duration-[var(--dur)] ${s.enabled ? "" : "pointer-events-none opacity-45"}`} aria-disabled={!s.enabled} inert={!s.enabled}>
         <Line title="Volume">
           <input
             type="range"
