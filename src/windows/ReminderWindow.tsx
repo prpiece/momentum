@@ -38,6 +38,9 @@ async function fit(height: number, corner: ReminderShow["corner"]) {
 /** Always-on-top popup with Done / Snooze / Open for each fired reminder. */
 export function ReminderWindow() {
   const [items, setItems] = useState<ReminderDTO[]>([]);
+  // The listener and quick successive clicks outlive any render's `items`; the ref is always current.
+  const current = useRef<ReminderDTO[]>([]);
+  const change = (fn: (xs: ReminderDTO[]) => ReminderDTO[]) => setItems((current.current = fn(current.current)));
   const corner = useRef<ReminderShow["corner"]>("bottom-right");
   const stack = useRef<HTMLDivElement>(null);
 
@@ -54,7 +57,7 @@ export function ReminderWindow() {
         if (a2) apply(a2);
         const { dto } = e.payload;
         corner.current = e.payload.corner;
-        setItems((xs) => (xs.some((x) => x.key === dto.key) ? xs : [...xs, dto]));
+        change((xs) => (xs.some((x) => x.key === dto.key) ? xs : [...xs, dto]));
       });
     })();
     return () => off?.();
@@ -67,9 +70,8 @@ export function ReminderWindow() {
   const act = async (a: ReminderAction) => {
     const { emit } = await import("@tauri-apps/api/event");
     await emit("reminder:action", a);
-    const rest = items.filter((x) => x.key !== a.dto.key);
-    setItems(rest);
-    if (!rest.length) {
+    change((xs) => xs.filter((x) => x.key !== a.dto.key));
+    if (!current.current.length) {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       await getCurrentWindow().hide();
     }
