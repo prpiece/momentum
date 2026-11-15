@@ -51,3 +51,27 @@ describe("applyOp", () => {
     expect(db.prepare("SELECT count(*) AS n FROM task_activity").get()).toEqual({ n: 0 });
   });
 });
+
+describe("H15: a fresh sign-in queues only what the server lacks", () => {
+  it("skips rows the server already sent (the default Inbox) and queues the rest", async () => {
+    const { db, d } = fresh();
+    db.prepare("DELETE FROM sync_outbox").run();
+    db.prepare("INSERT INTO lists (id, name, sort_order) VALUES ('mine', 'Mine', 1)").run();
+    const theirs = [{ tbl: "lists" as const, id: "inbox", version: 1, data: { id: "inbox", name: "Inbox" } }];
+    const { queueLocalRows } = await import("./engine");
+    const counts = await queueLocalRows(d, theirs, at);
+    const queued = (db.prepare("SELECT row_id FROM sync_outbox WHERE tbl = 'lists'").all() as { row_id: string }[]).map((r) => r.row_id);
+    expect(queued).toEqual(["mine"]);
+    expect(counts.lists).toBe(1);
+  });
+});
+
+describe("H14: expired JWT", () => {
+  it("recognises PostgREST's expired-token codes only", async () => {
+    const { isExpiredJwt } = await import("./engine");
+    expect(isExpiredJwt({ code: "PGRST301" })).toBe(true);
+    expect(isExpiredJwt({ code: "PGRST303" })).toBe(true);
+    expect(isExpiredJwt({ code: "23505" })).toBe(false);
+    expect(isExpiredJwt(null)).toBe(false);
+  });
+});
