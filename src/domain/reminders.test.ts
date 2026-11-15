@@ -31,6 +31,27 @@ describe("reminders", () => {
     expect(fires[0].body).toBe("Today at 10:00");
   });
 
+  it("keeps reminding for later occurrences of a series after one is missed (TIME-01)", () => {
+    const s = vm(timed(atLocalTime("2026-11-10", "09:00"), 30), [{ kind: "before", minutes: 15 }], { recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    expect(s.key).toBe("2026-11-10T09:00");
+    const fires = remindersBetween([s], [], () => new Map(), atLocalTime("2026-11-15", "08:40"), atLocalTime("2026-11-15", "08:50"), "24h", 1);
+    expect(fires.map((f) => wallKey(f.at))).toEqual(["2026-11-15T08:45"]);
+    expect(fires[0].target).toEqual({ kind: "task", id: "t", occurrenceKey: "2026-11-15T09:00" });
+    expect(fires[0].body).toBe("Today at 09:00");
+    const day = vm({ kind: "day", date: "2026-11-10" }, [{ kind: "dayOf", daysBefore: 1, time: "18:00" }], { recurrence: { rule: "FREQ=DAILY", exdates: ["2026-11-15"] } });
+    const evening = remindersBetween([day], [], () => new Map(), atLocalTime("2026-11-14", "17:00"), atLocalTime("2026-11-15", "19:00"), "24h", 1);
+    // The 15th is handled, so only the reminder for the 16th fires.
+    expect(evening.map((f) => f.target)).toEqual([{ kind: "task", id: "t", occurrenceKey: "2026-11-16" }]);
+  });
+
+  it("subtracts real minutes for sub-day offsets on DST days (TIME-07)", () => {
+    // 03:15 EDT on spring-forward day: 30 min before is 01:45 EST, not the non-existent 02:45.
+    const spring = timed(atLocalTime("2026-03-08", "03:15"), 30);
+    expect(reminderAt(spring, { kind: "before", minutes: 30 })!.getTime()).toBe(new Date(spring.kind === "timed" ? spring.start : "").getTime() - 30 * 60_000);
+    const fall = { kind: "timed", start: "2026-11-01T06:30:00.000Z", end: "2026-11-01T07:00:00.000Z" } as const;
+    expect(reminderAt(fall, { kind: "before", minutes: 15 })!.toISOString()).toBe("2026-11-01T06:15:00.000Z");
+  });
+
   it("fires habit reminders only while the habit is still due", () => {
     const h: Habit = { id: "h", name: "Read", icon: "📚", color: "#000", goal: { kind: "once" }, frequency: { kind: "daily" }, reminders: ["20:00"], groupId: null, sortOrder: 0, archived: false, startDate: "2026-01-01", createdAt: "" };
     const win = [atLocalTime("2026-10-25", "19:00"), atLocalTime("2026-10-25", "21:00")] as const;

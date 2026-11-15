@@ -3,7 +3,7 @@
  * parts: line unfolding, VTIMEZONE definitions, RRULE/EXDATE/RECURRENCE-ID. Pure; unit-tested.
  */
 import ICAL from "ical.js";
-import { daysBetween, timed, wallKey } from "./dates";
+import { atLocalTime, daysBetween, durationMinutes, fromWall, hhmm, isZone, timed, wallIn, wallKey } from "./dates";
 import { isValidRule } from "./recurrence";
 import type { CalendarEvent, Schedule } from "./types";
 
@@ -11,9 +11,44 @@ type ICALTime = InstanceType<typeof ICAL.Time>;
 
 const localDateOf = (t: ICALTime) => `${t.year}-${String(t.month).padStart(2, "0")}-${String(t.day).padStart(2, "0")}`;
 
+const floatingOf = (t: ICALTime) => new Date(Date.UTC(t.year, t.month - 1, t.day, t.hour, t.minute, t.second));
+const icsStamp = (f: Date) => f.toISOString().slice(0, 19).replace(/[-:]/g, "");
+
+/** The zone of a DATE-TIME: UTC, or an IANA TZID even without a VTIMEZONE block (TIME-06). Null when floating or not IANA. */
+function zoneOf(t: ICALTime, tzid: unknown): string | null {
+  if (t.isDate) return null;
+  if (t.zone?.tzid === "UTC") return "UTC";
+  return typeof tzid === "string" && isZone(tzid) ? tzid : null;
+}
+
+function instantOf(t: ICALTime, tzid: unknown): Date {
+  const z = zoneOf(t, tzid);
+  return z ? fromWall(floatingOf(t), z) : t.toJSDate();
+}
+
 /** Occurrence key in Momentum's format for an ICS time (matches recurrence.ts keys). */
-function keyOf(t: ICALTime): string {
-  return t.isDate ? localDateOf(t) : wallKey(t.toJSDate());
+function keyOf(t: ICALTime, tzid: unknown): string {
+  return t.isDate ? localDateOf(t) : wallKey(instantOf(t, tzid));
+}
+
+const BAD_RULE = "X-MOMENTUM-BAD-RRULE";
+
+/** ICAL.parse, but one RRULE ical.js can't read only loses its own event, not the whole file (TIME-12). */
+function parseCalendar(text: string): ReturnType<typeof ICAL.parse> {
+  try {
+    return ICAL.parse(text);
+  } catch (err) {
+    const fixed = text.replace(/^RRULE:(.*)$/gim, (line, value: string) => {
+      try {
+        ICAL.Recur.fromString(value.trim());
+        return line;
+      } catch {
+        return `${BAD_RULE}:1`;
+      }
+    });
+    if (fixed === text) throw err;
+    return ICAL.parse(fixed);
+  }
 }
 
 export type IcsResult = { events: CalendarEvent[]; skipped: number };
@@ -24,7 +59,7 @@ export type IcsResult = { events: CalendarEvent[]; skipped: number };
  * standalone events and their original slot is excluded from the series.
  */
 export function parseIcs(text: string, color: string, now = new Date().toISOString()): IcsResult {
-  const root = new ICAL.Component(ICAL.parse(text));
+  const root = new ICAL.Component(parseCalendar(text));
   for (const tz of root.getAllSubcomponents("vtimezone")) ICAL.TimezoneService.register(tz);
 
   const byId = new Map<string, CalendarEvent>();
@@ -35,13 +70,16 @@ export function parseIcs(text: string, color: string, now = new Date().toISOStri
     try {
       const e = new ICAL.Event(comp);
       const start = e.startDate;
-      if (!start) {
+      if (!start || comp.hasProperty(BAD_RULE.toLowerCase())) {
         skipped++;
         continue;
       }
       const uid = e.uid || `${e.summary}-${start.toString()}`;
       const recId = e.recurrenceId;
-      const id = recId ? `ics:${uid}:${keyOf(recId)}` : `ics:${uid}`;
+      const tzidOf = (name: string) => comp.getFirstProperty(name)?.getParameter("tzid");
+      const recKey = recId && keyOf(recId, tzidOf("recurrence-id"));
+      const id = recKey ? `ics:${uid}:${recKey}` : `ics:${uid}`;
+      const zone = zoneOf(start, tzidOf("dtstart"));
       let schedule: Schedule;
       let spanDays = 1;
       if (start.isDate) {
@@ -50,21 +88,33 @@ export function parseIcs(text: string, color: string, now = new Date().toISOStri
         spanDays = Math.max(1, daysBetween(date, end));
         schedule = { kind: "day", date };
       } else {
-        const s = start.toJSDate();
-        const end = e.endDate ? e.endDate.toJSDate() : new Date(s.getTime() + 3_600_000);
+        const s = instantOf(start, tzidOf("dtstart"));
+        const end = e.endDate ? instantOf(e.endDate, tzidOf("dtend")) : new Date(s.getTime() + 3_600_000);
         schedule = timed(s, Math.max(1, Math.round((end.getTime() - s.getTime()) / 60_000)));
       }
 
       let recurrence: CalendarEvent["recurrence"] = null;
       const rrule = comp.getFirstPropertyValue("rrule");
       if (!recId && rrule) {
-        const rule = String(rrule);
-        const exdates = comp.getAllProperties("exdate").flatMap((p) => p.getValues().flatMap((v) => (v instanceof ICAL.Time ? [keyOf(v)] : [])));
+        let rule = String(rrule);
+        // A zoned series expands in its own zone (TIME-04); its UTC UNTIL becomes that zone's wall clock (TIME-05).
+        if (zone && schedule.kind === "timed") {
+          const z = zone;
+          rule = rule.replace(/UNTIL=(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z/i, (_, y, mo, d, h, mi, se) => `UNTIL=${icsStamp(wallIn(new Date(`${y}-${mo}-${d}T${h}:${mi}:${se}Z`), z))}`);
+          rule = `DTSTART;TZID=${zone}:${icsStamp(floatingOf(start))}\nRRULE:${rule}`;
+        }
+        const s = schedule;
+        // A DATE exdate on a timed series excludes that day's occurrence (TIME-13).
+        const exKey = (v: ICALTime, tzid: unknown) =>
+          v.isDate && s.kind === "timed"
+            ? wallKey(zone ? fromWall(new Date(Date.UTC(v.year, v.month - 1, v.day, start.hour, start.minute, start.second)), zone) : atLocalTime(localDateOf(v), hhmm(new Date(s.start))))
+            : keyOf(v, tzid);
+        const exdates = comp.getAllProperties("exdate").flatMap((p) => p.getValues().flatMap((v) => (v instanceof ICAL.Time ? [exKey(v, p.getParameter("tzid"))] : [])));
         if (isValidRule(rule)) recurrence = { rule, exdates };
       }
-      if (recId) overrides.push({ parentId: `ics:${uid}`, key: keyOf(recId) });
+      if (recKey) overrides.push({ parentId: `ics:${uid}`, key: recKey });
 
-      byId.set(id, {
+      const ev: CalendarEvent = {
         id,
         title: e.summary || "Untitled event",
         countdown: null,
@@ -80,7 +130,21 @@ export function parseIcs(text: string, color: string, now = new Date().toISOStri
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
-      });
+      };
+      byId.set(id, ev);
+      // RDATEs are extra one-off instances (TIME-17); an override with the same RECURRENCE-ID wins.
+      if (recurrence) {
+        for (const p of comp.getAllProperties("rdate")) {
+          for (const v of p.getValues()) {
+            if (!(v instanceof ICAL.Time) || v.isDate !== start.isDate) continue;
+            const key = keyOf(v, p.getParameter("tzid"));
+            const rid = `ics:${uid}:${key}`;
+            if (byId.has(rid)) continue;
+            const one: Schedule = schedule.kind === "timed" ? timed(instantOf(v, p.getParameter("tzid")), durationMinutes(schedule) ?? 60) : { kind: "day", date: key };
+            byId.set(rid, { ...ev, id: rid, schedule: one, recurrence: null, recurrenceParentId: ev.id });
+          }
+        }
+      }
     } catch {
       skipped++;
     }

@@ -256,6 +256,12 @@ describe("daySummary", () => {
     expect(s.now).toBeNull();
   });
 
+  it("counts and draws real minutes for an event in the repeated fall-back hour (TIME-16)", () => {
+    const ev = item({ startDate: "2026-11-01", endDate: "2026-11-01", start: new Date("2026-11-01T05:00:00Z"), end: new Date("2026-11-01T06:00:00Z") });
+    expect(daySummary([ev], "2026-11-01", at(9)).scheduledMinutes).toBe(60);
+    expect(layoutDay([ev], "2026-11-01")[0]).toMatchObject({ top: 60, bottom: 120 });
+  });
+
   it("reports the item in progress, and no next item on another day", () => {
     const items = [item({ title: "Gym", start: at(7), end: at(8) })];
     expect(daySummary(items, "2026-10-26", at(7, 30)).now?.title).toBe("Gym");

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+/// <reference types="node" />
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { atLocalTime, durationMinutes, wallKey } from "./dates";
 import { parseIcs } from "./ics";
 import { occurrencesBetween } from "./recurrence";
@@ -87,5 +88,59 @@ describe("parseIcs", () => {
 
   it("survives garbage", () => {
     expect(() => parseIcs("not a calendar", "#000")).toThrow();
+  });
+});
+
+const cal = (...lines: string[]) => ["BEGIN:VCALENDAR", "VERSION:2.0", ...lines, "END:VCALENDAR"].join("\r\n");
+const vevent = (...lines: string[]) => ["BEGIN:VEVENT", ...lines, "END:VEVENT"];
+const startsOf = (ics: string, from: string, to: string) => {
+  const e = parseIcs(ics, "#000").events.find((x) => x.recurrence);
+  return e ? occurrencesBetween(e, new Date(from), new Date(to)).map((o) => (o.schedule.kind === "timed" ? o.schedule.start : o.key)) : [];
+};
+
+describe("parseIcs time zones", () => {
+  it("expands a UTC series in UTC, so it keeps its instant across the viewer's DST change (TIME-04)", () => {
+    const ics = cal(...vevent("UID:u", "DTSTART:20261026T140000Z", "DTEND:20261026T143000Z", "RRULE:FREQ=WEEKLY;COUNT=2"));
+    expect(startsOf(ics, "2026-10-25T00:00:00Z", "2026-11-10T00:00:00Z")).toEqual(["2026-10-26T14:00:00.000Z", "2026-11-02T14:00:00.000Z"]);
+  });
+
+  it("expands a TZID series in its own zone (London stays GMT until Mar 29) (TIME-04)", () => {
+    const ics = cal(...vevent("UID:l", "DTSTART;TZID=Europe/London:20260302T090000", "DTEND;TZID=Europe/London:20260302T100000", "RRULE:FREQ=WEEKLY;COUNT=5"));
+    expect(startsOf(ics, "2026-03-01T00:00:00Z", "2026-04-05T00:00:00Z")).toEqual([
+      "2026-03-02T09:00:00.000Z",
+      "2026-03-09T09:00:00.000Z",
+      "2026-03-16T09:00:00.000Z",
+      "2026-03-23T09:00:00.000Z",
+      "2026-03-30T08:00:00.000Z",
+    ]);
+  });
+
+  it("reads an IANA TZID that has no VTIMEZONE block (TIME-06)", () => {
+    const [e] = parseIcs(cal(...vevent("UID:la", "DTSTART;TZID=America/Los_Angeles:20261116T090000", "DTEND;TZID=America/Los_Angeles:20261116T100000")), "#000").events;
+    expect(e.schedule).toEqual({ kind: "timed", start: "2026-11-16T17:00:00.000Z", end: "2026-11-16T18:00:00.000Z" });
+  });
+
+  it("applies a DATE exdate to a timed series (TIME-13) and adds RDATEs (TIME-17)", () => {
+    const ics = cal(...vevent("UID:x", "DTSTART:20261101T140000Z", "DTEND:20261101T150000Z", "RRULE:FREQ=DAILY;COUNT=5", "EXDATE;VALUE=DATE:20261103", "RDATE:20261120T120000Z"));
+    expect(startsOf(ics, "2026-11-01T00:00:00Z", "2026-11-30T00:00:00Z")).toEqual(["2026-11-01T14:00:00.000Z", "2026-11-02T14:00:00.000Z", "2026-11-04T14:00:00.000Z", "2026-11-05T14:00:00.000Z"]);
+    const extra = parseIcs(ics, "#000").events.find((e) => !e.recurrence);
+    expect(extra).toMatchObject({ schedule: { kind: "timed", start: "2026-11-20T12:00:00.000Z", end: "2026-11-20T13:00:00.000Z" }, recurrenceParentId: "ics:x" });
+  });
+
+  it("skips one event with a broken RRULE instead of rejecting the feed (TIME-12)", () => {
+    const { events, skipped } = parseIcs(cal(...vevent("UID:bad", "DTSTART:20261101T140000Z", "RRULE:FREQ=DAILY;BYDAY=XX"), ...vevent("UID:ok", "DTSTART:20261101T140000Z")), "#000");
+    expect(events.map((e) => e.id)).toEqual(["ics:ok"]);
+    expect(skipped).toBe(1);
+  });
+
+  describe("east of UTC (Asia/Kolkata)", () => {
+    const prev = process.env.TZ;
+    beforeAll(() => void (process.env.TZ = "Asia/Kolkata"));
+    afterAll(() => void (process.env.TZ = prev));
+
+    it("keeps the occurrence that falls on a UTC UNTIL (TIME-05)", () => {
+      const ics = cal(...vevent("UID:k", "DTSTART:20261101T033000Z", "DTEND:20261101T043000Z", "RRULE:FREQ=DAILY;UNTIL=20261104T033000Z"));
+      expect(startsOf(ics, "2026-10-31T00:00:00Z", "2026-11-10T00:00:00Z")).toHaveLength(4);
+    });
   });
 });

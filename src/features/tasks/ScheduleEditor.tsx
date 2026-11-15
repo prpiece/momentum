@@ -1,9 +1,10 @@
 import { Bell, CalendarDays, Clock, Plus, Repeat, X } from "lucide-react";
 import { useState } from "react";
 import { addDaysLocal, atLocalTime, durationMinutes, hhmm, scheduleDate, timed, todayLocal } from "../../domain/dates";
-import { describeRule, REPEAT_PRESETS } from "../../domain/recurrence";
+import { customRule, describeRule, REPEAT_PRESETS } from "../../domain/recurrence";
 import { BEFORE_PRESETS, DAY_PRESETS, reminderLabel } from "../../domain/reminders";
 import type { Recurrence, Reminder, Schedule } from "../../domain/types";
+import { useSettings } from "../../stores/settings";
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240];
 const WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
@@ -100,7 +101,8 @@ export function ScheduleEditor(props: {
                 const v = e.target.value;
                 setCustom(v === "__custom");
                 if (v === "__custom" || v === "__current") return;
-                props.onRecurrence(v ? { rule: v, exdates: [] } : null);
+                // Keep the handled occurrences handled when the rule changes (TIME-02).
+                props.onRecurrence(v ? { rule: v, exdates: props.recurrence?.exdates ?? [] } : null);
               }}
               className={field}
             >
@@ -113,7 +115,7 @@ export function ScheduleEditor(props: {
               {rule && !isPreset && <option value="__current">{describeRule(rule)}</option>}
               <option value="__custom">Custom…</option>
             </select>
-            {custom && <RuleBuilder onDone={(r) => (setCustom(false), props.onRecurrence({ rule: r, exdates: [] }))} />}
+            {custom && <RuleBuilder onDone={(r) => (setCustom(false), props.onRecurrence({ rule: r, exdates: props.recurrence?.exdates ?? [] }))} />}
           </div>
         </Row>
       )}
@@ -159,7 +161,8 @@ function RuleBuilder({ onDone }: { onDone: (rule: string) => void }) {
   const [interval, setInterval] = useState(1);
   const [freq, setFreq] = useState("WEEKLY");
   const [days, setDays] = useState<string[]>([]);
-  const rule = `FREQ=${freq}${interval > 1 ? `;INTERVAL=${interval}` : ""}${freq === "WEEKLY" && days.length ? `;BYDAY=${days.join(",")}` : ""}`;
+  const ws = useSettings((s) => s.settings.weekStart);
+  const rule = customRule(freq, interval, days, ws);
   return (
     <div className="space-y-2 rounded-card border border-border p-2.5">
       <div className="flex items-center gap-1.5 text-sm">

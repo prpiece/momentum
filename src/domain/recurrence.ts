@@ -1,7 +1,7 @@
 import { format } from "date-fns";
-import { RRule, type Options } from "rrule";
-import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, fromLocalDate, hhmm, scheduleDate, timed } from "./dates";
-import type { Recurrence, Schedule, Task } from "./types";
+import { RRule, Weekday, type Options } from "rrule";
+import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, fromLocalDate, fromWall, hhmm, isZone, scheduleDate, timed, wallIn, wallKey } from "./dates";
+import type { Recurrence, Schedule, Task, WeekStart } from "./types";
 
 /*
  * Floating wall-clock recurrence. rrule works in UTC, so local wall-clock components are
@@ -20,9 +20,13 @@ export type Occurrence = { key: string; schedule: Schedule };
 
 const MAX_SCAN = 20000;
 
+/** A rule we can expand (TIME-12): it parses, yields a first occurrence without throwing, and is at most hourly. */
 export function isValidRule(rule: string): boolean {
   try {
-    return RRule.parseString(rule).freq !== undefined;
+    const opts = parse(rule);
+    if (opts.freq === undefined || opts.freq > RRule.HOURLY) return false;
+    new RRule(opts).after(new Date(0), true);
+    return true;
   } catch {
     return false;
   }
@@ -39,8 +43,24 @@ function parse(rule: string): Partial<Options> {
   return opts;
 }
 
+/**
+ * Month-end clamping (TIME-18): a plain monthly rule from the 29th–31st falls on the month's last
+ * day when the month is shorter, and a plain yearly rule from Feb 29 falls on Feb 28 in common
+ * years, as countdowns already count (TIME-14). Explicit BY* rules are left as RFC 5545 has them.
+ */
+function clamped(opts: Partial<Options>, start: Date): Partial<Options> {
+  if (Object.keys(opts).some((k) => !["freq", "interval", "count", "until", "wkst"].includes(k))) return opts;
+  const day = start.getUTCDate();
+  if (opts.freq === RRule.MONTHLY && day > 28) return { ...opts, bymonthday: Array.from({ length: day - 27 }, (_, i) => 28 + i), bysetpos: -1 };
+  if (opts.freq === RRule.YEARLY && start.getUTCMonth() === 1 && day === 29) return { ...opts, bymonth: 2, bymonthday: [28, 29], bysetpos: -1 };
+  return opts;
+}
+
+/** The rrule for a rule string from a floating start. */
+const ruleFrom = (rule: string, start: Date) => new RRule({ ...clamped(parse(rule), start), dtstart: start, tzid: null });
+
 function build(rule: string, anchor: Date): RRule {
-  return new RRule({ ...parse(rule), dtstart: toFloating(anchor), tzid: null });
+  return ruleFrom(rule, toFloating(anchor));
 }
 
 function serialize(opts: Partial<Options>): string {
@@ -68,33 +88,57 @@ function occurrence(base: Schedule, floating: Date): Occurrence {
   return { key, schedule: scheduleForKey(base, key) };
 }
 
+/**
+ * How a series expands. Normally in the viewer's floating wall-clock time. A timed rule that
+ * carries `DTSTART;TZID=…` (imported .ics, TIME-04) expands in that zone's wall clock instead,
+ * so a UTC or London series keeps its real times when the viewer's DST differs. Keys stay the
+ * viewer's wall clock either way.
+ */
+function expansion(t: Recurring): { rrule: RRule; toF: (d: Date) => Date; key: (f: Date) => string; occ: (f: Date) => Occurrence } | null {
+  const anchor = anchorOf(t.schedule);
+  if (!anchor || !t.recurrence) return null;
+  const { rule } = t.recurrence;
+  const tz = t.schedule.kind === "timed" ? RRule.parseString(rule).tzid : null;
+  if (!tz || !isZone(tz)) return { rrule: build(rule, anchor), toF: toFloating, key: (f) => keyOf(t.schedule.kind, f), occ: (f) => occurrence(t.schedule, f) };
+  const dur = durationMinutes(t.schedule) ?? 0;
+  return {
+    rrule: ruleFrom(rule, wallIn(anchor, tz)),
+    toF: (d) => wallIn(d, tz),
+    key: (f) => wallKey(fromWall(f, tz)),
+    occ: (f) => {
+      const start = fromWall(f, tz);
+      return { key: wallKey(start), schedule: timed(start, dur) };
+    },
+  };
+}
+
 /** Occurrences overlapping [from, to], minus exdates. Empty for non-recurring tasks. */
 export function occurrencesBetween(t: Recurring, from: Date, to: Date): Occurrence[] {
-  const anchor = anchorOf(t.schedule);
-  if (!anchor || !t.recurrence) return [];
+  const x = expansion(t);
+  if (!x || !t.recurrence) return [];
   const dur = durationMinutes(t.schedule) ?? 0;
   const ex = new Set(t.recurrence.exdates);
-  return build(t.recurrence.rule, anchor)
-    .between(toFloating(new Date(from.getTime() - dur * 60_000)), toFloating(to), true)
-    .map((f) => occurrence(t.schedule, f))
+  return x.rrule
+    .between(x.toF(new Date(from.getTime() - dur * 60_000)), x.toF(to), true)
+    .map(x.occ)
     .filter((o) => !ex.has(o.key));
 }
 
 /** First occurrence (at or after `from`, default: the series start) that isn't excluded. */
 export function nextOccurrence(t: Recurring, from?: Date): Occurrence | null {
-  const anchor = anchorOf(t.schedule);
-  if (!anchor || !t.recurrence) return null;
+  const x = expansion(t);
+  if (!x || !t.recurrence) return null;
   const ex = new Set(t.recurrence.exdates);
-  const min = from ? toFloating(from) : null;
+  const min = from ? x.toF(from) : null;
   let found: Date | null = null;
-  build(t.recurrence.rule, anchor).all((f, i) => {
+  x.rrule.all((f, i) => {
     if (i > MAX_SCAN) return false;
     if (min && f < min) return true;
-    if (ex.has(keyOf(t.schedule.kind, f))) return true;
+    if (ex.has(x.key(f))) return true;
     found = f;
     return false;
   });
-  return found ? occurrence(t.schedule, found) : null;
+  return found ? x.occ(found) : null;
 }
 
 /**
@@ -132,7 +176,7 @@ export function splitSeries<T extends Series>(series: T, key: string, newId: str
   const rec = series.recurrence;
   const anchor = anchorOf(series.schedule);
   if (!rec || !anchor) return { head: null, tail: series };
-  const opts = parse(rec.rule);
+  const opts = clamped(parse(rec.rule), toFloating(anchor));
   const cut = floatingOfKey(key);
   let before = 0;
   build(rec.rule, anchor).all((f, i) => {
@@ -169,6 +213,15 @@ export function describeRule(rule: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+const WKST: Record<WeekStart, string> = { 0: "SU", 1: "MO", 6: "SA" };
+
+/** The Custom repeat builder's rule. Multi-day, multi-week rules count weeks from the user's week start (TIME-09). */
+export function customRule(freq: string, interval: number, days: string[], ws: WeekStart): string {
+  const byday = freq === "WEEKLY" && days.length ? `;BYDAY=${days.join(",")}` : "";
+  const wkst = byday && interval > 1 && days.length > 1 && ws !== 1 ? `;WKST=${WKST[ws]}` : "";
+  return `FREQ=${freq}${interval > 1 ? `;INTERVAL=${interval}` : ""}${byday}${wkst}`;
+}
+
 export const REPEAT_PRESETS = [
   { label: "Daily", rule: "FREQ=DAILY" },
   { label: "Weekdays", rule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" },
@@ -189,16 +242,38 @@ export function summarizeSchedule(s: Schedule, rule: string | null): string {
   return parts.join(" · ");
 }
 
+/** rrule weekday (MO = 0) of a local date. */
+const weekdayOf = (date: string) => (fromLocalDate(date).getDay() + 6) % 7;
+
 /**
- * "All occurrences": the user moved one occurrence from `from` to `to`; move the series anchor
- * by the same number of days, adopting the new wall-clock time and duration.
+ * "All occurrences": the user moved occurrence `key` to `to`. The series adopts the new wall-clock
+ * time and duration and moves by the same number of days; for a BYDAY rule the moved weekday is
+ * rewritten instead (TIME-08). Exdates move along, so handled occurrences stay handled (TIME-02).
  */
-export function shiftAnchor(anchor: Schedule, from: Schedule, to: Schedule): Schedule {
-  const a = scheduleDate(anchor);
-  const f = scheduleDate(from);
-  const t = scheduleDate(to);
-  if (!a || !f || !t || to.kind === "none" || to.kind === "someday") return anchor;
-  const date = addDaysLocal(a, daysBetween(f, t));
-  if (to.kind === "day") return { kind: "day", date };
-  return timed(atLocalTime(date, hhmm(new Date(to.start))), durationMinutes(to) ?? 0);
+export function shiftSeries<T extends Recurring>(t: T, key: string, to: Schedule): Pick<T, "schedule" | "recurrence"> {
+  const a = scheduleDate(t.schedule);
+  const toDate = scheduleDate(to);
+  const unchanged = { schedule: t.schedule, recurrence: t.recurrence };
+  if (!a || !toDate || to.kind === "none" || to.kind === "someday") return unchanged;
+  const from = key.slice(0, 10);
+  const days = daysBetween(from, toDate);
+  const rec = t.recurrence;
+  const opts = rec ? parse(rec.rule) : {};
+  const byday = days % 7 !== 0 && Array.isArray(opts.byweekday) && opts.byweekday.length ? (opts.byweekday as Weekday[]) : null;
+  const fromWd = weekdayOf(from);
+  const moves = (date: string) => !byday || weekdayOf(date) === fromWd;
+  const time = to.kind === "timed" ? hhmm(new Date(to.start)) : null;
+  const at = (date: string): Schedule => (time ? timed(atLocalTime(date, time), durationMinutes(to) ?? 0) : { kind: "day", date });
+  const remap = (k: string) => {
+    const d = moves(k.slice(0, 10)) ? addDaysLocal(k.slice(0, 10), days) : k.slice(0, 10);
+    return time ? `${d}T${time}` : d;
+  };
+  const toWd = weekdayOf(toDate);
+  const rule = byday
+    ? serialize({ ...opts, byweekday: [...new Map(byday.map((w) => (w.weekday === fromWd ? new Weekday(toWd, w.n) : w)).map((w) => [`${w.weekday}:${w.n ?? ""}`, w])).values()] })
+    : rec?.rule;
+  return {
+    schedule: at(byday ? a : addDaysLocal(a, days)),
+    recurrence: rec && { rule: rule ?? rec.rule, exdates: rec.exdates.map(remap) },
+  };
 }

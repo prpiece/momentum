@@ -41,6 +41,22 @@ describe("update on a recurring task", () => {
     expect(r.task.id).not.toBe(s.id);
     expect(useData.getState().tasks[s.id].title).toBe("Gym");
   });
+  it("keeps the current occurrence's date when only the duration changes (AGENT-02)", () => {
+    const timedSeries = () => {
+      const t = addTask({ title: "Run", schedule: { kind: "timed", start: "2026-10-01T13:00:00.000Z", end: "2026-10-01T14:00:00.000Z" }, recurrence: { rule: "FREQ=DAILY", exdates: ["2026-10-01T09:00", "2026-10-02T09:00"] } });
+      return t;
+    };
+    const startOf = (id: string) => {
+      const s = useData.getState().tasks[id].schedule;
+      return s.kind === "timed" ? [s.start, s.end] : [];
+    };
+    const one = timedSeries();
+    const r = call("update", { id: one.id, durationMin: 30 });
+    expect(startOf(r.task.id)).toEqual(["2026-10-03T13:00:00.000Z", "2026-10-03T13:30:00.000Z"]);
+    const all = timedSeries();
+    call("update", { id: all.id, durationMin: 30, scope: "all" });
+    expect(startOf(all.id)).toEqual(["2026-10-01T13:00:00.000Z", "2026-10-01T13:30:00.000Z"]);
+  });
   it("changes the whole series with scope all", () => {
     const s = series();
     call("update", { id: s.id, title: "Swim", scope: "all" });

@@ -1,8 +1,11 @@
 import { calendarItems, type CalItem } from "./calendar";
 import { addDaysLocal, atLocalTime, formatTime, relativeDayLabel, scheduleDate, toLocalDate } from "./dates";
+import { occurrencesBetween } from "./recurrence";
 import { currentStreak, isBuild, isDone, isDueToday, streakAtRiskOn, type CheckinMap, type Habit } from "./habits";
 import type { TaskVM } from "./taskViews";
 import type { CalendarEvent, Reminder, Schedule, Settings, WeekStart } from "./types";
+
+const DAY_MS = 86_400_000;
 
 export const BEFORE_PRESETS = [
   { label: "At start", minutes: 0 },
@@ -42,14 +45,15 @@ export type Fire = {
 };
 
 /**
- * When a task reminder goes off for a given (effective) schedule. "N minutes before" is
+ * When a task reminder goes off for a given (effective) schedule. Whole days before are
  * wall-clock arithmetic, so "1 day before" a 09:00 task is 09:00 the previous day even when
- * a DST change falls in between.
+ * a DST change falls in between; shorter offsets are real minutes (TIME-07).
  */
 export function reminderAt(s: Schedule, r: Reminder): Date | null {
   if (r.kind === "before") {
     if (s.kind !== "timed") return null;
     const d = new Date(s.start);
+    if (r.minutes % 1440) return new Date(d.getTime() - r.minutes * 60_000);
     const wall = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()) - r.minutes * 60_000;
     const w = new Date(wall);
     return new Date(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate(), w.getUTCHours(), w.getUTCMinutes());
@@ -74,17 +78,24 @@ export function remindersBetween(
   for (const vm of tasks) {
     const t = vm.task;
     if (t.status !== "open" || !t.reminders.length) continue;
-    for (const r of t.reminders) {
-      const at = reminderAt(vm.schedule, r);
-      if (!at || at <= from || at > to) continue;
-      // Worded for the moment it shows: "Today", "Tomorrow" relative to the fire time, not the window's end.
-      const day = toLocalDate(at);
-      const date = scheduleDate(vm.schedule) ?? day;
-      const when =
-        vm.schedule.kind === "timed"
-          ? `${relativeDayLabel(date, day)} at ${formatTime(new Date(vm.schedule.start), timeFormat)}`
-          : `Due ${relativeDayLabel(date, day).toLowerCase()}`;
-      out.push({ key: `task:${t.id}:${vm.key ?? ""}:${at.toISOString()}`, at, title: t.title, body: when, target: { kind: "task", id: t.id, occurrenceKey: vm.key } });
+    // Every open occurrence of a series reminds, not just the oldest unhandled one (TIME-01).
+    const leadDays = Math.max(...t.reminders.map((r) => (r.kind === "before" ? Math.ceil(r.minutes / 1440) : r.daysBefore))) + 1;
+    const occs = t.recurrence
+      ? occurrencesBetween(t, new Date(from.getTime() - DAY_MS), new Date(to.getTime() + leadDays * DAY_MS))
+      : [{ key: vm.key, schedule: vm.schedule }];
+    for (const o of occs) {
+      for (const r of t.reminders) {
+        const at = reminderAt(o.schedule, r);
+        if (!at || at <= from || at > to) continue;
+        // Worded for the moment it shows: "Today", "Tomorrow" relative to the fire time, not the window's end.
+        const day = toLocalDate(at);
+        const date = scheduleDate(o.schedule) ?? day;
+        const when =
+          o.schedule.kind === "timed"
+            ? `${relativeDayLabel(date, day)} at ${formatTime(new Date(o.schedule.start), timeFormat)}`
+            : `Due ${relativeDayLabel(date, day).toLowerCase()}`;
+        out.push({ key: `task:${t.id}:${o.key ?? ""}:${at.toISOString()}`, at, title: t.title, body: when, target: { kind: "task", id: t.id, occurrenceKey: o.key } });
+      }
     }
   }
   // Habit reminders are wall-clock times on each day in the window.

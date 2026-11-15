@@ -181,6 +181,13 @@ export function minutesInDay(d: Date, day: LocalDate): number {
   return d.getHours() * 60 + d.getMinutes();
 }
 
+/** Real minutes of [start, end] inside `day` (a fall-back night's repeated hour counts, TIME-16). */
+function elapsedInDay(start: Date, end: Date, day: LocalDate): number {
+  const from = Math.max(start.getTime(), fromLocalDate(day).getTime());
+  const to = Math.min(end.getTime(), fromLocalDate(addDaysLocal(day, 1)).getTime());
+  return Math.max(0, Math.round((to - from) / 60_000));
+}
+
 export type DaySummary = { allDay: CalItem[]; timed: CalItem[]; scheduledMinutes: number; now: CalItem | null; next: CalItem | null };
 
 /** The Day view's brief (D209): the day's items split, time booked inside the day, and what's on now / next. */
@@ -191,7 +198,7 @@ export function daySummary(items: readonly CalItem[], day: LocalDate, now: Date)
   return {
     allDay: on.filter((i) => i.allDay),
     timed,
-    scheduledMinutes: timed.reduce((m, i) => m + minutesInDay(i.end!, day) - minutesInDay(i.start!, day), 0),
+    scheduledMinutes: timed.reduce((m, i) => m + elapsedInDay(i.start!, i.end!, day), 0),
     now: open.find((i) => i.start! <= now && i.end! > now) ?? null,
     next: open.find((i) => i.start! > now) ?? null,
   };
@@ -209,7 +216,9 @@ export function layoutDay(items: readonly CalItem[], day: LocalDate, minHeight =
     .filter((i) => !i.allDay && i.start && i.end && coversDay(i, day))
     .map((item) => {
       const top = item.start ? minutesInDay(item.start, day) : 0;
-      const raw = item.end ? minutesInDay(item.end, day) : top;
+      const wall = item.end ? minutesInDay(item.end, day) : top;
+      // An item inside the repeated fall-back hour ends at or before its wall-clock start: draw its real length (TIME-16).
+      const raw = wall > top || !item.start || !item.end ? wall : Math.min(MINUTES_PER_DAY, top + elapsedInDay(item.start, item.end, day));
       return { item, top, end: Math.max(raw, top + 1), bottom: Math.max(raw, top + minHeight), col: 0, cols: 1 };
     })
     .sort((a, b) => a.top - b.top || b.end - a.end);

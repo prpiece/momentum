@@ -50,7 +50,8 @@ export async function startReminders(notify: (r: ReminderDTO) => void) {
     const now = Date.now();
     const { tasks, lists, events } = useData.getState();
     const { habits, checkins } = useHabits.getState();
-    const from = new Date(last);
+    // After sleep, catch up only as far as on launch: no burst of a weekend's digests and habit reminders (TIME-11).
+    const from = new Date(Math.max(last, now - CATCH_UP_MS));
     last = now;
     const due = upcomingFires(
       { active: derive(tasks, lists).active, events: Object.values(events), habits: Object.values(habits), habitValues: (id) => valuesOf(checkins[id]), settings: useSettings.getState().settings },

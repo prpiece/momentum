@@ -106,7 +106,9 @@ function update(r: Extract<AgentRequest, { op: "update" }>) {
     patch.listId = l.id;
   }
   if (p.tags !== undefined) patch.tags = ensureTags(p.tags);
-  let schedule = vm.task.schedule;
+  // A series is edited through its current occurrence, not its anchor (AGENT-02).
+  const current = vm.task.recurrence ? vm.schedule : vm.task.schedule;
+  let schedule = current;
   if (p.planned !== undefined) schedule = applyPlanned(schedule, p.planned);
   if (p.durationMin !== undefined) {
     // A time block's length is its end minus its start; otherwise it is an estimate.
@@ -114,7 +116,7 @@ function update(r: Extract<AgentRequest, { op: "update" }>) {
     else if (schedule.kind === "timed") throw new AgentError("A time block's length can't be cleared; move the task off its time first.");
     else patch.durationMin = p.durationMin;
   }
-  if (schedule !== vm.task.schedule) patch.schedule = schedule;
+  if (schedule !== current) patch.schedule = schedule;
   const before = taskIds();
   const key = vm.task.recurrence ? effective(vm.task)?.key : null;
   // A recurring task changes only this occurrence unless the caller says following or all.

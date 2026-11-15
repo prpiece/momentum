@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { atLocalTime, durationMinutes, timed, wallKey } from "./dates";
-import { describeRule, detachOccurrence, effective, nextOccurrence, occurrencesBetween, shiftAnchor, splitSeries, summarizeSchedule } from "./recurrence";
+import { customRule, describeRule, detachOccurrence, isValidRule, effective, nextOccurrence, occurrencesBetween, shiftSeries, splitSeries, summarizeSchedule } from "./recurrence";
 import type { Schedule, Task } from "./types";
 
 describe("summarizeSchedule", () => {
@@ -87,6 +87,33 @@ describe("expansion across DST", () => {
 });
 
 describe("rules", () => {
+  it("clamps monthly and yearly series to the month's last day (TIME-18, TIME-14)", () => {
+    const monthly = task({ kind: "day", date: "2026-01-31" }, "FREQ=MONTHLY");
+    expect(keys(monthly, atLocalTime("2026-01-01", "00:00"), atLocalTime("2026-04-30", "23:59"))).toEqual(["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30"]);
+    const leap = task({ kind: "day", date: "2024-02-29" }, "FREQ=YEARLY");
+    expect(keys(leap, atLocalTime("2024-01-01", "00:00"), atLocalTime("2026-12-31", "23:59"))).toEqual(["2024-02-29", "2025-02-28", "2026-02-28"]);
+    // Splitting at a clamped occurrence keeps the month-end rule for the tail.
+    const { tail } = splitSeries(monthly, "2026-02-28", "n", "now");
+    expect(keys(tail, atLocalTime("2026-02-01", "00:00"), atLocalTime("2026-04-30", "23:59"))).toEqual(["2026-02-28", "2026-03-31", "2026-04-30"]);
+  });
+
+  it("counts custom multi-week rules from the user's week start (TIME-09)", () => {
+    const rule = customRule("WEEKLY", 2, ["SU", "MO"], 0);
+    expect(rule).toBe("FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=SU");
+    expect(customRule("WEEKLY", 2, ["SU", "MO"], 1)).toBe("FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO");
+    expect(customRule("DAILY", 3, ["MO"], 0)).toBe("FREQ=DAILY;INTERVAL=3");
+    const t = task({ kind: "day", date: "2026-11-15" }, rule);
+    expect(keys(t, atLocalTime("2026-11-15", "00:00"), atLocalTime("2026-12-14", "23:59"))).toEqual(["2026-11-15", "2026-11-16", "2026-11-29", "2026-11-30", "2026-12-13", "2026-12-14"]);
+  });
+
+  it("rejects rules that parse but can't expand, and sub-hourly ones (TIME-12)", () => {
+    expect(isValidRule("FREQ=DAILY;BYDAY=XX")).toBe(false);
+    expect(isValidRule("FREQ=SECONDLY")).toBe(false);
+    expect(isValidRule("FREQ=MINUTELY")).toBe(false);
+    expect(isValidRule("FREQ=WEEKLY;BYDAY=MO,WE")).toBe(true);
+    expect(isValidRule("DTSTART;TZID=Europe/London:20260302T090000\nRRULE:FREQ=WEEKLY")).toBe(true);
+  });
+
   it("expands weekly BYDAY on all-day schedules", () => {
     const t = task({ kind: "day", date: "2026-10-26" }, "FREQ=WEEKLY;BYDAY=MO,WE");
     expect(keys(t, atLocalTime("2026-10-26", "00:00"), atLocalTime("2026-11-08", "00:00"))).toEqual([
@@ -185,7 +212,11 @@ describe("splitSeries (this and following)", () => {
   });
 });
 
-describe("shiftAnchor (all occurrences)", () => {
+describe("shiftSeries (all occurrences)", () => {
+  const shiftAnchor = (anchor: Schedule, from: Schedule, to: Schedule) => {
+    const key = from.kind === "timed" ? wallKey(new Date(from.start)) : from.kind === "day" ? from.date : "";
+    return shiftSeries(task(anchor, "FREQ=DAILY"), key, to).schedule;
+  };
   it("moves a day series by the same number of days", () => {
     expect(shiftAnchor({ kind: "day", date: "2026-10-01" }, { kind: "day", date: "2026-10-08" }, { kind: "day", date: "2026-10-10" })).toEqual({
       kind: "day",
@@ -208,5 +239,23 @@ describe("shiftAnchor (all occurrences)", () => {
       kind: "day",
       date: "2026-10-02",
     });
+  });
+
+  it("keeps handled occurrences handled when the time or day moves (TIME-02)", () => {
+    const t = task(timed(atLocalTime("2026-11-01", "09:00"), 30), "FREQ=DAILY", ["2026-11-01T09:00", "2026-11-02T09:00", "2026-11-03T09:00"]);
+    const later = { ...t, ...shiftSeries(t, "2026-11-04T09:00", timed(atLocalTime("2026-11-04", "10:00"), 30)) };
+    expect(effective(later)?.key).toBe("2026-11-04T10:00");
+    const dayLater = { ...t, ...shiftSeries(t, "2026-11-04T09:00", timed(atLocalTime("2026-11-05", "09:00"), 30)) };
+    expect(dayLater.recurrence?.exdates).toEqual(["2026-11-02T09:00", "2026-11-03T09:00", "2026-11-04T09:00"]);
+    expect(effective(dayLater)?.key).toBe("2026-11-05T09:00");
+  });
+
+  it("moves the dragged weekday of a BYDAY rule instead of the start date (TIME-08)", () => {
+    const t = task({ kind: "day", date: "2026-11-16" }, "FREQ=WEEKLY;BYDAY=MO,WE,FR", ["2026-11-18"]);
+    const moved = { ...t, ...shiftSeries(t, "2026-11-25", { kind: "day", date: "2026-11-26" }) };
+    expect(moved.schedule).toEqual({ kind: "day", date: "2026-11-16" });
+    expect(moved.recurrence?.exdates).toEqual(["2026-11-19"]);
+    expect(keys(moved, atLocalTime("2026-11-16", "00:00"), atLocalTime("2026-11-22", "23:59"))).toEqual(["2026-11-16", "2026-11-20"]);
+    expect(keys(moved, atLocalTime("2026-11-23", "00:00"), atLocalTime("2026-11-29", "23:59"))).toEqual(["2026-11-23", "2026-11-26", "2026-11-27"]);
   });
 });

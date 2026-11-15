@@ -37,7 +37,7 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
 
   const save = async () => {
     const schedule: Schedule = allDay ? { kind: "day", date } : timed(atLocalTime(date, start), minutes);
-    const recurrence: Recurrence | null = rule ? { rule, exdates: rule === event.recurrence?.rule ? event.recurrence.exdates : [] } : null;
+    const recurrence: Recurrence | null = rule ? { rule, exdates: event.recurrence?.exdates ?? [] } : null;
     const patch: Partial<CalendarEvent> = {
       title: title.trim() || "Untitled event",
       notes,
@@ -52,6 +52,9 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
       const scope = await askScope("edit");
       if (!scope) return;
       editEventOccurrence(event.id, occurrenceKey, scope, { ...patch, schedule });
+    } else if (recurrence && event.recurrence && occurrenceKey && timingChanged) {
+      // A new rule with a moved occurrence: the whole series shifts by the move and keeps its handled dates (TIME-02).
+      editEventOccurrence(event.id, occurrenceKey, "all", { ...patch, recurrence, schedule });
     } else {
       // Changing the rule itself (or a non-recurring event) applies to the whole event.
       updateEvent(event.id, { ...patch, recurrence, ...(timingChanged ? { schedule } : {}) });

@@ -53,6 +53,40 @@ export function atLocalTime(date: LocalDate, hhmm: string): Date {
 export const wallKey = (d: Date): string => format(d, "yyyy-MM-dd'T'HH:mm");
 export const hhmm = (d: Date): string => format(d, "HH:mm");
 
+const zoneFormats = new Map<string, Intl.DateTimeFormat>();
+function zoneFormat(tz: string): Intl.DateTimeFormat {
+  let f = zoneFormats.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" });
+    zoneFormats.set(tz, f);
+  }
+  return f;
+}
+
+/** Whether `tz` is an IANA zone this runtime knows. */
+export function isZone(tz: string): boolean {
+  try {
+    zoneFormat(tz).formatToParts(0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Wall-clock components of `d` in zone `tz`, as a "floating" Date (the components in its UTC fields). */
+export function wallIn(d: Date, tz: string): Date {
+  const p: Record<string, number> = {};
+  for (const x of zoneFormat(tz).formatToParts(d)) if (x.type !== "literal") p[x.type] = Number(x.value);
+  return new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second));
+}
+
+/** The instant whose wall clock in `tz` is the floating `f` (a time in a DST gap lands an hour off). */
+export function fromWall(f: Date, tz: string): Date {
+  let t = f.getTime();
+  for (let i = 0; i < 2; i++) t = f.getTime() - (wallIn(new Date(t), tz).getTime() - t);
+  return new Date(t);
+}
+
 /** The local date a schedule falls on (a timed task's start day). */
 export function scheduleDate(s: Schedule): LocalDate | null {
   switch (s.kind) {

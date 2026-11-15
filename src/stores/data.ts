@@ -2,7 +2,7 @@ import { create } from "zustand";
 import * as repo from "../db/repo";
 import { canAddChild, canNest, childFolders } from "../domain/folders";
 import { after, before, reorder as reorderItems } from "../domain/order";
-import { detachOccurrence, effective, scheduleForKey, shiftAnchor, splitSeries } from "../domain/recurrence";
+import { detachOccurrence, effective, shiftSeries, splitSeries } from "../domain/recurrence";
 import { scheduleDate } from "../domain/dates";
 import { waitLoops } from "../domain/waiting";
 import { toast } from "./toast";
@@ -332,9 +332,8 @@ export function editOccurrence(id: string, key: string, scope: Scope, patch: Par
   }
   // Unscheduling the whole series ends it as a single undated task.
   if (patch.schedule?.kind === "none" || patch.schedule?.kind === "someday") return updateTask(id, { ...patch, recurrence: null });
-  const occ = scheduleForKey(t.schedule, key);
-  const schedule = patch.schedule ? shiftAnchor(t.schedule, occ, patch.schedule) : t.schedule;
-  updateTask(id, { ...patch, schedule });
+  const base = { ...t, recurrence: patch.recurrence !== undefined ? patch.recurrence : t.recurrence };
+  updateTask(id, { ...patch, ...(patch.schedule ? shiftSeries(base, key, patch.schedule) : {}) });
 }
 
 export function deleteOccurrence(id: string, key: string, scope: Scope): string[] {
@@ -396,8 +395,8 @@ export function editEventOccurrence(id: string, key: string, scope: Scope, patch
     const { head, tail } = splitSeries(e, key, uid(), now());
     return commitEvents(head ? [head, { ...tail, ...patch }] : [{ ...tail, ...patch, id: e.id }]);
   }
-  const schedule = patch.schedule ? shiftAnchor(e.schedule, scheduleForKey(e.schedule, key), patch.schedule) : e.schedule;
-  updateEvent(id, { ...patch, schedule });
+  const base = { ...e, recurrence: patch.recurrence !== undefined ? patch.recurrence : e.recurrence };
+  updateEvent(id, { ...patch, ...(patch.schedule ? shiftSeries(base, key, patch.schedule) : {}) });
 }
 
 export function deleteEventOccurrence(id: string, key: string, scope: Scope) {

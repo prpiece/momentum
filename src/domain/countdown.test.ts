@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { countdownDays, eventCountdown, targetDate } from "./countdown";
+import { nextOccurrence } from "./recurrence";
+import type { CalendarEvent } from "./types";
 
 describe("countdowns", () => {
   const T = "2026-10-25";
   it("counts until and since", () => {
     expect(countdownDays({ date: "2026-12-25", repeat: "none", direction: "until" }, T)).toBe(61);
     expect(countdownDays({ date: "2026-10-01", repeat: "none", direction: "since" }, T)).toBe(24);
+  });
+  it("counts to the same date the calendar shows for a month-end series (TIME-14)", () => {
+    const e: Pick<CalendarEvent, "schedule" | "recurrence" | "countdown"> = { schedule: { kind: "day", date: "2026-01-31" }, recurrence: { rule: "FREQ=MONTHLY", exdates: [] }, countdown: "until" };
+    const c = eventCountdown(e)!;
+    const next = nextOccurrence(e, new Date(2026, 1, 1));
+    expect(targetDate(c, "2026-02-01")).toBe(next?.key);
   });
   it("rolls repeating dates to the next anniversary, clamping short months", () => {
     expect(targetDate({ date: "1990-03-14", repeat: "yearly", direction: "until" }, T)).toBe("2027-03-14");
