@@ -26,13 +26,17 @@ Usage: momentum <command> [options]
         [--list L] [--parent ID]
   update <id> [--title T] [--notes N] [--date YYYY-MM-DD|someday|none] [--deadline YYYY-MM-DD|none]
               [--duration 15|1h30m|none] [--priority none|low|medium|high] [--list L] [--tags a,b]
+              [--scope this|following|all]   (recurring tasks: this occurrence by default)
   done <id>                   complete a task
   reopen <id>
+  delete <full-id> [--with-subtasks]   move one task to the Trash (needs the full id; subtasks need --with-subtasks)
+  restore <id>                bring a task back from the Trash
+  trash                       list what is in the Trash
   habits                      habits with today's status
   mcp                         serve MCP over stdio (for Claude Code, Cursor, Codex, Gemini CLI...)
 
 Options: --json (machine-readable output), --limit N (list, search), -h/--help.
-Ids may be shortened to their first 4+ characters. If Momentum isn't running it is started in the tray.
+Ids may be shortened to their first 4+ characters, except for delete, which needs the full id. If Momentum isn't running it is started in the tray.
 ";
 
 enum Fail {
@@ -169,7 +173,9 @@ struct Parsed {
     json: bool,
 }
 
-const VALUE_FLAGS: &[&str] = &["list", "parent", "title", "notes", "date", "deadline", "duration", "priority", "tags", "limit"];
+const VALUE_FLAGS: &[&str] = &["list", "parent", "title", "notes", "date", "deadline", "duration", "priority", "tags", "limit", "scope"];
+/// Flags that take no value.
+const SWITCHES: &[&str] = &["with-subtasks"];
 
 fn parse_args(args: Vec<String>) -> R<Parsed> {
     let (mut cmd, mut pos, mut flags, mut json) = (None, Vec::new(), Map::new(), false);
@@ -184,6 +190,10 @@ fn parse_args(args: Vec<String>) -> R<Parsed> {
                 Some((n, v)) => (n, Some(v.to_string())),
                 None => (f, None),
             };
+            if SWITCHES.contains(&name) {
+                flags.insert(name.to_string(), Value::Bool(true));
+                continue;
+            }
             if !VALUE_FLAGS.contains(&name) {
                 return usage(format!("unknown option --{name}"));
             }
@@ -253,6 +263,13 @@ fn to_op(p: &Parsed) -> R<(&'static str, Value)> {
         "done" | "complete" => ("complete", json!({ "id": one_id(p)? })),
         "reopen" => ("reopen", json!({ "id": one_id(p)? })),
         "habits" => ("habits", json!({})),
+        "restore" => ("restore", json!({ "id": one_id(p)? })),
+        "delete" => ("delete", json!({ "id": one_id(p)?, "withSubtasks": p.flags.contains_key("with-subtasks") })),
+        "trash" => {
+            let mut m = Map::new();
+            limit(&mut m)?;
+            ("trash", Value::Object(m))
+        }
         "add" => {
             if p.pos.is_empty() {
                 return usage("momentum add <text...> [--list L] [--parent ID]");
@@ -274,6 +291,10 @@ fn to_op(p: &Parsed) -> R<(&'static str, Value)> {
                     m.insert(key.into(), v.clone());
                 }
             }
+            let scope = p.flags.get("scope");
+            if let Some(v) = scope {
+                m.insert("scope".into(), v.clone());
+            }
             if let Some(d) = p.flags.get("duration") {
                 m.insert("durationMin".into(), minutes(d.as_str().unwrap_or("")).ok_or_else(|| Fail::Usage("--duration looks like 15, 1h30m or none".into()))?);
             }
@@ -281,7 +302,7 @@ fn to_op(p: &Parsed) -> R<(&'static str, Value)> {
                 let tags: Vec<_> = t.as_str().unwrap_or("").split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
                 m.insert("tags".into(), json!(tags));
             }
-            if m.len() == 1 {
+            if m.len() == 1 + usize::from(scope.is_some()) {
                 return usage("momentum update <id> needs at least one option, see --help");
             }
             ("update", Value::Object(m))
@@ -361,6 +382,23 @@ fn human(op: &str, d: &Value) -> String {
         "update" => format!("Updated {}", task_line(&d["task"])),
         "complete" => format!("Done {}", task_line(&d["task"])),
         "reopen" => format!("Reopened {}", task_line(&d["task"])),
+        "restore" => format!("Restored {}", task_line(&d["task"])),
+        "delete" => {
+            let mut out = format!("Moved to the Trash: {}", task_line(&d["deleted"]));
+            for k in d["subtasks"].as_array().into_iter().flatten() {
+                out.push_str(&format!("\n  and its subtask {}", task_line(k)));
+            }
+            out.push_str("\nUndo with: momentum restore ");
+            out.push_str(s(&d["deleted"]["id"]));
+            out
+        }
+        "trash" => {
+            let list = d["tasks"].as_array().cloned().unwrap_or_default();
+            if list.is_empty() {
+                return "The Trash is empty.".into();
+            }
+            list.iter().map(|t| format!("{}  (deleted {})", task_line(t), s(&t["deletedAt"]).get(..10).unwrap_or(""))).collect::<Vec<_>>().join("\n")
+        }
         "habits" => {
             let hs = d["habits"].as_array().cloned().unwrap_or_default();
             if hs.is_empty() {
@@ -399,6 +437,7 @@ fn tools() -> Value {
     let id = json!({ "id": { "type": "string", "description": "Task id from list_tasks (4+ leading characters are enough)." } });
     let mut update_props = task_fields.as_object().cloned().unwrap_or_default();
     update_props.extend(id.as_object().cloned().unwrap_or_default());
+    update_props.insert("scope".into(), json!({ "type": "string", "enum": ["this", "following", "all"], "description": "Recurring tasks only: which occurrences change. Default this (just the current one)." }));
     json!([
         { "name": "list_tasks", "description": "List open tasks in a view: today, inbox, upcoming, someday, waiting, a list name, or a filter such as \"#work !high overdue\". Defaults to today.",
           "inputSchema": { "type": "object", "properties": { "view": { "type": "string" }, "limit": { "type": "integer", "minimum": 1, "maximum": 200 } } } },
@@ -411,6 +450,11 @@ fn tools() -> Value {
           "inputSchema": { "type": "object", "properties": update_props, "required": ["id"] } },
         { "name": "complete_task", "description": "Mark a task done (a recurring task completes its current occurrence).", "inputSchema": { "type": "object", "properties": id, "required": ["id"] } },
         { "name": "reopen_task", "description": "Reopen a finished task.", "inputSchema": { "type": "object", "properties": id, "required": ["id"] } },
+        { "name": "delete_task", "description": "Move ONE task to the Trash (recoverable for 30 days) and return it. Needs the task's full id, not a shortened one. A task with subtasks is refused unless withSubtasks is true; the response lists everything removed. There is no bulk delete.",
+          "inputSchema": { "type": "object", "properties": { "id": { "type": "string", "description": "The task's full id." }, "withSubtasks": { "type": "boolean", "description": "Required when the task has subtasks; deletes them too." } }, "required": ["id"] } },
+        { "name": "restore_task", "description": "Bring a task back from the Trash (with the subtasks deleted along with it).", "inputSchema": { "type": "object", "properties": id, "required": ["id"] } },
+        { "name": "list_trash", "description": "Tasks currently in the Trash, newest first.",
+          "inputSchema": { "type": "object", "properties": { "limit": { "type": "integer", "minimum": 1, "maximum": 200 } } } },
         { "name": "list_habits", "description": "Habits with today's progress and streak.", "inputSchema": { "type": "object", "properties": {} } }
     ])
 }
@@ -424,6 +468,9 @@ fn tool_op(name: &str) -> Option<&'static str> {
         "update_task" => "update",
         "complete_task" => "complete",
         "reopen_task" => "reopen",
+        "delete_task" => "delete",
+        "restore_task" => "restore",
+        "list_trash" => "trash",
         "list_habits" => "habits",
         _ => return None,
     })
@@ -530,6 +577,27 @@ mod tests {
         assert_eq!(minutes("2h"), Some(json!(120)));
         assert_eq!(minutes("none"), Some(Value::Null));
         assert_eq!(minutes("soon"), None);
+    }
+
+    #[test]
+    fn delete_restore_and_trash_map_to_ops() {
+        let (op, args) = to_op(&parsed(&["delete", "abcdef-full-id"])).ok().unwrap();
+        assert_eq!((op, args), ("delete", json!({ "id": "abcdef-full-id", "withSubtasks": false })));
+        let (_, args) = to_op(&parsed(&["delete", "--with-subtasks", "abc"])).ok().unwrap();
+        assert_eq!(args, json!({ "id": "abc", "withSubtasks": true }));
+        assert_eq!(to_op(&parsed(&["restore", "abc"])).ok().unwrap(), ("restore", json!({ "id": "abc" })));
+        assert_eq!(to_op(&parsed(&["trash", "--limit", "5"])).ok().unwrap(), ("trash", json!({ "limit": 5 })));
+        assert!(to_op(&parsed(&["delete", "a", "b"])).is_err(), "no bulk delete");
+        let (_, args) = to_op(&parsed(&["update", "ab12", "--title", "x", "--scope", "all"])).ok().unwrap();
+        assert_eq!(args, json!({ "id": "ab12", "title": "x", "scope": "all" }));
+        assert!(to_op(&parsed(&["update", "ab12", "--scope", "all"])).is_err());
+    }
+
+    #[test]
+    fn mcp_offers_delete_restore_and_trash() {
+        let list = mcp_reply(&json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" })).unwrap();
+        let names: Vec<_> = list["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
+        assert!(["delete_task", "restore_task", "list_trash"].iter().all(|n| names.contains(n) && tool_op(n).is_some()));
     }
 
     #[test]
