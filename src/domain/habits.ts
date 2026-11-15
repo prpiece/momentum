@@ -89,9 +89,14 @@ export function isScheduled(h: Pick<Habit, "frequency" | "startDate">, date: Loc
   return true;
 }
 
-function weekDoneCount(h: Habit, checkins: CheckinMap, weekStart: LocalDate): number {
+/** Days of the week that succeeded. Only days from the start date that have passed count (today too for build habits): unlogged limit/quit days succeed by default, so future days must not. */
+function weekDoneCount(h: Habit, checkins: CheckinMap, weekStart: LocalDate, today: LocalDate): number {
   let n = 0;
-  for (let i = 0; i < 7; i++) if (isDone(h, checkins.get(addDaysLocal(weekStart, i)))) n++;
+  for (let i = 0; i < 7; i++) {
+    const d = addDaysLocal(weekStart, i);
+    if (d < h.startDate || d > today || (d === today && !isBuild(h))) continue;
+    if (isDone(h, checkins.get(d))) n++;
+  }
   return n;
 }
 
@@ -106,8 +111,8 @@ export function weekTotal(checkins: CheckinMap, weekStart: LocalDate): number {
 
 /** Habits judged by the week: per-week frequencies and weekly-total goals. */
 const byWeek = (h: Habit) => h.frequency.kind === "perWeek" || isWeeklyTotal(h);
-const weekMet = (h: Habit, checkins: CheckinMap, w: LocalDate) =>
-  isWeeklyTotal(h) ? weekTotal(checkins, w) >= targetOf(h) : weekDoneCount(h, checkins, w) >= weeklyTarget(h);
+const weekMet = (h: Habit, checkins: CheckinMap, w: LocalDate, today: LocalDate) =>
+  isWeeklyTotal(h) ? weekTotal(checkins, w) >= targetOf(h) : weekDoneCount(h, checkins, w, today) >= weeklyTarget(h);
 
 /** Progress for the habit's period: this week's total for a weekly goal, otherwise the day's value. */
 export const periodValue = (h: Habit, checkins: CheckinMap, date: LocalDate, ws: WeekStart) =>
@@ -117,7 +122,7 @@ export const periodValue = (h: Habit, checkins: CheckinMap, date: LocalDate, ws:
 export function isDueToday(h: Habit, checkins: CheckinMap, today: LocalDate, ws: WeekStart): boolean {
   if (h.archived || !isScheduled(h, today)) return false;
   if (isWeeklyTotal(h)) return true;
-  if (h.frequency.kind === "perWeek") return weekDoneCount(h, checkins, weekStartOf(today, ws)) < weeklyTarget(h) || isDone(h, checkins.get(today));
+  if (h.frequency.kind === "perWeek") return weekDoneCount(h, checkins, weekStartOf(today, ws), today) < weeklyTarget(h) || isDone(h, checkins.get(today));
   return true;
 }
 
@@ -125,7 +130,7 @@ export function isDueToday(h: Habit, checkins: CheckinMap, today: LocalDate, ws:
 export function streakAtRiskOn(h: Habit, checkins: CheckinMap, d: LocalDate, ws: WeekStart): boolean {
   if (byWeek(h)) {
     const w = weekStartOf(d, ws);
-    return d === addDaysLocal(w, 6) && !weekMet(h, checkins, w);
+    return d === addDaysLocal(w, 6) && !weekMet(h, checkins, w, d);
   }
   return isScheduled(h, d) && !isDone(h, checkins.get(d));
 }
@@ -140,9 +145,9 @@ export type Streak = { count: number; unit: "day" | "week" };
 export function currentStreak(h: Habit, checkins: CheckinMap, today: LocalDate, ws: WeekStart): Streak {
   if (byWeek(h)) {
     let week = weekStartOf(today, ws);
-    let count = weekMet(h, checkins, week) ? 1 : 0;
+    let count = weekMet(h, checkins, week, today) ? 1 : 0;
     week = addDaysLocal(week, -7);
-    while (addDaysLocal(week, 6) >= h.startDate && weekMet(h, checkins, week)) {
+    while (addDaysLocal(week, 6) >= h.startDate && weekMet(h, checkins, week, today)) {
       count++;
       week = addDaysLocal(week, -7);
     }
@@ -165,7 +170,7 @@ export function bestStreak(h: Habit, checkins: CheckinMap, today: LocalDate, ws:
   let run = 0;
   if (byWeek(h)) {
     for (let w = weekStartOf(h.startDate, ws); w <= today; w = addDaysLocal(w, 7)) {
-      if (weekMet(h, checkins, w)) best = Math.max(best, ++run);
+      if (weekMet(h, checkins, w, today)) best = Math.max(best, ++run);
       else if (addDaysLocal(w, 6) < today) run = 0; // the current, unfinished week can't break a run
     }
     return { count: best, unit: "week" };
@@ -191,7 +196,7 @@ export function completionRate(h: Habit, checkins: CheckinMap, from: LocalDate, 
     let met = 0;
     let total = 0;
     for (let w = weekStartOf(start, ws); w <= end; w = addDaysLocal(w, 7)) {
-      const ok = weekMet(h, checkins, w);
+      const ok = weekMet(h, checkins, w, today);
       if (addDaysLocal(w, 6) >= today && !ok) continue;
       total++;
       if (ok) met++;

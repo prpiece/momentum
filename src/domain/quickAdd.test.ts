@@ -241,3 +241,41 @@ describe("planning tokens (D267)", () => {
     expect(withDefaults(parseQuickAdd("x someday", NOW), { schedule: { kind: "day", date: "2026-10-25" } }).schedule).toEqual({ kind: "someday" });
   });
 });
+
+describe("durations and token order (v1.2.1 G2)", () => {
+  it("H3: a duration sets the end of a timed task with no until", () => {
+    const p = parseQuickAdd("call 5pm 30m", NOW);
+    expect(p.durationMin).toBe(30);
+    expect(p.schedule.kind).toBe("timed");
+    if (p.schedule.kind === "timed") expect(durationMinutes(p.schedule)).toBe(30);
+    const q = parseQuickAdd("call 30m 5pm", NOW);
+    if (q.schedule.kind === "timed") expect(durationMinutes(q.schedule)).toBe(30);
+  });
+
+  it.each([["15 min", 15], ["15 mins", 15], ["1h 30m", 90], ["1 h 30 min", 90], ["90 minutes", 90], ["1h30m", 90], ["2 hours", 120]])(
+    "H4: %s is a duration, not a start time",
+    (t, min) => {
+      const p = parseQuickAdd(`call mom ${t}`, NOW);
+      expect(p.durationMin).toBe(min);
+      expect(p.schedule).toEqual({ kind: "none" });
+      expect(p.title).toBe("call mom");
+    },
+  );
+
+  it("keeps every token in every order", () => {
+    const toks = ["!high", "#tag", "~Home", "30m", "by fri"];
+    const perms = (a: string[]): string[][] => (a.length < 2 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map((r) => [x, ...r])));
+    for (const order of perms(toks)) {
+      const ctx = order.join(" ");
+      const p = parseQuickAdd(`call mom ${ctx}`, NOW);
+      expect([ctx, p.priority, p.tags, p.listName, p.durationMin, p.deadline, p.title]).toEqual([ctx, 3, ["tag"], "Home", 30, "2026-10-30", "call mom"]);
+    }
+  });
+
+  it("keeps the tag next to a spoken priority", () => {
+    for (const t of ["high priority tag chem", "tag chem high priority", "priority high #chem", "#chem priority high"]) {
+      const p = parseQuickAdd(`read ${t}`, NOW, true, [], "spoken");
+      expect([t, p.priority, p.tags]).toEqual([t, 3, ["chem"]]);
+    }
+  });
+});

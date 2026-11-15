@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atLocalTime } from "./dates";
+import { atLocalTime, setDayEndHour } from "./dates";
 import { completedPerDay, completedPerWeek, dayStreaks, heatLevel, niceScale } from "./stats";
 import type { Task } from "./types";
 
@@ -30,6 +30,20 @@ const done = (local: string, p: Partial<Task> = {}): Task =>
   }) satisfies Task;
 
 describe("completedPerDay", () => {
+  it("counts a 01:00 completion on the previous day with an end-of-day hour of 3", () => {
+    setDayEndHour(3);
+    try {
+      const tasks = [done("2026-10-25T01:00"), done("2026-10-25T04:00")];
+      expect(completedPerDay(tasks, TODAY, 2).map((b) => [b.start, b.value])).toEqual([
+        ["2026-10-24", 1],
+        ["2026-10-25", 1],
+      ]);
+    } finally {
+      setDayEndHour(0);
+    }
+  });
+
+
   it("buckets by local completion day and ignores open/deleted tasks", () => {
     const tasks = [done("2026-10-25T23:50"), done("2026-10-25T00:10"), done("2026-10-24"), done("2026-10-20"), done("2026-10-25", { status: "open" }), done("2026-10-25", { deletedAt: "2026-10-25T01:00:00.000Z" })];
     expect(completedPerDay(tasks, TODAY, 3).map((b) => [b.start, b.value])).toEqual([
