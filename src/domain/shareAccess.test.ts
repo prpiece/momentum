@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestRole, sharesCoveringFolder, sharesCoveringList, type ShareLike } from "./shareAccess";
+import { bestRole, canEdit, sharesCoveringFolder, sharesCoveringList, type ShareLike } from "./shareAccess";
 
 type Share = ShareLike & { shareId: string; ownerId: string; name: string | null; members: number };
 
@@ -28,5 +28,13 @@ describe("share access", () => {
   it("takes the best role", () => {
     expect(bestRole([])).toBeNull();
     expect(bestRole([share({ role: "viewer" }), share({ role: "editor" })])).toBe("editor");
+  });
+
+  it("canEdit is false only when the best covering role is viewer", () => {
+    const lists = { l: { id: "l", folderId: "a" } };
+    expect(canEdit("l", lists, folders, [share({ containerId: "l", role: "viewer" })])).toBe(false);
+    expect(canEdit("l", lists, folders, [share({ containerId: "l", role: "viewer" }), share({ kind: "folder", containerId: "a", role: "editor" })])).toBe(true);
+    expect(canEdit("l", lists, folders, [])).toBe(true);
+    expect(canEdit("gone", lists, folders, [share({ role: "viewer" })])).toBe(true);
   });
 });

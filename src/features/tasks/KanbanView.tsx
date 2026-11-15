@@ -8,7 +8,7 @@ import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
-import { addSection, moveSection, removeSection, updateSection, updateTask, useData } from "../../stores/data";
+import { addSection, mayEdit, moveSection, removeSection, updateSection, updateTask, useData } from "../../stores/data";
 import { confirm, openContextMenu, openTask, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
 import { InlineAdd } from "./InlineAdd";
@@ -61,7 +61,7 @@ export function KanbanView({ list, vms }: { list: TaskList; vms: TaskVM[] }) {
             onBlur={() => setAdding(false)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && e.currentTarget.value.trim()) {
-                addSection(list.id, e.currentTarget.value.trim());
+                if (mayEdit(list.id)) addSection(list.id, e.currentTarget.value.trim());
                 setAdding(false);
               }
               if (e.key === "Escape") setAdding(false);

@@ -6,9 +6,11 @@
 import { create } from "zustand";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { inviteCodeFrom } from "../domain/invite";
+import { canEdit } from "../domain/shareAccess";
 import * as api from "../lib/sync/social";
 import { setLocalState, state, syncNow, useSync } from "../lib/sync/engine";
 import { supabase } from "../lib/sync/supabase";
+import { setEditGuard, useData } from "./data";
 import { useHabits } from "./habits";
 
 export type Social = {
@@ -119,6 +121,11 @@ function stop() {
 
 /** Call once at startup (each app's boot): follows sign-in and sign-out. */
 export function startSocial() {
+  // View-only shares block every edit path at the store (H11); TaskView reads the same rule for its UI.
+  setEditGuard((listId) => {
+    const { lists, folders } = useData.getState();
+    return canEdit(listId, lists, folders, useSocial.getState().shares);
+  });
   let current: string | null = null;
   const follow = (account: string | null) => {
     if (account === current) return;

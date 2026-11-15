@@ -5,6 +5,7 @@ import { after, before, reorder as reorderItems } from "../domain/order";
 import { detachOccurrence, effective, scheduleForKey, shiftAnchor, splitSeries } from "../domain/recurrence";
 import { scheduleDate } from "../domain/dates";
 import { waitLoops } from "../domain/waiting";
+import { toast } from "./toast";
 import {
   INBOX_ID,
   type CalendarEvent,
@@ -58,8 +59,20 @@ const set = useData.setState;
 
 // ---------- internals ----------
 
-/** Put tasks in the store and persist them. The single write path for tasks. */
-function commit(changed: Task[]) {
+/** Whether the user may change a list (view-only shares say no). Plugged in by stores/social.ts; sync writes bypass it. */
+let canEditList: (listId: string) => boolean = () => true;
+export const setEditGuard = (fn: (listId: string) => boolean) => void (canEditList = fn);
+const viewOnlyToast = () => toast("This list is shared with you as view-only.");
+/** For UI paths that create (a new section) rather than change a row: true, or says why not. */
+export function mayEdit(listId: string): boolean {
+  if (!canEditList(listId)) viewOnlyToast();
+  return canEditList(listId);
+}
+
+/** Put tasks in the store and persist them. The single write path for tasks; it refuses view-only lists (H11). */
+function commit(all: Task[]) {
+  const changed = all.filter((t) => canEditList(t.listId) && canEditList(get().tasks[t.id]?.listId ?? t.listId));
+  if (changed.length < all.length) viewOnlyToast();
   if (!changed.length) return;
   set((s) => ({ tasks: { ...s.tasks, ...byId(changed) } }));
   void repo.saveTasks(changed);
@@ -81,8 +94,11 @@ const childrenOf = (id: string) => live().filter((t) => t.parentId === id);
 
 function descendants(id: string): Task[] {
   const out: Task[] = [];
+  const seen = new Set([id]); // a parent cycle (bad sync data) must not loop
   const walk = (pid: string) =>
     childrenOf(pid).forEach((c) => {
+      if (seen.has(c.id)) return;
+      seen.add(c.id);
       out.push(c);
       walk(c.id);
     });
@@ -92,7 +108,11 @@ function descendants(id: string): Task[] {
 
 export function depthOf(id: string | null): number {
   let d = 0;
-  for (let t = id ? get().tasks[id] : undefined; t?.parentId; t = get().tasks[t.parentId]) d++;
+  const seen = new Set<string>();
+  for (let t = id ? get().tasks[id] : undefined; t?.parentId && !seen.has(t.id); t = get().tasks[t.parentId]) {
+    seen.add(t.id);
+    d++;
+  }
   return id ? d + 1 : 0;
 }
 
@@ -172,7 +192,7 @@ export function updateTask(id: string, patch: Partial<Task>) {
   if (patch.listId && patch.listId !== t.listId) {
     log(id, "moved", get().lists[patch.listId]?.name ?? "");
     // Subtasks travel with their parent; a moved subtask leaves its parent behind.
-    if (t.parentId && get().tasks[t.parentId]?.listId !== patch.listId) next.parentId = null;
+    if (patch.parentId === undefined && t.parentId && get().tasks[t.parentId]?.listId !== patch.listId) next.parentId = null;
     next.sectionId = patch.sectionId ?? null;
     for (const d of descendants(id)) changed.push({ ...d, listId: patch.listId, sectionId: null, updatedAt: now() });
   }
@@ -225,8 +245,26 @@ export function deleteTasks(ids: string[]): string[] {
   return [...all.keys()];
 }
 
+/** Restore tasks, and any trashed ancestors, so a restored subtask never hangs under a hidden parent. */
 export function restoreTasks(ids: string[]) {
-  commit(ids.map((id) => get().tasks[id]).filter((t): t is Task => !!t).map((t) => ({ ...t, deletedAt: null })));
+  const all = new Map<string, Task>();
+  for (const id of ids) {
+    for (let t: Task | undefined = get().tasks[id]; t && !all.has(t.id) && (t.id === id || t.deletedAt); t = t.parentId ? get().tasks[t.parentId] : undefined) all.set(t.id, t);
+  }
+  commit([...all.values()].map((t) => ({ ...t, deletedAt: null })));
+}
+
+/** Permanently drop trashed tasks (Trash: Delete forever), with their subtasks. */
+export function purgeTasks(ids: string[]) {
+  const gone = new Set<string>();
+  const walk = (id: string) => {
+    if (gone.has(id)) return;
+    gone.add(id);
+    Object.values(get().tasks).filter((t) => t.parentId === id).forEach((c) => walk(c.id));
+  };
+  ids.forEach(walk);
+  set((s) => ({ tasks: Object.fromEntries(Object.entries(s.tasks).filter(([k]) => !gone.has(k))) }));
+  void repo.purgeTasks([...gone]);
 }
 
 export function duplicateTask(id: string): Task | null {
@@ -288,12 +326,12 @@ export function editOccurrence(id: string, key: string, scope: Scope, patch: Par
   if (scope === "following") {
     const { head, tail } = splitSeries(t, key, uid(), now());
     const tailNext: Task = { ...tail, ...patch };
-    if (tailNext.schedule.kind === "none") tailNext.recurrence = null;
+    if (tailNext.schedule.kind === "none" || tailNext.schedule.kind === "someday") tailNext.recurrence = null;
     commit(head ? [head, tailNext] : [{ ...tailNext, id: t.id }]);
     return;
   }
   // Unscheduling the whole series ends it as a single undated task.
-  if (patch.schedule?.kind === "none") return updateTask(id, { ...patch, recurrence: null });
+  if (patch.schedule?.kind === "none" || patch.schedule?.kind === "someday") return updateTask(id, { ...patch, recurrence: null });
   const occ = scheduleForKey(t.schedule, key);
   const schedule = patch.schedule ? shiftAnchor(t.schedule, occ, patch.schedule) : t.schedule;
   updateTask(id, { ...patch, schedule });
@@ -383,6 +421,7 @@ export function addList(name: string, folderId: string | null = null): TaskList 
 export function updateList(id: string, patch: Partial<TaskList>) {
   const l = get().lists[id];
   if (!l) return;
+  if (!canEditList(id) && Object.keys(patch).some((k) => k !== "layout")) return viewOnlyToast(); // the view mode is a personal choice
   const next = { ...l, ...patch };
   set((s) => ({ lists: { ...s.lists, [id]: next } }));
   void repo.saveList(next);
@@ -391,6 +430,7 @@ export function updateList(id: string, patch: Partial<TaskList>) {
 /** Deletes the list and (via FK cascade) its tasks. */
 export function removeList(id: string) {
   if (id === INBOX_ID) return;
+  if (!canEditList(id)) return viewOnlyToast();
   set((s) => {
     const { [id]: _gone, ...lists } = s.lists;
     const tasks = Object.fromEntries(Object.entries(s.tasks).filter(([, t]) => t.listId !== id));
@@ -460,6 +500,7 @@ export function addSection(listId: string, name: string): Section {
 export function updateSection(id: string, patch: Partial<Section>) {
   const sec = get().sections[id];
   if (!sec) return;
+  if (!canEditList(sec.listId)) return viewOnlyToast();
   const next = { ...sec, ...patch };
   set((s) => ({ sections: { ...s.sections, [id]: next } }));
   void repo.saveSection(next);
@@ -474,6 +515,8 @@ export function moveSection(id: string, toIndex: number) {
 }
 
 export function removeSection(id: string) {
+  const sec = get().sections[id];
+  if (sec && !canEditList(sec.listId)) return viewOnlyToast();
   set((s) => {
     const { [id]: _gone, ...sections } = s.sections;
     const tasks = Object.fromEntries(
