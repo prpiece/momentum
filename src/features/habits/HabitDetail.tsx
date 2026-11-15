@@ -184,7 +184,7 @@ function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; 
               if (d > today) return <span key={d} style={{ height: CELL }} />;
               const v = values.get(d);
               const fill = d < habit.startDate ? "var(--surface-2)" : cellFill(habit, v, isScheduled(habit, d));
-              return <span key={d} title={cellTitle(habit, d, v)} className="rounded-[2px]" style={{ height: CELL, background: fill === "transparent" ? "var(--surface-2)" : fill }} />;
+              return <span key={d} title={cellTitle(habit, d, v)} className="rounded-xs" style={{ height: CELL, background: fill === "transparent" ? "var(--surface-2)" : fill }} />;
             })}
           </div>
         ))}
@@ -194,7 +194,7 @@ function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; 
           <>
             Less
             {[undefined, 0.3, 0.7, 1].map((r, i) => (
-              <span key={i} className="size-2.5 rounded-[3px]" style={{ background: cellFill(habit, r === undefined ? undefined : r * targetOf(habit), true) }} />
+              <span key={i} className="size-2.5 rounded-xs" style={{ background: cellFill(habit, r === undefined ? undefined : r * targetOf(habit), true) }} />
             ))}
             More
           </>
@@ -204,7 +204,7 @@ function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; 
             [quit ? "Slipped" : "Over", "var(--danger)"],
           ].map(([label, bg], i) => (
             <span key={label} className={`inline-flex items-center gap-1.5 ${i ? "ml-2" : ""}`}>
-              <span className="size-2.5 rounded-[3px]" style={{ background: bg }} />
+              <span className="size-2.5 rounded-xs" style={{ background: bg }} />
               {label}
             </span>
           ))

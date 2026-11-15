@@ -9,6 +9,7 @@ import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
 import { addSection, mayEdit, moveSection, removeSection, updateSection, updateTask, useData } from "../../stores/data";
+import { withUndo } from "../../stores/undo";
 import { confirm, openContextMenu, openTask, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
 import { InlineAdd } from "./InlineAdd";
@@ -18,7 +19,7 @@ onDrop("kanban-column", (drag, drop) => {
   if (drag.type !== "task") return;
   const sel = useUi.getState().selection;
   const ids = sel.includes(drag.id) ? sel : [drag.id];
-  for (const id of ids) updateTask(id, { listId: drop.listId, sectionId: drop.sectionId });
+  withUndo(ids.length === 1 ? "Moved task" : `Moved ${ids.length} tasks`, () => ids.forEach((id) => updateTask(id, { listId: drop.listId, sectionId: drop.sectionId })));
 });
 
 onDrop("column", (drag, drop) => {
@@ -175,7 +176,7 @@ function Card({ vm }: { vm: TaskVM }) {
       {...listeners}
       onClick={() => openTask(t.id, vm.key)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
-      onKeyDown={(e) => e.key === "Enter" && openTask(t.id, vm.key)}
+      onKeyDown={(e) => e.target === e.currentTarget && e.key === "Enter" && openTask(t.id, vm.key)}
       className={`flex cursor-grab flex-col gap-2 rounded-card border border-border bg-surface px-3 py-2.5 hover:border-border-strong ${isDragging ? "opacity-40" : ""}`}
     >
       <div className="flex items-start gap-2.5 font-medium">

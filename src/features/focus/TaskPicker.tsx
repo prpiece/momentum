@@ -150,7 +150,7 @@ function Panel({ value, onPick }: { value: FocusPick; onPick: (p: FocusPick) => 
           aria-expanded
           aria-controls="pk-list"
           aria-activedescendant={zone === "sub" && fly ? `pks-${subIds[subActive]}` : active === 0 ? "pk-none" : `pk-${rows[active - 1]?.t.id}`}
-          className="h-8 min-w-0 flex-1 bg-transparent text-[length:var(--fs-sm)] outline-none placeholder:text-muted"
+          className="h-8 min-w-0 flex-1 rounded-xs bg-transparent text-[length:var(--fs-sm)] outline-none placeholder:text-muted focus-visible:shadow-[var(--focus-ring-input)]"
         />
       </div>
       <ul id="pk-list" role="listbox" aria-label="Tasks" className="mt-1 max-h-72 overflow-y-auto">

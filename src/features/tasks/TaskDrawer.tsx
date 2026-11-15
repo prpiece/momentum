@@ -27,6 +27,12 @@ import { durationMinutes, formatMinutes, relativeDayLabel, todayLocal } from "..
 import { deadlinePassed } from "../../domain/taskViews";
 import { useDerived } from "./selectors";
 
+/** Closing blurs first, so a draft in the title, notes or a checklist item commits on its onBlur instead of being lost (UI-06). */
+const closeSaving = () => {
+  (document.activeElement as HTMLElement | null)?.blur?.();
+  closeDrawer();
+};
+
 /** Slide-over detail panel, docked on the side opposite the sidebar. */
 export function TaskDrawer() {
   const drawer = useUi((s) => s.drawer);
@@ -42,7 +48,7 @@ export function TaskDrawer() {
   // Centred (D215): the same editor body in a modal over the app. The global j/k/etc. keys pause while it is open.
   if (centered)
     return (
-      <Dialog label="Task details" width="max-w-[min(640px,100%)]" onClose={closeDrawer}>
+      <Dialog label="Task details" width="max-w-[min(640px,100%)]" onClose={closeSaving}>
         <div className="flex max-h-[calc(100dvh-2rem)] min-h-[min(420px,calc(100dvh-2rem))] flex-col">
           <DrawerBody key={task.id} task={task} occurrenceKey={drawer.key} />
         </div>
@@ -55,7 +61,7 @@ export function TaskDrawer() {
       aria-label="Task details"
       className={`layer layer-raised ${side === "right" ? "vt-drawer-right right-0 border-y-0 border-r-0" : "vt-drawer-left left-0 border-y-0 border-l-0"} absolute bottom-0 top-12 z-40 flex w-[clamp(340px,36vw,440px)] max-w-full flex-col max-[719px]:w-full`}
       onKeyDown={(e) => {
-        if (e.key === "Escape" && !(e.target instanceof HTMLTextAreaElement)) closeDrawer();
+        if (e.key === "Escape" && !(e.target instanceof HTMLTextAreaElement)) closeSaving();
       }}
     >
       <DrawerBody task={task} occurrenceKey={drawer.key} />
@@ -299,11 +305,11 @@ function TagEditor({ task, tags }: { task: Task; tags: Record<string, { id: stri
         list="momentum-tags"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && add()}
+        onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && add()}
         onBlur={add}
         placeholder="Add tag"
         aria-label="Add tag"
-        className="h-7 w-24 bg-transparent text-xs outline-none placeholder:text-muted"
+        className="h-7 w-24 rounded-xs bg-transparent text-xs outline-none placeholder:text-muted focus-visible:shadow-[var(--focus-ring-input)]"
       />
       <datalist id="momentum-tags">
         {Object.values(tags).map((t) => (
@@ -462,8 +468,9 @@ function Checklist({ task }: { task: Task }) {
               <Check strokeWidth={2.75} />
             </button>
             <input
+              key={it.title}
               defaultValue={it.title}
-              onBlur={(e) => e.target.value !== it.title && set(items.map((x) => (x.id === it.id ? { ...x, title: e.target.value } : x)))}
+              onBlur={(e) => (e.target.value.trim() ? e.target.value !== it.title : ((e.target.value = it.title), false)) && set(items.map((x) => (x.id === it.id ? { ...x, title: e.target.value } : x)))}
               className={`h-7 flex-1 bg-transparent text-[length:var(--fs-sm)] outline-none focus-visible:outline-none ${it.done ? "text-muted line-through" : ""}`}
               aria-label="Checklist item"
             />
@@ -477,7 +484,7 @@ function Checklist({ task }: { task: Task }) {
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && draft.trim()) {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing && draft.trim()) {
             set([...items, { id: uid(), title: draft.trim(), done: false }]);
             setDraft("");
           }

@@ -180,6 +180,15 @@ export function Tour() {
     if (open && !step.interactive) card.current?.querySelector<HTMLElement>("[data-primary]")?.focus();
   }, [open, step]);
 
+  // Keys drive the tour wherever focus is (step 1 leaves it in the app's quick-add) (UI-12).
+  const keyRef = useRef<(e: KeyboardEvent) => void>(undefined);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => keyRef.current?.(e);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open]);
+
   if (!open) return null;
 
   const close = () => {
@@ -192,18 +201,19 @@ export function Tour() {
     setI(0);
   };
   const to = (n: number) => n >= 0 && n <= last && setI(n);
-  const onKey = (e: React.KeyboardEvent) => {
+  const onKey = (e: KeyboardEvent) => {
     if (e.key === "Escape") return close();
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.key === "ArrowRight") to(i + 1);
     if (e.key === "ArrowLeft") to(i - 1);
   };
+  keyRef.current = onKey;
   const ring: CSSProperties = box
     ? { top: box.top, left: box.left, width: box.width, height: box.height }
     : { top: window.innerHeight / 2, left: window.innerWidth / 2, width: 0, height: 0 };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[60]" onKeyDown={onKey}>
+    <div className="pointer-events-none fixed inset-0 z-[60]">
       {/* Blocks clicks outside the spotlight (and inside it unless the step is interactive). */}
       <div className="pointer-events-auto absolute inset-0" style={step.interactive && box ? { clipPath: holePath(box) } : undefined} onPointerDown={(e) => e.preventDefault()} />
       {/* The dim with a soft-edged hole, which glides from target to target. */}

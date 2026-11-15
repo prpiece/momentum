@@ -52,7 +52,7 @@ export function WindowControls() {
       </button>
       </Tip>
       <Tip label="Close">
-      <button type="button" aria-label="Close" onClick={() => void win.close()} className={`${btn} hover:bg-danger! hover:text-white!`}>
+      <button type="button" aria-label="Close" onClick={() => void win.close()} className={`${btn} hover:bg-danger! hover:text-danger-fg!`}>
         <X size={17} />
       </button>
       </Tip>

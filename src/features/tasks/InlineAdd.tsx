@@ -43,7 +43,7 @@ export function InlineAdd(props: { defaults: Partial<NewTask>; placeholder: stri
         {...ac.inputProps}
         onKeyDown={(e) => {
           if (ac.onKeyDown(e)) return;
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
             const t = createFromText(text, props.defaults, smartParse, () => false, "typed", undefined, props.position);
             if (!t) return;
             props.onAdded?.(t);

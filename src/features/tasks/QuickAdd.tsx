@@ -93,7 +93,7 @@ export function QuickAdd(props: {
           {...complete.inputProps}
           onKeyDown={(e) => {
             if (complete.onKeyDown(e)) return;
-            if (e.key === "Enter") submit();
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
             if (e.key === "Escape") {
               if (parsed.chips.length && !rawMode) {
                 e.stopPropagation();

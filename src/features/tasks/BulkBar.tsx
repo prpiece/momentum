@@ -7,6 +7,7 @@ import { withUndo } from "../../stores/undo";
 import { moveTasks, setStatus, useData } from "../../stores/data";
 import { setSelection, useUi } from "../../stores/ui";
 import { bulkEdit, deleteTasks } from "./actions";
+import { bulkReschedule } from "./taskMenu";
 
 /** Appears when 2+ tasks are selected (Ctrl/Shift+click). */
 export function BulkBar() {
@@ -22,7 +23,7 @@ export function BulkBar() {
   const today = todayLocal();
   const setDate = (label: string, schedule: Schedule) => {
     dateMenu.close();
-    bulkEdit(selection, `Rescheduled ${n} tasks`, () => ({ schedule }));
+    bulkReschedule(selection, `Rescheduled ${n} tasks`, () => ({ schedule }));
     void label;
   };
   const btn = "flex h-8 items-center gap-1.5 rounded-control px-2.5 text-sm hover:bg-surface-2";

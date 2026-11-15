@@ -42,7 +42,7 @@
   .seg-item.is-on { background: var(--surface); border-color: var(--border-strong); color: var(--fg); font-weight: 600; }
 
   .toggle { width: 32px; height: 18px; border-radius: var(--r-full); background: var(--control-border); position: relative; flex: none; }
-  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform var(--dur) var(--ease-move); }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-fg); transition: transform var(--dur) var(--ease-move); }
   .toggle[aria-checked="true"] { background: var(--accent); }
   .toggle[aria-checked="true"]::after { transform: translateX(14px); background: var(--accent-fg); }
   .toggle:disabled { opacity: .4; }
@@ -123,7 +123,7 @@
 
 /* Settings (Scale/search jumps): the row a search result led to, until the next click. */
 @layer components {
-  .settings-hit { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: var(--r-control); }
+  .settings-hit { background: var(--accent-soft); outline: 6px solid var(--accent-soft); border-radius: var(--r-control); }
 }
 
 /* Quick add: the inline field (.qa) and the parsed-token chips under it (.pchip). */
@@ -174,8 +174,8 @@
 
 /* The selected accent swatch: a ring in its own colour, set off by the surface. */
 @layer components {
-  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw); }
-  [data-theme="dark"] .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sw-d); }
+  .swatch[aria-pressed="true"] { outline: 2px solid var(--sw); outline-offset: 2px; }
+  [data-theme="dark"] .swatch[aria-pressed="true"] { outline: 2px solid var(--sw-d); outline-offset: 2px; }
 }
 
 /* Phone overrides last, so they win over the base rules above in the same layer (D200). */

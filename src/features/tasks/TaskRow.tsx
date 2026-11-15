@@ -70,6 +70,7 @@ export const TaskRow = memo(function TaskRow(props: {
       onClick={(e) => props.onClick(t.id, e)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return; // a focused child (checkbox, chevron, tag) handles its own key
         if (e.key === "Enter") openTask(t.id, vm.key);
         if (e.key === " ") {
           e.preventDefault();

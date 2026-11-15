@@ -8,7 +8,10 @@ import { Tip } from "./Tip";
 /** Modal with backdrop. Escape and backdrop click close (`modal` keeps it open on backdrop click); focus moves inside and returns on close. */
 export function Dialog(props: { onClose: () => void; children: ReactNode; label: string; width?: string; top?: boolean; modal?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { onClose } = props;
+  // Held in a ref so a caller's inline onClose doesn't re-run the focus effect (UI-01).
+  const closeRef = useRef(props.onClose);
+  closeRef.current = props.onClose;
+  const onClose = () => closeRef.current();
 
   // The scrim and panel animate out after unmount (D208).
   useLayoutEffect(() => {
@@ -43,7 +46,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
       document.removeEventListener("keydown", onKey, true);
       prev?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   return createPortal(
     <div

@@ -2,6 +2,8 @@ import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, use
 import { createPortal } from "react-dom";
 import { exitGhost } from "../../lib/motion";
 
+const FOCUSABLE = "[role=menuitem]:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [tabindex='0']";
+
 /**
  * Floating panel anchored to an element (or a point). Portaled so it escapes scroll clipping;
  * flips/clamps to stay on screen; closes on outside click and Escape.
@@ -42,6 +44,34 @@ export function Popover(props: {
     return () => exitGhost(el);
   }, []);
 
+  // Keyboard path (UI-02): focus moves in on open and back to the opener on close; Tab stays inside.
+  useEffect(() => {
+    const el = ref.current;
+    if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
+    const back = "current" in anchor ? anchor.current : anchor.from;
+    return () => {
+      if (el && el.contains(document.activeElement)) back?.focus?.({ preventScroll: true });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    if (e.key === "Tab") {
+      const items = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      const [a, b] = [items[0], items[items.length - 1]];
+      if (e.shiftKey && document.activeElement === a) (e.preventDefault(), b?.focus());
+      else if (!e.shiftKey && document.activeElement === b) (e.preventDefault(), a?.focus());
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      const items = [...el.querySelectorAll<HTMLElement>("[role=menuitem]:not([disabled])")];
+      const i = items.indexOf(document.activeElement as HTMLElement);
+      if (i < 0 && !(document.activeElement === el)) return;
+      e.preventDefault();
+      items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+    }
+  };
+
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
       const target = e.target as Node;
@@ -66,6 +96,7 @@ export function Popover(props: {
     <div
       ref={ref}
       role="dialog"
+      onKeyDown={onKeyDown}
       className={`layer layer-raised anim-pop-in fixed z-50 min-w-[200px] rounded-card p-1 ${props.className ?? ""}`}
       style={pos ? { top: pos.top, left: pos.left, transformOrigin: pos.origin } : { top: -9999, left: -9999 }}
     >

@@ -75,8 +75,14 @@ onDrop("smart", (drag, drop) => {
   if (drop.id === "inbox") return withUndo("Moved to Inbox", () => moveTasks(ids, "inbox"));
   // Waiting needs a person or a task, so it is set in the task's details, not by a drop.
   if (drop.id === "waiting") return;
-  if (drop.id === "someday")
-    return withUndo(ids.length === 1 ? "Moved to Someday" : `Moved ${ids.length} tasks to Someday`, () => ids.forEach((id) => updateTask(id, { schedule: { kind: "someday" } })));
+  if (drop.id === "someday") {
+    // A repeating task keeps its series: one goes through the scope prompt, several skip them (UI-03).
+    const one = ids.length === 1 && useData.getState().tasks[ids[0]]?.recurrence;
+    if (one) return void editTask(ids[0], { schedule: { kind: "someday" } }, drag.key);
+    const plain = ids.filter((id) => !useData.getState().tasks[id]?.recurrence);
+    if (!plain.length) return;
+    return withUndo(plain.length === 1 ? "Moved to Someday" : `Moved ${plain.length} tasks to Someday`, () => plain.forEach((id) => updateTask(id, { schedule: { kind: "someday" } })));
+  }
   // Upcoming means tomorrow.
   const date = drop.id === "today" ? todayLocal() : addDaysLocal(todayLocal(), 1);
   if (ids.length === 1 && useData.getState().tasks[ids[0]]?.recurrence) {
@@ -457,13 +463,14 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
         onClick={() => !justDragged() && updateFolder(folder.id, { collapsed: !folder.collapsed })}
         onContextMenu={(e) => openContextMenu(e, items())}
         aria-expanded={!folder.collapsed}
-        className="nav-item w-full font-medium text-fg-2"
+        className={`nav-item w-full font-medium text-fg-2 ${canSub ? "group-hover/nav:pr-[5rem] group-focus-within/nav:pr-[5rem]" : "group-hover/nav:pr-14 group-focus-within/nav:pr-14"}`}
       >
         <span className="ni-icon">
           <ChevronRight size={14} className={`size-3.5 text-muted transition-transform duration-[var(--dur)] ${folder.collapsed ? "" : "rotate-90"}`} />
         </span>
         <span className="ni-label">{folder.name}</span>
-        <SharedMark kind="folder" id={folder.id} />
+        {/* Shared mark and count give way to the hover actions, so nothing overlaps (UI folder row). */}
+        <span className="flex items-center gap-1.5 group-focus-within/nav:opacity-0 group-hover/nav:opacity-0"><SharedMark kind="folder" id={folder.id} /></span>
         {count > 0 && <span key={count} className="ni-n anim-count group-focus-within/nav:opacity-0 group-hover/nav:opacity-0">{count}</span>}
       </button>
       <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center opacity-0 focus-within:opacity-100 group-hover/nav:opacity-100">

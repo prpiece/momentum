@@ -11,7 +11,7 @@ const CHOICES: Choice[] = [
 
 /** A tiny drawing of each layout: navigation in muted bars, the content area in accent-soft. */
 function Thumb({ choice, floating }: { choice: Choice; floating: boolean }) {
-  const bar = "rounded-[2px] bg-fg-2/25";
+  const bar = "rounded-xs bg-fg-2/25";
   const strip = (
     <div className="flex h-2 items-center gap-1 px-0.5">
       {[0, 1, 2, 3, 4].map((i) => (
@@ -35,12 +35,12 @@ function Thumb({ choice, floating }: { choice: Choice; floating: boolean }) {
               <div key={i} className={`h-1 ${bar}`} />
             ))}
           </div>
-          <div className="flex-1 rounded-[3px] border border-border bg-accent-soft" />
+          <div className="flex-1 rounded-xs border border-border bg-accent-soft" />
         </>
       ) : (
         <div className="flex flex-1 flex-col gap-1">
           {choice.barPosition === "top" && (floating ? dock : strip)}
-          <div className="flex-1 rounded-[3px] border border-border bg-accent-soft" />
+          <div className="flex-1 rounded-xs border border-border bg-accent-soft" />
           {choice.barPosition === "bottom" && (floating ? dock : strip)}
         </div>
       )}

@@ -85,7 +85,7 @@ function QuadrantPanel({ q, items, defaults }: { q: Quadrant; items: TaskVM[]; d
           onClick={menu.toggle}
           className="-mx-1 shrink-0 rounded-control px-1 py-0.5"
         >
-          <span className="block h-[18px] w-[3px] rounded-[2px]" style={{ background: QUADRANT_VAR[q] }} />
+          <span className="block h-[18px] w-[3px] rounded-xs" style={{ background: QUADRANT_VAR[q] }} />
         </button>
         {menu.open && (
           <Popover anchor={menu.anchor} onClose={menu.close} className="w-64 p-3">

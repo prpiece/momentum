@@ -31,7 +31,7 @@ export default function Settings() {
       <View style={st.swatches}>
         {ACCENTS.map((a) => (
           <Pressable key={a.id} onPress={() => update({ accent: a.id })} accessibilityRole="radio" accessibilityState={{ selected: s.accent === a.id }} accessibilityLabel={a.name} style={[st.swatch, { backgroundColor: c.mode === "dark" ? a.dark : a.light }]}>
-            {s.accent === a.id ? <Icon name="check" color={c.mode === "dark" ? "#141519" : "#FFFFFF"} size={18} /> : null}
+            {s.accent === a.id ? <Icon name="check" color={c.accentFg} size={18} /> : null}
           </Pressable>
         ))}
       </View>

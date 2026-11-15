@@ -41,7 +41,7 @@ export function Heatmap({ values, today, weeks, weekStart }: { values: Map<Local
                   <span
                     key={d}
                     onMouseEnter={() => setHover(d)}
-                    className={`anim-fade aspect-square rounded-[2px] transition-transform duration-[var(--dur)] ${hover === d ? "ring-1 ring-accent-text" : ""}`}
+                    className={`anim-fade aspect-square rounded-xs transition-transform duration-[var(--dur)] ${hover === d ? "ring-1 ring-accent-text" : ""}`}
                     style={{ background: fill(heatLevel(values.get(d) ?? 0, max)), animationDelay: `${w * 12}ms`, animationFillMode: "backwards" }}
                   />
                 ),
@@ -53,7 +53,7 @@ export function Heatmap({ values, today, weeks, weekStart }: { values: Map<Local
       <figcaption className="mt-2 flex items-center justify-end gap-1 text-[length:var(--fs-xs)] text-muted">
         Less
         {[0, 1, 2, 3, 4].map((l) => (
-          <span key={l} className="size-2.5 rounded-[2px]" style={{ background: fill(l) }} />
+          <span key={l} className="size-2.5 rounded-xs" style={{ background: fill(l) }} />
         ))}
         More
       </figcaption>

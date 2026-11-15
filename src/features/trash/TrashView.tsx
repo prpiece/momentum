@@ -21,7 +21,16 @@ export function TrashView() {
   return (
     <div className="h-full overflow-y-auto px-[var(--gutter)] pb-10 pt-6">
       <div className="mb-4">
-        <PageHead title="Trash" sub={`Deleted tasks are removed after ${TRASH_DAYS} days.`} />
+        <PageHead title="Trash" sub={`Deleted tasks are removed after ${TRASH_DAYS} days.`}>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              if (await confirm("Empty the trash?", `All ${items.length} deleted ${items.length === 1 ? "task" : "tasks"} are removed for good. This can't be undone.`, "Empty trash")) purgeTasks(items.flatMap((i) => i.ids));
+            }}
+          >
+            Empty trash
+          </Button>
+        </PageHead>
       </div>
       <ul className="card divide-y divide-border">
         {items.map(({ task, ids, daysLeft }) => (

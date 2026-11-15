@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "re
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { calendarItems, coversDay, dayRange, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, movedSpan, rangeTitle, resizedEnd, resizedSchedule, stepAnchor, viewDays, type CalItem } from "@core/domain/calendar";
+import { accentForeground } from "@core/domain/color";
 import { addDaysLocal, durationMinutes, formatTime, fromLocalDate, relativeDayLabel } from "@core/domain/dates";
 import { derive } from "@core/domain/taskViews";
 import type { LocalDate, Task, WeekStart } from "@core/domain/types";
@@ -113,7 +114,7 @@ function Grid({ days, items, c }: { days: LocalDate[]; items: CalItem[]; c: Colo
               .filter((i) => i.allDay && coversDay(i, d))
               .map((i) => (
                 <Pressable key={i.uid} onPress={() => openItem(i)} style={[s.allDay, { backgroundColor: resolveColor(c, i.color) }]}>
-                  <Text numberOfLines={1} style={{ color: "#FFFFFF", fontSize: 12, textDecorationLine: i.done ? "line-through" : "none" }}>
+                  <Text numberOfLines={1} style={{ color: accentForeground(resolveColor(c, i.color)), fontSize: 12, textDecorationLine: i.done ? "line-through" : "none" }}>
                     {i.title}
                   </Text>
                 </Pressable>
@@ -233,11 +234,11 @@ function Block({ item, top, height, left, width, day, days, colIndex, colW, c }:
         accessibilityRole="button"
         accessibilityLabel={`${item.title}${item.start ? `, ${formatTime(item.start, timeFormat)}` : ""}`}
       >
-        <Text numberOfLines={Math.max(1, Math.floor(height / 16))} style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "600", textDecorationLine: item.done ? "line-through" : "none" }}>
+        <Text numberOfLines={Math.max(1, Math.floor(height / 16))} style={{ color: accentForeground(color), fontSize: 12, fontWeight: "600", textDecorationLine: item.done ? "line-through" : "none" }}>
           {item.title}
         </Text>
         {span ? (
-          <Text numberOfLines={1} style={{ color: "#FFFFFF", fontSize: 11, fontVariant: ["tabular-nums"] }}>
+          <Text numberOfLines={1} style={{ color: accentForeground(color), fontSize: 11, fontVariant: ["tabular-nums"] }}>
             {clock(span.start)} – {clock(span.end)}
           </Text>
         ) : null}

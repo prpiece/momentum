@@ -240,7 +240,7 @@ function MatrixTab({ snap }: { snap: MiniSnapshot }) {
         return (
           <section key={q} aria-label={QUADRANT_INFO[q].title} className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-card border border-border bg-surface p-1.5">
             <h3 className="flex items-center gap-1.5 px-0.5 text-[length:var(--fs-xs)] font-semibold">
-              <span className="h-3 w-[3px] shrink-0 rounded-[2px]" style={{ background: QUADRANT_VAR[q] }} aria-hidden />
+              <span className="h-3 w-[3px] shrink-0 rounded-xs" style={{ background: QUADRANT_VAR[q] }} aria-hidden />
               <span className="min-w-0 flex-1 truncate">{QUADRANT_INFO[q].title}</span>
               <span className="tabular-nums text-muted">{count}</span>
             </h3>

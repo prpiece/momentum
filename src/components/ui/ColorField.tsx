@@ -1,6 +1,6 @@
 import { Check, Plus } from "lucide-react";
 import type { ReactNode } from "react";
-import { ACCENT_PRESETS } from "../../domain/color";
+import { ACCENT_PRESETS, accentForeground } from "../../domain/color";
 import { ColorPicker } from "./ColorPicker";
 import { Popover, useMenu } from "./Popover";
 
@@ -21,7 +21,7 @@ export function ColorField({ value, onChange, disabled, label = "Color" }: { val
   const presets = (size: string) =>
     ACCENT_PRESETS.map((p) => (
       <button key={p.hex} type="button" disabled={disabled} aria-label={p.name} aria-pressed={value === p.hex} onClick={() => onChange(p.hex)} className={`${size} grid place-items-center rounded-full disabled:opacity-50`} style={{ background: p.hex }}>
-        {value === p.hex && <Check size={14} strokeWidth={3} className="text-white" />}
+        {value === p.hex && <Check size={14} strokeWidth={3} style={{ color: accentForeground(p.hex) }} />}
       </button>
     ));
   return (
@@ -38,7 +38,7 @@ export function ColorField({ value, onChange, disabled, label = "Color" }: { val
         className="grid size-7 place-items-center rounded-full border border-control-border text-fg-2 disabled:opacity-50"
         style={custom ? { background: value } : undefined}
       >
-        {custom ? <Check size={14} strokeWidth={3} className="text-white mix-blend-difference" /> : <Plus size={14} />}
+        {custom ? <Check size={14} strokeWidth={3} style={{ color: accentForeground(value) }} /> : <Plus size={14} />}
       </button>
       {menu.open && (
         <Popover anchor={menu.anchor} onClose={menu.close} className="w-64 p-3">

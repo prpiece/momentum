@@ -2,13 +2,21 @@ import { AlarmClock, Archive, Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Ci
 import { openSnooze } from "./SnoozeDialog";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { scheduleForKey } from "../../domain/recurrence";
-import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type LocalDate, type Schedule } from "../../domain/types";
+import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type LocalDate, type Schedule, type Task } from "../../domain/types";
 import { withUndo } from "../../stores/undo";
 import { duplicateTask, moveTasks, setStatus, useData } from "../../stores/data";
-import { openTask, useUi, type MenuEntry } from "../../stores/ui";
+import { openTask, toast, useUi, type MenuEntry } from "../../stores/ui";
 import { openSend } from "../friends/friendsUi";
 import { confirmShareMove } from "../friends/moveGuard";
 import { bulkEdit, deleteTasks, editTask, setWontDo, toggleDone } from "./actions";
+
+/** Bulk date edits skip repeating tasks: a series is rescheduled from the task itself, where the scope prompt lives (UI-03). */
+export function bulkReschedule(ids: string[], label: string, patch: (t: Task) => Partial<Task>) {
+  const tasks = useData.getState().tasks;
+  const movable = ids.filter((id) => tasks[id] && !tasks[id].recurrence);
+  if (movable.length < ids.length) toast("Repeating tasks are rescheduled from the task itself (Enter to open it).");
+  if (movable.length) bulkEdit(movable, label, patch);
+}
 
 /**
  * Right-click menu for a task (or the whole selection when the task is part of it).
@@ -27,7 +35,7 @@ export function taskMenu(id: string, key: string | null): MenuEntry[] {
       const from = key ? scheduleForKey(t.schedule, key) : t.schedule;
       return void editTask(id, { schedule: date ? moveToDate(from, date) : { kind: "none" } }, key);
     }
-    bulkEdit(ids, `Rescheduled ${ids.length} tasks`, (x): { schedule: Schedule } => ({ schedule: date ? moveToDate(x.schedule, date) : { kind: "none" } }));
+    bulkReschedule(ids, `Rescheduled ${ids.length} tasks`, (x): { schedule: Schedule } => ({ schedule: date ? moveToDate(x.schedule, date) : { kind: "none" } }));
   };
   const lbl = (one: string) => (many ? `${one} ${ids.length} tasks` : one);
 
@@ -43,7 +51,7 @@ export function taskMenu(id: string, key: string | null): MenuEntry[] {
         { title: "Today", icon: <Sun size={15} />, run: () => reschedule(today) },
         { title: "Tomorrow", icon: <Sunrise size={15} />, run: () => reschedule(addDaysLocal(today, 1)) },
         { title: "Next week", icon: <CalendarArrowUp size={15} />, run: () => reschedule(addDaysLocal(today, 7)) },
-        { title: "Someday", icon: <Archive size={15} />, run: () => (many ? bulkEdit(ids, `Moved ${ids.length} tasks to Someday`, () => ({ schedule: { kind: "someday" } })) : void editTask(id, { schedule: { kind: "someday" } }, key)) },
+        { title: "Someday", icon: <Archive size={15} />, run: () => (many ? bulkReschedule(ids, `Moved ${ids.length} tasks to Someday`, () => ({ schedule: { kind: "someday" } })) : void editTask(id, { schedule: { kind: "someday" } }, key)) },
         { title: "No date", icon: <CalendarX2 size={15} />, run: () => reschedule(null) },
       ],
     },

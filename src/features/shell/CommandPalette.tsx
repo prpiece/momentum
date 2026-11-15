@@ -122,6 +122,10 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
   }, [q, derived, lists, tags, savedFilters, update, collapsed, showCompleted, onNewList]);
 
   const pick = (i: number) => items[i]?.run();
+  // Keep the highlighted result visible while arrowing through a long list (UI-05).
+  useEffect(() => {
+    document.getElementById(`pi-${items[cursor]?.id}`)?.scrollIntoView({ block: "nearest" });
+  }, [cursor, items]);
 
   return (
     <Dialog label="Command palette" onClose={close} width="max-w-[var(--palette)]" top>
@@ -134,7 +138,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") (e.preventDefault(), setCursor((c) => Math.min(c + 1, items.length - 1)));
             if (e.key === "ArrowUp") (e.preventDefault(), setCursor((c) => Math.max(c - 1, 0)));
-            if (e.key === "Enter") pick(cursor);
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) pick(cursor);
           }}
           placeholder="Search tasks, lists, tags, or type a command…"
           aria-label="Search"
