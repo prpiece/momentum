@@ -76,8 +76,8 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
         }}
       >
         <div className="flex items-center gap-2">
-          <span className="size-3.5 rounded-[4px]" style={{ background: color }} />
-          <input autoFocus value={title} disabled={ro} onChange={(e) => setTitle(e.target.value)} aria-label="Title" className="h-10 flex-1 bg-transparent text-lg font-semibold outline-none" />
+          <span className="size-3.5 rounded-xs" style={{ background: color }} />
+          <input autoFocus value={title} disabled={ro} onChange={(e) => setTitle(e.target.value)} aria-label="Title" className="h-10 flex-1 bg-transparent text-lg font-semibold outline-none focus-visible:shadow-[var(--focus-ring-input)]" />
         </div>
         {ro && <p className="rounded-control bg-surface-2 px-3 py-2 text-xs text-fg-2">Imported from an .ics file: read-only.</p>}
 

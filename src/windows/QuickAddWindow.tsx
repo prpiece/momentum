@@ -191,7 +191,7 @@ export function QuickAddWindow() {
             if (!confirm && ac.onKeyDown(e)) return;
             if (confirm) {
               const n = confirm.candidates.length;
-              if (e.key === "Enter") void complete(confirm.candidates[confirm.picked].id);
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) void complete(confirm.candidates[confirm.picked].id);
               else if (e.key === "Escape") backOut();
               else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                 e.preventDefault();
@@ -199,7 +199,7 @@ export function QuickAddWindow() {
               }
               return;
             }
-            if (e.key === "Enter" && !busy) void submit();
+            if (e.key === "Enter" && !e.nativeEvent.isComposing && !busy) void submit();
             if (e.key === "Escape") {
               if (parsed.chips.length && !raw && !busy) setRaw(true);
               else void hide();

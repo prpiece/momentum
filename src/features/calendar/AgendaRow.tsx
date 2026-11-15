@@ -16,7 +16,7 @@ export function AgendaRow({ item: i, timeFormat, timeWidth = "w-28" }: { item: C
       {i.source === "task" ? (
         <TaskCheckbox status={i.done ? "done" : "open"} priority={i.priority} onToggle={() => toggleDone(i.id, i.key)} label={`Complete ${i.title}`} size={16} />
       ) : (
-        <span className="size-3 shrink-0 rounded-[4px]" style={{ background: i.color }} />
+        <span className="size-3 shrink-0 rounded-xs" style={{ background: i.color }} />
       )}
       <span className={`min-w-0 flex-1 truncate ${i.done ? "text-muted line-through" : ""}`}>{i.title}</span>
       {i.recurring && <Repeat size={16} strokeWidth={1.75} className="text-muted" />}

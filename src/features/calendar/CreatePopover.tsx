@@ -69,7 +69,7 @@ export function CreatePopover({ draft, onClose }: { draft: Draft; onClose: () =>
         onChange={(e) => setTitle(e.target.value)}
         {...ac.inputProps}
         onKeyDown={(e) => {
-          if (!ac.onKeyDown(e) && e.key === "Enter") create(false);
+          if (!ac.onKeyDown(e) && e.key === "Enter" && !e.nativeEvent.isComposing) create(false);
         }}
         placeholder={kind === "task" ? "Task title, e.g. “Study chem !high #school”" : "Event title"}
         aria-label="Title"

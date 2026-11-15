@@ -1,7 +1,7 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { addMonths, format, startOfMonth } from "date-fns";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { viewDays } from "../../domain/calendar";
 import { daysBetween, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
@@ -50,17 +50,24 @@ function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: stri
   const setDrag = (d: typeof drag) => setDragState((dragRef.current = d));
   const lo = drag && (drag.from < drag.to ? drag.from : drag.to);
   const hi = drag && (drag.from < drag.to ? drag.to : drag.from);
+  // Removes the window listeners of a drag in progress (set by startDrag).
+  const endDrag = useRef<(() => void) | null>(null);
+  useEffect(() => () => endDrag.current?.(), []);
   const startDrag = (d: string) => {
     setDrag({ from: d, to: d });
-    window.addEventListener(
-      "pointerup",
-      () => {
-        const r = dragRef.current;
-        setDrag(null);
-        if (r) showRange(r.from < r.to ? r.from : r.to, r.from < r.to ? r.to : r.from);
-      },
-      { once: true },
-    );
+    const finish = (commit: boolean) => {
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      endDrag.current = null;
+      const r = dragRef.current;
+      setDrag(null);
+      if (commit && r) showRange(r.from < r.to ? r.from : r.to, r.from < r.to ? r.to : r.from);
+    };
+    const onUp = () => finish(true);
+    const onCancel = () => finish(false);
+    endDrag.current = () => finish(false);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
   };
   return (
     <div className="border-b border-border p-3">

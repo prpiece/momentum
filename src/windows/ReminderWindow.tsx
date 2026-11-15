@@ -5,14 +5,15 @@ import { apply, readAppearance } from "../lib/applySettings";
 import type { ReminderAction, ReminderShow } from "../lib/os";
 import type { ReminderDTO } from "../lib/reminderScheduler";
 
-const snoozeOptions = () => {
-  const tomorrow9 = atLocalTime(addDaysLocal(todayLocal(), 1), "09:00").getTime();
-  return [
-    { label: "10 min", minutes: 10 },
-    { label: "1 hour", minutes: 60 },
-    { label: "Tomorrow 9:00", minutes: Math.round((tomorrow9 - Date.now()) / 60_000) },
-  ];
-};
+// Minutes are computed when the button is clicked, not when the card renders (UI-15).
+const SNOOZE_OPTIONS = [
+  { label: "10 min", minutes: () => 10 },
+  { label: "1 hour", minutes: () => 60 },
+  {
+    label: "Tomorrow 9:00",
+    minutes: () => Math.round((atLocalTime(addDaysLocal(todayLocal(), 1), "09:00").getTime() - Date.now()) / 60_000),
+  },
+];
 
 const ICON = { task: AlarmClock, habit: Target, event: CalendarClock, digest: Sun };
 const WIDTH = 380;
@@ -77,6 +78,16 @@ export function ReminderWindow() {
     }
   };
 
+  // Escape dismisses the oldest card (UI-15).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const first = current.current[0];
+      if (e.key === "Escape" && first) void act({ dto: first, action: "dismiss" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="h-full overflow-y-auto">
       <div ref={stack} className="flex flex-col gap-2 p-2">
@@ -105,8 +116,8 @@ export function ReminderWindow() {
                 <Check size={13} /> Done
               </button>
             )}
-            {r.target.kind !== "digest" && snoozeOptions().map((o) => (
-              <button key={o.label} type="button" onClick={() => void act({ dto: r, action: "snooze", minutes: o.minutes })} className="h-7 rounded-control bg-surface-2 px-2.5 text-xs text-fg-2 hover:text-fg">
+            {r.target.kind !== "digest" && SNOOZE_OPTIONS.map((o) => (
+              <button key={o.label} type="button" onClick={() => void act({ dto: r, action: "snooze", minutes: o.minutes() })} className="h-7 rounded-control bg-surface-2 px-2.5 text-xs text-fg-2 hover:text-fg">
                 {o.label}
               </button>
             ))}
