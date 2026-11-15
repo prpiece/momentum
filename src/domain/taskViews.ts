@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { addDaysLocal, fromLocalDate, scheduleDate, taskMinutes, toLocalDate, todayLocal, wallKey } from "./dates";
+import { addDaysLocal, fromLocalDate, scheduleDate, taskMinutes, todayLocal, wallKey } from "./dates";
 import { effective } from "./recurrence";
 import { blockerOpen, followUpDue, isWaiting } from "./waiting";
 import {
