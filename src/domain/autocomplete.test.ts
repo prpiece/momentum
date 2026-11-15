@@ -39,3 +39,13 @@ describe("complete", () => {
     expect(t && complete("Draft ~hi", t, "History essay")).toEqual({ text: "Draft ~Historyessay ", caret: 20 });
   });
 });
+
+describe("v1.2.4 findings", () => {
+  it("QA-10: tokens keep combining marks", () => {
+    expect(tokenAt("#हिन्दी", 4)).toMatchObject({ sigil: "#", start: 0 });
+  });
+  it("QA-12: suggestions ignore accents", () => {
+    expect(suggest("e", ["éa", "b"])).toEqual(["éa"]);
+    expect(suggest("é", ["ea"])).toEqual(["ea"]);
+  });
+});

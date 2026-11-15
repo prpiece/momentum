@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { addDaysLocal, fromLocalDate, scheduleDate, taskMinutes, todayLocal, wallKey } from "./dates";
+import { fold } from "./fuzzy";
 import { effective } from "./recurrence";
 import { blockerOpen, followUpDue, isWaiting } from "./waiting";
 import {
@@ -197,8 +198,8 @@ export function topLevelIn(vms: readonly TaskVM[]): TaskVM[] {
  * word-start 2, substring 3.
  */
 export function matchScore(text: string, query: string): number | null {
-  const hay = text.toLowerCase();
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const hay = fold(text);
+  const words = fold(query).split(/\s+/).filter(Boolean);
   if (!words.length) return null;
   let score = 0;
   for (const w of words) {

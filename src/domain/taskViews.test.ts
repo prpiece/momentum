@@ -237,3 +237,14 @@ describe("planning fields in smart lists (D267)", () => {
     expect(plannedMinutes(vms)).toBe(130);
   });
 });
+
+describe("matchScore ignores accents and Unicode form (QA-12)", () => {
+  it("folds diacritics and NFC/NFD", () => {
+    expect(matchScore("Café meeting", "cafe")).not.toBeNull();
+    expect(matchScore("Cafe meeting", "café")).not.toBeNull();
+    expect(matchScore("Résumé", "resume")).not.toBeNull();
+    expect(matchScore("école".normalize("NFC"), "école".normalize("NFD"))).not.toBeNull();
+    expect(matchScore("Straße", "strasse")).not.toBeNull();
+    expect(matchScore("İstanbul", "istanbul")).not.toBeNull();
+  });
+});

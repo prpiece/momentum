@@ -279,3 +279,107 @@ describe("durations and token order (v1.2.1 G2)", () => {
     }
   });
 });
+
+// v1.2.4 findings (QA-01..QA-15): Fri 13 Nov 2026.
+describe("v1.2.4 quick-add findings", () => {
+  const FRI = (h: number, m = 0) => new Date(2026, 10, 13, h, m);
+  const day = (t: string, now: Date) => parseQuickAdd(t, now).schedule;
+
+  it("QA-01: a date-only word naming today stays today at any hour", () => {
+    expect(day("fri gym", FRI(15))).toEqual({ kind: "day", date: "2026-11-13" });
+    expect(day("fri gym", FRI(23, 59))).toEqual({ kind: "day", date: "2026-11-13" });
+    expect(day("nov 13 gym", FRI(15))).toEqual({ kind: "day", date: "2026-11-13" });
+    expect(day("this fri gym", FRI(15))).toEqual({ kind: "day", date: "2026-11-13" });
+    expect(parseQuickAdd("gym by fri", FRI(15)).deadline).toBe("2026-11-13");
+    expect(day("dec 31 party", new Date(2026, 11, 31, 23, 59))).toEqual({ kind: "day", date: "2026-12-31" });
+    expect(day("fri gym", FRI(9))).toEqual({ kind: "day", date: "2026-11-13" });
+    // a day already past still rolls forward, and timed phrases keep the real clock
+    expect(day("thu gym", FRI(15))).toEqual({ kind: "day", date: "2026-11-19" });
+    expect(startKey(day("meet 1pm", FRI(15)))).toBe("2026-11-14T13:00");
+  });
+
+  it("QA-02: a bare hour 1-7 is the afternoon", () => {
+    expect(startKey(day("meet at 5", FRI(10)))).toBe("2026-11-13T17:00");
+    expect(startKey(day("dinner at 7", FRI(10)))).toBe("2026-11-13T19:00");
+    expect(startKey(day("tomorrow at 5", FRI(10)))).toBe("2026-11-14T17:00");
+    expect(startKey(day("meet at 9", FRI(8)))).toBe("2026-11-13T09:00");
+    expect(startKey(day("meet at 5am", FRI(3)))).toBe("2026-11-13T05:00");
+    expect(startKey(day("lunch at 12", FRI(8)))).toBe("2026-11-13T12:00");
+    expect(startKey(day("in 3 hours call", FRI(2)))).toBe("2026-11-13T05:00");
+  });
+
+  it("QA-03: '9 to 5' is 9am-5pm", () => {
+    const s = day("tomorrow 9 to 5", FRI(10));
+    expect(startKey(s)).toBe("2026-11-14T09:00");
+    expect(durationMinutes(s)).toBe(480);
+  });
+
+  it("QA-04: 'in 2 hours' is a time, not a duration", () => {
+    const p = parseQuickAdd("in 2 hours call", FRI(10));
+    expect(p.title).toBe("call");
+    expect(p.durationMin).toBeNull();
+    expect(startKey(p.schedule)).toBe("2026-11-13T12:00");
+    expect(parseQuickAdd("in 30 min call", FRI(10)).durationMin).toBeNull();
+    expect(parseQuickAdd("call 30 min", FRI(10)).durationMin).toBe(30);
+  });
+
+  it("QA-05: decimal and bracketed durations", () => {
+    expect(parseQuickAdd("write report 1.5h", FRI(10))).toMatchObject({ title: "write report", durationMin: 90, schedule: { kind: "none" } });
+    expect(parseQuickAdd("write report 1.5 hours", FRI(10))).toMatchObject({ title: "write report", durationMin: 90, schedule: { kind: "none" } });
+    expect(parseQuickAdd("meeting (30m)", FRI(10))).toMatchObject({ title: "meeting", durationMin: 30, schedule: { kind: "none" } });
+  });
+
+  it("QA-06: ordinal repeats", () => {
+    expect(parseQuickAdd("rent every month on the 15th", FRI(10))).toMatchObject({ title: "rent", rule: "FREQ=MONTHLY;BYMONTHDAY=15" });
+    expect(parseQuickAdd("rent monthly on the 1st", FRI(10))).toMatchObject({ title: "rent", rule: "FREQ=MONTHLY;BYMONTHDAY=1" });
+    expect(parseQuickAdd("rent every 15th", FRI(10))).toMatchObject({ title: "rent", rule: "FREQ=MONTHLY;BYMONTHDAY=15" });
+    expect(parseQuickAdd("club every 2nd tuesday", FRI(10))).toMatchObject({ title: "club", rule: "FREQ=MONTHLY;BYDAY=2TU" });
+    expect(parseQuickAdd("club every last friday", FRI(10))).toMatchObject({ title: "club", rule: "FREQ=MONTHLY;BYDAY=-1FR" });
+    expect(parseQuickAdd("club first monday of the month", FRI(10))).toMatchObject({ title: "club", rule: "FREQ=MONTHLY;BYDAY=1MO" });
+  });
+
+  it("QA-07: weekend, biweekly, until, count", () => {
+    expect(parseQuickAdd("hike every weekend", FRI(10))).toMatchObject({ title: "hike", rule: "FREQ=WEEKLY;BYDAY=SA,SU" });
+    expect(parseQuickAdd("trash bi-weekly", FRI(10))).toMatchObject({ title: "trash", rule: "FREQ=WEEKLY;INTERVAL=2" });
+    expect(parseQuickAdd("trash fortnightly", FRI(10))).toMatchObject({ title: "trash", rule: "FREQ=WEEKLY;INTERVAL=2" });
+    const u = parseQuickAdd("water every 3 days until dec 1", FRI(10));
+    expect(u).toMatchObject({ title: "water", schedule: { kind: "day", date: "2026-11-13" } });
+    expect(u.rule).toMatch(/^FREQ=DAILY;INTERVAL=3;UNTIL=20261201/);
+    expect(parseQuickAdd("pills daily x5", FRI(10))).toMatchObject({ title: "pills", rule: "FREQ=DAILY;COUNT=5" });
+  });
+
+  it("QA-08: ambiguous lone words are not dates", () => {
+    for (const t of ["SAT prep", "study for the sat", "sun cream", "mon ami", "march madness", "pay $5 now"])
+      expect(parseQuickAdd(t, FRI(10))).toMatchObject({ title: t, schedule: { kind: "none" } });
+    expect(day("gym on sat", FRI(10))).toEqual({ kind: "day", date: "2026-11-14" });
+    expect(day("gym next sun", FRI(10)).kind).toBe("day");
+    expect(day("party march 5", FRI(10))).toEqual({ kind: "day", date: "2027-03-05" });
+  });
+
+  it("QA-09: no orphaned possessives or empty brackets", () => {
+    expect(parseQuickAdd("tomorrow's plan", FRI(10))).toMatchObject({ title: "tomorrow's plan", schedule: { kind: "none" } });
+    expect(parseQuickAdd("Tuesday's meeting", FRI(10)).title).toBe("Tuesday's meeting");
+    expect(parseQuickAdd("Task A (tomorrow)", FRI(10)).title).toBe("Task A");
+    expect(parseQuickAdd('"tomorrow" movie', FRI(10)).title).toBe("movie");
+  });
+
+  it("QA-10/11: tags keep combining marks and inner punctuation", () => {
+    expect(parseQuickAdd("#हिन्दी x", FRI(10))).toMatchObject({ title: "x", tags: ["हिन्दी"] });
+    expect(parseQuickAdd("#café x", FRI(10))).toMatchObject({ title: "x", tags: ["café"] });
+    expect(parseQuickAdd("#v1.2 x", FRI(10))).toMatchObject({ title: "x", tags: ["v1.2"] });
+    expect(parseQuickAdd("#work. x", FRI(10)).tags).toEqual(["work"]);
+    expect(parseQuickAdd("#c++ x", FRI(10)).tags).toEqual([]);
+    expect(parseQuickAdd("#don't x", FRI(10)).tags).toEqual([]);
+    expect(parseQuickAdd("~Home/Away x", FRI(10))).toMatchObject({ title: "x", listName: "Home/Away" });
+    expect(parseQuickAdd("~List's x", FRI(10)).listName).toBeNull();
+  });
+
+  it("QA-15: a typed ~List can name a list with spaces", () => {
+    expect(parseQuickAdd("buy ~Home Chores now", FRI(10), true, ["Home Chores"])).toMatchObject({ title: "buy now", listName: "Home Chores" });
+    expect(parseQuickAdd("buy ~Home now", FRI(10), true, ["Home Chores"])).toMatchObject({ listName: "Home" });
+  });
+
+  it("QA-18: a trailing 'due' is dropped with the date", () => {
+    expect(parseQuickAdd("report due friday", FRI(10))).toMatchObject({ title: "report", schedule: { kind: "day", date: "2026-11-13" } });
+  });
+});

@@ -133,3 +133,55 @@ describe("matchesFilter", () => {
     expect(hits("buy milk", mk({ title: "Buy oat milk" }), mk({ title: "Buy bread" }))).toEqual([true, false]);
   });
 });
+
+describe("v1.2.4 filter findings", () => {
+  const FRI = new Date(2026, 10, 13, 15, 0);
+  const some = (p: Partial<Task>) => mk(p);
+
+  it("QA-01: a weekday naming today still filters to today in the afternoon", () => {
+    expect(parseFilter("fri", FRI).date).toEqual({ kind: "on", date: "2026-11-13" });
+  });
+
+  it("QA-08/14: ambiguous day words stay searchable text", () => {
+    expect(parseFilter("sun cream", FRI)).toMatchObject({ text: "sun cream", date: null });
+    expect(parseFilter("SAT prep", FRI)).toMatchObject({ text: "SAT prep", date: null });
+  });
+
+  it("QA-14: planning chips filter instead of doing nothing", () => {
+    const [a, b, c, d] = [
+      some({ schedule: { kind: "someday" } }),
+      some({ deadline: "2026-10-27" }),
+      some({ durationMin: 30 }),
+      some({ waiting: { kind: "person", who: "sam", followUp: "2026-10-30" } }),
+    ];
+    expect(hits("someday", a, b, c, d)).toEqual([true, false, false, false]);
+    expect(hits("by 10/27", a, b, c, d)).toEqual([false, true, false, false]);
+    expect(hits("30m", a, b, c, d)).toEqual([false, false, true, false]);
+    expect(hits("waiting @sam", a, b, c, d)).toEqual([false, false, false, true]);
+    expect(isEmptyFilter(parseFilter("someday", NOW))).toBe(false);
+    expect(parseFilter("buy by 10/27", NOW)).toMatchObject({ text: "buy", deadline: "2026-10-27", date: null });
+  });
+
+  it("QA-14: a keyword is not overridden by a stray date word", () => {
+    expect(parseFilter("overdue today", NOW).date).toEqual({ kind: "overdue" });
+  });
+
+  it("QA-13: a leading minus excludes a tag, list or priority", () => {
+    const w = some({ tags: ["w"], priority: 3 });
+    const s = some({ tags: ["s"], listId: "home" });
+    expect(hits("-#work", w, s)).toEqual([false, true]);
+    expect(hits("-~HomeStuff", w, s)).toEqual([true, false]);
+    expect(hits("-!high", w, s)).toEqual([false, true]);
+    expect(parseFilter("-#work", NOW).tags).toEqual([]);
+    expect(parseFilter("-#work", NOW).chips.map((c) => c.text)).toEqual(["-#work"]);
+  });
+
+  it("QA-12: list names match without accents", () => {
+    expect(hits("~HomeStuff", some({ listId: "home" }))).toEqual([true]);
+    expect(hits("~hömestuff", some({ listId: "home" }))).toEqual([true]);
+  });
+
+  it("QA-15: a list name with a space when the names are known", () => {
+    expect(parseFilter("~Home Stuff", NOW, ["Home Stuff"])).toMatchObject({ listName: "Home Stuff", text: "" });
+  });
+});

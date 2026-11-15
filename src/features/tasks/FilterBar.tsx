@@ -47,7 +47,7 @@ export function FilterBar({ view }: { view: ViewId }) {
         }}
         placeholder="Filter"
         aria-label="Filter tasks"
-        title="Filter with quick-add syntax: #tag !high ~list tomorrow. Also: overdue, nodate, done, wontdo"
+        title="Filter with quick-add syntax: #tag !high ~list tomorrow. Also: overdue, nodate, done, wontdo, someday, 30m, by fri, waiting @name. A minus excludes: -#tag -~list -!high"
         className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted"
       />
       {chips.length > 0 && (

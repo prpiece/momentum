@@ -1,7 +1,7 @@
 import { casual } from "chrono-node/en";
-import { addMinutes } from "date-fns";
+import { addMinutes, startOfDay } from "date-fns";
 import { addDaysLocal, formatMinutes, relativeDayLabel, toLocalDate } from "./dates";
-import { bestName } from "./fuzzy";
+import { bestName, nameKey } from "./fuzzy";
 import type { LocalDate, Priority, Recurrence, Schedule, Waiting } from "./types";
 
 export type ChipKind = "date" | "priority" | "tag" | "list" | "repeat" | "deadline" | "duration" | "someday" | "waiting";
@@ -60,17 +60,82 @@ const DAYS: Record<string, string> = {
 const DAY_WORD = "(?:mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(?:day|nesday|sday|urday|rsday)?s?";
 const dayCode = (w: string) => DAYS[w.toLowerCase().replace(/(day|nesday|sday|urday|rsday)?s?$/, "")];
 
+/** Characters a `#tag` / `~List` / `@name` may contain; shared with autocomplete so both read a token the same way (QA-10, QA-11). */
+export const TOKEN_CHARS = String.raw`\p{L}\p{N}\p{M}_\-/`;
+/** A token word: chars, optionally dotted ("v1.2"). Not followed by more word chars or `'`/`+` ("#don't", "#c++" are not tags). */
+const TOKEN_WORD = String.raw`([${TOKEN_CHARS}]+(?:\.[${TOKEN_CHARS}]+)*)(?![${TOKEN_CHARS}'’+])`;
+
+/** Chrono with a bare hour 1-7 read as the afternoon ("at 5", "9 to 5"), as people mean it (QA-02, QA-03). */
+const chrono = casual.clone();
+chrono.refiners.unshift({
+  refine: (_ctx, results) => {
+    for (const r of results) {
+      if (/\b(?:in|within|ago|later|from|hours?|mins?|minutes?)\b/i.test(r.text)) continue; // relative, not a clock time
+      const pm = (c: typeof r.start) => {
+        const h = c.get("hour");
+        if (h !== null && c.isCertain("hour") && !c.isCertain("meridiem") && h >= 1 && h <= 7) c.assign("hour", h + 12);
+      };
+      pm(r.start);
+      // "9 to 5": an end before its start is the same day's afternoon.
+      if (r.end) {
+        const sh = r.start.get("hour") ?? 0;
+        const eh = r.end.get("hour");
+        if (eh !== null && r.end.isCertain("hour") && !r.end.isCertain("meridiem") && eh < 12 && eh <= sh) r.end.assign("hour", eh + 12);
+        else pm(r.end);
+      }
+    }
+    return results;
+  },
+});
+const CHRONO_OPTS = { forwardDate: true };
+/** Words that are ordinary language as often as dates: only a date when introduced by one of these (QA-08). */
+const AMBIGUOUS_DAY = /^(?:sat|sun|mon|wed|mar|may|march|now)$/i;
+const DATE_INTRO = /\b(?:on|next|this|last|by|every|until|till|from|before|after|since)\s+$/i;
+
+/**
+ * Date phrases in `text`, as chrono reads them. A phrase with no time of day is read from the start of
+ * today, so "fri" on a Friday afternoon is today (chrono otherwise compares its implied noon to `now`, QA-01).
+ * `strict` drops lone ambiguous words and stems of possessives/compounds ("tomorrow's", "tomorrow-ish").
+ */
+function parseDates(text: string, now: Date, strict = true) {
+  const midnight = new Map(chrono.parse(text, startOfDay(now), CHRONO_OPTS).map((r) => [r.index, r]));
+  return chrono
+    .parse(text, now, CHRONO_OPTS)
+    .map((r) => (r.start.isCertain("hour") ? r : (midnight.get(r.index) ?? r)))
+    .filter((r) => {
+      if (!strict) return true;
+      if (/^(?:['’]s\b|-\p{L})/u.test(text.slice(r.index + r.text.length))) return false;
+      return !(AMBIGUOUS_DAY.test(r.text.trim()) && !DATE_INTRO.test(text.slice(0, r.index)));
+    });
+}
+
 type Match = { kind: ChipKind; start: number; end: number; value?: string; apply: (p: ParsedTask) => void };
 
-function repeatMatches(text: string): Match[] {
+const ORDINALS: Record<string, number> = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, last: -1 };
+const ordinal = (w: string) => ORDINALS[w.toLowerCase()] ?? parseInt(w, 10);
+
+function repeatMatches(text: string, now: Date): Match[] {
   const out: Match[] = [];
+  // `until <date>` / `x5` / `5 times` end a repeat; they are read first and appended to whichever rule matches.
+  let ending = "";
   const add = (re: RegExp, rule: (m: RegExpExecArray) => string | null) => {
     for (const m of text.matchAll(re)) {
       const r = rule(m as RegExpExecArray);
       const start = m.index ?? 0;
-      if (r) out.push({ kind: "repeat", start, end: start + m[0].length, apply: (p) => void (p.rule = r) });
+      if (r) out.push({ kind: "repeat", start, end: start + m[0].length, apply: (p) => void (p.rule = r + ending) });
     }
   };
+  add(/\b(?:bi-?weekly|fortnightly|every\s+fortnight)\b/gi, () => "FREQ=WEEKLY;INTERVAL=2");
+  add(new RegExp(String.raw`\b(?:every\s+)?(first|second|third|fourth|fifth|last|\d(?:st|nd|rd|th))\s+(${DAY_WORD})\b(\s+of\s+(?:the\s+|every\s+)?month)?`, "gi"), (m) => {
+    const n = ordinal(m[1]);
+    if (!/^every/i.test(m[0]) && !m[3]) return null;
+    return n && n >= -1 && n <= 5 ? `FREQ=MONTHLY;BYDAY=${n}${dayCode(m[2])}` : null;
+  });
+  add(/\b(?:monthly|every\s+month)\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)\b|\bevery\s+(\d{1,2})(?:st|nd|rd|th)\b/gi, (m) => {
+    const d = Number(m[1] ?? m[2]);
+    return d >= 1 && d <= 31 ? `FREQ=MONTHLY;BYMONTHDAY=${d}` : null;
+  });
+  add(/\bevery\s+weekend\b/gi, () => "FREQ=WEEKLY;BYDAY=SA,SU");
   const UNIT: Record<string, string> = { day: "DAILY", week: "WEEKLY", month: "MONTHLY", year: "YEARLY" };
   add(/\b(daily|weekly|monthly|yearly|annually)\b/gi, (m) => {
     const w = m[1].toLowerCase();
@@ -85,6 +150,19 @@ function repeatMatches(text: string): Match[] {
     const codes = m[1].split(/\s*(?:,|and|&)\s*/i).map(dayCode).filter(Boolean);
     return codes.length ? `FREQ=WEEKLY;BYDAY=${[...new Set(codes)].join(",")}` : null;
   });
+  if (out.length) {
+    for (const m of text.matchAll(/\b(?:until|till|through)\s+/gi)) {
+      const d = dateAt(text, (m.index ?? 0) + m[0].length - 1, now);
+      if (!d || ending) continue;
+      ending = `;UNTIL=${d.date.replace(/-/g, "")}T235959Z`;
+      out.push({ kind: "repeat", start: m.index ?? 0, end: d.end, apply: () => undefined });
+    }
+    for (const m of text.matchAll(/(?<=^|\s)(?:x(\d{1,3})|(\d{1,3})\s+times)\b/gi)) {
+      if (ending) break;
+      ending = `;COUNT=${m[1] ?? m[2]}`;
+      out.push({ kind: "repeat", start: m.index ?? 0, end: (m.index ?? 0) + m[0].length, apply: () => undefined });
+    }
+  }
   return out;
 }
 
@@ -96,7 +174,7 @@ function keywordMatches(text: string, listNames: readonly string[]): Match[] {
     const start = (m.index ?? 0) + m[1].length;
     out.push({ kind: "priority", start, end: (m.index ?? 0) + m[0].length, apply: (r) => void (r.priority = p) });
   }
-  for (const m of text.matchAll(/(^|\s)(?:hash\s?tag|tag)[\s:,]+([\p{L}\p{N}_\-/]+)/giu)) {
+  for (const m of text.matchAll(new RegExp(String.raw`(^|\s)(?:hash\s?tag|tag)[\s:,]+([${TOKEN_CHARS}]+)`, 'giu'))) {
     const start = (m.index ?? 0) + m[1].length;
     const tag = m[2];
     out.push({ kind: "tag", value: tag, start, end: (m.index ?? 0) + m[0].length, apply: (r) => void r.tags.push(tag) });
@@ -122,7 +200,7 @@ function keywordMatches(text: string, listNames: readonly string[]): Match[] {
 function dateAt(text: string, from: number, now: Date): { date: LocalDate; end: number } | null {
   const rest = text.slice(from);
   const lead = rest.length - rest.trimStart().length;
-  const [r] = casual.parse(rest.trimStart(), now, { forwardDate: true });
+  const [r] = parseDates(rest.trimStart(), now, false);
   if (!r || r.index !== 0) return null;
   return { date: toLocalDate(r.start.date()), end: from + lead + r.text.length };
 }
@@ -135,8 +213,8 @@ function planningMatches(text: string, now: Date): Match[] {
     const d = dateAt(text, start + 2, now);
     if (d) out.push({ kind: "deadline", start, end: d.end, apply: (p) => void (p.deadline = d.date) });
   }
-  for (const m of text.matchAll(/(^|\s)~?(?:(\d{1,2})\s?(?:h|hrs?|hours?)(?:\s?(\d{1,3})\s?(?:m|mins?|minutes?))?|(\d{1,4})\s?(?:m|mins?|minutes?))(?=\s|$|[,.;])/gi)) {
-    const min = m[2] ? Number(m[2]) * 60 + Number(m[3] ?? 0) : Number(m[4]);
+  for (const m of text.matchAll(/(^|[\s(\[])(?<!\b(?:in|within)\s)~?(?:(\d{1,2}(?:\.\d+)?)\s?(?:h|hrs?|hours?)(?:\s?(\d{1,3})\s?(?:m|mins?|minutes?))?|(\d{1,4})\s?(?:m|mins?|minutes?))(?=\s|$|[,.;)\]])/gi)) {
+    const min = m[2] ? Math.round(Number(m[2]) * 60) + Number(m[3] ?? 0) : Number(m[4]);
     const start = (m.index ?? 0) + m[1].length;
     if (min >= 1 && min <= 1440) out.push({ kind: "duration", start, end: (m.index ?? 0) + m[0].length, apply: (p) => void (p.durationMin = min) });
   }
@@ -144,7 +222,7 @@ function planningMatches(text: string, now: Date): Match[] {
     const start = (m.index ?? 0) + m[1].length;
     out.push({ kind: "someday", start, end: start + 7, apply: (p) => void (p.schedule = { kind: "someday" }) });
   }
-  for (const m of text.matchAll(/(^|\s)waiting\s+(?:for\s+|on\s+)?@([\p{L}\p{N}_.\-]+)/giu)) {
+  for (const m of text.matchAll(/(^|\s)waiting\s+(?:for\s+|on\s+)?@([\p{L}\p{N}\p{M}_.\-]+)/giu)) {
     const start = (m.index ?? 0) + m[1].length;
     const afterName = (m.index ?? 0) + m[0].length;
     const d = dateAt(text, afterName, now);
@@ -155,7 +233,7 @@ function planningMatches(text: string, now: Date): Match[] {
   return out;
 }
 
-function tokenMatches(text: string): Match[] {
+function tokenMatches(text: string, listNames: readonly string[]): Match[] {
   const out: Match[] = [];
   for (const m of text.matchAll(/(^|\s)!(\w+)/g)) {
     const p = PRIORITY_WORDS[m[2].toLowerCase()];
@@ -163,15 +241,31 @@ function tokenMatches(text: string): Match[] {
     const start = (m.index ?? 0) + m[1].length;
     out.push({ kind: "priority", start, end: start + m[2].length + 1, apply: (r) => void (r.priority = p) });
   }
-  for (const m of text.matchAll(/(^|\s)#([\p{L}\p{N}_\-/]+)/gu)) {
+  for (const m of text.matchAll(new RegExp(String.raw`(^|\s)#${TOKEN_WORD}`, "gu"))) {
     const start = (m.index ?? 0) + m[1].length;
     const tag = m[2];
     out.push({ kind: "tag", value: tag, start, end: start + tag.length + 1, apply: (r) => void r.tags.push(tag) });
   }
-  for (const m of text.matchAll(/(^|\s)~([\p{L}\p{N}_\-]+)/gu)) {
+  for (const m of text.matchAll(new RegExp(String.raw`(^|\s)~${TOKEN_WORD}`, "gu"))) {
     const start = (m.index ?? 0) + m[1].length;
-    const name = m[2];
-    out.push({ kind: "list", start, end: start + name.length + 1, apply: (r) => void (r.listName = name) });
+    let name = m[2];
+    let end = start + name.length + 1;
+    // "~Home Chores": the longest run of following words that names an existing list (QA-15).
+    const words: { text: string; end: number }[] = [];
+    for (const w of text.slice(end).matchAll(new RegExp(String.raw`\s+[${TOKEN_CHARS}]+`, "gu"))) {
+      if ((w.index ?? 0) !== (words.length ? words[words.length - 1].end - end : 0)) break;
+      words.push({ text: w[0], end: end + (w.index ?? 0) + w[0].length });
+      if (words.length === 3) break;
+    }
+    for (let k = words.length; k > 0; k--) {
+      const full = name + words.slice(0, k).map((w) => w.text).join("");
+      if (listNames.some((n) => nameKey(n) === nameKey(full))) {
+        name = full;
+        end = words[k - 1].end;
+        break;
+      }
+    }
+    out.push({ kind: "list", start, end, apply: (r) => void (r.listName = name) });
   }
   return out;
 }
@@ -207,12 +301,12 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
   if (!enabled) return result;
 
   const matches: Match[] = [];
-  for (const m of [...planningMatches(input, now), ...tokenMatches(input), ...(origin === "spoken" ? keywordMatches(input, listNames) : []), ...repeatMatches(input)]) {
+  for (const m of [...planningMatches(input, now), ...tokenMatches(input, listNames), ...(origin === "spoken" ? keywordMatches(input, listNames) : []), ...repeatMatches(input, now)]) {
     if (!matches.some((x) => overlaps(x, m))) matches.push(m);
   }
 
   let explicitEnd = false;
-  const [date] = casual.parse(mask(input, matches), now, { forwardDate: true });
+  const [date] = parseDates(mask(input, matches), now);
   if (date) {
     const start = date.index;
     const end = start + date.text.length;
@@ -256,7 +350,8 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
   if (result.schedule.kind === "someday") result.rule = null;
 
   const title = mask(input, matches)
-    .replace(/\s+(on|at|by|for)\s*$/i, "")
+    .replace(/\(\s*\)|\[\s*\]|["“”]\s*["“”]/g, " ")
+    .replace(/\s+(on|at|by|for|due)\s*$/i, "")
     .replace(/\s+/g, " ")
     // Spoken text leaves punctuation where tokens were ("tomorrow, priority high."): drop the orphans.
     .replace(/\s+([,.;:!?])(?=\s|$)/g, "$1")

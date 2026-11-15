@@ -1,11 +1,14 @@
+import { nameKey } from "./fuzzy";
+import { TOKEN_CHARS } from "./quickAdd";
+
 /** Quick-add autocomplete for `#tag` and `~List` tokens: pure text logic, the UI lives in TokenSuggest. */
 
 export type Sigil = "#" | "~";
 /** The token being typed: `start` is the sigil's index, `end` where the token's characters stop. */
 export type Token = { sigil: Sigil; query: string; start: number; end: number };
 
-const TOKEN_CHAR = /[\p{L}\p{N}_\-/]/u;
-const key = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+const TOKEN_CHAR = new RegExp(`[${TOKEN_CHARS}]`, "u");
+const key = nameKey;
 
 /** The `#…`/`~…` token the caret sits in or at the end of, or null. Matches the parser's token rules. */
 export function tokenAt(text: string, caret: number): Token | null {

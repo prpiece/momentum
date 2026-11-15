@@ -46,3 +46,10 @@ describe("matchTasks", () => {
     expect(matchTasks("call the dentst", [t("a", "Call the dentist")]).map((x) => x.id)).toEqual(["a"]);
   });
 });
+
+describe("accents (QA-12)", () => {
+  it("matches names across diacritics", () => {
+    expect(bestName("cafe", ["Café"])).toBe("Café");
+    expect(similarity("résumé", "resume")).toBe(1);
+  });
+});

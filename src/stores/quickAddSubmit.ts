@@ -1,4 +1,5 @@
 import { relativeDayLabel, toLocalDate, todayLocal } from "../domain/dates";
+import { nameKey } from "../domain/fuzzy";
 import { parseQuickAdd, withDefaults, type InputOrigin } from "../domain/quickAdd";
 import type { Task } from "../domain/types";
 import { addTask, ensureTags, useData, type NewTask } from "./data";
@@ -9,7 +10,6 @@ import { toast } from "./toast";
 let openTask: (id: string) => void = () => undefined;
 export const setTaskOpener = (fn: typeof openTask) => void (openTask = fn);
 
-const nameKey = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 export const listByName = (name: string) => Object.values(useData.getState().lists).find((l) => nameKey(l.name) === nameKey(name));
 export const listNames = () => Object.values(useData.getState().lists).map((l) => l.name);
 

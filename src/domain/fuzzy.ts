@@ -3,8 +3,13 @@
  * for School, so lists and tasks are matched by edit distance plus a sound-alike key.
  */
 
-const letters = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
-const wordsOf = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+/** Lower-cased, accents and NFC/NFD differences removed ("Café" = "cafe"), so search and name matching ignore them (QA-12). */
+export const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/ß/g, "ss").toLowerCase();
+/** List names match quick add's `~Name`: whitespace dropped, accents and case ignored. */
+export const nameKey = (name: string) => fold(name.replace(/\s+/g, ""));
+
+const letters = (s: string) => fold(s).replace(/[^\p{L}\p{N}]/gu, "");
+const wordsOf = (s: string) => fold(s).match(/[\p{L}\p{N}]+/gu) ?? [];
 
 function editDistance(a: string, b: string): number {
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
