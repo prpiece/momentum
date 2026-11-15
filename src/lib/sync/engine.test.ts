@@ -50,6 +50,25 @@ describe("applyOp", () => {
     expect(db.prepare("SELECT title FROM tasks WHERE id = 't2'").get()).toEqual({ title: "New" });
     expect(db.prepare("SELECT count(*) AS n FROM task_activity").get()).toEqual({ n: 0 });
   });
+
+  // Seen live on 2026-11-15: records for tasks this device never had, pointing at what isn't here.
+  it("puts a new task whose list never arrived in the Inbox, and drops a missing parent and section", async () => {
+    const { db, d } = fresh();
+    const task = { id: "t3", title: "Lost list", list_id: "never-synced", parent_id: "no-parent", section_id: "no-section", status: "open", priority: 0, sort_order: 0, created_at: at, updated_at: at };
+    const [op] = planApply([{ tbl: "tasks", id: "t3", version: 1, data: task }], new Map(), cols(db));
+    if (op.kind === "settings") throw new Error("expected an upsert");
+    expect(await applyOp(d, op)).toBeNull();
+    expect(db.prepare("SELECT list_id, parent_id, section_id FROM tasks WHERE id = 't3'").get()).toEqual({ list_id: "inbox", parent_id: null, section_id: null });
+  });
+
+  it("skips a fragment for a task that isn't here instead of failing NOT NULL", async () => {
+    const { db, d } = fresh();
+    const fragment = { tbl: "tasks" as const, id: "t4", version: 5, data: { exdates: "[]", updated_at: at } };
+    const [op] = planApply([fragment], new Map(), cols(db));
+    if (op.kind === "settings") throw new Error("expected an upsert");
+    expect(await applyOp(d, op)).toBeNull();
+    expect(db.prepare("SELECT count(*) AS n FROM tasks WHERE id = 't4'").get()).toEqual({ n: 0 });
+  });
 });
 
 describe("H15: a fresh sign-in queues only what the server lacks", () => {

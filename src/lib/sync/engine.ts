@@ -7,6 +7,7 @@ import { onWrite, select, transact, write, type Driver } from "../../db/client";
 import { saveSettings } from "../../db/settings";
 import { USER_SETTING_KEYS, withRemoteSettings } from "../../domain/settings";
 import { isSyncTarget, pendingFields, planApply, pushBatches, SYNC_TABLES, tagWinner, type ApplyOp, type OutboxRow, type RemoteRow, type SyncTable } from "../../domain/sync";
+import { INBOX_ID } from "../../domain/types";
 import { hydrate } from "../../stores/data";
 import { hydrateFocus } from "../../stores/focus";
 import { hydrateHabits } from "../../stores/habits";
@@ -122,6 +123,27 @@ async function columnsOf(d: Driver): Promise<Record<SyncTable, string[]>> {
 
 const where = (key: Record<string, unknown>, from = 1) => Object.keys(key).map((c, i) => `${c} = $${i + from}`).join(" AND ");
 
+type Upsert = Extract<ApplyOp, { kind: "upsert" }>;
+const exists = async (d: Driver, tbl: string, id: unknown) => (await d.select<unknown[]>(`SELECT 1 FROM ${tbl} WHERE id = $1`, [id])).length > 0;
+
+/**
+ * A task record can name a list, parent or section this device never received (seen live: a list
+ * whose create never reached the server). Rather than failing the foreign key on every sync, the
+ * task goes to the Inbox and loses the missing parent or section. A record for a task that isn't
+ * here and lacks what a task needs (a fragment of later edits) has nothing to build: skip it (null).
+ */
+async function resolveTaskRefs(d: Driver, op: Upsert): Promise<Upsert | null> {
+  const row = { ...op.row };
+  if (!(await exists(d, "tasks", op.id)) && (row.title == null || row.list_id == null)) {
+    console.warn(`sync: skipped an incomplete record for task ${op.id}`);
+    return null;
+  }
+  if (row.list_id != null && !(await exists(d, "lists", row.list_id))) row.list_id = INBOX_ID;
+  if (row.parent_id != null && !(await exists(d, "tasks", row.parent_id))) row.parent_id = null;
+  if (row.section_id != null && !(await exists(d, "sections", row.section_id))) row.section_id = null;
+  return { ...op, row };
+}
+
 /** Applies one op; returns an issue instead of throwing, so one bad row never blocks the rest. */
 export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): Promise<string | null> {
   try {
@@ -129,8 +151,10 @@ export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings"
       await d.execute(`DELETE FROM ${op.tbl} WHERE ${where(op.key)}`, Object.values(op.key));
       return null;
     }
-    const key = SYNC_TABLES[op.tbl];
-    const cols = Object.keys(op.row);
+    const up = op.tbl === "tasks" ? await resolveTaskRefs(d, op) : op;
+    if (!up) return null;
+    const key = SYNC_TABLES[up.tbl];
+    const cols = Object.keys(up.row);
     const rest = cols.filter((c) => !(key as readonly string[]).includes(c));
     const p = (c: string) => `$${cols.indexOf(c) + 1}`;
     const match = key.map((c) => `${c} = ${p(c)}`).join(" AND ");
@@ -143,15 +167,15 @@ export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings"
     const insert = `INSERT INTO ${op.tbl} (${cols.join(", ")}) SELECT ${cols.map(p).join(", ")} WHERE ${guards.join(" AND ")}`;
     const update = `UPDATE ${op.tbl} SET ${rest.map((c) => `${c} = ${p(c)}`).join(", ")} WHERE ${match}`;
     const run = async () => {
-      if (rest.length) await d.execute(update, Object.values(op.row));
-      await d.execute(insert, Object.values(op.row));
+      if (rest.length) await d.execute(update, Object.values(up.row));
+      await d.execute(insert, Object.values(up.row));
     };
     try {
       await run();
     } catch (err) {
       if (op.tbl !== "tags" || !/UNIQUE/i.test(String(err))) throw err;
       // Same tag name made on two devices: both keep the smaller id and tombstone the other (D225).
-      const [mine] = await d.select<{ id: string }[]>("SELECT id FROM tags WHERE name = $1 COLLATE NOCASE", [op.row.name]);
+      const [mine] = await d.select<{ id: string }[]>("SELECT id FROM tags WHERE name = $1 COLLATE NOCASE", [up.row.name]);
       if (!mine) throw err;
       const loser = tagWinner(mine.id, op.id) === mine.id ? op.id : mine.id;
       await d.execute(
