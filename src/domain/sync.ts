@@ -86,11 +86,15 @@ export function planApply(remote: RemoteRow[], pending: Map<string, Set<string>>
       Object.assign(settings, fields);
       continue;
     }
-    if (r.data.deleted_at != null) {
+    const cols = new Set(columns[r.tbl]);
+    // Tasks, events and subscriptions keep `deleted_at` locally (the Trash, D121): a trashed record is a
+    // soft delete to apply as is. A bare tombstone (only the key and `deleted_at`) is a hard delete.
+    const key: readonly string[] = SYNC_TABLES[r.tbl];
+    const bare = Object.keys(r.data).every((f) => f === "deleted_at" || key.includes(f));
+    if (r.data.deleted_at != null && (bare || !cols.has("deleted_at"))) {
       deletes.push({ kind: "delete", tbl: r.tbl, id: r.id, key: keyFromId(r.tbl, r.id) });
       continue;
     }
-    const cols = new Set(columns[r.tbl]);
     // Key columns always go in, so the upsert can find the row even when a key field is pending.
     const row = Object.fromEntries(Object.entries({ ...fields, ...keyFromId(r.tbl, r.id) }).filter(([c]) => cols.has(c)));
     upserts.push({ kind: "upsert", tbl: r.tbl, id: r.id, row });

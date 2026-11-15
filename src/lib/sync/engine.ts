@@ -17,7 +17,7 @@ import { toast } from "../../stores/toast";
 import { restoreSession, supabase, syncConfigured } from "./supabase";
 
 /** The local schema this client speaks (latest migration); the server refuses older clients (spec, "Version skew"). */
-const CLIENT_SCHEMA = 9;
+export const CLIENT_SCHEMA = 10;
 const PAGE = 1000;
 
 export type SyncStatus =
@@ -87,9 +87,13 @@ function parsePush(v: unknown): PushResult | null {
 }
 
 async function push(device: string): Promise<"ok" | "updateRequired"> {
-  for (;;) {
+  pages: for (;;) {
     const rows = await select<OutboxRow>("SELECT seq, tbl, row_id, fields FROM sync_outbox ORDER BY seq LIMIT 5000");
     if (!rows.length) return "ok";
+    // The highest seq this database ever made. The server can only be ahead of it when this file is a copy or a
+    // restored backup that shares its device id with the original (SYNC-06).
+    // ponytail: misses a copy that has since made more seqs than the original; an id kept outside the DB file covers that.
+    const [made] = await select<{ seq: number }>("SELECT seq FROM sqlite_sequence WHERE name = 'sync_outbox'");
     for (const batch of pushBatches(rows)) {
       const patches = batch.map((r) => ({ seq: r.seq, tbl: r.tbl, id: r.row_id, fields: JSON.parse(r.fields) as unknown }));
       const { data, error } = await supabase.rpc("sync_push", { p_device: device, p_schema: CLIENT_SCHEMA, p_patches: patches });
@@ -97,6 +101,13 @@ async function push(device: string): Promise<"ok" | "updateRequired"> {
       const res = parsePush(data);
       if (!res) throw new Error("Unexpected reply from the sync server");
       if ("error" in res) return "updateRequired";
+      if (res.last_seq > (made?.seq ?? 0)) {
+        // The server skipped these patches as seen before: push them again as a new device (field merges replay safely).
+        device = crypto.randomUUID();
+        await transact((d) => setState(d, "device_id", device));
+        named = false;
+        continue pages;
+      }
       await transact((d) => d.execute("DELETE FROM sync_outbox WHERE seq <= $1", [res.last_seq]));
       const at = new Date().toISOString();
       await addIssues(res.refused.map((x) => ({ at, tbl: String(x.tbl), id: String(x.id), reason: x.reason })));
@@ -144,19 +155,71 @@ async function resolveTaskRefs(d: Driver, op: Upsert): Promise<Upsert | null> {
     console.warn(`sync: skipped an incomplete record for task ${op.id}`);
     return null;
   }
-  if (row.list_id != null && !(await exists(d, "lists", row.list_id))) row.list_id = INBOX_ID;
-  if (row.parent_id != null && !(await exists(d, "tasks", row.parent_id))) row.parent_id = null;
-  if (row.section_id != null && !(await exists(d, "sections", row.section_id))) row.section_id = null;
+  const missing: string[] = [];
+  for (const [col, tbl, to] of [["list_id", "lists", INBOX_ID], ["parent_id", "tasks", null], ["section_id", "sections", null]] as const) {
+    if (row[col] == null || (await exists(d, tbl, row[col]))) continue;
+    missing.push(`${tbl}|${String(row[col])}`);
+    row[col] = to;
+  }
+  // Remember what's missing: when it arrives, the next pull starts over so the task moves to it (SYNC-10).
+  if (missing.length) await setState(d, "awaiting", JSON.stringify([...new Set([...(await awaiting(d)), ...missing])]));
   return { ...op, row };
+}
+
+/** Lists, tasks and sections that pulled tasks named before this device had them (`tbl|id`). */
+async function awaiting(d: Driver): Promise<string[]> {
+  const [r] = await d.select<{ value: string }[]>("SELECT value FROM sync_state WHERE key = 'awaiting'");
+  try {
+    const v: unknown = JSON.parse(r?.value ?? "[]");
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Drops the awaited rows that are here now; true when any arrived. */
+async function settleAwaiting(d: Driver): Promise<boolean> {
+  const waiting = await awaiting(d);
+  if (!waiting.length) return false;
+  const left: string[] = [];
+  for (const k of waiting) {
+    const [tbl, id] = [k.slice(0, k.indexOf("|")), k.slice(k.indexOf("|") + 1)];
+    if ((tbl === "lists" || tbl === "tasks" || tbl === "sections") && !(await exists(d, tbl, id))) left.push(k);
+  }
+  if (left.length === waiting.length) return false;
+  await setState(d, "awaiting", JSON.stringify(left));
+  return true;
+}
+
+/**
+ * A remote list or task delete would cascade away tasks here that the server has never seen (their create
+ * is still in the outbox), and the push would then upload them alive (SYNC-07). Keep them, in the Inbox or
+ * at the top level, and push that move, so every device ends up the same.
+ */
+async function keepUnpushedChildren(d: Driver, tbl: "lists" | "tasks", id: string) {
+  const patch = tbl === "lists" ? { list_id: INBOX_ID, section_id: null } : { parent_id: null };
+  const kids = await d.select<{ id: string }[]>(
+    `SELECT id FROM tasks WHERE ${tbl === "lists" ? "list_id" : "parent_id"} = $1
+       AND EXISTS (SELECT 1 FROM sync_outbox o WHERE o.tbl = 'tasks' AND o.row_id = tasks.id AND json_type(o.fields, '$.id') IS NOT NULL)`,
+    [id],
+  );
+  for (const k of kids) {
+    await d.execute(`UPDATE tasks SET ${Object.keys(patch).map((c, i) => `${c} = $${i + 2}`).join(", ")} WHERE id = $1`, [k.id, ...Object.values(patch)]);
+    await d.execute("INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('tasks', $1, $2, $3)", [k.id, JSON.stringify(patch), new Date().toISOString()]);
+  }
 }
 
 /** Applies one op; returns an issue instead of throwing, so one bad row never blocks the rest. */
 export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): Promise<string | null> {
   try {
     if (op.kind === "delete") {
+      if (op.tbl === "lists" || op.tbl === "tasks") await keepUnpushedChildren(d, op.tbl, op.id);
       await d.execute(`DELETE FROM ${op.tbl} WHERE ${where(op.key)}`, Object.values(op.key));
       return null;
     }
+    // A trashed record for a row this device doesn't have stays gone: it was purged here (a purge elsewhere
+    // looks the same), and bringing it back would start another 30 days in the Trash.
+    if (op.row.deleted_at != null && !(await exists(d, op.tbl, op.id))) return null;
     const up = op.tbl === "tasks" ? await resolveTaskRefs(d, op) : op;
     if (!up) return null;
     const key = SYNC_TABLES[up.tbl];
@@ -183,11 +246,21 @@ export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings"
       // Same tag name made on two devices: both keep the smaller id and tombstone the other (D225).
       const [mine] = await d.select<{ id: string }[]>("SELECT id FROM tags WHERE name = $1 COLLATE NOCASE", [up.row.name]);
       if (!mine) throw err;
-      const loser = tagWinner(mine.id, op.id) === mine.id ? op.id : mine.id;
-      await d.execute(
-        "INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('tags', $1, json_object('deleted_at', $2), $2)",
-        [loser, new Date().toISOString()],
+      const winner = tagWinner(mine.id, op.id);
+      const loser = winner === mine.id ? op.id : mine.id;
+      const now = new Date().toISOString();
+      await d.execute("INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('tags', $1, json_object('deleted_at', $2), $2)", [loser, now]);
+      // Tasks hold tag ids: move this device's tasks to the winner and push that, so no device loses the tag.
+      const tagged = await d.select<{ id: string; tags: string }[]>(
+        "SELECT id, tags FROM tasks WHERE EXISTS (SELECT 1 FROM json_each(tasks.tags) WHERE value = $1)",
+        [loser],
       );
+      for (const t of tagged) {
+        const had: unknown = JSON.parse(t.tags);
+        const tags = JSON.stringify([...new Set((Array.isArray(had) ? had : []).map((x) => (x === loser ? winner : x)))]);
+        await d.execute("UPDATE tasks SET tags = $1 WHERE id = $2", [tags, t.id]);
+        await d.execute("INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('tasks', $1, json_object('tags', $2), $3)", [t.id, tags, now]);
+      }
       if (loser === mine.id) {
         await d.execute("DELETE FROM tags WHERE id = $1", [mine.id]);
         await run();
@@ -201,6 +274,7 @@ export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings"
 
 /** Pulls what the server has changed and applies it; returns the rows it received. */
 async function pull(): Promise<RemoteRow[]> {
+  const started = session;
   let cursor = Number((await state("cursor")) ?? 0);
   const remote: RemoteRow[] = [];
   for (;;) {
@@ -217,7 +291,11 @@ async function pull(): Promise<RemoteRow[]> {
   if (!remote.length) return [];
 
   const at = new Date().toISOString();
-  const { settings, issues } = await transact(async (d) => {
+  // A settings change still waiting on its debounce goes into the outbox first, so it wins like any pending edit.
+  await useSettings.getState().flush();
+  const applied = await transact(async (d) => {
+    // Signed out while this pull was on the wire: the old account's rows must not land (SYNC-04).
+    if (session !== started) return null;
     const outbox = await d.select<OutboxRow[]>("SELECT seq, tbl, row_id, fields FROM sync_outbox");
     const ops = planApply(remote, pendingFields(outbox), await columnsOf(d));
     const issues: SyncIssue[] = [];
@@ -236,9 +314,17 @@ async function pull(): Promise<RemoteRow[]> {
     } finally {
       await setState(d, "record", "1");
     }
+    // ponytail: a whole re-pull when an awaited list or parent arrives; rare. Re-request by id if it gets costly.
+    if (await settleAwaiting(d)) {
+      cursor = 0;
+      again = true;
+    }
     await setState(d, "cursor", String(cursor));
+    await setState(d, "cursor_schema", String(CLIENT_SCHEMA));
     return { settings, issues };
   });
+  if (!applied) return [];
+  const { settings, issues } = applied;
   await addIssues(issues);
   if (settings) {
     const next = withRemoteSettings(useSettings.getState().settings, settings);
@@ -253,6 +339,8 @@ async function pull(): Promise<RemoteRow[]> {
 
 let running: Promise<void> | null = null;
 let again = false;
+/** Bumped by signOut: a run that started before it writes nothing more (SYNC-04). */
+let session = 0;
 
 /** Push then pull. Overlapping calls coalesce into one follow-up run. */
 export function syncNow(): Promise<void> {
@@ -307,14 +395,15 @@ async function runOnce() {
     if (restored === "ended") return endedSession();
   }
   useSync.setState({ status: { kind: "syncing" } });
+  const started = session;
   try {
-    const device = await deviceId();
     // The server's floor, read even with nothing to push, so an idle client still learns it's too old.
     const { data: meta } = await supabase.from("server_meta").select("min_client_schema").maybeSingle();
     const tooOld = typeof meta?.min_client_schema === "number" && meta.min_client_schema > CLIENT_SCHEMA;
-    if (tooOld || (await push(device)) === "updateRequired") return useSync.setState({ status: { kind: "updateRequired" } });
+    if (tooOld || (await push(await deviceId())) === "updateRequired") return useSync.setState({ status: { kind: "updateRequired" } });
     await pull();
-    if (!named) named = await namePlatform(device);
+    if (session !== started) return; // signed out meanwhile
+    if (!named) named = await namePlatform(await deviceId()); // push may have taken a new id
     useSync.setState({ status: { kind: "idle", at: new Date().toISOString() } });
   } catch (err) {
     // An access token the server no longer accepts: refresh the session from the stored refresh token. Only a
@@ -345,9 +434,12 @@ function schedule(account: string, device: string) {
   const channel = supabase
     .channel(`devices:${account}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "devices", filter: `owner_id=eq.${account}` }, (p) => {
+      // A sibling device pushed. Not this device's own echo, and not a DELETE: those reach every user, unfiltered (SYNC-15).
       const row = p.new as { id?: string } | undefined;
-      if (row?.id !== device) void syncNow();
+      if (row?.id && row.id !== device) void syncNow();
     })
+    // Server-side changes for this account (a share member's push, a sent task, a bot), the only device included (SYNC-09).
+    .on("postgres_changes", { event: "*", schema: "public", table: "sync_pings", filter: `account_id=eq.${account}` }, () => void syncNow())
     .subscribe();
   stop = () => {
     clearTimeout(timer);
@@ -384,6 +476,14 @@ export async function startSync() {
     /* a bad issues list only loses the history */
   }
   if (!account) return;
+  // A pull the app died in leaves recording off: turn it back on, or local edits stop syncing (SYNC-02).
+  await setLocalState("record", "1");
+  // The cursor was built by an older schema, which dropped the columns and tables it didn't have: pull everything
+  // again once so they arrive (SYNC-05). Pending local fields still win.
+  if ((await state("cursor_schema")) !== String(CLIENT_SCHEMA)) {
+    await setLocalState("cursor", "0");
+    await setLocalState("cursor_schema", String(CLIENT_SCHEMA));
+  }
   useSync.setState({ account, status: { kind: "idle", at: null } });
   schedule(account, await deviceId());
   void syncNow();
@@ -466,6 +566,7 @@ export async function enableSync(account: string, mode: "fresh" | "resume"): Pro
  * pushes what changed meanwhile (D119). `remove`: snapshot, then delete every synced row.
  */
 export async function signOut(how: "keep" | "remove", everywhere = false) {
+  session++;
   stop?.();
   stop = null;
   named = false;

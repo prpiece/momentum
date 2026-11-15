@@ -47,6 +47,13 @@ describe("planApply", () => {
     expect(planApply([rr("rest_days", "2026-01-01", tomb)], pending, COLS)).toEqual([]);
   });
 
+  it("SYNC-01: keeps a trashed record as a soft delete where the table has deleted_at; only a bare tombstone deletes", () => {
+    const trashed = { id: "t1", title: "A", list_id: "inbox", deleted_at: "2026-01-02T00:00:00.000Z" };
+    expect(planApply([rr("tasks", "t1", trashed)], new Map(), COLS)).toEqual([{ kind: "upsert", tbl: "tasks", id: "t1", row: trashed }]);
+    expect(planApply([rr("tasks", "t1", { deleted_at: "2026-01-02T00:00:00.000Z" })], new Map(), COLS)).toEqual([{ kind: "delete", tbl: "tasks", id: "t1", key: { id: "t1" } }]);
+    expect(planApply([rr("lists", "l1", { id: "l1", name: "L", deleted_at: "2026-01-02T00:00:00.000Z" })], new Map(), COLS)).toEqual([{ kind: "delete", tbl: "lists", id: "l1", key: { id: "l1" } }]);
+  });
+
   it("treats a pending check-in increment as a pending value, keeping the natural key", () => {
     const pending = pendingFields([ob(1, "habit_checkins", "h|2026-01-01", { _delta: 1 })]);
     const ops = planApply([rr("habit_checkins", "h|2026-01-01", { habit_id: "h", date: "2026-01-01", value: 3, note: "ok" })], pending, COLS);

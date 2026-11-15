@@ -19,7 +19,7 @@ const fresh = () => {
   return { db, d };
 };
 const cols = (db: DatabaseSync) =>
-  Object.fromEntries(["tasks", "task_activity", "lists"].map((t) => [t, (db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name)])) as Record<SyncTable, string[]>;
+  Object.fromEntries(["tasks", "task_activity", "lists", "tags"].map((t) => [t, (db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name)])) as Record<SyncTable, string[]>;
 const at = "2026-11-01T00:00:00.000Z";
 
 describe("applyOp", () => {
@@ -68,6 +68,71 @@ describe("applyOp", () => {
     if (op.kind === "settings") throw new Error("expected an upsert");
     expect(await applyOp(d, op)).toBeNull();
     expect(db.prepare("SELECT count(*) AS n FROM tasks WHERE id = 't4'").get()).toEqual({ n: 0 });
+  });
+});
+
+const applyAll = async (d: Driver, ops: ReturnType<typeof planApply>) => {
+  for (const op of ops) if (op.kind !== "settings") expect(await applyOp(d, op)).toBeNull();
+};
+describe("SYNC-01: a task trashed on another device", () => {
+  it("lands in this device's Trash with its activity, instead of being hard-deleted", async () => {
+    const { db, d } = fresh();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES ('t1', 'Keep', 'inbox', 'open', 0, 0, ?, ?)").run(at, at);
+    db.prepare("INSERT INTO task_activity (id, task_id, at, kind) VALUES ('a1', 't1', ?, 'created')").run(at);
+    const trashed = { id: "t1", title: "Keep", list_id: "inbox", status: "open", priority: 0, sort_order: 0, created_at: at, updated_at: at, deleted_at: "2026-11-02T00:00:00.000Z" };
+    await applyAll(d, planApply([{ tbl: "tasks", id: "t1", version: 2, data: trashed }], new Map(), cols(db)));
+    expect(db.prepare("SELECT deleted_at FROM tasks WHERE id = 't1'").get()).toEqual({ deleted_at: "2026-11-02T00:00:00.000Z" });
+    expect(db.prepare("SELECT count(*) AS n FROM task_activity").get()).toEqual({ n: 1 });
+  });
+
+  it("still deletes on a bare tombstone, and doesn't bring back a trashed task this device no longer has", async () => {
+    const { db, d } = fresh();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES ('t1', 'Gone', 'inbox', 'open', 0, 0, ?, ?)").run(at, at);
+    const purged = { ...{ id: "t2", title: "Purged here", list_id: "inbox", status: "open", priority: 0, sort_order: 0, created_at: at, updated_at: at }, deleted_at: at };
+    await applyAll(d, planApply([{ tbl: "tasks", id: "t1", version: 2, data: { deleted_at: at } }, { tbl: "tasks", id: "t2", version: 3, data: purged }], new Map(), cols(db)));
+    expect(db.prepare("SELECT count(*) AS n FROM tasks").get()).toEqual({ n: 0 });
+  });
+});
+
+describe("SYNC-03: the same tag name made on two devices", () => {
+  it("moves this device's tasks from the losing tag id to the winner and pushes that", async () => {
+    const { db, d } = fresh();
+    db.prepare("INSERT INTO tags (id, name) VALUES ('b2', 'work')").run();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at, tags) VALUES ('t2', 'Y', 'inbox', 'open', 0, 0, ?, ?, '[\"b2\",\"x\"]')").run(at, at);
+    await applyAll(d, planApply([{ tbl: "tags", id: "a1", version: 1, data: { id: "a1", name: "work" } }], new Map(), cols(db)));
+    expect(db.prepare("SELECT id FROM tags").all()).toEqual([{ id: "a1" }]);
+    expect(JSON.parse((db.prepare("SELECT tags FROM tasks WHERE id = 't2'").get() as { tags: string }).tags)).toEqual(["a1", "x"]);
+    const patch = db.prepare("SELECT fields FROM sync_outbox WHERE tbl = 'tasks' AND row_id = 't2'").get() as { fields: string };
+    expect(JSON.parse(JSON.parse(patch.fields).tags)).toEqual(["a1", "x"]);
+  });
+
+  it("also remaps tasks here that carry the loser id when the remote tag loses", async () => {
+    const { db, d } = fresh();
+    db.prepare("INSERT INTO tags (id, name) VALUES ('a1', 'Work')").run();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at, tags) VALUES ('t3', 'X', 'inbox', 'open', 0, 0, ?, ?, '[\"b2\",\"a1\"]')").run(at, at);
+    await applyAll(d, planApply([{ tbl: "tags", id: "b2", version: 1, data: { id: "b2", name: "work" } }], new Map(), cols(db)));
+    expect(db.prepare("SELECT id FROM tags").all()).toEqual([{ id: "a1" }]);
+    expect(JSON.parse((db.prepare("SELECT tags FROM tasks WHERE id = 't3'").get() as { tags: string }).tags)).toEqual(["a1"]);
+  });
+});
+
+describe("SYNC-07: a remote delete over a task this device hasn't pushed yet", () => {
+  it("keeps the new task, moved to the Inbox (or top level), and pushes the move", async () => {
+    const { db, d } = fresh();
+    db.prepare("INSERT INTO lists (id, name, sort_order) VALUES ('L', 'L', 1)").run();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES ('p', 'Parent', 'inbox', 'open', 0, 0, ?, ?)").run(at, at);
+    db.prepare("UPDATE sync_state SET value = '1' WHERE key = 'record'").run();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES ('new', 'New', 'L', 'open', 0, 0, ?, ?)").run(at, at);
+    db.prepare("INSERT INTO tasks (id, title, list_id, parent_id, status, priority, sort_order, created_at, updated_at) VALUES ('sub', 'Sub', 'inbox', 'p', 'open', 0, 0, ?, ?)").run(at, at);
+    db.prepare("UPDATE sync_state SET value = '0' WHERE key = 'record'").run();
+    await applyAll(d, planApply([{ tbl: "lists", id: "L", version: 2, data: { deleted_at: at } }, { tbl: "tasks", id: "p", version: 3, data: { deleted_at: at } }], new Map(), cols(db)));
+    expect(db.prepare("SELECT id, list_id, parent_id FROM tasks ORDER BY id").all()).toEqual([
+      { id: "new", list_id: "inbox", parent_id: null },
+      { id: "sub", list_id: "inbox", parent_id: null },
+    ]);
+    const last = (id: string) => JSON.parse((db.prepare("SELECT fields FROM sync_outbox WHERE row_id = ? ORDER BY seq DESC").get(id) as { fields: string }).fields);
+    expect(last("new")).toMatchObject({ list_id: "inbox" });
+    expect(last("sub")).toMatchObject({ parent_id: null });
   });
 });
 

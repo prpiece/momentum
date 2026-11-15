@@ -139,7 +139,7 @@ describe("server version (D289)", () => {
   it("anyone can read schema_version", async () => {
     const { data, error } = await createClient(URL, ANON, opts).from("server_meta").select("schema_version").single();
     expect(error).toBeNull();
-    expect(data?.schema_version).toBe(3);
+    expect(data?.schema_version).toBe(4);
   });
 });
 
