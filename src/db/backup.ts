@@ -71,7 +71,8 @@ export async function restoreBackup(d: Restored, path: string): Promise<string> 
   await write(...d.activity.map((a): [string, unknown[]] => ["INSERT INTO task_activity (task_id, at, kind, detail) VALUES ($1, $2, $3, $4)", [a.taskId, a.at, a.kind, a.detail]]));
   await saveHabitData({ habits: d.habits, groups: d.groups, checkins: d.checkins });
   await saveSessions(d.sessions);
-  if (d.settings) useSettings.getState().update(d.settings);
+  // Saved at once: a debounced update() would fire after the hydrate below and write the defaults back over them (H9).
+  if (d.settings) await useSettings.getState().replace(d.settings);
   await Promise.all([hydrate(), hydrateSubscriptions(), hydrateHabits(), hydrateFocus(), useSettings.getState().hydrate()]);
   return snapshot;
 }

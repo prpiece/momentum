@@ -64,12 +64,13 @@ export function pendingFields(outbox: OutboxRow[]): Map<string, Set<string>> {
  * re-create (`deleted_at` pending) is left alone entirely. Only known local columns are written.
  */
 export function planApply(remote: RemoteRow[], pending: Map<string, Set<string>>, columns: Record<SyncTable, string[]>): ApplyOp[] {
-  // The last version of a row wins when a page holds it twice.
+  // A page can hold a row twice: the record and a personal-layer patch over it (H13). Merge them
+  // oldest first, so each field takes its newest value and the highest version labels the result.
   const latest = new Map<string, RemoteRow>();
-  for (const r of remote) {
+  for (const r of [...remote].sort((x, y) => x.version - y.version)) {
     const k = rowKey(r.tbl, r.id);
     const prev = latest.get(k);
-    if (!prev || prev.version < r.version) latest.set(k, r);
+    latest.set(k, prev ? { ...r, data: { ...prev.data, ...r.data } } : r);
   }
   const deletes: ApplyOp[] = [];
   const upserts: Extract<ApplyOp, { kind: "upsert" }>[] = [];
