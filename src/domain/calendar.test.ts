@@ -107,6 +107,12 @@ describe("calendarItems", () => {
     expect(item).toMatchObject({ startDate: "2026-10-24", endDate: "2026-10-27", allDay: true });
   });
 
+  it("looks back by wall-clock days across the DST fall-back (Nov 1 2026)", () => {
+    const e = event({ kind: "day", date: "2026-11-01" }, { spanDays: 2, recurrence: { rule: "FREQ=YEARLY", exdates: [] } });
+    const [item] = calendarItems(src([], [e]), "2026-11-02", "2026-11-03");
+    expect(item).toMatchObject({ startDate: "2026-11-01", endDate: "2026-11-02" });
+  });
+
   it("does not let a block ending at midnight spill into the next day", () => {
     const vm = task(timed(atLocalTime("2026-10-26", "23:00"), 60));
     const [item] = calendarItems(src([vm]), "2026-10-26", "2026-10-27");
@@ -150,6 +156,18 @@ describe("layoutDay", () => {
   it("chains transitive overlaps into one cluster", () => {
     const r = cols([at("09:00", "10:00", "a"), at("09:45", "11:00", "b"), at("10:30", "12:00", "c")]);
     expect(r).toEqual({ a: [0, 2], b: [1, 2], c: [0, 2] });
+  });
+
+  it("H6: back-to-back short items stack full width; min height only affects drawing", () => {
+    expect(cols([at("11:00", "11:15", "a"), at("11:15", "12:00", "b")])).toEqual({ a: [0, 1], b: [0, 1] });
+    const p = layoutDay([at("11:00", "11:15", "a"), at("11:15", "12:00", "b")], "2026-10-26");
+    expect(p[0].bottom).toBe(11 * 60 + 20); // drawn at the minimum height
+    expect(cols([at("11:00", "11:10", "a"), at("11:10", "11:20", "b")])).toEqual({ a: [0, 1], b: [0, 1] });
+  });
+
+  it("H6: items that truly overlap, even zero-length ones, still split", () => {
+    expect(cols([at("11:00", "11:00", "a"), at("11:00", "11:00", "b")])).toEqual({ a: [0, 2], b: [1, 2] });
+    expect(cols([at("11:00", "11:30", "a"), at("11:15", "11:20", "b")])).toEqual({ a: [0, 2], b: [1, 2] });
   });
 
   it("clips multi-day timed items to the day", () => {

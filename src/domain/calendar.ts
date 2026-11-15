@@ -130,7 +130,7 @@ export function calendarItems(src: ItemSources, from: LocalDate, to: LocalDate):
       priority: 0 as const,
     };
     // Multi-day all-day events: look back far enough to catch ones that started earlier.
-    const lookback = new Date(fromD.getTime() - (e.spanDays - 1) * 86_400_000);
+    const lookback = fromLocalDate(addDaysLocal(from, -(e.spanDays - 1)));
     const schedules = e.recurrence ? occurrencesBetween(e, lookback, toD) : [{ key: null, schedule: e.schedule }];
     for (const o of schedules) {
       const item = itemOf({ ...base, key: o.key }, o.schedule, e.spanDays);
@@ -202,17 +202,17 @@ export type Placed = { item: CalItem; top: number; bottom: number; col: number; 
 /**
  * Side-by-side layout for one day column. Overlapping items form a cluster; each item takes
  * the first free column; every item in a cluster gets the cluster's column count.
- * Very short items are treated as 20 minutes tall so their labels don't collide.
+ * Clusters use real start/end times; `bottom` is the drawn edge, at least `minHeight` below `top`.
  */
 export function layoutDay(items: readonly CalItem[], day: LocalDate, minHeight = 20): Placed[] {
-  const placed = items
+  const placed: (Placed & { end: number })[] = items
     .filter((i) => !i.allDay && i.start && i.end && coversDay(i, day))
     .map((item) => {
       const top = item.start ? minutesInDay(item.start, day) : 0;
       const raw = item.end ? minutesInDay(item.end, day) : top;
-      return { item, top, bottom: Math.max(raw, top + minHeight), col: 0, cols: 1 };
+      return { item, top, end: Math.max(raw, top + 1), bottom: Math.max(raw, top + minHeight), col: 0, cols: 1 };
     })
-    .sort((a, b) => a.top - b.top || b.bottom - a.bottom);
+    .sort((a, b) => a.top - b.top || b.end - a.end);
 
   let cluster: Placed[] = [];
   let clusterEnd = -1;
@@ -226,13 +226,13 @@ export function layoutDay(items: readonly CalItem[], day: LocalDate, minHeight =
     }
     let col = colEnds.findIndex((end) => end <= p.top);
     if (col === -1) col = colEnds.push(0) - 1;
-    colEnds[col] = p.bottom;
+    colEnds[col] = p.end;
     p.col = col;
     cluster.push(p);
-    clusterEnd = Math.max(clusterEnd, p.bottom);
+    clusterEnd = Math.max(clusterEnd, p.end);
   }
   flush();
-  return placed;
+  return placed.map(({ end: _end, ...p }) => p);
 }
 
 /** Stable color for things without one (tags): picks from the accent presets by name hash. */
