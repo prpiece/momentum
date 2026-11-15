@@ -12,6 +12,22 @@ function habit(frequency: HabitFrequency, goal: HabitGoal = { kind: "once" }, st
 /** Days back from today that were done, e.g. done(0, 1, 2) = today, yesterday, day before. */
 const done = (...back: number[]) => new Map(back.map((b) => [addDaysLocal(TODAY, -b), 1]));
 
+describe("weekly limit and quit habits count only elapsed days from the start date", () => {
+  const quit = (startDate: string) => habit({ kind: "perWeek", count: 3 }, { kind: "quit" }, startDate);
+  it("is not met on Tuesday just because the rest of the week is unlogged", () => {
+    expect(isDueToday(quit("2026-10-19"), new Map(), "2026-10-20", WS)).toBe(true);
+    expect(currentStreak(quit("2026-10-19"), new Map(), "2026-10-20", WS).count).toBe(0);
+  });
+  it("ignores days before the start date", () => {
+    expect(currentStreak(quit("2026-10-23"), new Map(), TODAY, WS).count).toBe(0); // Fri + Sat passed = 2 < 3
+    expect(currentStreak(quit("2026-10-22"), new Map(), TODAY, WS).count).toBe(1); // Thu, Fri, Sat = 3
+  });
+  it("a slip on a passed day does not count", () => {
+    const slip = new Map([["2026-10-23", 1]]);
+    expect(currentStreak(quit("2026-10-22"), slip, TODAY, WS).count).toBe(0);
+  });
+});
+
 describe("daily streaks", () => {
   const h = habit({ kind: "daily" });
   it("counts consecutive days and breaks on a miss", () => {
