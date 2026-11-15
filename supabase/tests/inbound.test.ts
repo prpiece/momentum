@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { webcrypto } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
-import { handle, type Env, type Opts } from "../functions/inbound/app";
+import { handle, REPLY_DEADLINE_MS, type Env, type Opts } from "../functions/inbound/app";
 import { fromWall, parseClock, parseCommand, runChat, SERVER_PROBLEM, toWall } from "../functions/inbound/bot";
 import { bundle, OUT } from "../../scripts/bundle-inbound.mjs";
 import { admin, replica, rpc, SECRET, send, uid, URL, user, type User } from "./helpers";
@@ -487,5 +487,12 @@ describe("a failed chat lookup", () => {
     const db = { from: () => chain, rpc: async () => ({ data: true, error: null }) } as unknown as Parameters<typeof runChat>[0];
     const chat = { source: "discord" as const, externalId: "1", label: null, reply: {} };
     expect(await runChat(db, chat, "today")).toBe(SERVER_PROBLEM);
+  });
+});
+
+describe("the reply deadline", () => {
+  it("leaves room for a cold start inside Discord's and Slack's 3 seconds", () => {
+    const measuredColdStartMs = 2300; // the live project, 2026-11-15
+    expect(measuredColdStartMs + REPLY_DEADLINE_MS).toBeLessThan(3000);
   });
 });

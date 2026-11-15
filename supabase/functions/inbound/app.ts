@@ -56,6 +56,13 @@ export async function verifySlack(secret: string, sig: string | null, ts: string
   return same(sig, `v0=${await hmac(secret, `v0:${ts}:${body}`)}`);
 }
 
+/**
+ * How long a command may run before the "thinking…" placeholder goes out. Discord and Slack give up
+ * after 3 s, counted from their request, and a cold start of this function already took ~2.3 s on the
+ * live project before any code ran: the wait plus a cold start must stay under 3 s.
+ */
+export const REPLY_DEADLINE_MS = 500;
+
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /**
@@ -63,7 +70,7 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…`
  * `early()` at once and hands the result to `later` (sent after the response).
  */
 async function inTime(work: Promise<string>, opts: Opts, early: () => Response, now: (text: string) => Response, later: (text: string) => Promise<unknown>) {
-  const timer = new Promise<null>((r) => setTimeout(() => r(null), opts.deadlineMs ?? 2500));
+  const timer = new Promise<null>((r) => setTimeout(() => r(null), opts.deadlineMs ?? REPLY_DEADLINE_MS));
   const safe = work.catch((e) => { console.error(e); return "Something went wrong. Try again in a moment."; });
   const first = await Promise.race([safe, timer]);
   if (first !== null) return now(first);
