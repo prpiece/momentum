@@ -83,7 +83,7 @@ export default function Connections() {
       ]);
   };
   const makeWebhook = async () => {
-    if (webhook && !(await new Promise<boolean>((ok) => Alert.alert("Regenerate the webhook?", "The old URL stops working.", [{ text: "Cancel", style: "cancel", onPress: () => ok(false) }, { text: "Regenerate", style: "destructive", onPress: () => ok(true) }], { onDismiss: () => ok(false) })))) return;
+    if (webhook && !(await new Promise<boolean>((ok) => Alert.alert("Regenerate the webhook?", "The old secret stops working.", [{ text: "Cancel", style: "cancel", onPress: () => ok(false) }, { text: "Regenerate", style: "destructive", onPress: () => ok(true) }], { onDismiss: () => ok(false) })))) return;
     const s = await run(api.createWebhook);
     if (s) {
       setSecret(s);
@@ -128,22 +128,32 @@ export default function Connections() {
       <Label inset>Webhook</Label>
       <View style={st.block}>
         <Text variant="secondary" style={{ color: c.fg2 }}>
-          A private URL that adds a task to your Inbox from any service: POST {"{ \"text\": \"…\" }"}. Anyone with the URL can add tasks, so keep it secret.
+          A private address that adds a task to your Inbox from any service: POST {"{ \"text\": \"…\" }"} with the secret in the X-Webhook-Secret header. Anyone with the secret can add tasks, so keep it private.
         </Text>
+        {webhook ? (
+          <Text selectable variant="meta" style={{ color: c.fg }}>
+            {`POST ${api.webhookEndpoint()}`}
+          </Text>
+        ) : null}
         {secret ? (
           <>
             <Text selectable variant="meta" style={{ color: c.fg }}>
-              {api.webhookUrl(secret)}
+              {`X-Webhook-Secret: ${secret}`}
             </Text>
             <Text variant="meta" style={{ color: c.muted }}>
-              This is the only time the URL is shown. Press and hold it to copy, or share it.
+              This is the only time the secret is shown. Press and hold it to copy, or share it.
             </Text>
-            <Button label="Copy or share URL" icon="share" kind="secondary" onPress={() => void Share.share({ message: api.webhookUrl(secret) })} />
+            <Button label="Copy or share" icon="share" kind="secondary" onPress={() => void Share.share({ message: `${api.webhookEndpoint()}\nX-Webhook-Secret: ${secret}` })} />
           </>
+        ) : null}
+        {webhook ? (
+          <Text selectable variant="meta" style={{ color: c.fg2 }}>
+            {`Example:\ncurl -X POST ${api.webhookEndpoint()} \\\n  -H "X-Webhook-Secret: ${secret ?? "<your secret>"}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"text":"Buy milk tomorrow"}'`}
+          </Text>
         ) : null}
         {webhook === null ? null : webhook ? (
           <>
-            {secret ? null : <Text variant="meta" style={{ color: c.muted }}>The webhook is on. Regenerate it to see a new URL; the old one stops working.</Text>}
+            {secret ? null : <Text variant="meta" style={{ color: c.muted }}>The webhook is on. Regenerate it to see a new secret; the old one stops working.</Text>}
             {access ? (
               <Button
                 label={access === "full" ? "Access: full (tap for add-only)" : "Access: add only (tap for full)"}
