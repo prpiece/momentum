@@ -1,19 +1,21 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSync } from "@core/lib/sync/engine";
-import { respondFriend, respondSentTask, respondShare, nudge } from "@core/lib/sync/social";
+import { myBlocks, respondFriend, respondSentTask, respondShare, nudge, type Profile } from "@core/lib/sync/social";
 import { act, refreshSocial, requestCount, useSocial } from "@core/stores/social";
 import { toast } from "@core/stores/toast";
 import { GUTTER, useColors } from "@/theme";
 import { Button, Empty, IconButton, Label, NavRow, PageHeader, Text } from "@/ui/kit";
-import { addFriend, friendMenu, nameOf, openLink, run, shareFriendLink } from "@/social/actions";
+import { addFriend, blockPerson, friendMenu, manageLinks, nameOf, openLink, run, shareFriendLink, unblockPerson } from "@/social/actions";
 import { askText } from "@/ui/Sheet";
 
 /** Friends (v1.4): friends, Requests with a badge, Add friend, invite links and your check-in buddies' habits. */
 export default function Friends() {
   // Opening Friends always shows the latest requests, whatever Realtime missed.
-  useFocusEffect(useCallback(() => void refreshSocial(), []));
+  const [blocked, setBlocked] = useState<Profile[]>([]);
+  const loadBlocked = useCallback(() => void run(myBlocks).then((b) => b && setBlocked(b)), []);
+  useFocusEffect(useCallback(() => (void refreshSocial(), loadBlocked()), [loadBlocked]));
   const c = useColors();
   const account = useSync((s) => s.account);
   const friends = useSocial((s) => s.friends);
@@ -52,7 +54,7 @@ export default function Friends() {
       {requests ? <Label inset>{`Requests (${requests})`}</Label> : null}
       {asking.map((f) => (
         <Item key={f.id} title={nameOf(f)} sub="Wants to be friends">
-          <Answer onAccept={() => void run(() => act(() => respondFriend(f.id, true)))} onDecline={() => void run(() => act(() => respondFriend(f.id, false)))} />
+          <Answer onAccept={() => void run(() => act(() => respondFriend(f.id, true)))} onDecline={() => void run(() => act(() => respondFriend(f.id, false)))} onBlock={() => blockPerson(f)} />
         </Item>
       ))}
       {incomingTasks.map((t) => (
@@ -60,6 +62,7 @@ export default function Friends() {
           <Answer
             onAccept={() => void run(() => act(() => respondSentTask(t.id, true), true)).then((r) => r !== undefined && toast("Added to your Inbox."))}
             onDecline={() => void run(() => act(() => respondSentTask(t.id, false)))}
+            onBlock={() => blockPerson(t.sender)}
           />
         </Item>
       ))}
@@ -81,8 +84,14 @@ export default function Friends() {
       ))}
       {accepted.length || asked.length ? null : <Empty text="No friends yet" hint="Add one by @handle or send them an invite link." />}
       <NavRow icon="user-plus" title="Add friend" sub="By @handle" onPress={() => void addFriend()} />
-      <NavRow icon="share" title="Share invite link" sub="Lasts 30 days" onPress={() => void shareFriendLink()} />
+      <NavRow icon="share" title="Share invite link" sub="Lasts 14 days" onPress={() => void shareFriendLink()} />
+      <NavRow icon="link" title="Manage invite links" sub="See and revoke the links you made" onPress={() => void manageLinks()} />
       <NavRow icon="link" title="Open invite link" sub="Paste one you were sent" onPress={() => void openPasted()} />
+
+      {blocked.length ? <Label inset>Blocked</Label> : null}
+      {blocked.map((p) => (
+        <NavRow key={p.id} icon="slash" title={nameOf(p)} sub="Tap to unblock" onPress={() => unblockPerson(p, loadBlocked)} />
+      ))}
 
       {buddyHabits.length ? <Label inset>Buddies' habits</Label> : null}
       {buddyHabits.map((b) => (
@@ -118,9 +127,10 @@ function Item({ title, sub, children }: { title: string; sub: string; children?:
   );
 }
 
-function Answer({ onAccept, onDecline }: { onAccept: () => void; onDecline: () => void }) {
+function Answer({ onAccept, onDecline, onBlock }: { onAccept: () => void; onDecline: () => void; onBlock?: () => void }) {
   return (
     <View style={{ flexDirection: "row", gap: 8 }}>
+      {onBlock ? <Button label="Block" kind="outline" onPress={onBlock} style={s.small} /> : null}
       <Button label="Decline" kind="outline" onPress={onDecline} style={s.small} />
       <Button label="Accept" onPress={onAccept} style={s.small} />
     </View>

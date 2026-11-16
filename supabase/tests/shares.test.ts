@@ -280,7 +280,7 @@ describe("membership", () => {
       p_code: await rpc<string>(O.db, "create_share_invite", { p_share: shareA, p_role: "editor" }),
     });
     expect(info[0]).toMatchObject({ kind: "share", role: "editor" });
-    expect(new Date(info[0].expires_at).getTime()).toBeLessThan(Date.now() + 7.01 * 86_400_000);
+    expect(new Date(info[0].expires_at).getTime()).toBeLessThan(Date.now() + 14.01 * 86_400_000);
   });
 
   it("share members can see each other's profiles, strangers can't", async () => {

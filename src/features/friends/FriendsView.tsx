@@ -10,8 +10,10 @@ import { openInvite, refreshSocial, useSocial } from "../../stores/social";
 import { toast } from "../../stores/toast";
 import { openSettingsPage } from "../../stores/settings";
 import { go } from "../../stores/ui";
+import { BlockedSection } from "./BlockedSection";
 import { BuddiesSection } from "./BuddiesSection";
 import { FriendRow } from "./FriendRow";
+import { InviteLinks } from "./InviteLinks";
 import { RequestsSection } from "./RequestsSection";
 import { ServerUpdateNotice } from "./ServerUpdateNotice";
 import { copyText } from "./attempt";
@@ -84,7 +86,32 @@ function AddFriend() {
   );
 }
 
+/** Whether strangers can send you friend requests by handle (SOC-12). Invite links still work. */
+function AllowRequests() {
+  const me = useSync((s) => s.account);
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (me) api.allowRequests(me).then(setOn, () => setOn(null));
+  }, [me]);
+  if (!me || on === null) return null;
+  const change = async (next: boolean) => {
+    try {
+      await api.setAllowRequests(next, me);
+      setOn(next);
+    } catch (e) {
+      toast(e instanceof api.SocialError ? e.message : "Couldn't change that.");
+    }
+  };
+  return (
+    <label className="flex items-center gap-2 text-[length:var(--fs-sm)] text-fg-2">
+      <input type="checkbox" checked={on} onChange={(e) => void change(e.target.checked)} />
+      Let people find me by handle and send friend requests
+    </label>
+  );
+}
+
 function Signed() {
+  const [linksTick, setLinksTick] = useState(0);
   const all = useSocial((s) => s.friends);
   const outgoing = useSocial((s) => s.outgoingTasks);
   const loaded = useSocial((s) => s.loaded);
@@ -96,7 +123,8 @@ function Signed() {
   const copy = async () => {
     try {
       const url = inviteUrl(await api.createFriendInvite());
-      toast((await copyText(url)) ? "Invite link copied. It works for 30 days." : url);
+      toast((await copyText(url)) ? "Invite link copied. It works for 14 days; revoke it below any time." : url);
+      setLinksTick((n) => n + 1);
     } catch (e) {
       toast(e instanceof api.SocialError ? e.message : "Couldn't make a link.");
     }
@@ -121,6 +149,7 @@ function Signed() {
       <section aria-label="Add" className="card space-y-3">
         <AddFriend />
         <OpenInvite />
+        <AllowRequests />
       </section>
 
       <RequestsSection />
@@ -139,6 +168,10 @@ function Signed() {
       </section>
 
       <BuddiesSection />
+
+      <InviteLinks reload={linksTick} />
+
+      <BlockedSection reload={all} />
 
       {outgoing.length > 0 && (
         <section aria-label="Sent tasks">

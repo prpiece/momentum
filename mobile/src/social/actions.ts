@@ -107,6 +107,38 @@ export async function shareFriendLink() {
   if (code) await Share.share({ message: `Add me on Momentum: ${inviteUrl(code)}` });
 }
 
+/** Blocks a sender from a request (SOC-11), after confirming. */
+export function blockPerson(p: api.Profile) {
+  Alert.alert(`Block ${nameOf(p)}?`, "You stop seeing each other, and you are removed from each other's shared lists. You can unblock them from Friends.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Block", style: "destructive", onPress: () => void run(() => act(() => api.blockAccount(p.id))) },
+  ]);
+}
+
+export function unblockPerson(p: api.Profile, then: () => void) {
+  Alert.alert(`Unblock ${nameOf(p)}?`, "They can find you and send requests again.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Unblock", onPress: () => void run(() => api.unblockAccount(p.id).then(() => true)).then(then) },
+  ]);
+}
+
+/** Your live invite links: pick one to revoke it (SOC-04). */
+export async function manageLinks() {
+  const links = await run(api.myInvites);
+  if (!links) return;
+  if (!links.length) return void toast("You have no live invite links.");
+  const code = await choose<string>("Invite links", links.map((l) => ({
+    value: l.code,
+    label: l.kind === "friend" ? "Friend link" : `${l.shareName ?? "Share"} · ${l.role === "viewer" ? "view only" : "can edit"}`,
+    icon: "link" as const,
+  })));
+  if (!code) return;
+  Alert.alert("Revoke this link?", "Anyone who hasn't used it yet can't any more.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Revoke", style: "destructive", onPress: () => void run(() => api.revokeInvite(code).then(() => true)).then((ok) => ok && toast("Link revoked.")) },
+  ]);
+}
+
 export async function friendMenu(f: api.Friend) {
   const a = await choose(nameOf(f), [
     { value: "remove", label: "Remove friend", icon: "user-minus" },
@@ -119,7 +151,7 @@ export async function friendMenu(f: api.Friend) {
       { text: "Remove", style: "destructive", onPress: () => void run(() => act(() => api.removeFriend(f.id))) },
     ]);
   else if (a === "block")
-    Alert.alert(`Block ${nameOf(f)}?`, "This ends the friendship and cancels requests both ways. They won't find you in search. Shares aren't touched.", [
+    Alert.alert(`Block ${nameOf(f)}?`, "This ends the friendship and cancels requests both ways. They won't find you in search, and you are removed from each other's shared lists. You can unblock them from Friends.", [
       { text: "Cancel", style: "cancel" },
       { text: "Block", style: "destructive", onPress: () => void run(() => act(() => api.blockAccount(f.id))) },
     ]);

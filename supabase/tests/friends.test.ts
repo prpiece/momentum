@@ -58,8 +58,8 @@ describe("requests", () => {
 
   it("can't befriend yourself or an unknown handle", async () => {
     const a = await user();
-    expect(await refusal(a.db, "request_friend", { p_handle: a.handle })).toContain("no_such_account");
-    expect(await refusal(a.db, "request_friend", { p_handle: "nobody_here_x" })).toContain("no_such_account");
+    expect(await rpc(a.db, "request_friend", { p_handle: a.handle })).toBe("no_such_account");
+    expect(await rpc(a.db, "request_friend", { p_handle: "nobody_here_x" })).toBe("no_such_account");
   });
 });
 
@@ -73,8 +73,8 @@ describe("blocking", () => {
     expect(await friends(b)).toEqual([]);
     expect(await rpc<unknown[]>(a.db, "find_profile", { p_handle: b.handle })).toEqual([]);
     expect(await rpc<unknown[]>(b.db, "find_profile", { p_handle: a.handle })).toEqual([]);
-    expect(await refusal(b.db, "request_friend", { p_handle: a.handle })).toContain("no_such_account");
-    expect(await refusal(a.db, "request_friend", { p_handle: b.handle })).toContain("no_such_account");
+    expect(await rpc(b.db, "request_friend", { p_handle: a.handle })).toBe("no_such_account");
+    expect(await rpc(a.db, "request_friend", { p_handle: b.handle })).toBe("no_such_account");
     expect((await b.db.from("profiles").select("id").eq("id", a.id)).data).toEqual([]);
     expect((await b.db.from("blocks").select("*")).data).toEqual([]);
     await rpc(a.db, "unblock_account", { p_account: b.id });
@@ -90,13 +90,13 @@ describe("blocking", () => {
 });
 
 describe("friend links", () => {
-  it("make the opener a friend, last 30 days and only the creator revokes", async () => {
+  it("make the opener a friend, last 14 days and only the creator revokes", async () => {
     const [a, b, c] = await Promise.all([user(), user(), user()]);
     const code = await rpc<string>(a.db, "create_friend_invite");
     expect(code).toMatch(/^[A-Za-z0-9]{10}$/);
     const info = await rpc<{ kind: string; creator: string; expires_at: string }[]>(b.db, "invite_info", { p_code: code });
     expect(info[0]).toMatchObject({ kind: "friend", creator: a.id });
-    expect(new Date(info[0].expires_at).getTime()).toBeGreaterThan(Date.now() + 29 * 86_400_000);
+    expect(new Date(info[0].expires_at).getTime()).toBeGreaterThan(Date.now() + 13 * 86_400_000);
     expect(await rpc(b.db, "redeem_invite", { p_code: code })).toEqual({ kind: "friend", account: a.id });
     expect(await friends(a)).toEqual([expect.objectContaining({ id: b.id, status: "accepted" })]);
     expect(await refusal(b.db, "revoke_invite", { p_code: code })).toContain("no_such_invite");

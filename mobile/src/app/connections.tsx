@@ -21,12 +21,14 @@ export default function Connections() {
   const [chats, setChats] = useState<api.Connection[]>([]);
   const [webhook, setWebhook] = useState<boolean | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
+  const [access, setAccess] = useState<api.Permission | null>(null);
   const [code, setCode] = useState<{ value: string; until: number } | null>(null);
   const [now, setNow] = useState(Date.now());
 
   const reload = useCallback(async () => {
-    const [list, has] = await Promise.all([run(api.myConnections), run(api.hasWebhook)]);
+    const [list, has, perm] = await Promise.all([run(api.myConnections), run(api.hasWebhook), run(api.webhookPermission)]);
     if (list) setChats(list);
+    if (perm !== undefined) setAccess(perm);
     if (has !== undefined) setWebhook(has);
   }, []);
   useEffect(() => void (account && reload()), [account, reload]);
@@ -59,11 +61,14 @@ export default function Connections() {
   };
   const chat = async (x: api.Connection) => {
     const a = await choose(`${SOURCE[x.source]}${x.label ? ` · ${x.label}` : ""}`, [
-      { value: "time", label: x.digestTime ? "Change Digest time" : "Turn on Digest", icon: "sun" },
-      ...(x.digestTime ? [{ value: "off", label: "Turn off Digest", icon: "bell-off" } as const] : []),
+      { value: "access", label: x.permission === "full" ? "Make add-only" : "Allow full access", icon: "lock" },
+      ...(x.permission === "full" ? [{ value: "time", label: x.digestTime ? "Change Digest time" : "Turn on Digest", icon: "sun" } as const] : []),
+      ...(x.permission === "full" && x.digestTime ? [{ value: "off", label: "Turn off Digest", icon: "bell-off" } as const] : []),
       { value: "remove", label: "Remove", icon: "trash-2", danger: true },
     ]);
-    if (a === "time") {
+    if (a === "access") {
+      if (await run(() => api.setConnectionPermission(x.id, x.permission === "full" ? "add" : "full").then(() => true))) void reload();
+    } else if (a === "time") {
       const [h, m] = (x.digestTime ?? "08:00").split(":").map(Number);
       const d = new Date();
       d.setHours(h, m, 0, 0);
@@ -112,7 +117,7 @@ export default function Connections() {
 
       <Label inset>Linked chats</Label>
       {chats.map((x) => (
-        <NavRow key={x.id} icon="message-circle" title={`${SOURCE[x.source]}${x.label ? ` · ${x.label}` : ""}`} sub={x.digestTime ? `Digest at ${x.digestTime}` : "Digest off"} chevron="more-horizontal" onPress={() => void chat(x)} />
+        <NavRow key={x.id} icon="message-circle" title={`${SOURCE[x.source]}${x.label ? ` · ${x.label}` : ""}`} sub={`${x.permission === "full" ? "Full access" : "Add only"} · ${x.digestTime ? `Digest at ${x.digestTime}` : "Digest off"}`} chevron="more-horizontal" onPress={() => void chat(x)} />
       ))}
       {chats.length ? null : (
         <Text variant="meta" style={{ color: c.muted, paddingHorizontal: GUTTER }}>
@@ -139,6 +144,14 @@ export default function Connections() {
         {webhook === null ? null : webhook ? (
           <>
             {secret ? null : <Text variant="meta" style={{ color: c.muted }}>The webhook is on. Regenerate it to see a new URL; the old one stops working.</Text>}
+            {access ? (
+              <Button
+                label={access === "full" ? "Access: full (tap for add-only)" : "Access: add only (tap for full)"}
+                icon="lock"
+                kind="outline"
+                onPress={() => void run(() => api.setWebhookPermission(access === "full" ? "add" : "full").then(() => true)).then((ok) => ok && setAccess(access === "full" ? "add" : "full"))}
+              />
+            ) : null}
             <Button label="Regenerate" icon="refresh-cw" kind="outline" onPress={makeWebhook} />
             <Button
               label="Delete webhook"

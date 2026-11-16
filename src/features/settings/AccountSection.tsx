@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { deleteAccount, keepAccount, loadAccount, saveHandle, sendCode, statusText, verifyCode, type Device, type Profile } from "../../lib/sync/account";
 import { clearSyncIssues, signOut, syncNow, useSync } from "../../lib/sync/engine";
+import { setFocus } from "../../lib/sync/social";
 import { syncConfigured } from "../../lib/sync/supabase";
 import { Spinner } from "../../components/ui/Spinner";
 import { SiteLink } from "./SiteLink";
@@ -126,6 +127,8 @@ function SignedIn({ account }: { account: string }) {
   const leave = async (how: "keep" | "remove") => {
     const everywhere = leaving === "everywhere";
     setLeaving(null);
+    // Stop a published focus session first: afterwards there is no session to clear it with (SOC-18).
+    await setFocus(null).catch(() => undefined);
     await signOut(how, everywhere);
     toast(how === "keep" ? "Signed out. Your data stays on this device." : "Signed out and removed this device's data. A backup was kept.");
   };

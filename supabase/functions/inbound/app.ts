@@ -115,6 +115,8 @@ async function slack(req: Request, env: Env, db: SupabaseClient, opts: Opts, f: 
 async function slackOAuth(req: Request, env: Env, db: SupabaseClient, f: typeof fetch): Promise<Response> {
   const code = new URL(req.url).searchParams.get("code");
   if (!code) return new Response("Missing code", { status: 400 });
+  const { data: ok } = await db.rpc("hit_rate", { p_key: "oauth:slack", p_max: 30, p_window: "1 hour" });
+  if (!ok) return new Response("Too many installs. Try again later.", { status: 429 });
   const r = await f("https://slack.com/api/oauth.v2.access", {
     method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ code, client_id: env.SLACK_CLIENT_ID ?? "", client_secret: env.SLACK_CLIENT_SECRET ?? "" }),

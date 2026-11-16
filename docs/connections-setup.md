@@ -60,7 +60,7 @@ In GitHub → Settings → Secrets and variables → Actions → **Variables**, 
 
 ## Using it
 
-Settings → Connections → **Link a chat** shows a 6-digit code for 10 minutes. Send `/task link <code>` (Discord), `/momentum link <code>` (Slack) or `link <code>` (Telegram), then `help`. **Webhook** gives a secret URL that takes `POST {"text": "buy milk tomorrow"}` (adds a task) or `POST {"command": "today"}` (runs a command; the reply is in `{"ok": true, "reply": "…"}`).
+Settings → Connections → **Link a chat** shows an 8-digit code for 10 minutes. A newly linked chat can only add tasks until you set it to Full access. Send `/task link <code>` (Discord), `/momentum link <code>` (Slack) or `link <code>` (Telegram), then `help`. **Webhook** gives a secret URL that takes `POST {"text": "buy milk tomorrow"}` (adds a task) or `POST {"command": "today"}` (runs a command; the reply is in `{"ok": true, "reply": "…"}`).
 
 Every connection has the same commands (D288), the same ones the CLI has:
 

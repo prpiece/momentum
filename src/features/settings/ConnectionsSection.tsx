@@ -56,18 +56,23 @@ function LinkChat({ onLinked }: { onLinked: () => void }) {
       )}
       <ul className="space-y-1 text-[length:var(--fs-sm)] text-muted">
         <li>
-          Discord: <code>/task link {code?.value ?? "123456"}</code>
+          Discord: <code>/task link {code?.value ?? "12345678"}</code>
         </li>
         <li>
-          Slack: <code>/momentum link {code?.value ?? "123456"}</code>
+          Slack: <code>/momentum link {code?.value ?? "12345678"}</code>
         </li>
         <li>
-          Telegram: send <code>link {code?.value ?? "123456"}</code> to the bot
+          Telegram: send <code>link {code?.value ?? "12345678"}</code> to the bot
         </li>
       </ul>
     </div>
   );
 }
+
+const ACCESS = [
+  { value: "add", label: "Add only" },
+  { value: "full", label: "Full access" },
+] as const;
 
 function Chat({ c, onChange }: { c: api.Connection; onChange: () => void }) {
   const setDigest = async (time: string | null) => {
@@ -76,6 +81,14 @@ function Chat({ c, onChange }: { c: api.Connection; onChange: () => void }) {
       onChange();
     } catch (e) {
       fail(e, "Couldn't change the Digest.");
+    }
+  };
+  const setPermission = async (p: api.Permission) => {
+    try {
+      await api.setConnectionPermission(c.id, p);
+      onChange();
+    } catch (e) {
+      fail(e, "Couldn't change the access.");
     }
   };
   const remove = async () => {
@@ -93,10 +106,19 @@ function Chat({ c, onChange }: { c: api.Connection; onChange: () => void }) {
         <b className="font-medium">{SOURCE[c.source]}</b>
         {c.label && <span className="ml-2 text-muted">{c.label}</span>}
       </span>
+      <select aria-label={`Access for ${SOURCE[c.source]}`} className="input w-auto" value={c.permission} onChange={(e) => void setPermission(e.target.value === "full" ? "full" : "add")}>
+        {ACCESS.map((a) => (
+          <option key={a.value} value={a.value}>
+            {a.label}
+          </option>
+        ))}
+      </select>
+      {c.permission === "full" && (
       <label className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted">
         Digest
         <input type="time" aria-label={`Digest time for ${SOURCE[c.source]}`} value={c.digestTime ?? ""} onChange={(e) => e.target.value && void setDigest(e.target.value)} className="input w-auto tabular-nums" />
       </label>
+      )}
       {c.digestTime && (
         <button type="button" className="btn btn-ghost" onClick={() => void setDigest(null)}>
           Digest off
@@ -112,10 +134,20 @@ function Chat({ c, onChange }: { c: api.Connection; onChange: () => void }) {
 function Webhook() {
   const [has, setHas] = useState<boolean | null>(null);
   const [url, setUrl] = useState<string | null>(null);
+  const [access, setAccess] = useState<api.Permission | null>(null);
 
   useEffect(() => {
     api.hasWebhook().then(setHas, () => setHas(null));
+    api.webhookPermission().then(setAccess, () => setAccess(null));
   }, []);
+  const setPermission = async (p: api.Permission) => {
+    try {
+      await api.setWebhookPermission(p);
+      setAccess(p);
+    } catch (e) {
+      fail(e, "Couldn't change the access.");
+    }
+  };
 
   const create = async () => {
     if (has && !(await confirm("Make a new webhook URL?", "The old URL stops working right away.", "Make new"))) return;
@@ -154,6 +186,18 @@ function Webhook() {
           </button>
         </span>
       </div>
+      {has && access && (
+        <label className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted">
+          Access
+          <select aria-label="Webhook access" className="input w-auto" value={access} onChange={(e) => void setPermission(e.target.value === "full" ? "full" : "add")}>
+            {ACCESS.map((a) => (
+              <option key={a.value} value={a.value}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {url && (
         <div className="flex items-center gap-2">
           <input readOnly aria-label="Webhook URL" value={url} onFocus={(e) => e.currentTarget.select()} className="input min-w-0 flex-1 tabular-nums" />

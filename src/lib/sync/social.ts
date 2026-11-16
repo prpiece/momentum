@@ -22,7 +22,9 @@ export type IncomingTask = { id: string; sender: Profile; payload: SentPayload; 
 export type OutgoingTask = { id: string; recipientId: string; handle: string | null; title: string; status: "pending" | "accepted" | "declined"; createdAt: string };
 export type BuddyHabit = { owner: Profile; habitId: string; name: string; today: number; canNudge: boolean };
 export type MyBuddy = { habitId: string; buddyId: string; handle: string | null; nudges: boolean };
-export type Connection = { id: string; source: "discord" | "slack" | "telegram"; label: string | null; digestTime: string | null; createdAt: string };
+export type Permission = "add" | "full";
+export type Connection = { id: string; source: "discord" | "slack" | "telegram"; label: string | null; digestTime: string | null; createdAt: string; permission: Permission };
+export type MyInvite = { code: string; kind: "friend" | "share"; shareId: string | null; shareName: string | null; role: "editor" | "viewer" | null; maxUses: number | null; uses: number; expiresAt: string };
 export type InviteInfo = { kind: "friend" | "share"; creator: Profile; shareName: string | null; role: "editor" | "viewer" | null; expiresAt: string };
 
 // ---------- boundary checks ----------
@@ -66,6 +68,8 @@ const MESSAGES: Record<string, string> = {
   nudges_off: "They've turned nudges off for this habit.",
   too_many_invites: "That's a lot of links today. Try again tomorrow.",
   too_many_sent: "You've sent a lot of tasks today. Try again tomorrow.",
+  too_many_reports: "That's a lot of reports. Try again later.",
+  bad_value: "That change has a value the app can't use.",
 };
 /** What each server call does, for "Couldn't …" toasts (D289). */
 const WHAT: Record<string, string> = {
@@ -77,7 +81,8 @@ const WHAT: Record<string, string> = {
   incoming_tasks: "load tasks sent to you", outgoing_tasks: "load tasks you sent", respond_sent_task: "answer the sent task", set_focus: "share your focus session",
   buddy_habits: "load your buddies' habits", my_buddies: "load your check-in buddies", set_buddies: "save your check-in buddies", nudge: "send the nudge",
   create_link_code: "make a link code", my_connections: "load your connections", remove_connection: "remove the connection", set_digest: "save the digest time",
-  has_webhook: "check your webhook", create_webhook: "make a webhook", delete_webhook: "delete the webhook",
+  has_webhook: "check your webhook", my_invites: "load your invite links", my_blocks: "load the people you blocked", unblock_account: "unblock them",
+  set_connection_permission: "change what that chat can do", webhook_permission: "check your webhook", set_webhook_permission: "change what the webhook can do", buddy_decline: "leave as a check-in buddy", create_webhook: "make a webhook", delete_webhook: "delete the webhook",
 };
 export class SocialError extends Error {}
 /** `what` says what failed; a function the server lacks means the server is behind the app. */
@@ -103,9 +108,15 @@ export const myFriends = async (): Promise<Friend[]> =>
     const p = profile(r);
     return p && oneOf(r.status, ["pending", "accepted"] as const) ? { ...p, status: r.status, incoming: r.incoming === true, since: str(r.since) ?? "" } : null;
   });
-export const requestFriend = async (handle: string) => str(await call("request_friend", { p_handle: handle })) as "pending" | "accepted" | "friends";
+/** A miss ("no_such_account") comes back as a value, not an error, so the server can count it (SOC-12). */
+export async function requestFriend(handle: string): Promise<"pending" | "accepted" | "friends"> {
+  const r = str(await call("request_friend", { p_handle: handle }));
+  return r === "pending" || r === "accepted" || r === "friends" ? r : fail("no_such_account");
+}
 export const respondFriend = (id: string, accept: boolean) => call("respond_friend", { p_account: id, p_accept: accept }).then(() => undefined);
 export const removeFriend = (id: string) => call("remove_friend", { p_account: id }).then(() => undefined);
+export const unblockAccount = (id: string) => call("unblock_account", { p_account: id }).then(() => undefined);
+export const myBlocks = async (): Promise<Profile[]> => all(await call("my_blocks"), (r) => profile(r));
 export const blockAccount = (id: string) => call("block_account", { p_account: id }).then(() => undefined);
 export const findProfile = async (handle: string): Promise<Profile | null> => all(await call("find_profile", { p_handle: handle }), (r) => profile(r))[0] ?? null;
 export async function reportAccount(id: string, body: string, appVersion: string, platform: string) {
@@ -115,14 +126,22 @@ export async function reportAccount(id: string, body: string, appVersion: string
 
 // ---------- invite links ----------
 
-export async function createFriendInvite(): Promise<string> {
-  const c = await call("create_friend_invite");
+/** `maxUses` omitted: the server's default (friend links: unlimited). */
+export async function createFriendInvite(maxUses?: number | null): Promise<string> {
+  const c = await call("create_friend_invite", maxUses === undefined ? {} : { p_max_uses: maxUses });
   return isInviteCode(c) ? c : fail("bad reply");
 }
-export async function createShareInvite(shareId: string, role: "editor" | "viewer"): Promise<string> {
-  const c = await call("create_share_invite", { p_share: shareId, p_role: role });
+/** `maxUses` omitted: the server's default (share links: one use); null is unlimited. */
+export async function createShareInvite(shareId: string, role: "editor" | "viewer", maxUses?: number | null): Promise<string> {
+  const c = await call("create_share_invite", { p_share: shareId, p_role: role, ...(maxUses === undefined ? {} : { p_max_uses: maxUses }) });
   return isInviteCode(c) ? c : fail("bad reply");
 }
+export const myInvites = async (): Promise<MyInvite[]> =>
+  all(await call("my_invites"), (r) =>
+    typeof r.code === "string" && oneOf(r.kind, ["friend", "share"] as const)
+      ? { code: r.code, kind: r.kind, shareId: str(r.share_id), shareName: str(r.share_name), role: oneOf(r.role, ["editor", "viewer"] as const) ? r.role : null,
+          maxUses: typeof r.max_uses === "number" ? r.max_uses : null, uses: Number(r.uses) || 0, expiresAt: str(r.expires_at) ?? "" }
+      : null);
 export const revokeInvite = (code: string) => call("revoke_invite", { p_code: code }).then(() => undefined);
 export const inviteInfo = async (code: string): Promise<InviteInfo | null> =>
   all(await call("invite_info", { p_code: code }), (r) => {
@@ -182,6 +201,17 @@ export const outgoingTasks = async (): Promise<OutgoingTask[]> =>
 /** Accepting returns the new Inbox task's id (it arrives with the next pull). */
 export const respondSentTask = async (id: string, accept: boolean) => str(await call("respond_sent_task", { p_id: id, p_accept: accept }));
 
+// ---------- who can send you requests ----------
+
+export async function allowRequests(me: string): Promise<boolean> {
+  const { data } = await supabase.from("profiles").select("allow_requests").eq("id", me).maybeSingle();
+  return data?.allow_requests !== "none";
+}
+export async function setAllowRequests(on: boolean, me: string) {
+  const { error } = await supabase.from("profiles").update({ allow_requests: on ? "everyone" : "none" }).eq("id", me);
+  if (error) fail(error.message, "change who can send you requests", error);
+}
+
 // ---------- Focus together ----------
 
 export async function setShareFocus(on: boolean, me: string) {
@@ -208,20 +238,27 @@ export const myBuddies = async (): Promise<MyBuddy[]> =>
   all(await call("my_buddies"), (r) =>
     typeof r.habit_id === "string" && typeof r.buddy_id === "string" ? { habitId: r.habit_id, buddyId: r.buddy_id, handle: str(r.handle), nudges: r.nudges !== false } : null);
 export const setBuddies = (habitId: string, buddies: string[], nudges: boolean) => call("set_buddies", { p_habit: habitId, p_buddies: buddies, p_nudges: nudges }).then(() => undefined);
+export const buddyDecline = (owner: string, habitId: string) => call("buddy_decline", { p_owner: owner, p_habit: habitId }).then(() => undefined);
 export const nudge = (owner: string, habitId: string) => call("nudge", { p_owner: owner, p_habit: habitId }).then(() => undefined);
 
 // ---------- Connections ----------
 
 export async function createLinkCode(): Promise<string> {
   const c = await call("create_link_code");
-  return typeof c === "string" && /^\d{6}$/.test(c) ? c : fail("bad reply");
+  return typeof c === "string" && /^\d{8}$/.test(c) ? c : fail("bad reply");
 }
 export const myConnections = async (): Promise<Connection[]> =>
   all(await call("my_connections"), (r) =>
     typeof r.id === "string" && oneOf(r.source, ["discord", "slack", "telegram"] as const)
-      ? { id: r.id, source: r.source, label: str(r.label), digestTime: str(r.digest_time)?.slice(0, 5) ?? null, createdAt: str(r.created_at) ?? "" } : null);
+      ? { id: r.id, source: r.source, label: str(r.label), digestTime: str(r.digest_time)?.slice(0, 5) ?? null, createdAt: str(r.created_at) ?? "", permission: r.permission === "full" ? "full" : "add" } : null);
 export const removeConnection = (id: string) => call("remove_connection", { p_id: id }).then(() => undefined);
 export const setDigest = (id: string, time: string | null) => call("set_digest", { p_id: id, p_time: time }).then(() => undefined);
+export const setConnectionPermission = (id: string, permission: Permission) => call("set_connection_permission", { p_id: id, p_permission: permission }).then(() => undefined);
+export const webhookPermission = async (): Promise<Permission | null> => {
+  const p = await call("webhook_permission");
+  return p === "full" ? "full" : p === "add" ? "add" : null;
+};
+export const setWebhookPermission = (permission: Permission) => call("set_webhook_permission", { p_permission: permission }).then(() => undefined);
 export const hasWebhook = async () => (await call("has_webhook")) === true;
 export async function createWebhook(): Promise<string> {
   const s = await call("create_webhook");

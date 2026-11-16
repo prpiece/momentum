@@ -115,7 +115,7 @@ export default function ShareScreen() {
       {owner ? (
         <>
           <NavRow icon="user-plus" title="Invite a friend" onPress={() => void invite()} />
-          <NavRow icon="link" title="Share a link" sub="Lasts 7 days" onPress={() => void link()} />
+          <NavRow icon="link" title="Share a link" sub="Works once, for 14 days" onPress={() => void link()} />
           <View style={{ paddingHorizontal: GUTTER, paddingTop: 24 }}>
             <Button label="Stop sharing" icon="x-circle" kind="outline" onPress={stop} />
           </View>

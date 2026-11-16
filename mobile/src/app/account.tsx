@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, S
 import { deleteAccount, keepAccount, loadAccount, saveHandle, sendCode, statusText, verifyCode, type AccountInfo } from "@core/lib/sync/account";
 import { signOut, syncNow, useSync } from "@core/lib/sync/engine";
 import { syncConfigured } from "@core/lib/sync/supabase";
+import { setFocus } from "@core/lib/sync/social";
 import { toast } from "@core/stores/toast";
 import { useColors, type Colors } from "@/theme";
 import { Text } from "@/ui/kit";
@@ -99,6 +100,7 @@ function SignedIn({ account, c }: { account: string; c: Colors }) {
   };
   const leave = async () => {
     const keep = await ask("Sign out", "Keep a copy of your data on this phone, or remove it? Your account keeps everything either way.", "Keep a copy", "Remove it");
+    await setFocus(null).catch(() => undefined); // Friends stop seeing a focus this device can no longer end (SOC-18).
     await signOut(keep ? "keep" : "remove");
     toast(keep ? "Signed out. Your data stays on this phone." : "Signed out and removed this phone's data. A backup was kept.");
   };

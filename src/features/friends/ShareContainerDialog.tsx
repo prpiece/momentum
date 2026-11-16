@@ -10,6 +10,7 @@ import { toast } from "../../stores/toast";
 import { confirm } from "../../stores/ui";
 import { sharesCoveringFolder, sharesCoveringList } from "../../domain/shareAccess";
 import { attempt, copyText, who } from "./attempt";
+import { InviteLinks } from "./InviteLinks";
 
 const ROLES = [
   { value: "editor", label: "Can edit" },
@@ -37,6 +38,7 @@ export function ShareContainerDialog({ kind, id, onClose }: { kind: api.ShareKin
   const [role, setRole] = useState<"editor" | "viewer">("editor");
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [linksTick, setLinksTick] = useState(0);
   const shareId = share?.shareId;
 
   const load = useCallback(async () => {
@@ -68,7 +70,8 @@ export function ShareContainerDialog({ kind, id, onClose }: { kind: api.ShareKin
     try {
       const url = inviteUrl(await api.createShareInvite(share.shareId, role));
       setLink(url);
-      toast((await copyText(url)) ? "Link copied. It works for 7 days." : "Link made. Copy it from the box.");
+      toast((await copyText(url)) ? "Link copied. It works once, for 14 days." : "Link made. Copy it from the box.");
+      setLinksTick((n) => n + 1);
     } catch (e) {
       toast(e instanceof api.SocialError ? e.message : "Couldn't make a link.");
     }
@@ -176,6 +179,9 @@ export function ShareContainerDialog({ kind, id, onClose }: { kind: api.ShareKin
                   {link && <input readOnly aria-label="Invite link" value={link} onFocus={(e) => e.currentTarget.select()} className="input min-w-0 flex-1" />}
                 </div>
               </section>
+            )}
+            {owner && (
+              <InviteLinks shareId={share.shareId} reload={linksTick} />
             )}
           </>
         )}

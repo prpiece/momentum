@@ -610,7 +610,7 @@ export async function runChat(db: SupabaseClient, chat: Chat, text: string, plai
   if (!link) {
     if (parsed.cmd !== "link") return UNLINKED;
     const { error } = await db.rpc("link_chat", { p_code: parsed.arg, p_source: chat.source, p_external: chat.externalId, p_label: chat.label, p_reply: chat.reply });
-    return error ? "That code didn't work. Codes last 10 minutes: get a new one in Settings → Connections." : `Linked. Try: add buy milk tomorrow\n\n${HELP}`;
+    return error ? "That code didn't work. Codes last 10 minutes: get a new one in Settings → Connections." : `Linked. This chat can add tasks; to read or change them, give it full access in Settings → Connections. Try: add buy milk tomorrow\n\n${HELP}`;
   }
   // Keep where to reach the chat current (the Digest uses it).
   await db.from("chat_links").update({ reply: chat.reply, label: chat.label }).eq("id", link.id);

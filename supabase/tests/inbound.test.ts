@@ -68,11 +68,15 @@ const discordText = async (r: Response) => {
   return j.data.content;
 };
 
+/** New links start add-only (SOC-06); most tests here exercise every command, so raise them. */
+const full = async (u: User) => void (await admin().from("chat_links").update({ permission: "full" }).eq("account_id", u.id));
+
 /** A Telegram chat linked to a fresh account. */
 async function linkedTelegram(u: User): Promise<(text: string) => Promise<string>> {
   const chatId = Math.floor(Math.random() * 1e9);
   const code = await rpc<string>(u.db, "create_link_code");
   expect(await tgText(await tgMsg(chatId, `/link ${code}`))).toContain("Linked");
+  await full(u);
   return async (text) => tgText(await tgMsg(chatId, text));
 }
 
@@ -127,7 +131,7 @@ describe("linking", () => {
   it("codes link once, expire after 10 minutes, and unlink removes the binding", async () => {
     const u = await user();
     const code = await rpc<string>(u.db, "create_link_code");
-    expect(code).toMatch(/^\d{6}$/);
+    expect(code).toMatch(/^\d{8}$/);
     const id = uid();
     expect(await discordText(await discordCmd(id, `link ${code}`))).toContain("Linked");
     expect(await discordText(await discordCmd(uid(), `link ${code}`))).toContain("didn't work");
@@ -263,10 +267,12 @@ describe("commands", () => {
     const code = await rpc<string>(u.db, "create_link_code");
     const did = uid();
     await discordCmd(did, `link ${code}`);
+    await full(u);
     expect(await discordText(await discordCmd(did, "list work"))).toContain("1. ");
     const code2 = await rpc<string>(u.db, "create_link_code");
     const su = `U${uid().slice(0, 8)}`;
     await slackCmd("T7", su, `link ${code2}`);
+    await full(u);
     expect(((await (await slackCmd("T7", su, "list work")).json()) as { text: string }).text).toContain("1. ");
   });
 });
@@ -397,6 +403,7 @@ describe("speed and limits", () => {
     const code = await rpc<string>(u.db, "create_link_code");
     const did = uid();
     await discordCmd(did, `link ${code}`);
+    await full(u);
     let done!: Promise<unknown>;
     const r = await discordCmd(did, "today", { ...opts, deadlineMs: 0, waitUntil: (p) => void (done = p) });
     expect(await r.json()).toEqual({ type: 5, data: { flags: 64 } });

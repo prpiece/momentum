@@ -27,6 +27,9 @@ export function BuddiesSection() {
             <button type="button" className="btn btn-secondary" disabled={!h.canNudge} title={h.canNudge ? "Send a nudge" : "Nudged today, or nudges are off"} onClick={() => void nudge(h)}>
               <Bell size={14} strokeWidth={1.75} /> Nudge
             </button>
+            <button type="button" className="btn btn-ghost" title="Stop being their check-in buddy for this habit" onClick={() => void attempt(() => api.buddyDecline(h.owner.id, h.habitId))}>
+              Leave
+            </button>
           </li>
         ))}
       </ul>

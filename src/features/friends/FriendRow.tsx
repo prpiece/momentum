@@ -28,7 +28,7 @@ export function FriendRow({ friend: f }: { friend: api.Friend }) {
       icon: <Ban size={14} />,
       danger: true,
       run: async () => {
-        if (await confirm(`Block ${name}?`, "This ends the friendship and cancels requests both ways, and you stop seeing each other in search. Shares aren't touched.", "Block")) {
+        if (await confirm(`Block ${name}?`, "This ends the friendship and cancels requests both ways, and you stop seeing each other in search. You are also removed from each other's shared lists. You can unblock them later from Friends.", "Block")) {
           if (await attempt(() => api.blockAccount(f.id))) toast(`Blocked ${name}.`);
         }
       },
