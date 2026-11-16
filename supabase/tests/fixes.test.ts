@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 const MIGRATIONS = join(__dirname, "..", "migrations");
-import { admin, ANON, folder, list, opts, pull, refusal, row, rpc, send, task, uid, URL, user, type User } from "./helpers";
+import { admin, ANON, folder, list, opts, pull, push, refusal, row, rpc, send, task, uid, URL, user, type User } from "./helpers";
 
 async function invite(owner: User, share: string, member: User, role: "editor" | "viewer") {
   const code = await rpc<string>(owner.db, "create_share_invite", { p_share: share, p_role: role });
@@ -135,11 +135,37 @@ describe("server-side writes take the shared-write path", () => {
   });
 });
 
+describe("calendar sync (FEAT-01, D345)", () => {
+  it("calendar_write merges into the account's events and beats an older offline edit", async () => {
+    const u = await user();
+    const id = uid();
+    await send(u.db, { tbl: "calendar_events", id, fields: { id, title: "local", start_date: "2026-11-20", span_days: 1 } });
+    const w = await admin().rpc("calendar_write", { p_account: u.id, p_rows: [{ id, fields: { title: "from Google", provider: "google", external_id: "g1" } }] });
+    expect(w.error).toBeNull();
+    expect(await row(u.db, "calendar_events", id)).toMatchObject({ title: "from Google", external_id: "g1", start_date: "2026-11-20" });
+    await push(u.db, uid(), [{ seq: 1, tbl: "calendar_events", id, fields: { title: "stale" }, ts: "2020-01-01T00:00:00.000Z" }], 12);
+    expect((await row(u.db, "calendar_events", id))?.title).toBe("from Google");
+    expect((await u.db.rpc("calendar_write", { p_account: u.id, p_rows: [] })).error).not.toBeNull();
+  });
+
+  it("shows the owner their account, never its tokens or cursors, and no one else's", async () => {
+    const [a, b] = await Promise.all([user(), user()]);
+    const { data: acct, error } = await admin().from("calendar_accounts").insert({ user_id: a.id, provider: "google", email: "a@example.com" }).select("id").single();
+    expect(error).toBeNull();
+    expect((await admin().from("calendar_tokens").insert({ account_id: acct!.id, refresh_token: "secret" })).error).toBeNull();
+    expect((await a.db.from("calendar_accounts").select("provider, email")).data).toEqual([{ provider: "google", email: "a@example.com" }]);
+    expect((await b.db.from("calendar_accounts").select("provider")).data).toEqual([]);
+    expect((await a.db.from("calendar_accounts").select("cursors")).error).not.toBeNull();
+    expect((await a.db.from("calendar_tokens").select("*")).error).not.toBeNull();
+    expect((await a.db.from("calendar_accounts").update({ write_calendar_id: "x" }).eq("id", acct!.id)).error).not.toBeNull();
+  });
+});
+
 describe("server version (D289)", () => {
   it("anyone can read schema_version", async () => {
     const { data, error } = await createClient(URL, ANON, opts).from("server_meta").select("schema_version").single();
     expect(error).toBeNull();
-    expect(data?.schema_version).toBe(10);
+    expect(data?.schema_version).toBe(11);
   });
 });
 

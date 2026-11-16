@@ -174,10 +174,21 @@ export type CalendarEvent = {
   countdown: CountdownMode | null;
   /** A pinned countdown shows as a chip at the top of Today. */
   pinned: boolean;
+  /** The Google or Outlook calendar this event lives in (FEAT-01, D345); absent for Momentum-only events. */
+  link?: CalendarLink;
   createdAt: Instant;
   updatedAt: Instant;
   deletedAt: Instant | null;
 };
+
+export const CAL_PROVIDERS = ["google", "microsoft"] as const;
+export type CalProvider = (typeof CAL_PROVIDERS)[number];
+/**
+ * Where a linked event lives on the provider. `externalId` is null until the `calendar` function has
+ * created it there; `syncedAt` is the `updatedAt` it last reconciled, so a differing `updatedAt` is a
+ * Momentum edit still to send (calendarSync.ts `pushAction`).
+ */
+export type CalendarLink = { provider: CalProvider; calendarId: string; externalId: string | null; etag: string | null; syncedAt: Instant | null };
 
 export const CAL_VIEWS = ["day", "5day", "week", "month", "agenda"] as const;
 export type CalView = (typeof CAL_VIEWS)[number];

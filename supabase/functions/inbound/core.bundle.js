@@ -1978,7 +1978,7 @@ function morning(reference, implyHour = 6) {
 	component.addTag("casualReference/morning");
 	return component;
 }
-function afternoon(reference, implyHour = 15) {
+function afternoon$1(reference, implyHour = 15) {
 	const component = new ParsingComponents(reference, {});
 	component.imply("meridiem", Meridiem.PM);
 	component.imply("hour", implyHour);
@@ -2053,7 +2053,7 @@ var ENCasualTimeParser = class extends AbstractParserWithWordBoundaryChecking {
 		let component = null;
 		switch (match[1].toLowerCase()) {
 			case "afternoon":
-				component = afternoon(context.reference);
+				component = afternoon$1(context.reference);
 				break;
 			case "evening":
 			case "night":
@@ -2534,7 +2534,7 @@ var ParsingContext = class {
 const configuration = new ENDefaultConfiguration();
 const casual = new Chrono(configuration.createCasualConfiguration(false));
 new Chrono(configuration.createConfiguration(true, false));
-new Chrono(configuration.createCasualConfiguration(true));
+const GB = new Chrono(configuration.createCasualConfiguration(true));
 -(Math.pow(10, 8) * 24 * 60 * 60 * 1e3);
 /**
 * @constant
@@ -2701,6 +2701,120 @@ function addDays(date, amount, options) {
 	if (!amount) return _date;
 	_date.setDate(_date.getDate() + amount);
 	return _date;
+}
+// node_modules/date-fns/addMonths.js
+/**
+* The {@link addMonths} function options.
+*/
+/**
+* @name addMonths
+* @category Month Helpers
+* @summary Add the specified number of months to the given date.
+*
+* @description
+* Add the specified number of months to the given date.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param amount - The amount of months to be added.
+* @param options - The options object
+*
+* @returns The new date with the months added
+*
+* @example
+* // Add 5 months to 1 September 2014:
+* const result = addMonths(new Date(2014, 8, 1), 5)
+* //=> Sun Feb 01 2015 00:00:00
+*
+* // Add one month to 30 January 2023:
+* const result = addMonths(new Date(2023, 0, 30), 1)
+* //=> Tue Feb 28 2023 00:00:00
+*/
+function addMonths(date, amount, options) {
+	const _date = toDate(date, options?.in);
+	if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+	if (!amount) return _date;
+	const dayOfMonth = _date.getDate();
+	const endOfDesiredMonth = constructFrom(options?.in || date, _date.getTime());
+	endOfDesiredMonth.setMonth(_date.getMonth() + amount + 1, 0);
+	if (dayOfMonth >= endOfDesiredMonth.getDate()) return endOfDesiredMonth;
+	else {
+		_date.setFullYear(endOfDesiredMonth.getFullYear(), endOfDesiredMonth.getMonth(), dayOfMonth);
+		return _date;
+	}
+}
+// node_modules/date-fns/add.js
+/**
+* The {@link add} function options.
+*/
+/**
+* @name add
+* @category Common Helpers
+* @summary Add the specified years, months, weeks, days, hours, minutes, and seconds to the given date.
+*
+* @description
+* Add the specified years, months, weeks, days, hours, minutes, and seconds to the given date.
+*
+* **You don't need date-fns\***:
+*
+* Temporal has a built-in `add` method on all its classes:
+*
+* - [`Temporal.Instant.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/Instant/add)
+* - [`Temporal.PlainDate.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDate/add)
+* - [`Temporal.PlainDateTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainDateTime/add)
+* - [`Temporal.PlainTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainTime/add)
+* - [`Temporal.PlainYearMonth.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/PlainYearMonth/add)
+* - [`Temporal.ZonedDateTime.prototype.add()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal/ZonedDateTime/add)
+*
+* \* **Not really**, see: https://date-fns.org/you-dont-need-date-fns
+*
+* @typeParam DateType - The `Date` type the function operates on. Gets inferred from passed arguments. Allows using extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The date to be changed
+* @param duration - The object with years, months, weeks, days, hours, minutes, and seconds to be added.
+* @param options - An object with options
+*
+* @returns The new date with the seconds added
+*
+* @example
+* // Add the following duration to 1 September 2014, 10:19:50
+* const result = add(new Date(2014, 8, 1, 10, 19, 50), {
+*   years: 2,
+*   months: 9,
+*   weeks: 1,
+*   days: 7,
+*   hours: 5,
+*   minutes: 9,
+*   seconds: 30,
+* })
+* //=> Thu Jun 15 2017 15:29:20
+*
+* @example
+* // Using Temporal:
+* // Add the following duration to 1 September 2014, 10:19:50
+* Temporal.PlainDateTime.from("2014-09-01T10:19:50")
+*   .add({
+*     years: 2,
+*     months: 9,
+*     weeks: 1,
+*     days: 7,
+*     hours: 5,
+*     minutes: 9,
+*     seconds: 30,
+*   })
+*   .toString();
+* //=> "2017-06-15T15:29:20"
+*/
+function add(date, duration, options) {
+	const { years = 0, months = 0, weeks = 0, days = 0, hours = 0, minutes = 0, seconds = 0 } = duration;
+	const _date = toDate(date, options?.in);
+	const dateWithMonths = months || years ? addMonths(_date, months + years * 12) : _date;
+	const dateWithDays = days || weeks ? addDays(dateWithMonths, days + weeks * 7) : dateWithMonths;
+	const msToAdd = (seconds + (minutes + hours * 60) * 60) * 1e3;
+	return constructFrom(options?.in || date, +dateWithDays + msToAdd);
 }
 // node_modules/date-fns/_lib/defaultOptions.js
 let defaultOptions = {};
@@ -3126,6 +3240,39 @@ function differenceInMilliseconds(laterDate, earlierDate) {
 function differenceInMinutes(dateLeft, dateRight, options) {
 	const diff = differenceInMilliseconds(dateLeft, dateRight) / millisecondsInMinute;
 	return getRoundingMethod(options?.roundingMethod)(diff);
+}
+// node_modules/date-fns/endOfMonth.js
+/**
+* The {@link endOfMonth} function options.
+*/
+/**
+* @name endOfMonth
+* @category Month Helpers
+* @summary Return the end of a month for the given date.
+*
+* @description
+* Return the end of a month for the given date.
+* The result will be in the local timezone.
+*
+* @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+* @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+*
+* @param date - The original date
+* @param options - An object with options
+*
+* @returns The end of a month
+*
+* @example
+* // The end of a month for 2 September 2014 11:55:00:
+* const result = endOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+* //=> Tue Sep 30 2014 23:59:59.999
+*/
+function endOfMonth(date, options) {
+	const _date = toDate(date, options?.in);
+	const month = _date.getMonth();
+	_date.setFullYear(_date.getFullYear(), month + 1, 0);
+	_date.setHours(23, 59, 59, 999);
+	return _date;
 }
 // node_modules/date-fns/startOfYear.js
 /**
@@ -4846,7 +4993,7 @@ function zoneFormat(tz) {
 /** Whether `tz` is an IANA zone this runtime knows. */
 function isZone(tz) {
 	try {
-		zoneFormat(tz);
+		zoneFormat(tz).formatToParts(0);
 		return true;
 	} catch {
 		return false;
@@ -4883,6 +5030,8 @@ function timed(start, minutes) {
 		end: addMinutes(start, minutes).toISOString()
 	};
 }
+let order = "mdy";
+const dateOrder = () => order;
 /** Same schedule on another day: keeps a timed task's wall-clock time and duration. */
 function moveToDate(s, date) {
 	if (s.kind === "timed") return timed(atLocalTime(date, hhmm(new Date(s.start))), durationMinutes(s) ?? 0);
@@ -4980,8 +5129,7 @@ const TOKEN_CHARS = String.raw`\p{L}\p{N}\p{M}_\-/`;
 /** A token word: chars, optionally dotted ("v1.2"). Not followed by more word chars or `'`/`+` ("#don't", "#c++" are not tags). */
 const TOKEN_WORD = String.raw`([${TOKEN_CHARS}]+(?:\.[${TOKEN_CHARS}]+)*)(?![${TOKEN_CHARS}'’+])`;
 /** Chrono with a bare hour 1-7 read as the afternoon ("at 5", "9 to 5"), as people mean it (QA-02, QA-03). */
-const chrono = casual.clone();
-chrono.refiners.unshift({ refine: (_ctx, results) => {
+const afternoon = (chrono) => void chrono.refiners.unshift({ refine: (_ctx, results) => {
 	for (const r of results) {
 		if (/\b(?:in|within|ago|later|from|hours?|mins?|minutes?)\b/i.test(r.text)) continue;
 		const pm = (c) => {
@@ -4998,6 +5146,10 @@ chrono.refiners.unshift({ refine: (_ctx, results) => {
 	}
 	return results;
 } });
+const chronoMdy = casual.clone();
+const chronoDmy = GB.clone();
+afternoon(chronoMdy);
+afternoon(chronoDmy);
 const CHRONO_OPTS = { forwardDate: true };
 /** Words that are ordinary language as often as dates: only a date when introduced by one of these (QA-08). */
 const AMBIGUOUS_DAY = /^(?:sat|sun|mon|wed|mar|may|march|now)$/i;
@@ -5008,6 +5160,7 @@ const DATE_INTRO = /\b(?:on|next|this|last|by|every|until|till|from|before|after
 * `strict` drops lone ambiguous words and stems of possessives/compounds ("tomorrow's", "tomorrow-ish").
 */
 function parseDates(text, now, strict = true) {
+	const chrono = dateOrder() === "dmy" ? chronoDmy : chronoMdy;
 	const midnight = new Map(chrono.parse(text, startOfDay(now), CHRONO_OPTS).map((r) => [r.index, r]));
 	return chrono.parse(text, now, CHRONO_OPTS).map((r) => r.start.isCertain("hour") ? r : midnight.get(r.index) ?? r).filter((r) => {
 		if (!strict) return true;
@@ -5027,7 +5180,7 @@ const ordinal = (w) => ORDINALS[w.toLowerCase()] ?? parseInt(w, 10);
 function repeatMatches(text, now) {
 	const out = [];
 	let ending = "";
-	const add = (re, rule) => {
+	const add$1 = (re, rule) => {
 		for (const m of text.matchAll(re)) {
 			const r = rule(m);
 			const start = m.index ?? 0;
@@ -5035,37 +5188,37 @@ function repeatMatches(text, now) {
 				kind: "repeat",
 				start,
 				end: start + m[0].length,
-				apply: (p) => void (p.rule = r + ending)
+				apply: (p) => void (p.rule = r + (typeof ending === "function" ? ending(r) : ending))
 			});
 		}
 	};
-	add(/\b(?:bi-?weekly|fortnightly|every\s+fortnight)\b/gi, () => "FREQ=WEEKLY;INTERVAL=2");
-	add(new RegExp(String.raw`\b(?:every\s+)?(first|second|third|fourth|fifth|last|\d(?:st|nd|rd|th))\s+(${DAY_WORD})\b(\s+of\s+(?:the\s+|every\s+)?month)?`, "gi"), (m) => {
+	add$1(/\b(?:bi-?weekly|fortnightly|every\s+fortnight)\b/gi, () => "FREQ=WEEKLY;INTERVAL=2");
+	add$1(new RegExp(String.raw`\b(?:every\s+)?(first|second|third|fourth|fifth|last|\d(?:st|nd|rd|th))\s+(${DAY_WORD})\b(\s+of\s+(?:the\s+|every\s+)?month)?`, "gi"), (m) => {
 		const n = ordinal(m[1]);
 		if (!/^every/i.test(m[0]) && !m[3]) return null;
 		return n && n >= -1 && n <= 5 ? `FREQ=MONTHLY;BYDAY=${n}${dayCode(m[2])}` : null;
 	});
-	add(/\b(?:monthly|every\s+month)\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)\b|\bevery\s+(\d{1,2})(?:st|nd|rd|th)\b/gi, (m) => {
+	add$1(/\b(?:monthly|every\s+month)\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)\b|\bevery\s+(\d{1,2})(?:st|nd|rd|th)\b/gi, (m) => {
 		const d = Number(m[1] ?? m[2]);
 		return d >= 1 && d <= 31 ? `FREQ=MONTHLY;BYMONTHDAY=${d}` : null;
 	});
-	add(/\bevery\s+weekend\b/gi, () => "FREQ=WEEKLY;BYDAY=SA,SU");
+	add$1(/\bevery\s+weekend\b/gi, () => "FREQ=WEEKLY;BYDAY=SA,SU");
 	const UNIT = {
 		day: "DAILY",
 		week: "WEEKLY",
 		month: "MONTHLY",
 		year: "YEARLY"
 	};
-	add(/\b(daily|weekly|monthly|yearly|annually)\b/gi, (m) => {
+	add$1(/\b(daily|weekly|monthly|yearly|annually)\b/gi, (m) => {
 		const w = m[1].toLowerCase();
 		return `FREQ=${w === "annually" ? "YEARLY" : w.toUpperCase()}`;
 	});
-	add(/\bevery\s+(weekday|weekdays|workday)\b/gi, () => "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
-	add(/\bevery\s+(other\s+|(\d+)\s+)?(day|week|month|year)s?\b/gi, (m) => {
+	add$1(/\bevery\s+(weekday|weekdays|workday|weeknight|weeknights)\b/gi, () => "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
+	add$1(/\bevery\s+(other\s+|(\d+)\s+)?(day|week|month|year)s?\b/gi, (m) => {
 		const interval = m[1]?.trim() === "other" ? 2 : m[2] ? Number(m[2]) : 1;
 		return `FREQ=${UNIT[m[3].toLowerCase()]}${interval > 1 ? `;INTERVAL=${interval}` : ""}`;
 	});
-	add(new RegExp(`\\bevery\\s+(${DAY_WORD}(?:\\s*(?:,|and|&)\\s*${DAY_WORD})*)\\b`, "gi"), (m) => {
+	add$1(new RegExp(`\\bevery\\s+(${DAY_WORD}(?:\\s*(?:,|and|&)\\s*${DAY_WORD})*)\\b`, "gi"), (m) => {
 		const codes = m[1].split(/\s*(?:,|and|&)\s*/i).map(dayCode).filter(Boolean);
 		return codes.length ? `FREQ=WEEKLY;BYDAY=${[...new Set(codes)].join(",")}` : null;
 	});
@@ -5091,6 +5244,51 @@ function repeatMatches(text, now) {
 				apply: () => void 0
 			});
 		}
+		for (const m of text.matchAll(/\bfor\s+(\d{1,3})\s+(day|week|month|year)s?\b/gi)) {
+			if (ending) break;
+			const n = Number(m[1]);
+			const unit = m[2].toLowerCase();
+			ending = (rule) => {
+				if (rule.includes(`FREQ=${FREQ_OF[unit]}`)) {
+					const interval = Number(/INTERVAL=(\d+)/.exec(rule)?.[1] ?? 1);
+					const perPeriod = unit === "week" ? /BYDAY=([A-Z,]+)/.exec(rule)?.[1].split(",").length ?? 1 : 1;
+					return `;COUNT=${Math.ceil(n / interval) * perPeriod}`;
+				}
+				return `;UNTIL=${toLocalDate(add(now, { [`${unit}s`]: n })).replace(/-/g, "")}T235959Z`;
+			};
+			out.push({
+				kind: "repeat",
+				start: m.index ?? 0,
+				end: (m.index ?? 0) + m[0].length,
+				apply: () => void 0
+			});
+		}
+	}
+	return out;
+}
+const FREQ_OF = {
+	day: "DAILY",
+	week: "WEEKLY",
+	month: "MONTHLY",
+	year: "YEARLY"
+};
+/** `eod` / `eow` / `eom` and "end of day/week/month": a day, with no time (QA-18). eow is Friday, the end of the working week. */
+function endMatches(text, now) {
+	const out = [];
+	for (const m of text.matchAll(/(?<=^|\s)(eod|eow|eom|end of (?:the )?(?:day|week))(?=\s|$|[,.;])/gi)) {
+		const w = m[1].toLowerCase();
+		const d = w.endsWith("d") || w.endsWith("day") ? now : w === "eom" ? endOfMonth(now) : addDays(now, (5 - now.getDay() + 7) % 7);
+		const date = toLocalDate(d);
+		const start = m.index ?? 0;
+		out.push({
+			kind: "date",
+			start,
+			end: start + m[0].length,
+			apply: (p) => void (p.schedule.kind === "someday" || (p.schedule = {
+				kind: "day",
+				date
+			}))
+		});
 	}
 	return out;
 }
@@ -5281,11 +5479,12 @@ function parseQuickAdd(input, now, enabled = true, listNames = [], origin = "typ
 	for (const m of [
 		...planningMatches(input, now),
 		...tokenMatches(input, listNames),
+		...endMatches(input, now),
 		...origin === "spoken" ? keywordMatches(input, listNames) : [],
 		...repeatMatches(input, now)
 	]) if (!matches.some((x) => overlaps(x, m))) matches.push(m);
 	let explicitEnd = false;
-	const [date] = parseDates(mask(input, matches), now);
+	const [date] = matches.some((m) => m.kind === "date") ? [] : parseDates(mask(input, matches), now);
 	if (date) {
 		const start = date.index;
 		const end = start + date.text.length;
@@ -5334,7 +5533,7 @@ function parseQuickAdd(input, now, enabled = true, listNames = [], origin = "typ
 		date: toLocalDate(now)
 	};
 	if (result.schedule.kind === "someday") result.rule = null;
-	result.title = mask(input, matches).replace(/\(\s*\)|\[\s*\]|["“”]\s*["“”]/g, " ").replace(/\s+(on|at|by|for|due)\s*$/i, "").replace(/\s+/g, " ").replace(/\s+([,.;:!?])(?=\s|$)/g, "$1").replace(/([,;:])(?:[\s,;:.]*[,;:.])+/g, "$1").replace(/^[\s,;:.]+|[\s,;:.]+$/g, "").trim() || input.trim();
+	result.title = mask(input, matches).replace(/\(\s*\)|\[\s*\]|["“”]\s*["“”]/g, " ").replace(/\s+(on|at|by|for|due)\s*$/i, "").replace(/^\s*remind me (?:to|about|that)\s+/i, "").replace(/\s+/g, " ").replace(/\s+([,.;:!?])(?=\s|$)/g, "$1").replace(/([,;:])(?:[\s,;:.]*[,;:.])+/g, "$1").replace(/^[\s,;:.]+|[\s,;:.]+$/g, "").trim() || input.trim();
 	return result;
 }
 // node_modules/rrule/dist/esm/weekday.js

@@ -159,6 +159,7 @@ export const FEATURES: Feature[] = [
     commands: [palette("go-calendar", "Go to Calendar"), keys("G C", "Calendar"), keys("D / X / W / M / A", "Day / 5 days / week / month / agenda"), keys("T", "Jump to today"), keys("← →", "Previous / next"), keys("Alt ↑ / Alt ↓", "Move a focused block 15 minutes"), keys("Alt ← / Alt →", "Move a focused block a day"), keys("Alt Shift ↑ / Alt Shift ↓", "Make a focused block shorter / longer")] },
   { id: "countdowns", title: "Count down to a date", howTo: "Turn on Show countdown on an all-day event, and pin it to Today.", icon: "hourglass", group: "Views", since: "1.0.0", core: false, commands: [] },
   { id: "calendar-subscriptions", title: "Follow a calendar", howTo: "Settings → Data → Calendar subscriptions: paste an .ics address (Google, Outlook, iCloud…) and its events appear here and on your phone, read-only.", icon: "calendar", group: "Views", since: "1.3.0", core: false, commands: [] },
+  { id: "calendar-sync", title: "Sync Google Calendar or Outlook", howTo: "Settings → Connections → Calendars: connect Google Calendar or Outlook on desktop and pick which calendars show. Their events appear here and on your phone, edits go both ways, and new events can go to a calendar you choose.", icon: "calendar", group: "Views", since: "1.2.4", requires: "signedIn", core: false, commands: [] },
   { id: "ics-import", title: "Import a calendar", howTo: "Settings → Data → Import an .ics file.", icon: "file", group: "Views", since: OLD, core: false, commands: [] },
 
   // ---- Habits & focus

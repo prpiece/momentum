@@ -8,6 +8,7 @@ import { openSettingsPage } from "../../stores/settings";
 import { copyText } from "../friends/attempt";
 import { ServerUpdateNotice } from "../friends/ServerUpdateNotice";
 import { useNow } from "../focus/FocusView";
+import { CalendarAccountsSection } from "./CalendarAccountsSection";
 
 const CODE_MS = 10 * 60_000;
 const SOURCE: Record<api.Connection["source"], string> = { discord: "Discord", slack: "Slack", telegram: "Telegram" };
@@ -230,7 +231,7 @@ export function ConnectionsSection() {
   if (!account)
     return (
       <div className="space-y-3">
-        <p className="text-fg-2">Connections need an account. Sign in to link Discord, Slack or Telegram, or to make a webhook.</p>
+        <p className="text-fg-2">Connections need an account. Sign in to link Discord, Slack or Telegram, to connect Google Calendar or Outlook, or to make a webhook.</p>
         <button type="button" className="btn btn-secondary" onClick={() => openSettingsPage("settings-account")}>
           Go to Account
         </button>
@@ -255,6 +256,7 @@ export function ConnectionsSection() {
         )}
       </div>
       <Webhook />
+      <CalendarAccountsSection />
       {/* Track B: <AgentsPanel /> and <CalendarSubscriptionsPanel /> mount here after v1.3 merges */}
     </>
   );

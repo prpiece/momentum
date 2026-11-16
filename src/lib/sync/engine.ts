@@ -8,7 +8,7 @@ import { saveSettings } from "../../db/settings";
 import { USER_SETTING_KEYS, withRemoteSettings } from "../../domain/settings";
 import { coalesceOutbox, isSyncTarget, pendingFields, planApply, pushBatches, SYNC_TABLES, tagWinner, toPatch, type ApplyOp, type OutboxEntry, type OutboxRow, type RemoteRow, type SyncTable } from "../../domain/sync";
 import { INBOX_ID } from "../../domain/types";
-import { hydrate } from "../../stores/data";
+import { hydrate, setEventHook } from "../../stores/data";
 import { hydrateFocus } from "../../stores/focus";
 import { hydrateHabits } from "../../stores/habits";
 import { hydrateSubscriptions } from "../../stores/subscriptions";
@@ -17,7 +17,7 @@ import { toast } from "../../stores/toast";
 import { restoreSession, supabase, syncConfigured } from "./supabase";
 
 /** The local schema this client speaks (latest migration); the server refuses older clients (spec, "Version skew"). */
-export const CLIENT_SCHEMA = 11;
+export const CLIENT_SCHEMA = 12;
 const PAGE = 1000;
 
 export type SyncStatus =
@@ -528,6 +528,36 @@ function schedule(account: string, device: string) {
   };
 }
 
+// ---------- Google Calendar and Outlook (FEAT-01, D345) ----------
+
+/** Whether this account has a connected calendar that takes new events; only then do edits to unlinked events wake the function. */
+let calendarLinked = false;
+export const setCalendarLinked = (v: boolean) => void (calendarLinked = v);
+let calendarTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Asks the calendar function to send this account's event changes on, once this device has pushed them. */
+export async function syncCalendars(): Promise<{ provider: string; error: string | null }[]> {
+  await syncNow();
+  const { data, error } = await supabase.functions.invoke("calendar/sync", { body: {} });
+  if (error) throw error;
+  return Array.isArray(data?.accounts) ? data.accounts : [];
+}
+
+setEventHook((changed) => {
+  if (!useSync.getState().account || !changed.some((e) => e.source === "local" && (e.link || calendarLinked))) return;
+  if (calendarTimer) clearTimeout(calendarTimer);
+  // A few seconds' quiet first, so a drag or a run of edits goes out once.
+  calendarTimer = setTimeout(() => {
+    calendarTimer = null;
+    void syncCalendars().catch(() => undefined); // the 10-minute server run retries
+  }, 3000);
+});
+
+async function checkCalendarLinked() {
+  const { data } = await supabase.from("calendar_accounts").select("write_calendar_id");
+  calendarLinked = !!data?.some((a: { write_calendar_id: string | null }) => a.write_calendar_id);
+}
+
 /** At launch: resumes sync if this device was signed in. */
 export async function startSync() {
   if (!syncConfigured) return;
@@ -569,6 +599,7 @@ export async function startSync() {
   useSync.setState({ account, status: { kind: "idle", at: null } });
   schedule(account, await deviceId());
   void syncNow();
+  void checkCalendarLinked().catch(() => undefined); // an older server has no calendar_accounts
 }
 
 // ---------- signing in and out ----------

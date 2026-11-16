@@ -2,7 +2,7 @@ import { addMonths, format, startOfMonth, startOfWeek } from "date-fns";
 import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, fromLocalDate, moveToDate, scheduleDate, timed, toLocalDate } from "./dates";
 import { occurrencesBetween } from "./recurrence";
 import type { TaskVM } from "./taskViews";
-import type { CalendarEvent, CalView, LocalDate, Schedule, Task, WeekStart } from "./types";
+import type { CalendarEvent, CalProvider, CalView, LocalDate, Schedule, Task, WeekStart } from "./types";
 
 // ---------- ranges ----------
 
@@ -63,6 +63,8 @@ export type CalItem = {
   recurring: boolean;
   readOnly: boolean;
   priority: Task["priority"];
+  /** Events from a connected Google or Outlook calendar (D345) show a small mark. */
+  provider?: CalProvider;
 };
 
 function itemOf(
@@ -128,6 +130,7 @@ export function calendarItems(src: ItemSources, from: LocalDate, to: LocalDate):
       recurring: !!e.recurrence,
       readOnly: e.source === "ics",
       priority: 0 as const,
+      provider: e.link?.provider,
     };
     // Multi-day all-day events: look back far enough to catch ones that started earlier.
     const lookback = fromLocalDate(addDaysLocal(from, -(e.spanDays - 1)));

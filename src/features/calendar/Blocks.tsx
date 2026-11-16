@@ -12,6 +12,7 @@ import { toggleDone } from "../tasks/actions";
 import { taskMenu } from "../tasks/taskMenu";
 import { minuteAt, pxPerMinute } from "./calendarActions";
 import { applySchedule, currentSchedule, deleteEvent } from "../../stores/schedule";
+import { PROVIDER_NAME, ProviderMark } from "./ProviderMark";
 
 export function openItem(item: CalItem) {
   if (justDragged()) return;
@@ -149,7 +150,7 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
       onClick={() => openItem(item)}
       onContextMenu={onItemMenu(item)}
       onKeyDown={blockKeys(item, listeners?.onKeyDown)}
-      aria-label={`${item.title}, ${label}`}
+      aria-label={`${item.title}, ${label}${item.provider ? `, ${PROVIDER_NAME[item.provider]}` : ""}`}
       className={`group absolute overflow-hidden rounded-control border px-2 py-1 text-[length:var(--fs-xs)] leading-[var(--lh-xs)] transition-opacity duration-[var(--dur)] hover:z-10 ${
         item.readOnly ? "cursor-default" : "cursor-grab"
       } ${isDragging ? "opacity-30" : ""} ${item.done ? "opacity-60" : ""} ${preview ? "z-20 ring-2 ring-accent-text" : ""}`}
@@ -168,6 +169,7 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
         <DoneCheck item={item} />
         <span className={`min-w-0 flex-1 truncate text-[length:var(--fs-sm)] font-medium leading-[var(--lh-sm)] ${item.done ? "line-through" : ""}`}>{item.title}</span>
         {item.recurring && <Repeat size={12} strokeWidth={1.75} className="mt-0.5 shrink-0 text-fg-2" />}
+        <ProviderMark provider={item.provider} />
       </div>
       {height > 30 && <div className="truncate tabular-nums text-fg-2">{preview ? "…" : label}</div>}
       {!item.readOnly && (
@@ -202,6 +204,7 @@ export const Chip = memo(function Chip({ item, scope, showTime }: { item: CalIte
       </span>
       {showTime && item.start && <span className="shrink-0 tabular-nums text-muted">{formatTime(item.start, timeFormat)}</span>}
       <span className={`min-w-0 truncate ${item.allDay ? "font-medium" : ""} ${item.done ? "line-through" : ""}`}>{item.title}</span>
+      <ProviderMark provider={item.provider} />
     </div>
   );
 });

@@ -91,6 +91,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0011_sync_purge_sets.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 12,
+            description: "calendar events linked to Google or Outlook",
+            sql: include_str!("../migrations/0012_calendar_links.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

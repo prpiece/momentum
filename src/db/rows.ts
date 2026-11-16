@@ -8,6 +8,7 @@ import { isValidRule } from "../domain/recurrence";
 import { isRecord, oneOf } from "../domain/settings";
 import { parseWaiting } from "../domain/waiting";
 import {
+  CAL_PROVIDERS,
   COUNTDOWN_MODES,
   LIST_LAYOUTS,
   PRIORITIES,
@@ -231,6 +232,17 @@ export function parseEvent(r: Row): CalendarEvent | null {
     subscriptionId: r.source === "ics" ? optStr(r.subscription_id) : null,
     countdown: schedule.kind === "day" && oneOf(COUNTDOWN_MODES, r.countdown) ? r.countdown : null,
     pinned: r.pinned === 1,
+    ...(oneOf(CAL_PROVIDERS, r.provider) && optStr(r.external_calendar_id)
+      ? {
+          link: {
+            provider: r.provider,
+            calendarId: str(r.external_calendar_id),
+            externalId: optStr(r.external_id),
+            etag: optStr(r.etag),
+            syncedAt: isInstant(r.ext_synced_at) ? r.ext_synced_at : null,
+          },
+        }
+      : {}),
     createdAt: isInstant(r.created_at) ? r.created_at : now,
     updatedAt: isInstant(r.updated_at) ? r.updated_at : now,
     deletedAt: isInstant(r.deleted_at) ? r.deleted_at : null,
@@ -255,6 +267,11 @@ export function eventToRow(e: CalendarEvent): Row {
     subscription_id: e.subscriptionId,
     countdown: e.countdown,
     pinned: e.pinned ? 1 : 0,
+    provider: e.link?.provider ?? null,
+    external_calendar_id: e.link?.calendarId ?? null,
+    external_id: e.link?.externalId ?? null,
+    etag: e.link?.etag ?? null,
+    ext_synced_at: e.link?.syncedAt ?? null,
     created_at: e.createdAt,
     updated_at: e.updatedAt,
     deleted_at: e.deletedAt,

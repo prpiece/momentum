@@ -428,3 +428,8 @@ enabled = true
 # verifies its own caller (signatures, secrets, or the sender's access token for sent tasks).
 [functions.inbound]
 verify_jwt = false
+
+# Google Calendar and Outlook sync (PLAN D345). The OAuth redirects arrive from a browser with no
+# Supabase JWT; the app's own calls are checked in the function (auth.getUser), cron by its secret.
+[functions.calendar]
+verify_jwt = false

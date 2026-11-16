@@ -79,11 +79,19 @@ function commit(all: Task[]) {
   void repo.saveTasks(changed);
 }
 
+/** Runs after events change: lib/sync/engine.ts plugs in the push to Google or Outlook (FEAT-01, D345). */
+let onEvents: (changed: CalendarEvent[]) => void = () => undefined;
+export const setEventHook = (fn: (changed: CalendarEvent[]) => void) => void (onEvents = fn);
+
 export function commitEvents(changed: CalendarEvent[]) {
   if (!changed.length) return;
   set((s) => ({ events: { ...s.events, ...byId(changed) } }));
   void repo.saveEvents(changed);
+  onEvents(changed);
 }
+
+/** A copy split off a linked series is a new event on the same calendar: the provider doesn't have it yet. */
+const newLink = (e: CalendarEvent): Pick<CalendarEvent, "link"> => (e.link ? { link: { ...e.link, externalId: null, etag: null, syncedAt: null } } : {});
 
 function log(taskId: string, kind: ActivityKind, detail = "") {
   if (get().tasks[taskId]?.deletedAt) return; // a trashed task's history would only sync as an orphan
@@ -469,11 +477,11 @@ export function editEventOccurrence(id: string, key: string, scope: Scope, patch
   if (!e?.recurrence) return updateEvent(id, patch);
   if (scope === "this") {
     const { series, single } = detachOccurrence(e, key, uid(), now());
-    return commitEvents([series, { ...single, ...patch, recurrence: null }]);
+    return commitEvents([series, { ...single, ...patch, recurrence: null, ...newLink(e) }]);
   }
   if (scope === "following") {
     const { head, tail } = splitSeries(e, key, uid(), now());
-    return commitEvents(head ? [head, { ...tail, ...patch }] : [{ ...tail, ...patch, id: e.id }]);
+    return commitEvents(head ? [head, { ...tail, ...patch, ...newLink(e) }] : [{ ...tail, ...patch, id: e.id }]);
   }
   const base = { ...e, recurrence: patch.recurrence !== undefined ? patch.recurrence : e.recurrence };
   updateEvent(id, { ...patch, ...(patch.schedule ? shiftSeries(base, key, patch.schedule) : {}) });
