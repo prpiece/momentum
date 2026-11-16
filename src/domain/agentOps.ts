@@ -92,7 +92,8 @@ export type AgentRequest =
   | { op: "delete"; id: string; withSubtasks: boolean; scope: AgentScope }
   | { op: "restore"; id: string }
   | { op: "trash"; limit: number }
-  | { op: "complete" | "reopen"; id: string }
+  | { op: "complete"; id: string; scope: "this" | "all" }
+  | { op: "reopen"; id: string }
   | { op: "checkin" } & HabitCheckin
   | { op: "events"; from: LocalDate | null; to: LocalDate | null; limit: number }
   | { op: "habits" | "focus" }
@@ -268,10 +269,16 @@ export function parseRequest(op: unknown, raw: unknown): AgentRequest {
       only(args, ["text", "limit", "status", "includeArchived"]);
       return { op, text: str(args, "text", true).trim(), limit: limitOf(args), status: statusOf(args), includeArchived: flag(args, "includeArchived") };
     case "get":
-    case "complete":
     case "reopen":
       only(args, ["id"]);
       return { op, id: idOf(args) };
+    case "complete": {
+      only(args, ["id", "scope"]);
+      // "following" is the same as "all": a series ends from here on.
+      const scope = args.scope ?? "this";
+      if (scope !== "this" && scope !== "all" && scope !== "following") throw new AgentError('scope must be "this" or "all".');
+      return { op, id: idOf(args), scope: scope === "this" ? "this" : "all" };
+    }
     case "add": {
       only(args, ["text", "list", "parentId", "date", "time", "deadline", "durationMin", "priority", "tags"]);
       const list = str(args, "list")?.trim() || null;

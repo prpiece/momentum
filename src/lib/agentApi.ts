@@ -192,12 +192,15 @@ function get(id: string) {
   return { task: shape(fresh), subtasks: d.childrenOf(fresh.task.id).map(shape) };
 }
 
-function finish(id: string, to: "done" | "open") {
+function finish(id: string, to: "done" | "open", scope: "this" | "all" = "this") {
   const vm = find(id);
   if (to === "done" && vm.task.status !== "open") throw new AgentError(`“${vm.task.title}” is already ${vm.task.status === "done" ? "done" : "closed"}.`);
   if (to === "open" && vm.task.status === "open") throw new AgentError(`“${vm.task.title}” is already open.`);
   const before = taskIds();
   setStatus(vm.task.id, to);
+  // scope all: the series ends with this occurrence (setStatus only detaches it, and only ends a series that ran out).
+  const series = scope === "all" && vm.task.recurrence ? useData.getState().tasks[vm.task.id] : undefined;
+  if (series && !series.deletedAt) updateTask(series.id, { status: "done", completedAt: new Date().toISOString() });
   // Completing a recurring task detaches the finished occurrence; the series may be gone (its last one).
   return get(newTaskId(before) ?? vm.task.id);
 }
@@ -343,7 +346,7 @@ export function runAgentRequest(op: unknown, args: unknown): unknown {
     case "delete": return remove(r);
     case "restore": return restore(r.id);
     case "trash": return trash(r.limit);
-    case "complete": return finish(r.id, "done");
+    case "complete": return finish(r.id, "done", r.scope);
     case "reopen": return finish(r.id, "open");
     case "habits": return habits();
     case "checkin": return checkin(r);

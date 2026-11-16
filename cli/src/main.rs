@@ -33,7 +33,7 @@ Usage: momentum <command> [options]
               [--time HH:mm] [--pin|--unpin] [--repeat FREQ=WEEKLY;BYDAY=MO|none]   (repeat: --scope all or following)
               [--remind 10,60|1d@09:00|none] (minutes before a time block, or N days before at a time)
               [--checklist \"a,b\"|none] [--parent ID|none] (move under a task, or back to top level)
-  done <id>                   complete a task
+  done <id> [--scope this|all]  complete a task (a repeating task: this occurrence, or all = end the series)
   reopen <id>
   delete <full-id> [--with-subtasks] [--scope this|following|all]
                               move one task to the Trash (needs the full id; subtasks need --with-subtasks).
@@ -438,7 +438,14 @@ fn to_op(p: &Parsed) -> R<(&'static str, Value)> {
             ("search", Value::Object(m))
         }
         "get" => ("get", json!({ "id": one_id(p)? })),
-        "done" | "complete" => ("complete", json!({ "id": one_id(p)? })),
+        "done" | "complete" => {
+            let mut m = Map::new();
+            m.insert("id".into(), json!(one_id(p)?));
+            if let Some(v) = p.flags.get("scope") {
+                m.insert("scope".into(), v.clone());
+            }
+            ("complete", Value::Object(m))
+        }
         "reopen" => ("reopen", json!({ "id": one_id(p)? })),
         "habits" => ("habits", json!({})),
         "lists" => ("lists", json!({})),
@@ -699,6 +706,8 @@ fn tools() -> Value {
         "parentId": { "type": "string", "description": "Move under this task (id), or \"none\" for top level. Refused if it would loop or nest too deep." }
     });
     let id = json!({ "id": { "type": "string", "description": "Task id from list_tasks (4+ leading characters are enough)." } });
+    let mut complete_props = id.clone();
+    complete_props.as_object_mut().unwrap().insert("scope".into(), json!({ "type": "string", "enum": ["this", "all"], "description": "Recurring tasks only. this (default) completes the current occurrence; all ends the series." }));
     let mut update_props = task_fields.as_object().cloned().unwrap_or_default();
     update_props.extend(id.as_object().cloned().unwrap_or_default());
     update_props.extend(update_only.as_object().cloned().unwrap_or_default());
@@ -713,7 +722,8 @@ fn tools() -> Value {
           "inputSchema": { "type": "object", "properties": { "text": { "type": "string" }, "list": { "type": "string", "description": "List name (default Inbox)." }, "parentId": { "type": "string", "description": "Make it a subtask of this task." }, "date": { "type": "string", "description": "Planned day: YYYY-MM-DD or \"someday\"." }, "time": { "type": "string", "description": "HH:mm: makes it a time block on its day (today if no date)." }, "deadline": { "type": "string", "description": "YYYY-MM-DD." }, "durationMin": { "type": "integer", "description": "Expected minutes." }, "priority": { "type": "string", "enum": ["none", "low", "medium", "high"] }, "tags": { "type": "array", "items": { "type": "string" } } }, "required": ["text"] } },
         { "name": "update_task", "description": "Change fields of a task. Only the fields given change.",
           "inputSchema": { "type": "object", "properties": update_props, "required": ["id"] } },
-        { "name": "complete_task", "description": "Mark a task done (a recurring task completes its current occurrence).", "inputSchema": { "type": "object", "properties": id, "required": ["id"] } },
+        { "name": "complete_task", "description": "Mark a task done (a recurring task completes its current occurrence). scope \"all\" also ends the series so no more occurrences come.",
+          "inputSchema": { "type": "object", "properties": complete_props, "required": ["id"] } },
         { "name": "reopen_task", "description": "Reopen a finished task.", "inputSchema": { "type": "object", "properties": id, "required": ["id"] } },
         { "name": "delete_task", "description": "Move ONE task to the Trash (recoverable for 30 days) and return it. A repeating task (repeats is set) loses only its current occurrence unless scope is \"all\". Needs the task's full id, not a shortened one. A task with subtasks is refused unless withSubtasks is true; the response lists everything removed. There is no bulk delete.",
           "inputSchema": { "type": "object", "properties": { "id": { "type": "string", "description": "The task's full id." }, "withSubtasks": { "type": "boolean", "description": "Required when the task has subtasks; deletes them too." }, "scope": { "type": "string", "enum": ["this", "following", "all"], "description": "Repeating tasks only. Default this (just the current occurrence)." } }, "required": ["id"] } },
@@ -950,6 +960,12 @@ mod tests {
     fn double_dash_ends_options() {
         let (op, args) = to_op(&parsed(&["add", "--", "--foo", "--json"])).ok().unwrap();
         assert_eq!((op, args), ("add", json!({ "text": "--foo --json" })));
+    }
+
+    #[test]
+    fn done_scope_maps_to_complete() {
+        assert_eq!(to_op(&parsed(&["done", "ab12"])).ok().unwrap(), ("complete", json!({ "id": "ab12" })));
+        assert_eq!(to_op(&parsed(&["done", "ab12", "--scope", "all"])).ok().unwrap(), ("complete", json!({ "id": "ab12", "scope": "all" })));
     }
 
     #[test]

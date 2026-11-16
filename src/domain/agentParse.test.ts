@@ -18,6 +18,14 @@ describe("agent op parsing (v1.2.1)", () => {
     expect(() => parseRequest("update", { id: "a", title: "x", scope: "some" })).toThrow(/scope/);
     expect(() => parseRequest("update", { id: "a", scope: "all" })).toThrow(/Nothing to update/);
   });
+  it("takes a scope on complete: this (default), all, or following as all (AGENT-17)", () => {
+    expect(parseRequest("complete", { id: "a" })).toEqual({ op: "complete", id: "a", scope: "this" });
+    expect(parseRequest("complete", { id: "a", scope: "all" })).toEqual({ op: "complete", id: "a", scope: "all" });
+    expect(parseRequest("complete", { id: "a", scope: "following" })).toEqual({ op: "complete", id: "a", scope: "all" });
+    expect(() => parseRequest("complete", { id: "a", scope: "some" })).toThrow(/scope must be/);
+    expect(() => parseRequest("complete", { id: "a", scope: 1 })).toThrow(/scope must be/);
+    expect(() => parseRequest("reopen", { id: "a", scope: "all" })).toThrow(/Unknown field/);
+  });
   it("parses delete, restore and trash, with no bulk form", () => {
     expect(parseRequest("delete", { id: "abc" })).toEqual({ op: "delete", id: "abc", withSubtasks: false, scope: "this" });
     expect(parseRequest("delete", { id: "abc", withSubtasks: true })).toMatchObject({ withSubtasks: true });

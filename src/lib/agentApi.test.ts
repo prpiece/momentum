@@ -31,6 +31,24 @@ describe("complete", () => {
     const r = call("complete", { id: t.id });
     expect(r.task).toMatchObject({ title: "Once more", status: "done" });
   });
+  it("scope this (default) completes only the current occurrence", () => {
+    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    call("complete", { id: s.id });
+    expect(useData.getState().tasks[s.id].status).toBe("open");
+    expect(useData.getState().tasks[s.id].recurrence?.exdates).toEqual(["2026-10-25"]);
+  });
+  it("scope all ends the series, so no more occurrences come (AGENT-17)", () => {
+    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const r = call("complete", { id: s.id, scope: "all" });
+    expect(r.task).toMatchObject({ title: "Stretch", status: "done" });
+    expect(useData.getState().tasks[s.id].status).toBe("done");
+    expect(live().filter((t) => t.status === "open")).toHaveLength(0);
+  });
+  it("scope following behaves like all", () => {
+    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    call("complete", { id: s.id, scope: "following" });
+    expect(useData.getState().tasks[s.id].status).toBe("done");
+  });
 });
 
 describe("update on a recurring task", () => {
