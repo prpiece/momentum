@@ -42,7 +42,7 @@ The bots and the webhook all run through one Edge Function, `inbound` (ADR 0008)
 2. **Basic Information:** copy *Signing Secret* (`SLACK_SIGNING_SECRET`), *Client ID* (`SLACK_CLIENT_ID`) and *Client Secret* (`SLACK_CLIENT_SECRET`).
 3. **Slash Commands** → Create: command `/momentum`, Request URL `<base>/slack`, short description "Add and see your tasks", usage hint `add buy milk tomorrow · today · help`.
 4. **OAuth & Permissions:** Redirect URL `<base>/slack/oauth`. Bot token scopes: `commands`, `chat:write`, `im:write`.
-5. **Manage Distribution:** turn on *Public Distribution* (no Marketplace listing needed) and use its **Add to Slack** link to install. The function stores each workspace's bot token for the Digest.
+5. **Manage Distribution:** turn on *Public Distribution* (no Marketplace listing needed). Install from `<base>/slack/install`, not Slack's own *Sharable URL*: the install link signs an expiring `state` and keeps it in a cookie, and the callback refuses an install it didn't start (SOC-21). The function stores each workspace's bot token for the Digest.
 
 ## 4. Telegram
 
@@ -78,7 +78,7 @@ Every connection has the same commands (D288), the same ones the CLI has:
 
 `N` is a number from the connection's last listing (kept for an hour) or a task's full id (`view` shows it). Delete takes one task at a time, never a list of them, and refuses a task with subtasks unless you add `with subtasks`.
 
-Each connection is **Add only** or **Full access**. Add only runs `add` (and `help`, `link`, `unlink`) and nothing that reads or changes other tasks; switching a chat to Add only turns its Digest off. Chats start with full access, the webhook starts add-only: anyone holding its URL can then only add tasks. The app sets this with `set_connection_permission(id, 'add' | 'full')` and `set_webhook_permission('add' | 'full')`, and reads it from `my_connections()` and `webhook_permission()`.
+Each connection is **Add only** or **Full access**. Add only runs `add` (and `help`, `link`, `unlink`) and nothing that reads or changes other tasks; switching a chat to Add only turns its Digest off. Chats start with full access, the webhook starts add-only: anyone holding its secret can then only add tasks. The secret goes in the `X-Webhook-Secret` header of a POST to `<base>/webhook` (kept out of request logs); `<base>/webhook/<secret>` still works for one release (SOC-21). The app sets this with `set_connection_permission(id, 'add' | 'full')` and `set_webhook_permission('add' | 'full')`, and reads it from `my_connections()` and `webhook_permission()`.
 
 The server's `server_meta.schema_version` (D289) is 1 from the v1.2.1 migration on; every later migration bumps it.
 

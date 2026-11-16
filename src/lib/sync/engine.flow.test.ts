@@ -204,14 +204,14 @@ describe("SYNC-09/15: Realtime wake-ups", () => {
       if (name === "sync_pull") pulls++;
       return name === "sync_push" ? { data: { last_seq: maxSeq(args), refused: [] }, error: null } : { data: [], error: null };
     };
-    sb.handlers.get("devices")?.({ eventType: "UPDATE", new: { id: "d1", owner_id: "A" } });
-    sb.handlers.get("devices")?.({ eventType: "DELETE", new: {} });
+    // SYNC-15: `devices` isn't listened to (nor published) any more.
+    expect(sb.handlers.has("devices")).toBe(false);
+    sb.handlers.get("sync_pings")?.({ eventType: "UPDATE", new: { account_id: "A", device: "d1" } }); // its own push
     await new Promise((r) => setTimeout(r, 20));
     expect(pulls).toBe(0);
-    sb.handlers.get("devices")?.({ eventType: "UPDATE", new: { id: "d2", owner_id: "A" } }); // a sibling pushed
+    sb.handlers.get("sync_pings")?.({ eventType: "UPDATE", new: { account_id: "A", device: "d2" } }); // a sibling pushed
     await vi.waitFor(() => expect(pulls).toBe(1));
-    expect(sb.handlers.has("sync_pings")).toBe(true);
-    sb.handlers.get("sync_pings")?.({ eventType: "UPDATE", new: { account_id: "A" } });
+    sb.handlers.get("sync_pings")?.({ eventType: "UPDATE", new: { account_id: "A", device: null } }); // a server-side change
     await vi.waitFor(() => expect(pulls).toBe(2));
     await stopSync();
   });
@@ -271,5 +271,49 @@ describe("SYNC-18: sync health", () => {
     await engine.syncNow();
     expect(engine.useSync.getState().health).toMatchObject({ pending: 0, oldest: null, pushedAt: expect.any(String) });
     expect(st("pushed_at")).toBe(engine.useSync.getState().health.pushedAt);
+  });
+});
+
+describe("SYNC-19/11: the outbox is coalesced, and each patch says when it was edited", () => {
+  it("pushes one patch for a run of edits to one task, with each field's edit time", async () => {
+    signedIn();
+    await engine.startSync();
+    await engine.syncNow();
+    const sent: { seq: number; fields: Record<string, unknown>; ts: unknown }[] = [];
+    sb.rpc = async (name, args) => {
+      if (name === "sync_push") sent.push(...(args.p_patches as typeof sent));
+      return name === "sync_push" ? { data: { last_seq: maxSeq(args), refused: [] }, error: null } : { data: [], error: null };
+    };
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES ('t', 't', 'inbox', 'open', 0, 0, ?, ?)").run(at, at);
+    db.prepare("UPDATE sync_outbox SET created_at = '2026-11-01T09:00:00.000Z'").run();
+    for (let i = 1; i <= 50; i++) db.prepare("UPDATE tasks SET sort_order = ? WHERE id = 't'").run(i);
+    db.prepare("UPDATE sync_outbox SET created_at = '2026-11-01T10:00:00.000Z' WHERE json_type(fields, '$.id') IS NULL").run();
+    expect(count("SELECT count(*) AS n FROM sync_outbox")).toBe(51);
+    await engine.syncNow();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].fields).toMatchObject({ id: "t", title: "t", sort_order: 50 });
+    expect(sent[0].fields).not.toHaveProperty("_ts");
+    expect(sent[0].ts).toMatchObject({ title: "2026-11-01T09:00:00.000Z", sort_order: "2026-11-01T10:00:00.000Z" });
+    expect(count("SELECT count(*) AS n FROM sync_outbox")).toBe(0);
+    await stopSync();
+  });
+
+  it("leaves rows a failed push may have delivered alone, and keeps recording compact while signed out (D119)", async () => {
+    signedIn();
+    await engine.startSync();
+    await engine.syncNow();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES ('t', 't', 'inbox', 'open', 0, 0, ?, ?)").run(at, at);
+    sb.rpc = async () => ({ data: null, error: new Error("network") });
+    await engine.syncNow();
+    const sent = Number(st("sent_seq"));
+    expect(sent).toBeGreaterThan(0);
+    await engine.signOut("keep");
+    expect(st("record")).toBe("1");
+    for (let i = 1; i <= 20; i++) db.prepare("UPDATE tasks SET title = ? WHERE id = 't'").run(`v${i}`);
+    await engine.startSync();
+    const rows = db.prepare("SELECT seq, fields FROM sync_outbox ORDER BY seq").all() as { seq: number; fields: string }[];
+    expect(rows).toHaveLength(2);
+    expect(rows[0].seq).toBe(sent);
+    expect(JSON.parse(rows[1].fields)).toMatchObject({ title: "v20" });
   });
 });

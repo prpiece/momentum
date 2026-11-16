@@ -133,7 +133,7 @@ function Chat({ c, onChange }: { c: api.Connection; onChange: () => void }) {
 
 function Webhook() {
   const [has, setHas] = useState<boolean | null>(null);
-  const [url, setUrl] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
   const [access, setAccess] = useState<api.Permission | null>(null);
 
   useEffect(() => {
@@ -150,12 +150,12 @@ function Webhook() {
   };
 
   const create = async () => {
-    if (has && !(await confirm("Make a new webhook URL?", "The old URL stops working right away.", "Make new"))) return;
+    if (has && !(await confirm("Make a new webhook secret?", "The old secret stops working right away.", "Make new"))) return;
     try {
-      const u = api.webhookUrl(await api.createWebhook());
-      setUrl(u);
+      const s = await api.createWebhook();
+      setSecret(s);
       setHas(true);
-      toast((await copyText(u)) ? "Webhook URL copied. It's shown only once." : "Webhook made. Copy it now; it's shown only once.");
+      toast((await copyText(s)) ? "Webhook secret copied. It's shown only once." : "Webhook made. Copy the secret now; it's shown only once.");
     } catch (e) {
       fail(e, "Couldn't make a webhook.");
     }
@@ -165,7 +165,7 @@ function Webhook() {
     try {
       await api.deleteWebhook();
       setHas(false);
-      setUrl(null);
+      setSecret(null);
     } catch (e) {
       fail(e, "Couldn't delete it.");
     }
@@ -182,7 +182,7 @@ function Webhook() {
             </button>
           )}
           <button type="button" className="btn btn-secondary" onClick={() => void create()}>
-            {has ? "Make a new URL" : "Create webhook"}
+            {has ? "Make a new secret" : "Create webhook"}
           </button>
         </span>
       </div>
@@ -198,16 +198,18 @@ function Webhook() {
           </select>
         </label>
       )}
-      {url && (
+      {secret && (
         <div className="flex items-center gap-2">
-          <input readOnly aria-label="Webhook URL" value={url} onFocus={(e) => e.currentTarget.select()} className="input min-w-0 flex-1 tabular-nums" />
-          <button type="button" className="btn btn-secondary" onClick={() => void copyText(url).then((ok) => toast(ok ? "Copied." : "Select the URL and copy it."))}>
+          <input readOnly aria-label="Webhook secret" value={secret} onFocus={(e) => e.currentTarget.select()} className="input min-w-0 flex-1 tabular-nums" />
+          <button type="button" className="btn btn-secondary" onClick={() => void copyText(secret).then((ok) => toast(ok ? "Copied." : "Select the secret and copy it."))}>
             Copy
           </button>
         </div>
       )}
-      <p className="text-[length:var(--fs-sm)] text-muted">Anything that can post to a URL can add a task to your Inbox. The URL is a secret: keep it private.</p>
-      <pre className="overflow-x-auto rounded-control bg-surface-2 px-3 py-2 text-[length:var(--fs-xs)]">{`curl -X POST ${url ?? "<your webhook URL>"} -H "Content-Type: application/json" -d '{"text":"Buy milk tomorrow"}'`}</pre>
+      <p className="text-[length:var(--fs-sm)] text-muted">
+        Anything that can post to a URL can add a task to your Inbox. Send the secret in the <code>X-Webhook-Secret</code> header and keep it private.
+      </p>
+      <pre className="overflow-x-auto rounded-control bg-surface-2 px-3 py-2 text-[length:var(--fs-xs)]">{`curl -X POST ${api.webhookEndpoint()} -H "X-Webhook-Secret: ${secret ?? "<your secret>"}" -H "Content-Type: application/json" -d '{"text":"Buy milk tomorrow"}'`}</pre>
     </div>
   );
 }

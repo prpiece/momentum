@@ -6,7 +6,7 @@ import { create } from "zustand";
 import { onWrite, select, transact, write, type Driver } from "../../db/client";
 import { saveSettings } from "../../db/settings";
 import { USER_SETTING_KEYS, withRemoteSettings } from "../../domain/settings";
-import { isSyncTarget, pendingFields, planApply, pushBatches, SYNC_TABLES, tagWinner, type ApplyOp, type OutboxRow, type RemoteRow, type SyncTable } from "../../domain/sync";
+import { coalesceOutbox, isSyncTarget, pendingFields, planApply, pushBatches, SYNC_TABLES, tagWinner, toPatch, type ApplyOp, type OutboxEntry, type OutboxRow, type RemoteRow, type SyncTable } from "../../domain/sync";
 import { INBOX_ID } from "../../domain/types";
 import { hydrate } from "../../stores/data";
 import { hydrateFocus } from "../../stores/focus";
@@ -124,16 +124,35 @@ function parsePush(v: unknown): PushResult | null {
   return { last_seq: r.last_seq, refused };
 }
 
+/**
+ * Merges consecutive patches to the same record (SYNC-19, domain/sync.ts coalesceOutbox). Rows a push
+ * already sent (`sent_seq`) stay as they are: the server may have them, and a merged row would apply twice.
+ */
+export async function compactOutbox() {
+  await transact(async (d) => {
+    const [s] = await d.select<{ value: string }[]>("SELECT value FROM sync_state WHERE key = 'sent_seq'");
+    const sent = Number(s?.value ?? 0);
+    const rows = await d.select<OutboxEntry[]>("SELECT seq, tbl, row_id, fields, created_at FROM sync_outbox WHERE seq > $1 ORDER BY seq", [sent]);
+    for (const m of coalesceOutbox(rows, sent)) {
+      await d.execute("UPDATE sync_outbox SET fields = $1 WHERE seq = $2", [m.fields, m.seq]);
+      await d.execute("DELETE FROM sync_outbox WHERE seq IN (SELECT value FROM json_each($1))", [JSON.stringify(m.drop)]);
+    }
+  });
+}
+
 async function push(device: string): Promise<"ok" | "updateRequired"> {
+  await compactOutbox();
   pages: for (;;) {
-    const rows = await select<OutboxRow>("SELECT seq, tbl, row_id, fields FROM sync_outbox ORDER BY seq LIMIT 5000");
+    const rows = await select<OutboxEntry>("SELECT seq, tbl, row_id, fields, created_at FROM sync_outbox ORDER BY seq LIMIT 5000");
     if (!rows.length) return "ok";
     // The highest seq this database ever made. The server can only be ahead of it when this file is a copy or a
     // restored backup that shares its device id with the original (SYNC-06).
     // A copy that has since made more seqs than the original is caught by the id kept outside the file (deviceId).
     const [made] = await select<{ seq: number }>("SELECT seq FROM sqlite_sequence WHERE name = 'sync_outbox'");
     for (const batch of pushBatches(rows)) {
-      const patches = batch.map((r) => ({ seq: r.seq, tbl: r.tbl, id: r.row_id, fields: JSON.parse(r.fields) as unknown }));
+      // Each patch says when its fields were edited, so the server keeps the newest edit of each field (SYNC-11).
+      const patches = batch.map(toPatch);
+      await transact((d) => setState(d, "sent_seq", String(batch[batch.length - 1].seq)));
       const { data, error } = await supabase.rpc("sync_push", { p_device: device, p_schema: CLIENT_SCHEMA, p_patches: patches });
       if (error) throw error;
       const res = parsePush(data);
@@ -490,15 +509,15 @@ function schedule(account: string, device: string) {
   });
   const every = setInterval(() => void syncNow(), 5 * 60_000);
   const unwatch = host.watch(() => void syncNow());
+  // Any change for this account: a sibling device's push (`device` names it; not this device's own echo), or a
+  // server-side change (a share member's push, a sent task, a bot; no device), the only device included (SYNC-09).
+  // `devices` is no longer published: Realtime sent its DELETE events to every user (SYNC-15).
   const channel = supabase
-    .channel(`devices:${account}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "devices", filter: `owner_id=eq.${account}` }, (p) => {
-      // A sibling device pushed. Not this device's own echo, and not a DELETE: those reach every user, unfiltered (SYNC-15).
-      const row = p.new as { id?: string } | undefined;
-      if (row?.id && row.id !== device) void syncNow();
+    .channel(`sync:${account}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "sync_pings", filter: `account_id=eq.${account}` }, (p) => {
+      const row = p.new as { device?: string | null } | undefined;
+      if (row?.device !== device) void syncNow();
     })
-    // Server-side changes for this account (a share member's push, a sent task, a bot), the only device included (SYNC-09).
-    .on("postgres_changes", { event: "*", schema: "public", table: "sync_pings", filter: `account_id=eq.${account}` }, () => void syncNow())
     .subscribe();
   stop = () => {
     clearTimeout(timer);
@@ -534,7 +553,11 @@ export async function startSync() {
   } catch {
     /* a bad issues list only loses the history */
   }
-  if (!account) return;
+  // Signed out with the data kept, edits are still recorded for the next sign-in (D119): keep that queue short.
+  if (!account) {
+    if (await state("former_account")) await compactOutbox();
+    return;
+  }
   // A pull the app died in leaves recording off: turn it back on, or local edits stop syncing (SYNC-02).
   await setLocalState("record", "1");
   // The cursor was built by an older schema, which dropped the columns and tables it didn't have: pull everything

@@ -40,7 +40,7 @@ export async function user(profile = true): Promise<User> {
   return { db, id, handle, token: signIn.data.session!.access_token };
 }
 
-export type Patch = { seq: number; tbl: string; id: string; fields: Record<string, unknown> };
+export type Patch = { seq: number; tbl: string; id: string; fields: Record<string, unknown>; ts?: string | Record<string, string> };
 export type PushResult = { last_seq?: number; refused?: { seq: number; tbl: string; id: string; reason: string }[]; error?: string };
 
 const seqs = new WeakMap<SupabaseClient, number>();

@@ -5,9 +5,10 @@
  *
  *   POST /discord        Discord HTTP interactions (Ed25519), `/task …`
  *   POST /slack          Slack slash command `/momentum …` (signing secret)
- *   GET  /slack/oauth    Slack OAuth install redirect
+ *   GET  /slack/install  starts a Slack install: a signed, expiring `state`, also kept in a cookie (SOC-21)
+ *   GET  /slack/oauth    Slack OAuth install redirect (checks that `state`)
  *   POST /telegram       Telegram bot webhook (secret token header), private chats only
- *   POST /webhook/<key>  the personal webhook: `{ "text": "…" }` adds, `{ "command": "…" }` runs a command (D288)
+ *   POST /webhook        the personal webhook, its secret in `X-Webhook-Secret` (SOC-21; `/webhook/<key>` still works): `{ "text": "…" }` adds, `{ "command": "…" }` runs a command (D288)
  *   POST /send           a sent task from a signed-in friend (their access token)
  *   POST /digest         pg_cron's Digest run (shared secret)
  */
@@ -112,9 +113,40 @@ async function slack(req: Request, env: Env, db: SupabaseClient, opts: Opts, f: 
       : Promise.resolve());
 }
 
-async function slackOAuth(req: Request, env: Env, db: SupabaseClient, f: typeof fetch): Promise<Response> {
-  const code = new URL(req.url).searchParams.get("code");
+const STATE_COOKIE = "slack_state";
+const STATE_TTL_MS = 10 * 60_000;
+const SLACK_SCOPES = "commands,chat:write,im:write";
+
+/**
+ * Starts a Slack install (SOC-21). The `state` is `<expiry>.<nonce>.<hmac>`, signed with the client secret, and
+ * the nonce also goes in a cookie, so the callback only completes an install this browser started, recently.
+ */
+async function slackInstall(env: Env, now: number): Promise<Response> {
+  if (!env.SLACK_CLIENT_ID || !env.SLACK_CLIENT_SECRET) return new Response("Slack isn't set up", { status: 404 });
+  const nonce = toHex(crypto.getRandomValues(new Uint8Array(16)).buffer);
+  const body = `${now + STATE_TTL_MS}.${nonce}`;
+  const state = `${body}.${await hmac(env.SLACK_CLIENT_SECRET, body)}`;
+  const to = `https://slack.com/oauth/v2/authorize?${new URLSearchParams({ client_id: env.SLACK_CLIENT_ID, scope: SLACK_SCOPES, state })}`;
+  return new Response(null, {
+    status: 302,
+    headers: { location: to, "set-cookie": `${STATE_COOKIE}=${nonce}; Max-Age=${STATE_TTL_MS / 1000}; Path=/; HttpOnly; Secure; SameSite=Lax` },
+  });
+}
+
+/** The callback's `state`: signed by us, not expired, and started in this browser. */
+export async function slackStateOk(secret: string, state: string | null, cookie: string | null, now: number): Promise<boolean> {
+  const [exp, nonce, sig, extra] = (state ?? "").split(".");
+  if (!secret || !exp || !nonce || !sig || extra !== undefined || !(Number(exp) > now)) return false;
+  const kept = /(?:^|;\s*)slack_state=([0-9a-f]+)/.exec(cookie ?? "")?.[1] ?? "";
+  return same(kept, nonce) && same(sig, await hmac(secret, `${exp}.${nonce}`));
+}
+
+async function slackOAuth(req: Request, env: Env, db: SupabaseClient, f: typeof fetch, now: number): Promise<Response> {
+  const params = new URL(req.url).searchParams;
+  const code = params.get("code");
   if (!code) return new Response("Missing code", { status: 400 });
+  if (!(await slackStateOk(env.SLACK_CLIENT_SECRET ?? "", params.get("state"), req.headers.get("cookie"), now)))
+    return new Response("This install link expired or wasn't started here. Start again from the Add to Slack link.", { status: 400 });
   const { data: ok } = await db.rpc("hit_rate", { p_key: "oauth:slack", p_max: 30, p_window: "1 hour" });
   if (!ok) return new Response("Too many installs. Try again later.", { status: 429 });
   const r = await f("https://slack.com/api/oauth.v2.access", {
@@ -141,7 +173,7 @@ async function telegram(req: Request, env: Env, db: SupabaseClient, opts: Opts, 
     }));
 }
 
-const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type, apikey, x-client-info", "access-control-allow-methods": "POST, OPTIONS" };
+const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type, apikey, x-client-info, x-webhook-secret", "access-control-allow-methods": "POST, OPTIONS" };
 
 /** A sent task (D260): the signed-in sender, checked friendship, then the recipient's Requests. */
 async function sendTask(req: Request, db: SupabaseClient): Promise<Response> {
@@ -202,17 +234,22 @@ export async function handle(req: Request, env: Env, opts: Opts = {}): Promise<R
   const db = createClient(env.SUPABASE_URL ?? "", env.SUPABASE_SERVICE_ROLE_KEY ?? "", { auth: { persistSession: false, autoRefreshToken: false } });
   try {
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
-    if (req.method === "GET" && path === "/slack/oauth") return await slackOAuth(req, env, db, f);
+    const now = opts.now?.() ?? Date.now();
+    if (req.method === "GET" && path === "/slack/install") return await slackInstall(env, now);
+    if (req.method === "GET" && path === "/slack/oauth") return await slackOAuth(req, env, db, f, now);
     if (req.method !== "POST") return json({ error: "not found" }, 404);
     if (path === "/discord") return await discord(req, env, db, opts, f);
     if (path === "/slack") return await slack(req, env, db, opts, f);
     if (path === "/telegram") return await telegram(req, env, db, opts, f);
     if (path === "/send") return await sendTask(req, db);
     if (path === "/digest") return await digest(req, env, db, f);
-    const hook = /^\/webhook\/([0-9a-f]{48})$/.exec(path);
-    if (hook) {
+    // The secret in a header keeps it out of request logs; the path form stays for one release (SOC-21).
+    // ponytail: drop the `/webhook/<key>` form once v1.2.5's header URLs have replaced the old ones.
+    const key = path === "/webhook" ? req.headers.get("x-webhook-secret")?.trim() ?? "" : /^\/webhook\/([0-9a-f]{48})$/.exec(path)?.[1];
+    if (key !== undefined) {
+      if (!/^[0-9a-f]{48}$/.test(key)) return json({ error: "not found" }, 404);
       const body = await req.json().catch(() => null);
-      const r = await runWebhook(db, hook[1], body);
+      const r = await runWebhook(db, key, body);
       return json(r.body, r.status);
     }
     return json({ error: "not found" }, 404);

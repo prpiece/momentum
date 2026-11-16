@@ -379,6 +379,16 @@ describe("every command from every connection (D288)", () => {
     expect(await chat("search add-only")).toContain("1. from an add-only chat");
   });
 
+  it("SOC-21: the webhook takes its secret in a header, and the old URL form still works", async () => {
+    const secret = await rpc<string>(u.db, "create_webhook");
+    const post = (path: string, headers: Record<string, string> = {}) =>
+      handle(new Request(`${base}${path}`, { method: "POST", headers, body: JSON.stringify({ text: "header hook task" }) }), env, opts);
+    expect((await post("/webhook", { "x-webhook-secret": secret })).status).toBe(200);
+    expect((await post(`/webhook/${secret}`)).status).toBe(200);
+    expect((await post("/webhook")).status).toBe(404);
+    expect((await post("/webhook", { "x-webhook-secret": "0".repeat(48) })).status).toBe(404);
+  });
+
   it("the webhook takes commands, and starts add-only", async () => {
     const secret = await rpc<string>(u.db, "create_webhook");
     const post = async (body: unknown) => {
@@ -478,8 +488,29 @@ describe("the Digest", () => {
 });
 
 describe("Slack install", () => {
+  /** Starts an install the way a browser does: the redirect's `state`, and the cookie it set. */
+  async function start(now = Date.now()) {
+    const r = await handle(new Request(`${base}/slack/install`), env, { ...opts, now: () => now });
+    expect(r.status).toBe(302);
+    const to = new globalThis.URL(r.headers.get("location")!);
+    expect(to.origin + to.pathname).toBe("https://slack.com/oauth/v2/authorize");
+    return { state: to.searchParams.get("state")!, cookie: r.headers.get("set-cookie")!.split(";")[0] };
+  }
+  const callback = (q: string, cookie?: string) => handle(new Request(`${base}/slack/oauth?${q}`, { headers: cookie ? { cookie } : {} }), env, opts);
+
+  it("SOC-21: refuses a callback without the state this browser was given, an altered one, or an expired one", async () => {
+    const { state, cookie } = await start();
+    expect((await callback("code=abc")).status).toBe(400);
+    expect((await callback(`code=abc&state=${encodeURIComponent(state)}`)).status).toBe(400); // another browser
+    expect((await callback(`code=abc&state=${encodeURIComponent(state.replace(/.$/, (c) => (c === "0" ? "1" : "0")))}`, cookie)).status).toBe(400);
+    const old = await start(Date.now() - 11 * 60_000);
+    expect((await callback(`code=abc&state=${encodeURIComponent(old.state)}`, old.cookie)).status).toBe(400);
+    expect(calls.some((c) => c.url.includes("oauth.v2.access"))).toBe(false);
+  });
+
   it("stores the workspace's bot token server-side only", async () => {
-    const r = await handle(new Request(`${base}/slack/oauth?code=abc`), env, opts);
+    const { state, cookie } = await start();
+    const r = await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie);
     expect(r.status).toBe(200);
     expect((await admin().from("slack_installs").select("team_id").eq("team_id", "T1")).data).toEqual([{ team_id: "T1" }]);
     const u = await user();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyFromId, pickProfile, pendingFields, planApply, pushBatches, tagWinner, type OutboxRow, type RemoteRow, type SyncTable } from "./sync";
+import { coalesceOutbox, keyFromId, pickProfile, pendingFields, planApply, pushBatches, tagWinner, toPatch, type OutboxRow, type RemoteRow, type SyncTable } from "./sync";
 
 const COLS = {
   folders: ["id", "name", "parent_id"],
@@ -130,4 +130,44 @@ describe("pickProfile", () => {
   it("is unknown, not empty, when offline with nothing cached", () => expect(pickProfile(null, true, null)).toBeNull());
   it("is empty only when the server confirms no profile", () => expect(pickProfile(null, false, known)).toEqual({ handle: null, display_name: null }));
   it("prefers the fetched profile", () => expect(pickProfile({ handle: "b", display_name: "B" }, false, known)?.handle).toBe("b"));
+});
+
+describe("SYNC-19: coalesceOutbox", () => {
+  const e = (seq: number, row_id: string, fields: object, created_at = `2026-11-01T00:00:0${seq}.000Z`, tbl = "tasks") => ({ ...ob(seq, tbl, row_id, fields), created_at });
+  it("merges consecutive edits of one record into the last row, keeping each field's edit time", () => {
+    const out = coalesceOutbox([e(1, "a", { id: "a", title: "x", sort_order: 1 }), e(2, "a", { sort_order: 2 }), e(3, "a", { sort_order: 3 })]);
+    expect(out).toEqual([{ seq: 3, drop: [1, 2], fields: expect.any(String) }]);
+    expect(JSON.parse(out[0].fields)).toEqual({
+      id: "a", title: "x", sort_order: 3,
+      _ts: { id: "2026-11-01T00:00:01.000Z", title: "2026-11-01T00:00:01.000Z", sort_order: "2026-11-01T00:00:03.000Z" },
+    });
+  });
+  it("never reorders against other records, skips tombstones and rows a push may already have sent", () => {
+    const rows = [e(1, "a", { title: "1" }), e(2, "b", { title: "2" }), e(3, "a", { title: "3" }), e(4, "a", { deleted_at: "t", _purged: 1 }), e(5, "a", { title: "5" })];
+    expect(coalesceOutbox(rows)).toEqual([]);
+    expect(coalesceOutbox([e(1, "a", { title: "1" }), e(2, "a", { title: "2" }), e(3, "a", { title: "3" })], 1)).toEqual([{ seq: 3, drop: [2], fields: expect.any(String) }]);
+  });
+  it("adds check-in increments and combines set deltas; a plain value absorbs a later delta", () => {
+    const [ci] = coalesceOutbox([e(1, "h|d", { _delta: 1 }, undefined, "habit_checkins"), e(2, "h|d", { _delta: 2 }, undefined, "habit_checkins")]);
+    expect(JSON.parse(ci.fields)._delta).toBe(3);
+    const [d] = coalesceOutbox([
+      e(1, "a", { tags: '["x"]', _add_tags: ["x"], _del_tags: ["y"] }),
+      e(2, "a", { tags: '["z"]', _add_tags: ["z"], _del_tags: ["x"] }),
+    ]);
+    expect(JSON.parse(d.fields)).toMatchObject({ tags: '["z"]', _add_tags: ["z"], _del_tags: ["y", "x"] });
+    const [c] = coalesceOutbox([e(1, "a", { id: "a", tags: '["x"]', _purged: null }), e(2, "a", { tags: '["x","z"]', _add_tags: ["z"], _del_tags: [] })]);
+    const merged = JSON.parse(c.fields);
+    expect(merged).toMatchObject({ id: "a", tags: '["x","z"]', _purged: null });
+    expect(merged).not.toHaveProperty("_add_tags");
+  });
+});
+
+describe("SYNC-11: toPatch", () => {
+  it("sends the row's time for a plain row, and a per-field map for a merged one, without _ts in the fields", () => {
+    expect(toPatch({ ...ob(1, "tasks", "a", { title: "x" }), created_at: "T1" })).toEqual({ seq: 1, tbl: "tasks", id: "a", fields: { title: "x" }, ts: "T1" });
+    expect(toPatch({ ...ob(2, "tasks", "a", { title: "x", pinned: 1, _ts: { title: "T0", pinned: "T2" } }), created_at: "T2" })).toEqual({
+      seq: 2, tbl: "tasks", id: "a", fields: { title: "x", pinned: 1 }, ts: { title: "T0", pinned: "T2" },
+    });
+    expect(toPatch({ ...ob(2, "tasks", "a", { title: "x", _ts: { title: "T2" } }), created_at: "T2" }).ts).toBe("T2");
+  });
 });

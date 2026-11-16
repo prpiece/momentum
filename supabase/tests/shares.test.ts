@@ -283,9 +283,9 @@ describe("membership", () => {
     expect(new Date(info[0].expires_at).getTime()).toBeLessThan(Date.now() + 14.01 * 86_400_000);
   });
 
-  it("share members can see each other's profiles, strangers can't", async () => {
+  it("share members see each other through share_people, never the profile row (SOC-13); strangers see nothing", async () => {
     expect((await E.db.from("profiles").select("id").eq("id", L.id)).data).toEqual([]);
-    expect((await E.db.from("profiles").select("id").eq("id", V.id)).data).toEqual([{ id: V.id }]);
+    expect((await E.db.from("profiles").select("id").eq("id", V.id)).data).toEqual([]);
     expect((await S.db.from("profiles").select("id").eq("id", O.id)).data).toEqual([]);
     const people = await rpc<{ account_id: string; role: string }[]>(E.db, "share_people", { p_share: shareF });
     expect(people[0]).toMatchObject({ account_id: O.id, role: "owner" });

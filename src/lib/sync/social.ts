@@ -265,5 +265,7 @@ export async function createWebhook(): Promise<string> {
   return typeof s === "string" && /^[0-9a-f]{48}$/.test(s) ? s : fail("bad reply");
 }
 export const deleteWebhook = () => call("delete_webhook").then(() => undefined);
-/** The webhook's URL (the secret is the last path segment). */
+/** The webhook's URL with the secret as its last path segment (older form, still accepted; SOC-21). */
 export const webhookUrl = (secret: string) => `${projectUrl}/functions/v1/inbound/webhook/${secret}`;
+/** The webhook's URL; the secret goes in the `X-Webhook-Secret` header, out of request logs (SOC-21). */
+export const webhookEndpoint = () => `${projectUrl}/functions/v1/inbound/webhook`;

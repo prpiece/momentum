@@ -52,7 +52,7 @@ export function pendingFields(outbox: OutboxRow[]): Map<string, Set<string>> {
     }
     if (typeof fields !== "object" || fields === null) continue;
     const set = out.get(rowKey(r.tbl, r.row_id)) ?? new Set<string>();
-    for (const f of Object.keys(fields)) set.add(f === "_delta" ? "value" : f);
+    for (const f of Object.keys(fields)) if (f !== "_ts") set.add(f === "_delta" ? "value" : f);
     out.set(rowKey(r.tbl, r.row_id), set);
   }
   return out;
@@ -156,6 +156,101 @@ export function pushBatches<T extends OutboxRow>(outbox: T[], maxCount = 500, ma
   }
   if (cur.length) out.push(cur);
   return out;
+}
+
+/** An outbox row with the local time it was written: the edit time of its fields (SYNC-11). */
+export type OutboxEntry = OutboxRow & { created_at: string };
+type Fields = Record<string, unknown>;
+/** JSON-array columns whose updates carry `_add_<c>`/`_del_<c>` set deltas (as scripts/sync-triggers.mjs SETS). */
+const SETS = ["exdates", "tags"];
+
+const parseFields = (s: string): Fields | null => {
+  try {
+    const v: unknown = JSON.parse(s);
+    return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Fields) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * When each column of an outbox row was edited: a merged row keeps its own map in `_ts`, any other row
+ * was edited at its `created_at`. Keys starting with `_` (deltas, markers) aren't columns and carry none.
+ */
+function fieldTimes(f: Fields, at: string): Record<string, string> {
+  const own = typeof f._ts === "object" && f._ts !== null ? (f._ts as Record<string, unknown>) : {};
+  return Object.fromEntries(Object.keys(f).filter((k) => !k.startsWith("_")).map((k) => [k, typeof own[k] === "string" ? own[k] : at]));
+}
+
+/** A delete, a purge or a move to the Trash: the server and other devices read these whole, so they're never merged. */
+const isTombstone = (f: Fields) => f.deleted_at != null || f._purged === 1 || f._purged === true;
+
+const strings = (v: unknown) => (Array.isArray(v) ? v : []);
+
+/** `a` then `b` as one patch: the server ends up where applying both in turn would leave it. */
+function mergePatch(a: Fields, atA: string, b: Fields, atB: string): Fields {
+  const out: Fields = { ...a, ...b };
+  if ("_delta" in a && "_delta" in b) out._delta = Number(a._delta) + Number(b._delta);
+  for (const c of SETS) {
+    const [ka, kd] = [`_add_${c}`, `_del_${c}`];
+    delete out[ka];
+    delete out[kd];
+    if (!(c in b)) {
+      if (ka in a) [out[ka], out[kd]] = [a[ka], a[kd]];
+      continue;
+    }
+    // A plain value (a create, an older app) replaces the set; a delta after it folds into that value.
+    if (!(ka in b) || (c in a && !(ka in a))) continue;
+    const [aa, ad, ba, bd] = [strings(a[ka]), strings(a[kd]), strings(b[ka]), strings(b[kd])];
+    out[ka] = [...new Set([...aa.filter((x) => !bd.includes(x)), ...ba])];
+    out[kd] = [...new Set([...ad.filter((x) => !ba.includes(x)), ...bd])];
+  }
+  out._ts = { ...fieldTimes(a, atA), ...fieldTimes(b, atB) };
+  return out;
+}
+
+/**
+ * SYNC-19: merges runs of consecutive outbox rows for the same record into the run's last row, so a
+ * dragged or retyped task queues one patch, not hundreds. Check-in increments add up, set deltas
+ * combine, and each field keeps the time it was edited (`_ts`, SYNC-11). Rows up to `sent` may already
+ * be on the server (a push that failed after it landed) and are left alone, as are tombstones.
+ * ponytail: only adjacent rows merge, so patches never change order against other records (the server's
+ * share checks read other rows); merge across rows if interleaved edits keep the outbox long.
+ */
+export function coalesceOutbox(rows: readonly OutboxEntry[], sent = 0): { seq: number; fields: string; drop: number[] }[] {
+  const out: { seq: number; fields: string; drop: number[] }[] = [];
+  let run: { row: OutboxEntry; f: Fields; at: string; drop: number[] } | null = null;
+  const close = () => {
+    if (run?.drop.length) out.push({ seq: run.row.seq, fields: JSON.stringify(run.f), drop: run.drop });
+    run = null;
+  };
+  for (const r of [...rows].sort((x, y) => x.seq - y.seq)) {
+    const f = r.seq > sent ? parseFields(r.fields) : null;
+    if (!f || isTombstone(f)) {
+      close();
+      continue;
+    }
+    if (run && run.row.tbl === r.tbl && run.row.row_id === r.row_id) {
+      run = { row: r, f: mergePatch(run.f, run.at, f, r.created_at), at: r.created_at, drop: [...run.drop, run.row.seq] };
+      continue;
+    }
+    close();
+    run = { row: r, f, at: r.created_at, drop: [] };
+  }
+  close();
+  return out;
+}
+
+/**
+ * An outbox row as sync_push takes it: the fields, and when they were edited (`ts`): one time for the
+ * whole patch, or a map per field for a merged row. Servers before SYNC-11 ignore `ts`.
+ */
+export function toPatch(r: OutboxEntry): { seq: number; tbl: string; id: string; fields: Fields; ts: string | Record<string, string> } {
+  const { _ts, ...fields } = parseFields(r.fields) ?? {};
+  if (typeof _ts !== "object" || _ts === null) return { seq: r.seq, tbl: r.tbl, id: r.row_id, fields, ts: r.created_at };
+  const times = fieldTimes({ ...fields, _ts }, r.created_at);
+  const one = new Set(Object.values(times));
+  return { seq: r.seq, tbl: r.tbl, id: r.row_id, fields, ts: one.size === 1 ? [...one][0] : times };
 }
 
 /** Two devices made a tag with the same name: both keep the smaller id, so they converge (D225). */

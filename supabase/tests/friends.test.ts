@@ -104,10 +104,12 @@ describe("friend links", () => {
     expect(await refusal(c.db, "redeem_invite", { p_code: code })).toContain("invite_invalid");
   });
 
-  it("friends see each other's profile, strangers don't", async () => {
+  it("friends see each other's name through my_friends, never the profile row (SOC-13); strangers see nothing", async () => {
     const [a, b, s] = await Promise.all([user(), user(), user()]);
     await rpc(b.db, "redeem_invite", { p_code: await rpc<string>(a.db, "create_friend_invite") });
-    expect((await b.db.from("profiles").select("handle").eq("id", a.id)).data).toEqual([{ handle: a.handle }]);
+    expect(await rpc(b.db, "my_friends")).toEqual([expect.objectContaining({ id: a.id, handle: a.handle })]);
+    expect((await b.db.from("profiles").select("handle").eq("id", a.id)).data).toEqual([]);
+    expect((await a.db.from("profiles").select("handle").eq("id", a.id)).data).toEqual([{ handle: a.handle }]);
     expect((await s.db.from("profiles").select("handle").eq("id", a.id)).data).toEqual([]);
     expect((await s.db.from("friendships").select("*")).data).toEqual([]);
   });
