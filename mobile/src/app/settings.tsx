@@ -69,6 +69,50 @@ export default function Settings() {
         <Text style={{ color: c.fg, fontSize: 16, flex: 1 }}>Start focus at time blocks</Text>
         <Switch value={s.autoFocus} onValueChange={(autoFocus) => update({ autoFocus })} accessibilityLabel="Start focus at time blocks" />
       </View>
+      {s.notify.enabled ? (
+        <>
+          {(
+            [
+              ["taskReminders", "Task reminders"],
+              ["habitReminders", "Habit reminders"],
+              ["starts", "Timed tasks and events as they start"],
+              ["focus", "Focus timer and time blocks"],
+              ["digest", "Daily summary"],
+            ] as const
+          ).map(([key, label]) => (
+            <View key={key} style={st.switchRow}>
+              <Text style={{ color: c.fg, fontSize: 16, flex: 1 }}>{label}</Text>
+              <Switch value={s.notify[key]} onValueChange={(v) => update({ notify: { ...s.notify, [key]: v } })} accessibilityLabel={label} />
+            </View>
+          ))}
+          {s.notify.digest ? (
+            <Segmented
+              value={s.notify.digestTime}
+              options={[...new Set(["07:00", "08:00", "09:00", s.notify.digestTime])].sort().map((t) => ({ value: t, label: t }))}
+              onChange={(digestTime) => update({ notify: { ...s.notify, digestTime } })}
+            />
+          ) : null}
+        </>
+      ) : null}
+      <Label>Focus timer (minutes)</Label>
+      {(
+        [
+          ["focusMin", "Focus", [15, 25, 45, 50]],
+          ["shortMin", "Short break", [3, 5, 10]],
+          ["longMin", "Long break", [15, 20, 30]],
+        ] as const
+      ).map(([key, label, presets]) => (
+        <View key={key} style={{ gap: 6, marginBottom: 8 }}>
+          <Text variant="meta" style={{ color: c.muted }}>{label}</Text>
+          <Segmented
+            value={String(s.pomodoro[key])}
+            options={[...new Set<number>([...presets, s.pomodoro[key]])].sort((x, y) => x - y).map((n) => ({ value: String(n), label: String(n) }))}
+            onChange={(v) => update({ pomodoro: { ...s.pomodoro, [key]: Number(v) } })}
+          />
+        </View>
+      ))}
+      <Label>Trash</Label>
+      <Button label="Deleted tasks" icon="trash-2" kind="secondary" onPress={() => router.push("/trash" as "/connections") /* typed routes regenerate on the next expo start */} />
       <Label>Connections</Label>
       <Button label="Discord, Slack, Telegram and webhook" icon="link" kind="secondary" onPress={() => router.push("/connections")} />
       <Text style={{ color: c.muted, marginTop: 24, fontSize: 13 }}>These settings sync with your other devices when you're signed in.</Text>

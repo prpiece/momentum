@@ -7,13 +7,30 @@ import { useSettings } from "@core/stores/settings";
 
 let timeout: ReturnType<typeof setTimeout> | undefined;
 let update: typeof import("./today").updateTodayWidgets = () => {};
+const now = () => {
+  const { tasks, lists } = useData.getState();
+  const at = new Date();
+  // iOS widgets can hold a timeline: queue tomorrow's list for the next day boundary so the widget turns over without the app (MOB-12).
+  // Android has no timeline; the background task and app launches refresh it.
+  const next = new Date(at);
+  next.setHours(useSettings.getState().settings.dayEndHour, 0, 0, 0);
+  if (next <= at) next.setDate(next.getDate() + 1);
+  update(todayWidgetProps(tasks, lists, todayLocal(at)), { date: next, props: todayWidgetProps(tasks, lists, todayLocal(new Date(next.getTime() + 60_000))) });
+};
 const push = () => {
   clearTimeout(timeout);
-  timeout = setTimeout(() => {
-    const { tasks, lists } = useData.getState();
-    update(todayWidgetProps(tasks, lists, todayLocal()));
-  }, 1000);
+  timeout = setTimeout(now, 1000);
 };
+
+/** Writes the snapshot immediately: the background task awaits this. */
+export function flushWidgets() {
+  clearTimeout(timeout);
+  try {
+    now();
+  } catch (e) {
+    console.warn("widgets", e); // no widget module in Expo Go
+  }
+}
 
 /** Writes the widget snapshot after task changes (debounced) and when the app comes to the front (a new day, a sync pull). Returns a cleanup. */
 export function startWidgets(): () => void {

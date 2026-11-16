@@ -8,7 +8,7 @@ import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import * as SecureStore from "expo-secure-store";
 import { Alert, AppState, Platform } from "react-native";
 import { setDriver, write } from "@core/db/client";
-import { setSnapshot, setSyncHost, startSync } from "@core/lib/sync/engine";
+import { setDeviceStore, setSnapshot, setSyncHost, startSync } from "@core/lib/sync/engine";
 import { configureSync, supabase } from "@core/lib/sync/supabase";
 import { hydrate } from "@core/stores/data";
 import { hydrateFocus } from "@core/stores/focus";
@@ -56,6 +56,9 @@ configureSync(process.env.EXPO_PUBLIC_SUPABASE_URL, process.env.EXPO_PUBLIC_SUPA
   set: (value) => SecureStore.setItemAsync(TOKEN, value),
   delete: () => SecureStore.deleteItemAsync(TOKEN),
 });
+
+// The device id also lives in the Keychain / Keystore, so a database copied to another phone is caught (SYNC-06).
+setDeviceStore({ get: () => SecureStore.getItemAsync("device_id"), set: (id) => SecureStore.setItemAsync("device_id", id) });
 
 // A suspended app runs no timers: refresh tokens only while in front, and sync on coming back
 // (and when the network returns). Pending changes push on the next run.

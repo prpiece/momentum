@@ -50,7 +50,13 @@ const TodayLock = (props: TodayWidgetProps, env: WidgetEnvironment) => {
 const today = createWidget("Today", Today, initial);
 const lock = createWidget("TodayLock", TodayLock, initial);
 
-export function updateTodayWidgets(props: TodayWidgetProps) {
+export function updateTodayWidgets(props: TodayWidgetProps, next?: { date: Date; props: TodayWidgetProps }) {
+  if (next) {
+    const entries = [{ date: new Date(), props }, next];
+    today.updateTimeline(entries);
+    lock.updateTimeline(entries);
+    return;
+  }
   today.updateSnapshot(props);
   lock.updateSnapshot(props);
 }

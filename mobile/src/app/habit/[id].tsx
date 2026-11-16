@@ -7,6 +7,7 @@ import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, i
 import { addHabit, removeHabit, setCheckin, tapCheckin, updateHabit, useHabits, valuesOf } from "@core/stores/habits";
 import { useSettings } from "@core/stores/settings";
 import { GUTTER, INSET, resolveColor, useColors } from "@/theme";
+import { KeyboardScroll } from "@/ui/KeyboardScroll";
 import { Button, Card, Field, FieldRow, Label, PageHeader, Segmented, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
 import { askText, choose } from "@/ui/Sheet";
@@ -133,7 +134,7 @@ export default function HabitScreen() {
   );
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+    <KeyboardScroll contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
       <PageHeader title={h ? h.name : "New habit"} sub={h ? [goalLabel(h.goal), frequencyLabel(h.frequency).toLowerCase()].filter(Boolean).join(" · ") : undefined} back={{ label: "Habits", onPress: () => router.back() }} />
       {h ? (
         <>
@@ -214,7 +215,7 @@ export default function HabitScreen() {
           </>
         ) : null}
       </View>
-    </ScrollView>
+    </KeyboardScroll>
   );
 }
 

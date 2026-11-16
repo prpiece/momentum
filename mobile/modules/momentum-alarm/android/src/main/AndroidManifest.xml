@@ -1,6 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <application>
+    <receiver android:name="expo.modules.momentumalarm.BootReceiver" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+      </intent-filter>
+    </receiver>
     <receiver android:name="expo.modules.momentumalarm.AlarmReceiver" android:exported="false" />
     <activity
       android:name="expo.modules.momentumalarm.AlarmActivity"

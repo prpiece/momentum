@@ -15,8 +15,8 @@ import { alarmsSupported, canUseFullScreenIntent, openFullScreenIntentSettings, 
 
 /*
  * Reminders as OS-scheduled local notifications (PLAN D230): the next week's fires are handed to
- * the OS, so they arrive with the app closed. No push, no background fetch: the schedule is
- * rebuilt on start, on resume and after any change to the data (which covers sync pulls).
+ * the OS, so they arrive with the app closed. No push: the schedule is rebuilt on start, on resume,
+ * after any change to the data (which covers sync pulls) and by the periodic background task (src/backgroundTask.ts).
  */
 
 const DAYS = 7;
@@ -174,6 +174,8 @@ async function apply() {
 }
 
 let chain = Promise.resolve();
+/** Reschedules now and resolves when done (the background task awaits it; the debounced `reschedule` is for the foreground). */
+export const refreshReminders = () => (chain = chain.then(apply).catch((e: unknown) => console.warn("reminders", e)));
 let timeout: ReturnType<typeof setTimeout> | undefined;
 /** Debounced: a burst of writes (or a sync pull) reschedules once. Runs never overlap. */
 const reschedule = () => {

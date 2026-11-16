@@ -22,6 +22,6 @@ const Today = (props: TodayWidgetProps, _env: WidgetEnvironment) => {
 
 const today = createWidget("Today", Today, initial);
 
-export function updateTodayWidgets(props: TodayWidgetProps) {
+export function updateTodayWidgets(props: TodayWidgetProps, _next?: { date: Date; props: TodayWidgetProps }) {
   today.updateSnapshot(props);
 }

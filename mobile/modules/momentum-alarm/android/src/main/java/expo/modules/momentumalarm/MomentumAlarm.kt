@@ -55,6 +55,46 @@ private fun alarmIntent(c: Context, id: String) =
     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
   )
 
+/** setAlarmClock is exact and needs no exact-alarm permission; the system also shows its alarm icon. */
+private fun arm(c: Context, id: String, at: Long) {
+  val show = PendingIntent.getActivity(c, 0, c.packageManager.getLaunchIntentForPackage(c.packageName), PendingIntent.FLAG_IMMUTABLE)
+  c.getSystemService(AlarmManager::class.java).setAlarmClock(AlarmManager.AlarmClockInfo(at, show), alarmIntent(c, id))
+}
+
+/**
+ * Posts the alarm notification. `ring` = full-screen intent plus a repeating sound (stops after a minute).
+ * Without it this is a plain high-importance notification, used for alarms the phone slept through.
+ */
+private fun post(c: Context, id: String, ring: Boolean) {
+  val prefs = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+  val title = prefs.getString("t:$id", "") ?: ""
+  val body = prefs.getString("b:$id", "") ?: ""
+  val url = prefs.getString("u:$id", "") ?: ""
+  val nid = id.hashCode()
+  ensureChannel(c)
+  val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+  val open = PendingIntent.getActivity(c, nid, Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(c.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags)
+  val b = Notification.Builder(c, CHANNEL)
+    .setSmallIcon(android.R.drawable.ic_lock_idle_alarm) // ponytail: stock icon; use the app's notification icon if one is added
+    .setContentTitle(title)
+    .setContentText(body)
+    .setCategory(Notification.CATEGORY_ALARM)
+    .setContentIntent(open)
+    .setAutoCancel(true)
+  if (ring) {
+    val screen = PendingIntent.getActivity(
+      c, nid,
+      Intent(c, AlarmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("nid", nid).putExtra("title", title).putExtra("body", body).putExtra("url", url),
+      flags,
+    )
+    // Without the full-screen-intent permission the system shows this as a plain heads-up notification.
+    b.setFullScreenIntent(screen, true).setTimeoutAfter(60_000) // stop ringing after a minute instead of until the battery dies
+  }
+  val n = b.build()
+  if (ring) n.flags = n.flags or Notification.FLAG_INSISTENT // repeat the sound until cancelled
+  c.getSystemService(NotificationManager::class.java).notify(nid, n)
+}
+
 class MomentumAlarmModule : Module() {
   private val ctx get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
@@ -78,48 +118,38 @@ class MomentumAlarmModule : Module() {
       val am = ctx.getSystemService(AlarmManager::class.java)
       val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
       for (old in prefs.getStringSet(IDS, emptySet()).orEmpty()) am.cancel(alarmIntent(ctx, old))
-      val show = PendingIntent.getActivity(ctx, 0, ctx.packageManager.getLaunchIntentForPackage(ctx.packageName), PendingIntent.FLAG_IMMUTABLE)
       val edit = prefs.edit().clear()
       for (a in alarms) {
-        // setAlarmClock is exact and needs no exact-alarm permission; the system also shows its alarm icon.
-        am.setAlarmClock(AlarmManager.AlarmClockInfo(a.at.toLong(), show), alarmIntent(ctx, a.id))
-        edit.putString("t:${a.id}", a.title).putString("b:${a.id}", a.body).putString("u:${a.id}", a.url)
+        arm(ctx, a.id, a.at.toLong())
+        edit.putLong("a:${a.id}", a.at.toLong()).putString("t:${a.id}", a.title).putString("b:${a.id}", a.body).putString("u:${a.id}", a.url)
       }
       edit.putStringSet(IDS, alarms.map { it.id }.toSet()).apply()
     }
   }
 }
 
-/** Posts the alarm as a full-screen notification that keeps ringing until it is cancelled. */
+/** The alarm time came: ring. */
 class AlarmReceiver : BroadcastReceiver() {
   override fun onReceive(c: Context, i: Intent) {
-    val id = i.getStringExtra("id") ?: return
+    post(c, i.getStringExtra("id") ?: return, ring = true)
+  }
+}
+
+/**
+ * AlarmManager forgets every alarm on reboot: re-arm the stored ones that are still ahead, and
+ * post the ones that went off while the phone was off as a plain notification (MOB-07).
+ * Needs RECEIVE_BOOT_COMPLETED; the stored alarms are replaced by the next setAlarms from the app.
+ */
+class BootReceiver : BroadcastReceiver() {
+  override fun onReceive(c: Context, i: Intent) {
+    if (i.action != Intent.ACTION_BOOT_COMPLETED) return
     val prefs = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-    val title = prefs.getString("t:$id", "") ?: ""
-    val body = prefs.getString("b:$id", "") ?: ""
-    val url = prefs.getString("u:$id", "") ?: ""
-    val nid = id.hashCode()
-    ensureChannel(c)
-    val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-    val ring = PendingIntent.getActivity(
-      c, nid,
-      Intent(c, AlarmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("nid", nid).putExtra("title", title).putExtra("body", body).putExtra("url", url),
-      flags,
-    )
-    val open = PendingIntent.getActivity(c, nid, Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(c.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags)
-    // Without the full-screen-intent permission the system shows this as a plain heads-up notification.
-    val n = Notification.Builder(c, CHANNEL)
-      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm) // ponytail: stock icon; use the app's notification icon if one is added
-      .setContentTitle(title)
-      .setContentText(body)
-      .setCategory(Notification.CATEGORY_ALARM)
-      .setContentIntent(open)
-      .setFullScreenIntent(ring, true)
-      .setAutoCancel(true)
-      .setTimeoutAfter(60_000) // stop ringing after a minute instead of until the battery dies
-      .build()
-    n.flags = n.flags or Notification.FLAG_INSISTENT // repeat the sound until cancelled
-    c.getSystemService(NotificationManager::class.java).notify(nid, n)
+    val now = System.currentTimeMillis()
+    for (id in prefs.getStringSet(IDS, emptySet()).orEmpty()) {
+      val at = prefs.getLong("a:$id", 0L)
+      if (at <= 0L) continue
+      if (at > now) arm(c, id, at) else if (now - at < 24 * 3_600_000L) post(c, id, ring = false)
+    }
   }
 }
 

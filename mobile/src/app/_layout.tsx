@@ -11,6 +11,7 @@ import { setLocalState, state as localState } from "@core/lib/sync/engine";
 import { useData } from "@core/stores/data";
 import { useHabits } from "@core/stores/habits";
 import { ready } from "@/boot";
+import { registerBackgroundRefresh } from "@/backgroundTask";
 import { startReminders } from "@/notify";
 import { updatedSinceLastRun } from "@/whatsNew";
 import { FONTS, useColors } from "@/theme";
@@ -38,7 +39,9 @@ export default function RootLayout() {
   const ok = state === "ok" && fonts;
   // After the Stack mounts, so a tapped notification can navigate.
   useEffect(() => {
-    if (ok) return startReminders();
+    if (!ok) return;
+    void registerBackgroundRefresh().catch((e: unknown) => console.warn("background refresh", e)); // unsupported in Expo Go
+    return startReminders();
   }, [ok]);
   // Onboarding on a first run; otherwise, once after an update, What's new.
   useEffect(() => {
@@ -78,6 +81,7 @@ export default function RootLayout() {
         <Stack.Screen name="share" options={{ headerShown: false }} />
         <Stack.Screen name="invite/[code]" options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="connections" options={{ title: "Connections" }} />
+        <Stack.Screen name="trash" options={{ title: "Trash" }} />
       </Stack>
       <ToastHost />
       <QuickAddHost />

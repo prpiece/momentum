@@ -16,5 +16,5 @@ export const alarmsSupported = native !== null;
 /** Below Android 14 the manifest permission is enough; on 14+ the user grants it in settings. */
 export const canUseFullScreenIntent = () => native?.canUseFullScreenIntent() ?? false;
 export const openFullScreenIntentSettings = () => native?.openFullScreenIntentSettings();
-/** Replaces every previously set alarm with these. ponytail: AlarmManager forgets them on reboot until the app next opens; add a BOOT_COMPLETED receiver if that bites. */
+/** Replaces every previously set alarm with these. The native BootReceiver re-arms them after a reboot from what this call stored. */
 export const setAlarms = (alarms: Alarm[]) => native?.setAlarms(alarms);

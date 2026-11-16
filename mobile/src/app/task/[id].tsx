@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { droppedSchedule } from "@core/domain/calendar";
 import { addDaysLocal, atLocalTime, durationMinutes, formatMinutes, formatTime, hhmm, relativeDayLabel, scheduleDate, timed, todayLocal } from "@core/domain/dates";
@@ -15,6 +15,7 @@ import { startFocus } from "@core/stores/focus";
 import { useSettings } from "@core/stores/settings";
 import { deleteTasks, editTask, toggleDone } from "@core/stores/taskActions";
 import { FONTS, GUTTER, resolveColor, useColors } from "@/theme";
+import { KeyboardScroll } from "@/ui/KeyboardScroll";
 import { Button, Card, FieldRow, Icon, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
 import { askAlarmPermission, askNotificationPermission } from "@/notify";
@@ -217,7 +218,7 @@ export default function TaskSheet() {
 
   return (
     <View style={s.page}>
-      <ScrollView keyboardShouldPersistTaps="handled">
+      <KeyboardScroll keyboardShouldPersistTaps="handled">
         <View style={s.head}>
           <Ring checked={complete.checked} color={t.priority ? resolveColor(c, PRIORITY_VAR[t.priority]) : c.controlBorder} onPress={viewer ? () => undefined : complete.toggle} label={`${done ? "Mark not done" : "Complete"} ${t.title}`} size={24} />
           <View style={{ flex: 1, paddingTop: 6 }}>
@@ -313,7 +314,7 @@ export default function TaskSheet() {
           }}
         />
         </View>
-      </ScrollView>
+      </KeyboardScroll>
     </View>
   );
 }

@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Switch, View } from "react-native";
+import { StyleSheet, Switch, View } from "react-native";
 import { hhmmOf } from "@core/domain/calendar";
 import { atLocalTime, durationMinutes, fromLocalDate, hhmm, scheduleDate, timed, toLocalDate } from "@core/domain/dates";
 import { scheduleForKey, summarizeSchedule } from "@core/domain/recurrence";
@@ -9,6 +9,7 @@ import { addEvent, updateEvent, useData } from "@core/stores/data";
 import { createFromText } from "@core/stores/quickAddSubmit";
 import { applySchedule, deleteEvent } from "@core/stores/schedule";
 import { useColors } from "@/theme";
+import { KeyboardScroll } from "@/ui/KeyboardScroll";
 import { Button, Field, Label, Segmented, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
 
@@ -32,14 +33,14 @@ function NewItem({ day, minute }: { day: LocalDate; minute: number | null }) {
     router.back();
   };
   return (
-    <ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
+    <KeyboardScroll contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
       <Stack.Screen options={{ title: summarizeSchedule(schedule, null) }} />
       <Segmented value={kind} options={[{ value: "event", label: "Event" }, { value: "task", label: "Task" }]} onChange={setKind} />
       <View style={{ height: 12 }} />
       <Field value={title} onChangeText={setTitle} onSubmitEditing={save} autoFocus placeholder={kind === "task" ? "Task (tokens like !high #tag work)" : "Event title"} returnKeyType="done" />
       <View style={{ height: 12 }} />
       <Button label={`Add ${kind}`} onPress={save} disabled={!title.trim()} />
-    </ScrollView>
+    </KeyboardScroll>
   );
 }
 
@@ -72,7 +73,7 @@ function EditEvent({ id, occurrence }: { id: string; occurrence: string | null }
   };
 
   return (
-    <ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
+    <KeyboardScroll contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
       <Field value={title} editable={!readOnly} onChangeText={setTitle} onEndEditing={() => title.trim() && title !== e.title && updateEvent(id, { title: title.trim() })} style={{ fontSize: 20, fontWeight: "600" }} />
       {readOnly ? <Text style={{ color: c.muted, marginTop: 8 }}>Imported events are read-only.</Text> : null}
       <Label>When</Label>
@@ -108,7 +109,7 @@ function EditEvent({ id, occurrence }: { id: string; occurrence: string | null }
           <Button label="Delete event" icon="trash-2" kind="danger" onPress={async () => (await deleteEvent(id, occurrence)) && router.back()} />
         </>
       ) : null}
-    </ScrollView>
+    </KeyboardScroll>
   );
 }
 

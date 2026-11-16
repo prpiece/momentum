@@ -1,3 +1,4 @@
+import { useKeepAwake } from "expo-keep-awake";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
@@ -23,6 +24,7 @@ const PHASE = { focus: "Focus", short: "Short break", long: "Long break" } as co
 /** Focus (S8): a timer or stopwatch, optionally on a task. Time comes from timestamps, so it's right after the phone sleeps. */
 export default function Focus() {
   const c = useColors();
+  useKeepAwake(); // the timer face stays on while this screen is open (MOB-19)
   const insets = useSafeAreaInsets();
   const timer = useFocus((s) => s.timer);
   const sessions = useFocus((s) => s.sessions);

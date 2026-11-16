@@ -44,7 +44,7 @@ export function Sheet({ visible, onClose, children, label }: { visible: boolean;
  * The keyboard's height, from the OS events. A Modal's window doesn't resize for the keyboard on
  * Android (edge-to-edge), and neither KeyboardAvoidingView nor Reanimated's tracker sees it there.
  */
-function useKeyboardHeight() {
+export function useKeyboardHeight() {
   const [h, setH] = useState(0);
   useEffect(() => {
     const ios = Platform.OS === "ios";

@@ -2,11 +2,12 @@ import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import { reportProblem, sendReport, type Screenshot } from "@core/lib/sync/report";
 import { supabase, syncConfigured } from "@core/lib/sync/supabase";
 import { toast } from "@core/stores/toast";
 import { useColors } from "@/theme";
+import { KeyboardScroll } from "@/ui/KeyboardScroll";
 import { Button, Field, Label, Text } from "@/ui/kit";
 
 /** Same form as the desktop's Settings → Help → Report a problem: name, email, description, optional screenshot. */
@@ -54,7 +55,7 @@ export default function Report() {
       </View>
     );
   return (
-    <ScrollView contentContainerStyle={st.page} keyboardShouldPersistTaps="handled">
+    <KeyboardScroll contentContainerStyle={st.page} keyboardShouldPersistTaps="handled">
       <Label>Name (optional)</Label>
       <Field value={name} onChangeText={setName} maxLength={100} autoComplete="name" />
       <Label>Email, so we can reply</Label>
@@ -68,7 +69,7 @@ export default function Report() {
         {state === "sending" ? <ActivityIndicator color={c.accent} /> : null}
         <Button label={state === "sending" ? "Sending…" : "Send report"} onPress={send} disabled={!!invalid || state === "sending"} />
       </View>
-    </ScrollView>
+    </KeyboardScroll>
   );
 }
 
