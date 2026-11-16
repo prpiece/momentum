@@ -19,6 +19,7 @@ import { IconTile } from "../components/ui/AppIcon";
 import { useData } from "../stores/data";
 import { useHabits } from "../stores/habits";
 import { useUi } from "../stores/ui";
+import { QUADRANT_INFO } from "../domain/matrix";
 import { reducedMotion } from "./motion";
 
 /*
@@ -84,11 +85,65 @@ const DROP_TYPES: readonly DropData["type"][] = ["list", "smart", "task", "secti
 const isDropData = (v: unknown): v is DropData =>
   typeof v === "object" && v !== null && "type" in v && (DROP_TYPES as readonly unknown[]).includes(v.type);
 
+/**
+ * `onKeyDown` for a draggable row that also opens on Enter. Spreading `listeners` and then setting
+ * `onKeyDown` would replace dnd-kit's handler and kill keyboard dragging (Space), so chain to it.
+ */
+export const rowKeys = (open: () => void, dragKeys: Function | undefined) => (e: React.KeyboardEvent) => {
+  if (e.target !== e.currentTarget) return;
+  if (e.key === "Enter") open();
+  else dragKeys?.(e);
+};
+
 let lastDragEnd = 0;
 /** True right after a drag ended: the trailing click must not open the dragged item. */
 export const justDragged = () => Date.now() - lastDragEnd < 250;
 /** Custom pointer gestures (calendar resize) call this so their trailing click is ignored too. */
 export const markDragged = () => void (lastDragEnd = Date.now());
+
+// ---------- screen-reader text for keyboard drags ----------
+
+function dragName(d: unknown): string {
+  if (!isDragData(d)) return "item";
+  const { tasks, events, lists, sections } = useData.getState();
+  switch (d.type) {
+    case "task": return tasks[d.id]?.title ?? "task";
+    case "block": return (d.source === "event" ? events[d.id]?.title : tasks[d.id]?.title) ?? "item";
+    case "habit": return useHabits.getState().habits[d.id]?.name ?? "habit";
+    case "column": return sections[d.id]?.name ?? "column";
+    case "listrow": return lists[d.id]?.name ?? "list";
+    case "folder": return useData.getState().folders[d.id]?.name ?? "folder";
+  }
+}
+
+function dropName(d: unknown): string {
+  if (!isDropData(d)) return "a drop target";
+  const { tasks, lists, sections } = useData.getState();
+  switch (d.type) {
+    case "list": return lists[d.listId]?.name ?? "list";
+    case "smart": return d.id;
+    case "task": return `${tasks[d.id]?.title ?? "task"}`;
+    case "section": return d.sectionId ? (sections[d.sectionId]?.name ?? "section") : "no section";
+    case "kanban-column": return d.sectionId ? (sections[d.sectionId]?.name ?? "column") : "Unsectioned";
+    case "slot": return d.mode === "allDay" ? `${d.date}, all day` : d.date;
+    case "arrange": return "the unscheduled panel";
+    case "quadrant": return QUADRANT_INFO[d.q].title;
+    case "habit": return useHabits.getState().habits[d.id]?.name ?? "habit";
+    case "column": return sections[d.id]?.name ?? "column";
+    case "folder": return d.id ? (useData.getState().folders[d.id]?.name ?? "folder") : "the top level";
+  }
+}
+
+const ANNOUNCEMENTS = {
+  onDragStart: ({ active }: { active: { data: { current?: unknown } } }) => `Picked up ${dragName(active.data.current)}.`,
+  onDragOver: ({ active, over }: { active: { data: { current?: unknown } }; over: { data: { current?: unknown } } | null }) =>
+    over ? `${dragName(active.data.current)} is over ${dropName(over.data.current)}.` : `${dragName(active.data.current)} is not over a drop target.`,
+  onDragEnd: ({ active, over }: { active: { data: { current?: unknown } }; over: { data: { current?: unknown } } | null }) =>
+    over ? `Dropped ${dragName(active.data.current)} on ${dropName(over.data.current)}.` : `${dragName(active.data.current)} was dropped. Nothing changed.`,
+  onDragCancel: ({ active }: { active: { data: { current?: unknown } } }) => `Cancelled. ${dragName(active.data.current)} was not moved.`,
+};
+
+const DRAG_INSTRUCTIONS = "To pick up, press Space. Use the arrow keys to choose where to drop it, Space to drop, Escape to cancel.";
 
 export function DndRoot({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<DragData | null>(null);
@@ -110,6 +165,7 @@ export function DndRoot({ children }: { children: ReactNode }) {
   return (
     <DndContext
       sensors={sensors}
+      accessibility={{ announcements: ANNOUNCEMENTS, screenReaderInstructions: { draggable: DRAG_INSTRUCTIONS } }}
       collisionDetection={collision}
       onDragStart={(e: DragStartEvent) => {
         const d = e.active.data.current;

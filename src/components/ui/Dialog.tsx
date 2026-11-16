@@ -28,7 +28,7 @@ export function Dialog(props: { onClose: () => void; children: ReactNode; label:
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
       // Stacked dialogs (an image viewer over a task window): only the top one reacts.
-      if (ref.current !== [...document.querySelectorAll("[role=dialog]")].pop()) return;
+      if (ref.current !== [...document.querySelectorAll("[role=dialog], [role=menu]")].pop()) return;
       if (e.key === "Escape") {
         e.stopPropagation();
         onClose();
@@ -75,10 +75,13 @@ export function Button(props: {
   disabled?: boolean;
   className?: string;
   title?: string;
+  /** Single-key shortcut, exposed to assistive tech. */
+  keys?: string;
 }) {
   return (
     <button
       type={props.type ?? "button"}
+      aria-keyshortcuts={props.keys}
       onClick={props.onClick}
       disabled={props.disabled}
       title={props.title}

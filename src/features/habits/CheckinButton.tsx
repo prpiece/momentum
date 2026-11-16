@@ -2,6 +2,7 @@ import { Check, Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { Popover } from "../../components/ui/Popover";
 import { accentForeground } from "../../domain/color";
+import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { isBuild, isDone, isWeeklyTotal, periodValue, targetOf, unitOf, type Habit } from "../../domain/habits";
 import type { LocalDate } from "../../domain/types";
 import { setCheckin, tapCheckin, useHabits, valuesOf } from "../../stores/habits";
@@ -41,6 +42,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
       : quit
         ? `${habit.name}: ${failed ? `slipped ${value}×` : "no slips"}`
         : `${habit.name}: ${fmt(value)} of ${build ? "" : "max "}${fmt(target)} ${unit}`.trimEnd();
+  const day = relativeDayLabel(date, todayLocal());
   const fill = build ? (done ? habit.color : "transparent") : failed ? "var(--danger)" : quit ? habit.color : "transparent";
 
   return (
@@ -48,7 +50,7 @@ export function CheckinButton({ habit, date, size = 36 }: { habit: Habit; date: 
       <button
         ref={anchor}
         type="button"
-        aria-label={label}
+        aria-label={`${label}, ${day}`}
         title={`${label} (right-click for more)`}
         aria-pressed={habit.goal.kind === "once" ? done : undefined}
         onClick={(e) => {

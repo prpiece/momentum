@@ -73,7 +73,7 @@ function Section({ title, items, empty, actions, act, hint, dates }: { title: st
                 {dates && vm.date && <span className="shrink-0 text-[length:var(--fs-sm)] text-muted tabular-nums">{relativeDayLabel(vm.date, dates)}</span>}
                 <span className="flex shrink-0 gap-1">
                   {actions.map((a) => (
-                    <button key={a} type="button" onClick={() => act[a](vm)} className={`btn btn-ghost btn-sm ${a === "del" ? "text-danger" : ""}`}>
+                    <button key={a} type="button" aria-label={`${LABEL[a]}: ${vm.task.title}`} onClick={() => act[a](vm)} className={`btn btn-ghost btn-sm ${a === "del" ? "text-danger" : ""}`}>
                       {LABEL[a]}
                     </button>
                   ))}

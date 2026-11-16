@@ -23,6 +23,16 @@ import { matchScore } from "../../domain/taskViews";
 import { go } from "../../stores/ui";
 
 // Drop a habit row on another to reorder (and adopt that row's group).
+/** Alt+Up / Alt+Down: the keyboard way to reorder a habit within its group. */
+function nudgeHabit(id: string, by: -1 | 1) {
+  const { habits } = useHabits.getState();
+  const h = habits[id];
+  if (!h) return;
+  const sibs = Object.values(habits).filter((x) => x.groupId === h.groupId && !x.archived).sort((a, b) => a.sortOrder - b.sortOrder);
+  const to = sibs.findIndex((x) => x.id === id) + by;
+  if (to >= 0 && to < sibs.length) reorderHabit(id, to, sibs.map((x) => x.id));
+}
+
 onDrop("habit", (drag, drop) => {
   if (drag.type !== "habit" || drag.id === drop.id) return;
   const { habits } = useHabits.getState();
@@ -197,6 +207,10 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
       {...attributes}
       {...listeners}
       onClick={props.onSelect}
+      onKeyDown={(e) => {
+        if (e.target === e.currentTarget && e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) (e.preventDefault(), nudgeHabit(h.id, e.key === "ArrowUp" ? -1 : 1));
+        else listeners?.onKeyDown?.(e);
+      }}
       onContextMenu={(e) => openContextMenu(e, habitMenu(h, props.date, props.onEdit))}
       className={`group relative flex min-h-[60px] items-center gap-3 px-3.5 py-2 ${props.selected ? "bg-accent-soft" : "hover:bg-surface-2"} ${isDragging ? "bg-accent-soft opacity-40" : ""} ${scheduled ? "" : "opacity-60"}`}
     >

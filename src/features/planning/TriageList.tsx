@@ -35,13 +35,14 @@ export function TriageList({ items, keepLabel = "Keep", onAct, onDone }: { items
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[length:var(--fs-sm)] text-muted tabular-nums">{left.length} left</p>
-      <div className="card">
+      {/* The card changes under the user after every key press, so say what is current. */}
+      <div className="card" aria-live="polite" aria-atomic="true">
         <div className="font-medium">{cur.task.title}</div>
         {cur.date && <div className="text-[length:var(--fs-sm)] text-muted tabular-nums">{cur.date}</div>}
       </div>
       <div className="flex flex-wrap gap-2">
         {(["keep", "tomorrow", "someday", "drop"] as const).map((a) => (
-          <Button key={a} variant={a === "keep" ? "primary" : "secondary"} onClick={() => act(a)}>
+          <Button key={a} variant={a === "keep" ? "primary" : "secondary"} onClick={() => act(a)} keys={a === "keep" ? "K" : a[0].toUpperCase()}>
             {a === "keep" ? keepLabel : LABEL[a]} <span className="kbd">{a === "keep" ? "K" : a[0].toUpperCase()}</span>
           </Button>
         ))}

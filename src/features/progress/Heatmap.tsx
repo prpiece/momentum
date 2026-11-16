@@ -16,6 +16,8 @@ export function Heatmap({ values, today, weeks, weekStart }: { values: Map<Local
   const cols = Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, d) => addDaysLocal(first, w * 7 + d)));
   const total = [...values.values()].reduce((a, b) => a + b, 0);
   const shown = hover ?? null;
+  const busiest = max > 0 ? [...values.entries()].find(([, n]) => n === max)?.[0] : undefined;
+  const summary = `Completions per day, last ${weeks} weeks: ${total} tasks${busiest ? `, most on ${format(fromLocalDate(busiest), "MMMM d")} with ${max}` : ""}`;
 
   return (
     <figure>
@@ -31,7 +33,7 @@ export function Heatmap({ values, today, weeks, weekStart }: { values: Map<Local
         )}
       </div>
       <div className="pb-1">
-        <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }} role="img" aria-label={`Completions per day, last ${weeks} weeks`} onMouseLeave={() => setHover(null)}>
+        <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }} role="img" aria-label={summary} onMouseLeave={() => setHover(null)}>
           {cols.map((col, w) => (
             <div key={w} className="flex flex-col gap-[3px]">
               {col.map((d) =>

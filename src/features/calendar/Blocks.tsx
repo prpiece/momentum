@@ -1,16 +1,17 @@
 import { useDraggable } from "@dnd-kit/core";
 import { Check, PanelRightOpen, Repeat, Trash2 } from "lucide-react";
 import { memo, useState } from "react";
-import { minutesInDay, resizedSchedule, type CalItem, type Placed } from "../../domain/calendar";
+import { minutesInDay, nudgedSchedule, resizedSchedule, type CalItem, type Placed } from "../../domain/calendar";
 import { formatTime } from "../../domain/dates";
 import type { Schedule } from "../../domain/types";
+import { announce } from "../../lib/announce";
 import { justDragged, markDragged } from "../../lib/dnd";
 import { useSettings } from "../../stores/settings";
 import { go, openContextMenu, openEvent, openTask, type MenuEntry } from "../../stores/ui";
 import { toggleDone } from "../tasks/actions";
 import { taskMenu } from "../tasks/taskMenu";
 import { minuteAt, pxPerMinute } from "./calendarActions";
-import { applySchedule, deleteEvent } from "../../stores/schedule";
+import { applySchedule, currentSchedule, deleteEvent } from "../../stores/schedule";
 
 export function openItem(item: CalItem) {
   if (justDragged()) return;
@@ -46,6 +47,27 @@ function useBlockDrag(item: CalItem, scope: string) {
     data: { type: "block", id: item.id, key: item.key, edge: null, source: item.source === "task" ? "task" : "event" },
     disabled: item.readOnly,
   });
+}
+
+/**
+ * Keyboard path for a block or chip (FEAT-15): Enter opens it; Alt+Arrows move it (up/down by 15 minutes,
+ * left/right by a day), Alt+Shift+Up/Down resizes it; Space still picks it up with dnd-kit's keyboard sensor.
+ */
+const ARROWS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" } as const;
+function blockKeys(item: CalItem, dragKeys: Function | undefined) {
+  return (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter") return openItem(item);
+    const dir = e.altKey && !e.ctrlKey && !e.metaKey ? ARROWS[e.key as keyof typeof ARROWS] : undefined;
+    if (!dir) return dragKeys?.(e);
+    e.preventDefault();
+    if (item.readOnly) return;
+    const ref = { source: item.source, id: item.id, key: item.key };
+    const current = currentSchedule(ref);
+    const next = nudgedSchedule(current, dir, e.shiftKey);
+    if (JSON.stringify(next) === JSON.stringify(current)) return;
+    void applySchedule(ref, next).then(() => announce(`${item.title} ${e.shiftKey ? "resized" : "moved"}`));
+  };
 }
 
 function DoneCheck({ item }: { item: CalItem }) {
@@ -126,7 +148,7 @@ export const TimeBlock = memo(function TimeBlock({ placed, day }: { placed: Plac
       {...listeners}
       onClick={() => openItem(item)}
       onContextMenu={onItemMenu(item)}
-      onKeyDown={(e) => e.key === "Enter" && openItem(item)}
+      onKeyDown={blockKeys(item, listeners?.onKeyDown)}
       aria-label={`${item.title}, ${label}`}
       className={`group absolute overflow-hidden rounded-control border px-2 py-1 text-[length:var(--fs-xs)] leading-[var(--lh-xs)] transition-opacity duration-[var(--dur)] hover:z-10 ${
         item.readOnly ? "cursor-default" : "cursor-grab"
@@ -166,7 +188,7 @@ export const Chip = memo(function Chip({ item, scope, showTime }: { item: CalIte
       {...listeners}
       onClick={() => openItem(item)}
       onContextMenu={onItemMenu(item)}
-      onKeyDown={(e) => e.key === "Enter" && openItem(item)}
+      onKeyDown={blockKeys(item, listeners?.onKeyDown)}
       title={item.title}
       className={`@container flex h-5 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden rounded-xs border px-1.5 text-[length:var(--fs-xs)] leading-none hover:bg-surface-2 ${item.readOnly ? "" : "cursor-grab"} ${
         isDragging ? "opacity-30" : ""

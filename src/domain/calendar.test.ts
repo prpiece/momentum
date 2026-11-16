@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarItems, dayRange, daySummary, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, movedSpan, rangeTitle, resizedEnd, resizedSchedule, snap, stepAnchor, viewDays, type CalItem } from "./calendar";
+import { calendarItems, dayRange, daySummary, droppedSchedule, itemsOnDay, layoutDay, minutesInDay, movedSpan, nudgedSchedule, rangeTitle, resizedEnd, resizedSchedule, snap, stepAnchor, viewDays, type CalItem } from "./calendar";
 import { atLocalTime, timed, wallKey } from "./dates";
 import { toVM, type TaskVM } from "./taskViews";
 import type { CalendarEvent, Schedule, Task } from "./types";
@@ -286,5 +286,27 @@ describe("drag clamping", () => {
     expect(resizedEnd(600, 605)).toBe(615);
     expect(resizedEnd(600, 700)).toBe(705);
     expect(resizedEnd(600, 9999)).toBe(1440);
+  });
+});
+
+describe("keyboard nudges", () => {
+  const block = timed(atLocalTime("2026-10-26", "09:00"), 45);
+  const key = (s: Schedule) => (s.kind === "timed" ? `${wallKey(new Date(s.start))}..${wallKey(new Date(s.end))}` : JSON.stringify(s));
+
+  it("moves a timed block by a step or a day, keeping its length", () => {
+    expect(key(nudgedSchedule(block, "down"))).toBe("2026-10-26T09:15..2026-10-26T10:00");
+    expect(key(nudgedSchedule(block, "up"))).toBe("2026-10-26T08:45..2026-10-26T09:30");
+    expect(key(nudgedSchedule(block, "right"))).toBe("2026-10-27T09:00..2026-10-27T09:45");
+  });
+
+  it("resizes only the end, never below one step", () => {
+    expect(key(nudgedSchedule(block, "down", true))).toBe("2026-10-26T09:00..2026-10-26T10:00");
+    expect(key(nudgedSchedule(timed(atLocalTime("2026-10-26", "09:00"), 15), "up", true))).toBe("2026-10-26T09:00..2026-10-26T09:15");
+  });
+
+  it("moves day items a day or a week, and leaves unscheduled alone", () => {
+    expect(nudgedSchedule({ kind: "day", date: "2026-10-26" }, "right")).toEqual({ kind: "day", date: "2026-10-27" });
+    expect(nudgedSchedule({ kind: "day", date: "2026-10-26" }, "up")).toEqual({ kind: "day", date: "2026-10-19" });
+    expect(nudgedSchedule({ kind: "none" }, "up")).toEqual({ kind: "none" });
   });
 });

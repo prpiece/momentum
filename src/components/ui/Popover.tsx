@@ -17,6 +17,8 @@ export function Popover(props: {
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // A popover holding menu items is a menu, anything else a dialog (a nested role=menu, as ContextMenu has, keeps it a dialog wrapper).
+  const [role, setRole] = useState<"dialog" | "menu">("dialog");
   const [pos, setPos] = useState<{ top: number; left: number; origin: string } | null>(null);
   const { anchor, onClose, align = "start" } = props;
 
@@ -38,6 +40,11 @@ export function Popover(props: {
     // Grows from the corner nearest its anchor (transitions.dev menu dropdown, D208).
     setPos({ top, left, origin: `${top < r.top ? "bottom" : "top"} ${align === "end" ? "right" : "left"}` });
   }, [anchor, align]);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el?.querySelector("[role=menuitem]") && !el.querySelector("[role=menu]")) setRole("menu");
+  }, []);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -95,7 +102,8 @@ export function Popover(props: {
   return createPortal(
     <div
       ref={ref}
-      role="dialog"
+      role={role}
+      aria-label={("current" in anchor ? anchor.current : anchor.from)?.getAttribute("aria-label") ?? undefined}
       onKeyDown={onKeyDown}
       className={`layer layer-raised anim-pop-in fixed z-50 min-w-[200px] rounded-card p-1 ${props.className ?? ""}`}
       style={pos ? { top: pos.top, left: pos.left, transformOrigin: pos.origin } : { top: -9999, left: -9999 }}

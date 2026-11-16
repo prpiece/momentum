@@ -1,4 +1,5 @@
 import type { Task } from "../../domain/types";
+import { announce } from "../../lib/announce";
 import { withUndo } from "../../stores/undo";
 import * as data from "../../stores/data";
 import { closeDrawer, setSelection, useUi } from "../../stores/ui";
@@ -11,7 +12,18 @@ import * as shared from "../../stores/taskActions";
 
 const task = (id: string) => data.useData.getState().tasks[id];
 
-export { toggleDone, setWontDo } from "../../stores/taskActions";
+export function toggleDone(id: string, key: string | null = null) {
+  const t = task(id);
+  shared.toggleDone(id, key);
+  // Completing speaks through its undo toast; reopening has none, so say it (FEAT-15).
+  if (t && t.status !== "open" && task(id)?.status === "open") announce(`Reopened ${t.title}`);
+}
+
+export function setWontDo(id: string, key: string | null = null) {
+  const t = task(id);
+  shared.setWontDo(id, key);
+  if (t?.status === "wont_do" && task(id)?.status === "open") announce(`Reopened ${t.title}`);
+}
 
 /** Delete with recurrence scope prompt and undo, then close the drawer and drop the selection. */
 export async function deleteTasks(ids: string[], key: string | null = null) {

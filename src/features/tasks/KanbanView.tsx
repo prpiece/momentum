@@ -1,18 +1,18 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import { horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { ArrowRightLeft, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
-import { onDrop } from "../../lib/dnd";
+import { onDrop, rowKeys } from "../../lib/dnd";
 import { confirmShareMove } from "../friends/moveGuard";
 import { insertionIndex, placeAt } from "./kanbanDrop";
 import { addSection, mayEdit, moveSection, moveTasks, removeSection, updateSection, updateTask, useData } from "../../stores/data";
 import { withStructureUndo, withUndo } from "../../stores/undo";
-import { confirm, openContextMenu, openTask, useUi } from "../../stores/ui";
+import { confirm, openContextMenu, openTask, useUi, type MenuEntry } from "../../stores/ui";
 import { toggleDone } from "./actions";
 import { InlineAdd } from "./InlineAdd";
 import { taskMenu } from "./taskMenu";
@@ -187,6 +187,14 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
   );
 }
 
+/** Menu entries that move a card to another column: the keyboard alternative to dragging it there. */
+function columnMoves(id: string, listId: string, sectionId: string | null): MenuEntry[] {
+  const all = useData.getState().sections;
+  const cols = [{ id: null as string | null, name: "Unsectioned" }, ...Object.values(all).filter((x) => x.listId === listId).sort((a, b) => a.sortOrder - b.sortOrder)];
+  const moves = cols.filter((c) => c.id !== sectionId).map((c) => ({ label: `Move to column “${c.name}”`, icon: <ArrowRightLeft size={14} />, run: () => withUndo(`Moved to ${c.name}`, () => moveTasks([id], listId, c.id)) }));
+  return moves.length ? ["sep", ...moves] : [];
+}
+
 function Card({ vm }: { vm: TaskVM }) {
   const t = vm.task;
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({ id: `card:${t.id}`, data: { type: "task", id: t.id, key: vm.key } });
@@ -198,8 +206,8 @@ function Card({ vm }: { vm: TaskVM }) {
       {...attributes}
       {...listeners}
       onClick={() => openTask(t.id, vm.key)}
-      onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
-      onKeyDown={(e) => e.target === e.currentTarget && e.key === "Enter" && openTask(t.id, vm.key)}
+      onContextMenu={(e) => openContextMenu(e, [...taskMenu(t.id, vm.key), ...columnMoves(t.id, t.listId, t.sectionId)])}
+      onKeyDown={rowKeys(() => openTask(t.id, vm.key), listeners?.onKeyDown)}
       className={`flex cursor-grab flex-col gap-2 rounded-card border border-border bg-surface px-3 py-2.5 hover:border-border-strong ${isDragging ? "opacity-40" : ""}`}
     >
       <div className="flex items-start gap-2.5 font-medium">

@@ -358,7 +358,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside aria-label="Navigation" className={`shell-bg flex shrink-0 flex-col gap-3 px-2 py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease-out)] ${collapsed ? "w-14" : "w-[var(--sidebar)]"}`}>
+    <aside aria-label="Sidebar" className={`shell-bg flex shrink-0 flex-col gap-3 px-2 py-3 transition-[width] duration-[var(--dur)] ease-[var(--ease-out)] ${collapsed ? "w-14" : "w-[var(--sidebar)]"}`}>
       {/* The header is the logo, the wordmark and the collapse toggle; a hairline separates the lists (D202, D210). */}
       <div className="flex flex-col gap-1">
         <div data-tauri-drag-region className={`flex select-none items-center ${collapsed ? "flex-col gap-2" : "h-11 justify-between pl-2"}`}>
@@ -379,7 +379,7 @@ export function Sidebar() {
         </ul>
       </div>
 
-      <nav className="-mx-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden border-y border-border px-2 py-2">
+      <nav aria-label="Views and lists" className="-mx-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden border-y border-border px-2 py-2">
         <ul data-tour="nav" className="space-y-px">
           <NavItem id={HOME_NAV.id} label={HOME_NAV.label} icon={icon(HOME_NAV.icon)} collapsed={collapsed} side={side} />
           {SIDEBAR_SMART_NAV.filter(shown).map((n) => (

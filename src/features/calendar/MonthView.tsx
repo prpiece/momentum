@@ -49,11 +49,15 @@ function MonthCell(props: { day: string; inMonth: boolean; items: CalItem[]; onV
   return (
     <div
       ref={setNodeRef}
+      role="group"
+      aria-label={format(fromLocalDate(props.day), "EEEE, MMMM d")}
       onClick={(e) => e.target === e.currentTarget && props.onCreate({ x: e.clientX, y: e.clientY })}
       className={`flex min-h-0 min-w-0 flex-col gap-0.5 overflow-hidden border-b border-border px-1 pt-1 [&:not(:nth-child(7n+1))]:border-l ${isOver ? "bg-accent-soft" : weekend ? "bg-bg" : ""}`}
     >
       <button
         type="button"
+        aria-label={`${format(fromLocalDate(props.day), "EEEE, MMMM d")}, ${props.items.length === 0 ? "no items" : props.items.length === 1 ? "1 item" : `${props.items.length} items`}`}
+        aria-current={isToday ? "date" : undefined}
         onClick={() => props.onViewDay(props.day)}
         className={`ml-0.5 grid size-6 shrink-0 place-items-center self-start rounded-full text-[length:var(--fs-sm)] font-medium tabular-nums ${isToday ? "bg-accent font-semibold text-accent-fg" : props.inMonth ? "text-fg hover:bg-surface-2" : "text-muted hover:bg-surface-2"}`}
       >

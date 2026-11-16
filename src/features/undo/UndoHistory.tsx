@@ -23,7 +23,7 @@ export function UndoHistory() {
                 <span className="min-w-0 flex-1 truncate text-[length:var(--fs-sm)]">{e.message}</span>
                 <span className="token shrink-0">{SOURCE[e.source]}</span>
                 <span className="w-16 shrink-0 text-right text-[length:var(--fs-xs)] tabular-nums text-muted">{time(e.at)}</span>
-                <button type="button" className="btn btn-secondary btn-sm shrink-0" onClick={() => undoTo(e.id)}>
+                <button type="button" aria-label={`Undo ${e.message} and newer changes`} className="btn btn-secondary btn-sm shrink-0" onClick={() => undoTo(e.id)}>
                   Undo
                 </button>
               </li>

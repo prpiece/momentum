@@ -166,7 +166,7 @@ export function TimeGrid({ days, items, onViewDay }: { days: string[]; items: Ca
         {shown.map((d) => {
           const date = fromLocalDate(d);
           return (
-            <button key={d} type="button" onClick={() => onViewDay(d)} className={`@container flex min-w-0 items-center gap-1.5 border-l border-border px-1 hover:bg-surface-2 ${single ? "h-12 justify-start px-3" : "h-16 justify-center"}`}>
+            <button key={d} type="button" aria-label={format(date, "EEEE, MMMM d")} aria-current={d === today ? "date" : undefined} onClick={() => onViewDay(d)} className={`@container flex min-w-0 items-center gap-1.5 border-l border-border px-1 hover:bg-surface-2 ${single ? "h-12 justify-start px-3" : "h-16 justify-center"}`}>
               <span className={`t-label ${single ? "" : "hidden @min-[4.25rem]:inline"} ${d === today ? "text-accent-text" : "text-muted"}`}>{format(date, "EEE")}</span>
               <span className={`grid size-7 shrink-0 place-items-center rounded-full text-[length:var(--fs-lg)] font-semibold tabular-nums ${d === today ? "bg-accent text-accent-fg" : ""}`}>{format(date, "d")}</span>
             </button>
@@ -218,6 +218,8 @@ function AllDayCell({ day, items, onCreate }: { day: string; items: CalItem[]; o
   return (
     <div
       ref={setNodeRef}
+      role="group"
+      aria-label={`All-day, ${format(fromLocalDate(day), "EEEE, MMMM d")}`}
       onClick={(e) => e.target === e.currentTarget && onCreate({ x: e.clientX, y: e.clientY })}
       className={`min-h-9 space-y-1 border-l border-border p-1 transition-colors ${isOver ? "bg-accent-soft" : ""}`}
     >
@@ -295,6 +297,8 @@ function DayColumn(props: {
     <div
       ref={setNodeRef}
       data-cal-col={props.day}
+      role="group"
+      aria-label={format(fromLocalDate(props.day), "EEEE, MMMM d")}
       onPointerDown={onPointerDown}
       className={`relative border-l border-border ${isOver ? "bg-accent-soft/40" : props.isToday ? "bg-[color-mix(in_srgb,var(--accent-soft)_40%,transparent)]" : ""}`}
       style={{

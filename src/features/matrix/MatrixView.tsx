@@ -1,5 +1,5 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { Check, ListTree, Settings2 } from "lucide-react";
+import { ArrowRightLeft, Check, ListTree, Settings2 } from "lucide-react";
 import { type CSSProperties, useMemo, useState } from "react";
 import { Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
@@ -9,7 +9,7 @@ import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { inMatrix, patchForQuadrant, QUADRANT_INFO, QUADRANT_VAR, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
-import { justDragged, onDrop } from "../../lib/dnd";
+import { justDragged, onDrop, rowKeys } from "../../lib/dnd";
 import { withUndo } from "../../stores/undo";
 import { updateTask, useData, type NewTask } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
@@ -21,21 +21,25 @@ import { derive } from "../../domain/taskViews";
 import { useDerived } from "../tasks/selectors";
 
 
-onDrop("quadrant", (drag, drop) => {
-  if (drag.type !== "task") return;
+/** Move tasks into a quadrant (drop handler and the keyboard menu entries share it). */
+function moveToQuadrant(ids: string[], q: Quadrant) {
   const { tasks, lists } = useData.getState();
   const rules = useSettings.getState().settings.matrix;
   const today = todayLocal();
-  const sel = useUi.getState().selection;
-  const ids = sel.includes(drag.id) ? sel : [drag.id];
   const d = derive(tasks, lists);
   const vms = ids.map((id) => d.byId.get(id)).filter((v): v is TaskVM => !!v);
-  const series = vms.filter((v) => v.task.recurrence && "schedule" in patchForQuadrant(v, drop.q, today, rules));
+  const series = vms.filter((v) => v.task.recurrence && "schedule" in patchForQuadrant(v, q, today, rules));
   const plain = vms.filter((v) => !series.includes(v));
   if (plain.length)
-    withUndo(`Moved to ${QUADRANT_INFO[drop.q].title}`, () => plain.forEach((v) => updateTask(v.task.id, patchForQuadrant(v, drop.q, today, rules))));
+    withUndo(`Moved to ${QUADRANT_INFO[q].title}`, () => plain.forEach((v) => updateTask(v.task.id, patchForQuadrant(v, q, today, rules))));
   // Recurring tasks whose date must change go through the scope prompt.
-  for (const v of series) void editTask(v.task.id, patchForQuadrant(v, drop.q, today, rules), v.key);
+  for (const v of series) void editTask(v.task.id, patchForQuadrant(v, q, today, rules), v.key);
+}
+
+onDrop("quadrant", (drag, drop) => {
+  if (drag.type !== "task") return;
+  const sel = useUi.getState().selection;
+  moveToQuadrant(sel.includes(drag.id) ? sel : [drag.id], drop.q);
 });
 
 /** Matrix mode of a task view (D164): that view's open tasks, subtasks folded into their parent's card when it's here too (D196). New tasks get the view's defaults. */
@@ -125,8 +129,8 @@ function MatrixItem({ vm }: { vm: TaskVM }) {
       {...attributes}
       {...listeners}
       onClick={() => !justDragged() && openTask(t.id, vm.key)}
-      onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}
-      onKeyDown={(e) => e.key === "Enter" && openTask(t.id, vm.key)}
+      onContextMenu={(e) => openContextMenu(e, [...taskMenu(t.id, vm.key), "sep", ...QUADRANTS.map((q) => ({ label: `Move to ${QUADRANT_INFO[q].title}`, icon: <ArrowRightLeft size={14} />, run: () => moveToQuadrant([t.id], q) }))])}
+      onKeyDown={rowKeys(() => openTask(t.id, vm.key), listeners?.onKeyDown)}
       className={`flex h-[var(--row-compact)] cursor-grab items-center gap-2.5 rounded-control px-1 text-[length:var(--fs-sm)] ${selected ? "bg-accent-soft" : "hover:bg-surface-2"} ${isDragging ? "opacity-40" : ""}`}
     >
       <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, vm.key)} label={`Complete ${t.title}`} size={16} />

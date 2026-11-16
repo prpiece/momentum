@@ -287,3 +287,18 @@ export function resizedSchedule(s: Schedule, edge: "start" | "end", minutes: num
   const startAt = atLocalTime(day, hhmmOf(Math.min(m, endMin - SNAP)));
   return { kind: "timed", start: startAt.toISOString(), end: s.end };
 }
+
+/**
+ * Keyboard move/resize of a scheduled item (the non-drag path, FEAT-15). Up/down shift a timed block by one
+ * snap step (or a day-item by a week); left/right shift by a day. `resize` moves only the end edge, up/down.
+ * Returns the same schedule when nothing applies.
+ */
+export function nudgedSchedule(s: Schedule, dir: "up" | "down" | "left" | "right", resize = false): Schedule {
+  const sign = dir === "up" || dir === "left" ? -1 : 1;
+  if (s.kind === "day") return { kind: "day", date: addDaysLocal(s.date, dir === "up" || dir === "down" ? sign * 7 : sign) };
+  if (s.kind !== "timed") return s;
+  const day = toLocalDate(new Date(s.start));
+  if (dir === "left" || dir === "right") return resize ? s : moveToDate(s, addDaysLocal(day, sign));
+  if (resize) return resizedSchedule(s, "end", minutesInDay(new Date(s.end), day) + sign * SNAP, day);
+  return droppedSchedule(s, day, "time", minutesInDay(new Date(s.start), day) + sign * SNAP);
+}
