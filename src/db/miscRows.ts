@@ -23,7 +23,7 @@ export function parseLegacyCountdown(r: Row): CalendarEvent | null {
     schedule: { kind: "day", date: r.date },
     spanDays: 1,
     color: typeof r.color === "string" && /^#[0-9a-f]{6}$/i.test(r.color) ? r.color : null,
-    recurrence: rule ? { rule, exdates: [] } : null,
+    recurrence: rule ? { rule, exdates: [], tz: null } : null,
     recurrenceParentId: null,
     source: "local",
     subscriptionId: null,

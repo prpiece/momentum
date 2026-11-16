@@ -33,7 +33,7 @@ export function applyImportPlan(plan: ImportPlan): void {
       schedule: t.schedule,
       deadline: t.deadline,
       durationMin: t.durationMin,
-      recurrence: t.rule ? { rule: t.rule, exdates: [] } : null,
+      recurrence: t.rule ? { rule: t.rule, exdates: [], tz: null } : null,
       tags: t.tags.flatMap((n) => tagIds.get(n.toLowerCase()) ?? []),
       checklist: t.checklist.map((c) => ({ id: crypto.randomUUID(), title: c.title, done: c.done })),
       completedAt: t.status === "open" ? null : (t.completedAt ?? new Date().toISOString()),

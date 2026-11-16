@@ -12,7 +12,7 @@ const base: Task = {
   status: "open",
   priority: 2,
   schedule: { kind: "timed", start: "2026-10-25T14:00:00.000Z", end: "2026-10-25T15:00:00.000Z" },
-  recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO", exdates: ["2026-10-26T10:00"] },
+  recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO", exdates: ["2026-10-26T10:00"], tz: null },
   deadline: null,
   durationMin: null,
   waiting: null,

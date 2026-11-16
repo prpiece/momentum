@@ -34,7 +34,7 @@ export function loadSampleData(today: LocalDate = todayLocal()): boolean {
 
   const home = addList("Sample: Home", folder.id);
   updateList(home.id, { icon: "home", color: "#2f9358" });
-  add(home.id, "Water the plants", { schedule: d(0), recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,TH", exdates: [] } });
+  add(home.id, "Water the plants", { schedule: d(0), recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,TH", exdates: [], tz: null } });
   add(home.id, "Groceries", { schedule: d(1), checklist: ["Oats", "Spinach", "Coffee"].map((title) => ({ id: uid(), title, done: false })) });
   add(home.id, "Book the dentist", { priority: 1 as Priority });
   add(home.id, "Call a friend", { schedule: at(2, "18:30", 30) });

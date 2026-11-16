@@ -37,7 +37,7 @@ function EventForm({ event, occurrenceKey }: { event: CalendarEvent; occurrenceK
 
   const save = async () => {
     const schedule: Schedule = allDay ? { kind: "day", date } : timed(atLocalTime(date, start), minutes);
-    const recurrence: Recurrence | null = rule ? { rule, exdates: event.recurrence?.exdates ?? [] } : null;
+    const recurrence: Recurrence | null = rule ? { rule, exdates: event.recurrence?.exdates ?? [], tz: event.recurrence?.tz ?? null } : null;
     const patch: Partial<CalendarEvent> = {
       title: title.trim() || "Untitled event",
       notes,

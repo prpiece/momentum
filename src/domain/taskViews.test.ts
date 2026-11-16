@@ -83,7 +83,7 @@ describe("smart lists", () => {
   });
 
   it("uses the current occurrence of a recurring task", () => {
-    const t = mk({ schedule: day("2026-10-20"), recurrence: { rule: "FREQ=DAILY", exdates: ["2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24"] } });
+    const t = mk({ schedule: day("2026-10-20"), recurrence: { rule: "FREQ=DAILY", exdates: ["2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24"], tz: null } });
     expect(vm(t).date).toBe(TODAY);
     expect(lists("today")(t)).toEqual(["today"]);
     expect(isOverdue(vm(t), TODAY)).toBe(false);

@@ -20,7 +20,7 @@ const at = (d: string) => new Date(`${d}T15:00:00`).toISOString();
 describe("plan my day", () => {
   it("lists overdue, offers upcoming and undated, and totals today", () => {
     const over = mk({ schedule: day("2026-10-20"), durationMin: 30 });
-    const rec = mk({ schedule: day("2026-10-20"), recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const rec = mk({ schedule: day("2026-10-20"), recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     const today = mk({ schedule: day(TODAY), durationMin: 90 });
     const soon = mk({ schedule: day("2026-10-30") });
     const far = mk({ schedule: day("2026-12-30") });

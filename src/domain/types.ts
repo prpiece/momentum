@@ -60,6 +60,8 @@ export type Recurrence = {
   rule: string;
   /** Excluded occurrence keys (see recurrence.ts `occurrenceKey`). */
   exdates: string[];
+  /** IANA zone the series' start was written in; null on older rows (TIME-03). Keeps a timed series' wall clock when the device zone changes. */
+  tz: string | null;
 };
 
 export type Task = {

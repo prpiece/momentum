@@ -88,7 +88,7 @@ describe("ranges", () => {
 
 describe("calendarItems", () => {
   it("expands recurring tasks into per-occurrence items within range", () => {
-    const vm = task(timed(atLocalTime("2026-10-01", "09:00"), 30), { recurrence: { rule: "FREQ=DAILY", exdates: ["2026-10-27T09:00"] } });
+    const vm = task(timed(atLocalTime("2026-10-01", "09:00"), 30), { recurrence: { rule: "FREQ=DAILY", exdates: ["2026-10-27T09:00"], tz: null } });
     const items = calendarItems(src([vm]), "2026-10-26", "2026-10-28");
     expect(items.map((i) => i.key)).toEqual(["2026-10-26T09:00", "2026-10-28T09:00"]);
     expect(new Set(items.map((i) => i.uid)).size).toBe(2);
@@ -108,7 +108,7 @@ describe("calendarItems", () => {
   });
 
   it("looks back by wall-clock days across the DST fall-back (Nov 1 2026)", () => {
-    const e = event({ kind: "day", date: "2026-11-01" }, { spanDays: 2, recurrence: { rule: "FREQ=YEARLY", exdates: [] } });
+    const e = event({ kind: "day", date: "2026-11-01" }, { spanDays: 2, recurrence: { rule: "FREQ=YEARLY", exdates: [], tz: null } });
     const [item] = calendarItems(src([], [e]), "2026-11-02", "2026-11-03");
     expect(item).toMatchObject({ startDate: "2026-11-01", endDate: "2026-11-02" });
   });

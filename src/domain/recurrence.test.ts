@@ -26,7 +26,7 @@ function task(schedule: Schedule, rule: string, exdates: string[] = []): Task {
     status: "open",
     priority: 0,
     schedule,
-    recurrence: { rule, exdates },
+    recurrence: { rule, exdates, tz: null },
     deadline: null, durationMin: null, waiting: null, recurrenceParentId: null,
     tags: [],
     checklist: [],
@@ -299,5 +299,23 @@ describe("missedKeys (TIME-20)", () => {
     expect(missedKeys(t, "2026-11-14")).toEqual(["2026-11-10", "2026-11-12", "2026-11-13"]);
     expect(missedKeys(t, "2026-11-10")).toEqual([]);
     expect(missedKeys({ ...t, recurrence: null }, "2026-11-14")).toEqual([]);
+  });
+});
+
+describe("series zone (TIME-03)", () => {
+  const withTz = (t: Task, tz: string | null): Task => ({ ...t, recurrence: t.recurrence && { ...t.recurrence, tz } });
+  const nyEx = ["2026-11-01T09:00", "2026-11-02T09:00"];
+
+  it("keeps exdates matching in the zone the series was written in", () => {
+    const t = withTz(task(timed(atLocalTime("2026-11-01", "09:00"), 30), "FREQ=DAILY", nyEx), "America/New_York");
+    expect(effective(t)?.key).toBe("2026-11-03T09:00");
+  });
+
+  it("a series written in London still reads 09:00 and matches its exdates when the device is elsewhere", () => {
+    // 09:00 London on Nov 1 is 04:00 in New York, so the anchor reads 04:00 there.
+    const start = new Date("2026-11-01T09:00:00.000Z");
+    const t = withTz(task(timed(start, 30), "FREQ=DAILY", nyEx), "Europe/London");
+    expect(effective(t)?.key).toBe("2026-11-03T09:00");
+    expect(withTz(t, null) && effective(withTz(t, null))?.key).not.toBe("2026-11-03T09:00");
   });
 });

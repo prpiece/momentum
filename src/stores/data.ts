@@ -70,10 +70,24 @@ export function mayEdit(listId: string): boolean {
   return canEditList(listId);
 }
 
+/**
+ * Timed series remember the zone their start was written in (TIME-03). The start is always computed from the
+ * device's wall clock when it changes, so stamp the device zone then (or when the series has no zone yet); a plain
+ * edit elsewhere keeps the stored zone, so it doesn't re-read a series made in another zone.
+ */
+function stampTz<T extends Pick<Task, "schedule" | "recurrence">>(next: T, prev: T | undefined): T {
+  const { recurrence: rec, schedule } = next;
+  if (!rec || schedule.kind !== "timed") return next;
+  const kept = prev?.schedule.kind === "timed" && prev.schedule.start === schedule.start ? prev.recurrence?.tz : null;
+  const tz = kept || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return tz === rec.tz ? next : { ...next, recurrence: { ...rec, tz } };
+}
+
 /** Put tasks in the store and persist them. The single write path for tasks; it refuses view-only lists (H11). */
 function commit(all: Task[]) {
-  const changed = all.filter((t) => canEditList(t.listId) && canEditList(get().tasks[t.id]?.listId ?? t.listId));
-  if (changed.length < all.length) viewOnlyToast();
+  const kept = all.filter((t) => canEditList(t.listId) && canEditList(get().tasks[t.id]?.listId ?? t.listId));
+  if (kept.length < all.length) viewOnlyToast();
+  const changed = kept.map((t) => stampTz(t, get().tasks[t.id]));
   if (!changed.length) return;
   set((s) => ({ tasks: { ...s.tasks, ...byId(changed) } }));
   void repo.saveTasks(changed);
@@ -83,8 +97,9 @@ function commit(all: Task[]) {
 let onEvents: (changed: CalendarEvent[]) => void = () => undefined;
 export const setEventHook = (fn: (changed: CalendarEvent[]) => void) => void (onEvents = fn);
 
-export function commitEvents(changed: CalendarEvent[]) {
-  if (!changed.length) return;
+export function commitEvents(all: CalendarEvent[]) {
+  if (!all.length) return;
+  const changed = all.map((e) => stampTz(e, get().events[e.id]));
   set((s) => ({ events: { ...s.events, ...byId(changed) } }));
   void repo.saveEvents(changed);
   onEvents(changed);

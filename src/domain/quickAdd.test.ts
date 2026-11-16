@@ -177,7 +177,7 @@ describe("withDefaults: a view's context vs explicit tokens (D220)", () => {
   it("keeps the context date for a repeat with no date of its own", () => {
     const r = withDefaults(parseQuickAdd("water plants every day", NOW), ctx);
     expect(r.schedule).toEqual(ctx.schedule);
-    expect(r.recurrence).toEqual({ rule: "FREQ=DAILY", exdates: [] });
+    expect(r.recurrence).toEqual({ rule: "FREQ=DAILY", exdates: [], tz: null });
   });
   it("a repeat with no date and no context starts today", () => {
     expect(withDefaults(parseQuickAdd("water plants every day", NOW), {}).schedule).toEqual({ kind: "day", date: "2026-10-25" });

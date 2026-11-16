@@ -2899,7 +2899,8 @@ function googleRecurrence(lines, start, tz) {
 	}
 	return isValidRule(rule) ? {
 		rule,
-		exdates: [...new Set(exdates)]
+		exdates: [...new Set(exdates)],
+		tz: null
 	} : null;
 }
 function when(start, end) {
@@ -3118,6 +3119,7 @@ function pushAction(e, a) {
 }
 // src/db/rows.ts
 const str = (v, fallback = "") => typeof v === "string" ? v : fallback;
+const zoneOrNull = (v) => typeof v === "string" && isZone(v) ? v : null;
 const optStr = (v) => typeof v === "string" && v !== "" ? v : null;
 const num = (v, fallback = 0) => typeof v === "number" && Number.isFinite(v) ? v : fallback;
 function json(v) {
@@ -3154,7 +3156,8 @@ function parseEvent(r) {
 		color: optStr(r.color),
 		recurrence: rule && isValidRule(rule) ? {
 			rule,
-			exdates: arr(r.exdates).filter((x) => typeof x === "string")
+			exdates: arr(r.exdates).filter((x) => typeof x === "string"),
+			tz: zoneOrNull(r.rrule_tz)
 		} : null,
 		recurrenceParentId: optStr(r.recurrence_parent_id),
 		source: r.source === "ics" ? "ics" : "local",
@@ -3186,6 +3189,7 @@ function eventToRow(e) {
 		color: e.color,
 		rrule: e.recurrence?.rule ?? null,
 		exdates: JSON.stringify(e.recurrence?.exdates ?? []),
+		rrule_tz: e.recurrence?.tz ?? null,
 		recurrence_parent_id: e.recurrenceParentId,
 		source: e.source,
 		subscription_id: e.subscriptionId,

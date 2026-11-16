@@ -145,7 +145,7 @@ function patchOf(vm: TaskVM, p: TaskPatch): Partial<Task> {
   const kind = (patch.schedule ?? current).kind;
   if (p.repeat) {
     if (kind !== "day" && kind !== "timed") throw new AgentError("A repeating task needs a planned day: give date (and time) too.");
-    patch.recurrence = { rule: p.repeat, exdates: [] };
+    patch.recurrence = { rule: p.repeat, exdates: [], tz: null };
   } else if (p.repeat === null) patch.recurrence = null;
   if (p.reminders !== undefined) {
     // A reminder must fit the task: minutes before a time block, or a time on some day before a day task.

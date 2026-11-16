@@ -202,7 +202,7 @@ export default function TaskSheet() {
       if (!day) return;
       anchored = { schedule: { kind: "day", date: day } as Schedule };
     }
-    updateTask(t.id, { ...anchored, recurrence: r ? { rule: r, exdates: [] } : null });
+    updateTask(t.id, { ...anchored, recurrence: r ? { rule: r, exdates: [], tz: null } : null });
   };
   const addSub = () => {
     if (!sub.trim()) return;

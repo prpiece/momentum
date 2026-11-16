@@ -51,7 +51,7 @@ describe("Google events in", () => {
 
   it("maps an all-day series and its DATE exdates", () => {
     const m = upsert(fromGoogle({ id: "d", start: { date: "2026-11-01" }, end: { date: "2026-11-02" }, recurrence: ["RRULE:FREQ=DAILY;COUNT=3", "EXDATE;VALUE=DATE:20261102"] }, "cal", NY));
-    expect(m.recurrence).toEqual({ rule: "FREQ=DAILY;COUNT=3", exdates: ["2026-11-02"] });
+    expect(m.recurrence).toEqual({ rule: "FREQ=DAILY;COUNT=3", exdates: ["2026-11-02"], tz: null });
   });
 
   it("drops a rule it can't expand instead of the event", () => {
@@ -95,7 +95,7 @@ describe("Google events out", () => {
       recurrence: ["RRULE:FREQ=WEEKLY;UNTIL=20261130T090000Z", "EXDATE;TZID=Europe/London:20261109T090000"],
     }, "cal", NY));
     const e = asEvent(m, {}, "google");
-    const withInstance = { ...e, recurrence: { rule: e.recurrence!.rule, exdates: [...e.recurrence!.exdates, "2026-11-16T04:00"] } };
+    const withInstance = { ...e, recurrence: { rule: e.recurrence!.rule, exdates: [...e.recurrence!.exdates, "2026-11-16T04:00"], tz: null } };
     const body = toGoogle(withInstance, NY, new Set(["2026-11-16T04:00"]));
     expect(body).toMatchObject({
       start: { dateTime: "2026-11-02T09:00:00.000Z", timeZone: "Europe/London" },
@@ -105,7 +105,7 @@ describe("Google events out", () => {
 
   it("sends a floating Momentum series in the account's zone", () => {
     const e = asEvent(upsert(fromGoogle({ id: "f", start: { dateTime: "2026-11-02T14:00:00Z" }, end: { dateTime: "2026-11-02T15:00:00Z" } }, "cal", NY)));
-    const series = { ...e, recurrence: { rule: "FREQ=DAILY;UNTIL=20261110T090000", exdates: ["2026-11-04T09:00"] } };
+    const series = { ...e, recurrence: { rule: "FREQ=DAILY;UNTIL=20261110T090000", exdates: ["2026-11-04T09:00"], tz: null } };
     expect(toGoogle(series, NY)).toMatchObject({
       start: { timeZone: NY },
       recurrence: ["RRULE:FREQ=DAILY;UNTIL=20261110T140000Z", "EXDATE;TZID=America/New_York:20261104T090000"],
@@ -168,7 +168,7 @@ describe("rows, pushes and conflicts", () => {
     expect(pushAction({ ...local, countdown: "until" }, google)).toBeNull();
     expect(pushAction({ ...local, source: "ics" }, google)).toBeNull();
     expect(pushAction({ ...local, recurrenceParentId: "p" }, google)).toBeNull();
-    const series = { ...local, recurrence: { rule: "FREQ=DAILY", exdates: [] } };
+    const series = { ...local, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } };
     expect(pushAction(series, google)).toBe("create");
     expect(pushAction(series, { ...google, provider: "microsoft" })).toBeNull();
   });

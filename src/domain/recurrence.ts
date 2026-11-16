@@ -59,8 +59,14 @@ function clamped(opts: Partial<Options>, start: Date): Partial<Options> {
 /** The rrule for a rule string from a floating start. */
 const ruleFrom = (rule: string, start: Date) => new RRule({ ...clamped(parse(rule), start), dtstart: start, tzid: null });
 
-function build(rule: string, anchor: Date): RRule {
-  return ruleFrom(rule, toFloating(anchor));
+/** The series start as a floating wall clock: in the zone it was written in (TIME-03), else the viewer's. */
+function floatAnchor(t: Recurring, anchor: Date): Date {
+  const tz = t.schedule.kind === "timed" ? t.recurrence?.tz : null;
+  return tz && isZone(tz) ? wallIn(anchor, tz) : toFloating(anchor);
+}
+
+function build(t: Recurring, anchor: Date): RRule {
+  return ruleFrom(t.recurrence?.rule ?? "", floatAnchor(t, anchor));
 }
 
 function serialize(opts: Partial<Options>): string {
@@ -99,7 +105,7 @@ function expansion(t: Recurring): { rrule: RRule; toF: (d: Date) => Date; key: (
   if (!anchor || !t.recurrence) return null;
   const { rule } = t.recurrence;
   const tz = t.schedule.kind === "timed" ? RRule.parseString(rule).tzid : null;
-  if (!tz || !isZone(tz)) return { rrule: build(rule, anchor), toF: toFloating, key: (f) => keyOf(t.schedule.kind, f), occ: (f) => occurrence(t.schedule, f) };
+  if (!tz || !isZone(tz)) return { rrule: build(t, anchor), toF: toFloating, key: (f) => keyOf(t.schedule.kind, f), occ: (f) => occurrence(t.schedule, f) };
   const dur = durationMinutes(t.schedule) ?? 0;
   return {
     rrule: ruleFrom(rule, wallIn(anchor, tz)),
@@ -153,7 +159,7 @@ export function effective(t: Task): { schedule: Schedule; key: string | null } |
 
 /** "This occurrence": exclude it from the series and return it as a standalone task. */
 export function detachOccurrence<T extends Series>(series: T, key: string, newId: string, now: string): { series: T; single: T } {
-  const rec: Recurrence = series.recurrence ?? { rule: "", exdates: [] };
+  const rec: Recurrence = series.recurrence ?? { rule: "", exdates: [], tz: null };
   return {
     series: { ...series, recurrence: { ...rec, exdates: [...new Set([...rec.exdates, key])] }, updatedAt: now },
     single: {
@@ -176,10 +182,10 @@ export function splitSeries<T extends Series>(series: T, key: string, newId: str
   const rec = series.recurrence;
   const anchor = anchorOf(series.schedule);
   if (!rec || !anchor) return { head: null, tail: series };
-  const opts = clamped(parse(rec.rule), toFloating(anchor));
+  const opts = clamped(parse(rec.rule), floatAnchor(series, anchor));
   const cut = floatingOfKey(key);
   let before = 0;
-  build(rec.rule, anchor).all((f, i) => {
+  build(series, anchor).all((f, i) => {
     if (i > MAX_SCAN || f >= cut) return false;
     before++;
     return true;
@@ -291,6 +297,6 @@ export function shiftSeries<T extends Recurring>(t: T, key: string, to: Schedule
     : rec?.rule;
   return {
     schedule: at(byday ? a : addDaysLocal(a, days)),
-    recurrence: rec && { rule: rule ?? rec.rule, exdates: rec.exdates.map(remap) },
+    recurrence: rec && { ...rec, rule: rule ?? rec.rule, exdates: rec.exdates.map(remap) },
   };
 }

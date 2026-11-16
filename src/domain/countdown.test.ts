@@ -10,7 +10,7 @@ describe("countdowns", () => {
     expect(countdownDays({ date: "2026-10-01", repeat: "none", direction: "since" }, T)).toBe(24);
   });
   it("counts to the same date the calendar shows for a month-end series (TIME-14)", () => {
-    const e: Pick<CalendarEvent, "schedule" | "recurrence" | "countdown"> = { schedule: { kind: "day", date: "2026-01-31" }, recurrence: { rule: "FREQ=MONTHLY", exdates: [] }, countdown: "until" };
+    const e: Pick<CalendarEvent, "schedule" | "recurrence" | "countdown"> = { schedule: { kind: "day", date: "2026-01-31" }, recurrence: { rule: "FREQ=MONTHLY", exdates: [], tz: null }, countdown: "until" };
     const c = eventCountdown(e)!;
     const next = nextOccurrence(e, new Date(2026, 1, 1));
     expect(targetDate(c, "2026-02-01")).toBe(next?.key);
@@ -24,8 +24,8 @@ describe("countdowns", () => {
   });
   it("reads a countdown from all-day events only", () => {
     const day = { kind: "day" as const, date: "2026-12-25" };
-    expect(eventCountdown({ schedule: day, recurrence: { rule: "FREQ=YEARLY", exdates: [] }, countdown: "until" })).toEqual({ date: "2026-12-25", direction: "until", repeat: "yearly" });
-    expect(eventCountdown({ schedule: day, recurrence: { rule: "FREQ=WEEKLY", exdates: [] }, countdown: "since" })?.repeat).toBe("none");
+    expect(eventCountdown({ schedule: day, recurrence: { rule: "FREQ=YEARLY", exdates: [], tz: null }, countdown: "until" })).toEqual({ date: "2026-12-25", direction: "until", repeat: "yearly" });
+    expect(eventCountdown({ schedule: day, recurrence: { rule: "FREQ=WEEKLY", exdates: [], tz: null }, countdown: "since" })?.repeat).toBe("none");
     expect(eventCountdown({ schedule: day, recurrence: null, countdown: null })).toBeNull();
     expect(eventCountdown({ schedule: { kind: "timed", start: "2026-12-25T10:00:00.000Z", end: "2026-12-25T11:00:00.000Z" }, recurrence: null, countdown: "until" })).toBeNull();
   });

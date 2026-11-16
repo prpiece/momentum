@@ -97,6 +97,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0012_calendar_links.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 13,
+            description: "series remember the zone their start was written in",
+            sql: include_str!("../migrations/0013_rrule_tz.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

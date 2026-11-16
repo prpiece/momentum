@@ -49,7 +49,7 @@ export function atLocalTime(date: LocalDate, hhmm: string): Date {
   return new Date(y, m - 1, d, h, mi);
 }
 
-/** Minute-precision wall-clock key, stable across DST and time-zone changes. */
+/** Minute-precision wall-clock key of `d` in the device's current zone (it moves if the zone changes; recurrence keys stay put via Recurrence.tz). */
 export const wallKey = (d: Date): string => format(d, "yyyy-MM-dd'T'HH:mm");
 export const hhmm = (d: Date): string => format(d, "HH:mm");
 

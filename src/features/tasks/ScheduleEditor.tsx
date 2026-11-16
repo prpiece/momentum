@@ -102,7 +102,7 @@ export function ScheduleEditor(props: {
                 setCustom(v === "__custom");
                 if (v === "__custom" || v === "__current") return;
                 // Keep the handled occurrences handled when the rule changes (TIME-02).
-                props.onRecurrence(v ? { rule: v, exdates: props.recurrence?.exdates ?? [] } : null);
+                props.onRecurrence(v ? { rule: v, exdates: props.recurrence?.exdates ?? [], tz: props.recurrence?.tz ?? null } : null);
               }}
               className={field}
             >
@@ -115,7 +115,7 @@ export function ScheduleEditor(props: {
               {rule && !isPreset && <option value="__current">{describeRule(rule)}</option>}
               <option value="__custom">Custom…</option>
             </select>
-            {custom && <RuleBuilder date={date} onDone={(r) => (setCustom(false), props.onRecurrence({ rule: r, exdates: props.recurrence?.exdates ?? [] }))} />}
+            {custom && <RuleBuilder date={date} onDone={(r) => (setCustom(false), props.onRecurrence({ rule: r, exdates: props.recurrence?.exdates ?? [], tz: props.recurrence?.tz ?? null }))} />}
           </div>
         </Row>
       )}

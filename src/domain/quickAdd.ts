@@ -432,7 +432,7 @@ export function withDefaults(
     ...(schedule.kind !== "none" ? { schedule } : {}),
     ...(priority !== undefined ? { priority } : {}),
     tags: [...new Set([...(d.tags ?? []), ...p.tags])],
-    recurrence: p.rule ? { rule: p.rule, exdates: [] } : null,
+    recurrence: p.rule ? { rule: p.rule, exdates: [], tz: null } : null,
     ...(p.deadline ? { deadline: p.deadline } : {}),
     ...(p.durationMin ? { durationMin: p.durationMin } : {}),
     ...(p.waiting ? { waiting: p.waiting } : {}),
@@ -452,7 +452,7 @@ export function tokenPatch(
   return {
     title: p.title,
     ...(p.schedule.kind !== "none" ? { schedule: p.schedule } : {}),
-    ...(p.rule ? { recurrence: { rule: p.rule, exdates: [] } } : {}),
+    ...(p.rule ? { recurrence: { rule: p.rule, exdates: [], tz: null } } : {}),
     ...(p.priority !== null ? { priority: p.priority } : {}),
     ...(p.tags.length ? { tags: [...new Set([...task.tags, ...resolve.tagIds(p.tags)])] } : {}),
     ...(listId ? { listId } : {}),

@@ -110,7 +110,7 @@ export function parseIcs(text: string, color: string, now = new Date().toISOStri
             ? wallKey(zone ? fromWall(new Date(Date.UTC(v.year, v.month - 1, v.day, start.hour, start.minute, start.second)), zone) : atLocalTime(localDateOf(v), hhmm(new Date(s.start))))
             : keyOf(v, tzid);
         const exdates = comp.getAllProperties("exdate").flatMap((p) => p.getValues().flatMap((v) => (v instanceof ICAL.Time ? [exKey(v, p.getParameter("tzid"))] : [])));
-        if (isValidRule(rule)) recurrence = { rule, exdates };
+        if (isValidRule(rule)) recurrence = { rule, exdates, tz: null };
       }
       if (recKey) overrides.push({ parentId: `ics:${uid}`, key: recKey });
 

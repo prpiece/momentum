@@ -17,7 +17,7 @@ import { toast } from "../../stores/toast";
 import { restoreSession, supabase, syncConfigured } from "./supabase";
 
 /** The local schema this client speaks (latest migration); the server refuses older clients (spec, "Version skew"). */
-export const CLIENT_SCHEMA = 12;
+export const CLIENT_SCHEMA = 13;
 const PAGE = 1000;
 
 export type SyncStatus =

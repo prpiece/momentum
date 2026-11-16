@@ -40,7 +40,7 @@ const live = () => Object.values(useData.getState().tasks).filter((t) => !t.dele
 
 describe("recurring completion", () => {
   it("detaches the current occurrence as a done task and advances the series", () => {
-    const s = addTask({ title: "Gym", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const s = addTask({ title: "Gym", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     setStatus(s.id, "done");
     const series = useData.getState().tasks[s.id];
     expect(toVM(series)?.date).toBe("2026-10-26");
@@ -49,7 +49,7 @@ describe("recurring completion", () => {
   });
 
   it("retires a series when its last occurrence is completed", () => {
-    const s = addTask({ title: "Once more", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: [] } });
+    const s = addTask({ title: "Once more", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: [], tz: null } });
     setStatus(s.id, "done");
     expect(useData.getState().tasks[s.id].deletedAt).not.toBeNull();
     expect(live()).toHaveLength(1);
@@ -58,7 +58,7 @@ describe("recurring completion", () => {
 
 describe("scope edits", () => {
   const series = () =>
-    addTask({ title: "Standup", schedule: timed(atLocalTime("2026-10-26", "09:00"), 15), recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    addTask({ title: "Standup", schedule: timed(atLocalTime("2026-10-26", "09:00"), 15), recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
 
   it("this: moves one occurrence only", () => {
     const s = series();
@@ -145,7 +145,7 @@ describe("undoable", () => {
   });
 
   it("undoes a recurring completion completely", () => {
-    const s = addTask({ title: "R", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const s = addTask({ title: "R", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     const revert = undoable(() => setStatus(s.id, "done"));
     revert();
     expect(live()).toHaveLength(1);
@@ -194,7 +194,7 @@ describe("v1.2.1 store fixes", () => {
   });
 
   it("H10: following and all treat someday like none", () => {
-    const mk = () => addTask({ title: "S", schedule: { kind: "day", date: "2026-10-26" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const mk = () => addTask({ title: "S", schedule: { kind: "day", date: "2026-10-26" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     const a = mk();
     editOccurrence(a.id, "2026-10-28", "following", { schedule: { kind: "someday" } });
     expect(live().filter((t) => t.schedule.kind === "someday").every((t) => t.recurrence === null)).toBe(true);
@@ -371,7 +371,7 @@ describe("HAB-19 waiting and someday flow down to open subtasks", () => {
 
 describe("skipMissed (TIME-20)", () => {
   it("excludes every missed occurrence in one write, which undoes as one step", () => {
-    const s = addTask({ title: "Gym", schedule: { kind: "day", date: "2026-11-10" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const s = addTask({ title: "Gym", schedule: { kind: "day", date: "2026-11-10" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     let n = 0;
     const revert = undoable(() => void (n = skipMissed(s.id, "2026-11-14")));
     expect(n).toBe(4);
@@ -416,9 +416,24 @@ describe("undoableStructure (DATA-15)", () => {
 
 describe("recurring checklists (FEAT-13)", () => {
   it("finished occurrence keeps its ticks, the series starts unticked", () => {
-    const s = addTask({ title: "Clean", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=WEEKLY", exdates: [] }, checklist: [{ id: "a", title: "Dust", done: true }] });
+    const s = addTask({ title: "Clean", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=WEEKLY", exdates: [], tz: null }, checklist: [{ id: "a", title: "Dust", done: true }] });
     setStatus(s.id, "done");
     expect(useData.getState().tasks[s.id].checklist[0].done).toBe(false);
     expect(live().find((t) => t.status === "done")?.checklist[0].done).toBe(true);
+  });
+});
+
+describe("series zone stamp (TIME-03)", () => {
+  const mk = () => addTask({ title: "Standup", schedule: timed(atLocalTime("2026-10-26", "09:00"), 15), recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
+  const tzOf = (id: string) => useData.getState().tasks[id].recurrence?.tz;
+
+  it("stamps the device zone on create, keeps it on a title edit, re-stamps when the start moves", () => {
+    const s = mk();
+    expect(tzOf(s.id)).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    useData.setState((d) => ({ tasks: { ...d.tasks, [s.id]: { ...d.tasks[s.id], recurrence: { ...d.tasks[s.id].recurrence!, tz: "Europe/London" } } } }));
+    updateTask(s.id, { title: "Renamed" });
+    expect(tzOf(s.id)).toBe("Europe/London");
+    updateTask(s.id, { schedule: timed(atLocalTime("2026-10-26", "10:00"), 15) });
+    expect(tzOf(s.id)).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
   });
 });

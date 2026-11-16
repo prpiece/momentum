@@ -17,7 +17,7 @@ describe("agentTask", () => {
       id: "t1", title: "Call mom", notes: "about Sunday", list: "Inbox", status: "open", priority: "high", planned: "2026-10-30", start: null,
       deadline: "2026-11-02", durationMin: 15, tags: ["family"], subtasks: 2, parentId: null, repeats: null, isOccurrence: false, seriesId: null, archived: false,
     });
-    expect(agentTask({ ...base, recurrence: { rule: "FREQ=WEEKLY", exdates: [] } }, base.schedule, { lists, tags, subtasks: 0 }).repeats).toBe("Every week");
+    expect(agentTask({ ...base, recurrence: { rule: "FREQ=WEEKLY", exdates: [], tz: null } }, base.schedule, { lists, tags, subtasks: 0 }).repeats).toBe("Every week");
   });
   it("reports someday and time blocks", () => {
     const ctx = { lists: {}, tags: {}, subtasks: 0 };

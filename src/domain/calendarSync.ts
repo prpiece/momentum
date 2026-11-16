@@ -94,7 +94,7 @@ function googleRecurrence(lines: unknown, start: GTime, tz: string): Recurrence 
     rule = rule.replace(/UNTIL=(\d{8}T\d{6})Z/i, (_, u: string) => `UNTIL=${stamp(wallIn(new Date(`${u.slice(0, 4)}-${u.slice(4, 6)}-${u.slice(6, 8)}T${u.slice(9, 11)}:${u.slice(11, 13)}:${u.slice(13, 15)}Z`), z))}`);
     rule = `DTSTART;TZID=${z}:${stamp(wallIn(start.instant, z))}\nRRULE:${rule}`;
   }
-  return isValidRule(rule) ? { rule, exdates: [...new Set(exdates)] } : null;
+  return isValidRule(rule) ? { rule, exdates: [...new Set(exdates)], tz: null } : null;
 }
 
 function when(start: GTime, end: GTime | null): { schedule: When; spanDays: number } | null {

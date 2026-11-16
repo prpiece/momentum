@@ -11,7 +11,7 @@ describe("toIcs", () => {
     const ics = toIcs(
       [
         t({ id: "a", title: "Buy milk, eggs; bread", description: "line1\nline2", schedule: { kind: "day", date: "2026-12-31" } }),
-        t({ id: "b", schedule: { kind: "timed", start: "2026-11-17T14:00:00.000Z", end: "2026-11-17T15:00:00.000Z" }, recurrence: { rule: "FREQ=WEEKLY", exdates: [] } }),
+        t({ id: "b", schedule: { kind: "timed", start: "2026-11-17T14:00:00.000Z", end: "2026-11-17T15:00:00.000Z" }, recurrence: { rule: "FREQ=WEEKLY", exdates: [], tz: null } }),
         t({ id: "c" }),
         t({ id: "d", status: "done", schedule: { kind: "day", date: "2026-01-01" } }),
         t({ id: "e", deletedAt: "x", schedule: { kind: "day", date: "2026-01-01" } }),

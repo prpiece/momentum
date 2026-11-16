@@ -24,7 +24,7 @@ describe("trashItems", () => {
     const tasks = {
       p: t("p"),
       c: t("c", { parentId: "p", deletedAt: "2026-11-14T12:00:00.000Z" }),
-      done: t("done", { deletedAt: "2026-11-14T12:00:00.000Z", schedule: { kind: "day", date: "2026-11-01" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: ["2026-11-01"] } }),
+      done: t("done", { deletedAt: "2026-11-14T12:00:00.000Z", schedule: { kind: "day", date: "2026-11-01" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: ["2026-11-01"], tz: null } }),
     };
     expect(trashItems(tasks, NOW).map((i) => i.task.id)).toEqual(["c"]);
   });

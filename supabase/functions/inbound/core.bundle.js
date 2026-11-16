@@ -4969,7 +4969,7 @@ function atLocalTime(date, hhmm) {
 	const [h, mi] = hhmm.split(":").map(Number);
 	return new Date(y, m - 1, d, h, mi);
 }
-/** Minute-precision wall-clock key, stable across DST and time-zone changes. */
+/** Minute-precision wall-clock key of `d` in the device's current zone (it moves if the zone changes; recurrence keys stay put via Recurrence.tz). */
 const wallKey = (d) => format(d, "yyyy-MM-dd'T'HH:mm");
 const hhmm = (d) => format(d, "HH:mm");
 const zoneFormats = /* @__PURE__ */ new Map();
@@ -8351,8 +8351,13 @@ const ruleFrom = (rule, start) => new RRule({
 	dtstart: start,
 	tzid: null
 });
-function build(rule, anchor) {
-	return ruleFrom(rule, toFloating(anchor));
+/** The series start as a floating wall clock: in the zone it was written in (TIME-03), else the viewer's. */
+function floatAnchor(t, anchor) {
+	const tz = t.schedule.kind === "timed" ? t.recurrence?.tz : null;
+	return tz && isZone(tz) ? wallIn(anchor, tz) : toFloating(anchor);
+}
+function build(t, anchor) {
+	return ruleFrom(t.recurrence?.rule ?? "", floatAnchor(t, anchor));
 }
 /** `YYYY-MM-DD` for day schedules, `YYYY-MM-DDTHH:mm` for timed ones. */
 function keyOf(kind, floating) {
@@ -8386,7 +8391,7 @@ function expansion(t) {
 	const { rule } = t.recurrence;
 	const tz = t.schedule.kind === "timed" ? RRule.parseString(rule).tzid : null;
 	if (!tz || !isZone(tz)) return {
-		rrule: build(rule, anchor),
+		rrule: build(t, anchor),
 		toF: toFloating,
 		key: (f) => keyOf(t.schedule.kind, f),
 		occ: (f) => occurrence(t.schedule, f)
@@ -8440,7 +8445,8 @@ function effective(t) {
 function detachOccurrence(series, key, newId, now) {
 	const rec = series.recurrence ?? {
 		rule: "",
-		exdates: []
+		exdates: [],
+		tz: null
 	};
 	return {
 		series: {
@@ -8516,6 +8522,7 @@ function isWaiting(w, blocked, today) {
 const followUpDue = (w, today) => w?.kind === "person" && w.followUp <= today;
 // src/db/rows.ts
 const str = (v, fallback = "") => typeof v === "string" ? v : fallback;
+const zoneOrNull = (v) => typeof v === "string" && isZone(v) ? v : null;
 const optStr = (v) => typeof v === "string" && v !== "" ? v : null;
 const num = (v, fallback = 0) => typeof v === "number" && Number.isFinite(v) ? v : fallback;
 const bool = (v) => v === 1 || v === true;
@@ -8586,7 +8593,8 @@ function parseTask(r) {
 		waiting: ((w) => w?.kind === "task" && w.taskId === r.id ? null : w)(parseWaiting(json(r.waiting))),
 		recurrence: rule && (schedule.kind === "day" || schedule.kind === "timed") && isValidRule(rule) ? {
 			rule,
-			exdates: arr(r.exdates).filter((x) => typeof x === "string")
+			exdates: arr(r.exdates).filter((x) => typeof x === "string"),
+			tz: zoneOrNull(r.rrule_tz)
 		} : null,
 		recurrenceParentId: optStr(r.recurrence_parent_id),
 		tags: arr(r.tags).filter((x) => typeof x === "string"),
@@ -8620,6 +8628,7 @@ function taskToRow(t) {
 		waiting: t.waiting ? JSON.stringify(t.waiting) : null,
 		rrule: t.recurrence?.rule ?? null,
 		exdates: JSON.stringify(t.recurrence?.exdates ?? []),
+		rrule_tz: t.recurrence?.tz ?? null,
 		recurrence_parent_id: t.recurrenceParentId,
 		tags: JSON.stringify(t.tags),
 		checklist: JSON.stringify(t.checklist),

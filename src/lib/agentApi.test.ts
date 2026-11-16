@@ -27,32 +27,32 @@ describe("add", () => {
 
 describe("complete", () => {
   it("returns the finished occurrence when it was the last one", () => {
-    const t = addTask({ title: "Once more", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: [] } });
+    const t = addTask({ title: "Once more", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: [], tz: null } });
     const r = call("complete", { id: t.id });
     expect(r.task).toMatchObject({ title: "Once more", status: "done" });
   });
   it("scope this (default) completes only the current occurrence", () => {
-    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     call("complete", { id: s.id });
     expect(useData.getState().tasks[s.id].status).toBe("open");
     expect(useData.getState().tasks[s.id].recurrence?.exdates).toEqual(["2026-10-25"]);
   });
   it("scope all ends the series, so no more occurrences come (AGENT-17)", () => {
-    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     const r = call("complete", { id: s.id, scope: "all" });
     expect(r.task).toMatchObject({ title: "Stretch", status: "done" });
     expect(useData.getState().tasks[s.id].status).toBe("done");
     expect(live().filter((t) => t.status === "open")).toHaveLength(0);
   });
   it("scope following behaves like all", () => {
-    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const s = addTask({ title: "Stretch", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     call("complete", { id: s.id, scope: "following" });
     expect(useData.getState().tasks[s.id].status).toBe("done");
   });
 });
 
 describe("update on a recurring task", () => {
-  const series = () => addTask({ title: "Gym", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+  const series = () => addTask({ title: "Gym", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
   it("changes only this occurrence by default", () => {
     const s = series();
     const r = call("update", { id: s.id, title: "Gym (light)" });
@@ -61,7 +61,7 @@ describe("update on a recurring task", () => {
   });
   it("keeps the current occurrence's date when only the duration changes (AGENT-02)", () => {
     const timedSeries = () => {
-      const t = addTask({ title: "Run", schedule: { kind: "timed", start: "2026-10-01T13:00:00.000Z", end: "2026-10-01T14:00:00.000Z" }, recurrence: { rule: "FREQ=DAILY", exdates: ["2026-10-01T09:00", "2026-10-02T09:00"] } });
+      const t = addTask({ title: "Run", schedule: { kind: "timed", start: "2026-10-01T13:00:00.000Z", end: "2026-10-01T14:00:00.000Z" }, recurrence: { rule: "FREQ=DAILY", exdates: ["2026-10-01T09:00", "2026-10-02T09:00"], tz: null } });
       return t;
     };
     const startOf = (id: string) => {
@@ -126,7 +126,7 @@ describe("find explains a miss (AGENT-01/03)", () => {
     expect(() => run("get", { id: t.id.slice(0, 6) })).toThrow(/in the Trash/);
   });
   it("says an exhausted series has no occurrences left", () => {
-    const t = addTask({ title: "Spent", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: ["2026-10-25"] } });
+    const t = addTask({ title: "Spent", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: ["2026-10-25"], tz: null } });
     expect(() => run("get", { id: t.id })).toThrow(/no occurrences left/);
   });
   it("says so when nothing matches", () => {
@@ -135,7 +135,7 @@ describe("find explains a miss (AGENT-01/03)", () => {
 });
 
 describe("delete on a recurring task (AGENT-04)", () => {
-  const series = () => addTask({ title: "Tuesdays", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+  const series = () => addTask({ title: "Tuesdays", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
   it("removes only the current occurrence by default, the series with scope all", () => {
     const s = series();
     const d = run("delete", { id: s.id }) as { deleted: { planned: string; repeats: string } };
@@ -177,7 +177,7 @@ describe("habits", () => {
 
 describe("recurrence info, archived lists, structured add (AGENT-15/17/19)", () => {
   it("says whether a task is an occurrence and of which series", () => {
-    const t = addTask({ title: "Weekly", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=WEEKLY;COUNT=5", exdates: [] } });
+    const t = addTask({ title: "Weekly", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=WEEKLY;COUNT=5", exdates: [], tz: null } });
     expect(call("get", { id: t.id }).task).toMatchObject({ isOccurrence: true, seriesId: t.id });
     const plain = call("add", { text: "plain" }).task;
     expect(plain).toMatchObject({ isOccurrence: false, seriesId: null, archived: false });
@@ -198,7 +198,7 @@ describe("recurrence info, archived lists, structured add (AGENT-15/17/19)", () 
     expect(() => run("update", { id: t.id, repeat: "FREQ=NOPE" })).toThrow(/RRULE/);
     expect(() => run("update", { id: t.id, reminders: [{ minutes: 10 }] })).toThrow(/time block/);
     run("update", { id: t.id, repeat: "FREQ=WEEKLY;BYDAY=MO", reminders: [{ daysBefore: 1, time: "09:00" }], checklist: ["fill can", "water"] });
-    expect(get().recurrence).toEqual({ rule: "FREQ=WEEKLY;BYDAY=MO", exdates: [] });
+    expect(get().recurrence).toEqual({ rule: "FREQ=WEEKLY;BYDAY=MO", exdates: [], tz: null });
     expect(get().reminders).toEqual([{ kind: "dayOf", daysBefore: 1, time: "09:00" }]);
     expect(get().checklist.map((i) => i.title)).toEqual(["fill can", "water"]);
     expect(() => run("update", { id: t.id, repeat: "none" })).toThrow(/scope/);

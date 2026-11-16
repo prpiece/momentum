@@ -32,13 +32,13 @@ describe("reminders", () => {
   });
 
   it("keeps reminding for later occurrences of a series after one is missed (TIME-01)", () => {
-    const s = vm(timed(atLocalTime("2026-11-10", "09:00"), 30), [{ kind: "before", minutes: 15 }], { recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    const s = vm(timed(atLocalTime("2026-11-10", "09:00"), 30), [{ kind: "before", minutes: 15 }], { recurrence: { rule: "FREQ=DAILY", exdates: [], tz: null } });
     expect(s.key).toBe("2026-11-10T09:00");
     const fires = remindersBetween([s], [], () => new Map(), atLocalTime("2026-11-15", "08:40"), atLocalTime("2026-11-15", "08:50"), "24h", 1);
     expect(fires.map((f) => wallKey(f.at))).toEqual(["2026-11-15T08:45"]);
     expect(fires[0].target).toEqual({ kind: "task", id: "t", occurrenceKey: "2026-11-15T09:00" });
     expect(fires[0].body).toBe("Today at 09:00");
-    const day = vm({ kind: "day", date: "2026-11-10" }, [{ kind: "dayOf", daysBefore: 1, time: "18:00" }], { recurrence: { rule: "FREQ=DAILY", exdates: ["2026-11-15"] } });
+    const day = vm({ kind: "day", date: "2026-11-10" }, [{ kind: "dayOf", daysBefore: 1, time: "18:00" }], { recurrence: { rule: "FREQ=DAILY", exdates: ["2026-11-15"], tz: null } });
     const evening = remindersBetween([day], [], () => new Map(), atLocalTime("2026-11-14", "17:00"), atLocalTime("2026-11-15", "19:00"), "24h", 1);
     // The 15th is handled, so only the reminder for the 16th fires.
     expect(evening.map((f) => f.target)).toEqual([{ kind: "task", id: "t", occurrenceKey: "2026-11-16" }]);

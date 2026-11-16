@@ -3,7 +3,7 @@
  * bad JSON or values degrade to safe defaults, and a row that can't be a Task is dropped.
  * Pure (no Tauri imports) so it is unit-tested.
  */
-import { isInstant, isLocalDate } from "../domain/dates";
+import { isInstant, isLocalDate, isZone } from "../domain/dates";
 import { isValidRule } from "../domain/recurrence";
 import { isRecord, oneOf } from "../domain/settings";
 import { parseWaiting } from "../domain/waiting";
@@ -29,6 +29,7 @@ import {
 export type Row = Record<string, unknown>;
 
 const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : fallback);
+const zoneOrNull = (v: unknown) => (typeof v === "string" && isZone(v) ? v : null);
 const optStr = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
 const num = (v: unknown, fallback = 0) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 const bool = (v: unknown) => v === 1 || v === true;
@@ -90,7 +91,7 @@ export function parseTask(r: Row): Task | null {
     waiting: ((w) => (w?.kind === "task" && w.taskId === r.id ? null : w))(parseWaiting(json(r.waiting))),
     recurrence:
       rule && (schedule.kind === "day" || schedule.kind === "timed") && isValidRule(rule)
-        ? { rule, exdates: arr(r.exdates).filter((x): x is string => typeof x === "string") }
+        ? { rule, exdates: arr(r.exdates).filter((x): x is string => typeof x === "string"), tz: zoneOrNull(r.rrule_tz) }
         : null,
     recurrenceParentId: optStr(r.recurrence_parent_id),
     tags: arr(r.tags).filter((x): x is string => typeof x === "string"),
@@ -129,6 +130,7 @@ export function taskToRow(t: Task): Row {
     waiting: t.waiting ? JSON.stringify(t.waiting) : null,
     rrule: t.recurrence?.rule ?? null,
     exdates: JSON.stringify(t.recurrence?.exdates ?? []),
+    rrule_tz: t.recurrence?.tz ?? null,
     recurrence_parent_id: t.recurrenceParentId,
     tags: JSON.stringify(t.tags),
     checklist: JSON.stringify(t.checklist),
@@ -226,7 +228,7 @@ export function parseEvent(r: Row): CalendarEvent | null {
     schedule,
     spanDays: Math.max(1, Math.round(num(r.span_days, 1))),
     color: optStr(r.color),
-    recurrence: rule && isValidRule(rule) ? { rule, exdates: arr(r.exdates).filter((x): x is string => typeof x === "string") } : null,
+    recurrence: rule && isValidRule(rule) ? { rule, exdates: arr(r.exdates).filter((x): x is string => typeof x === "string"), tz: zoneOrNull(r.rrule_tz) } : null,
     recurrenceParentId: optStr(r.recurrence_parent_id),
     source: r.source === "ics" ? "ics" : "local",
     subscriptionId: r.source === "ics" ? optStr(r.subscription_id) : null,
@@ -262,6 +264,7 @@ export function eventToRow(e: CalendarEvent): Row {
     color: e.color,
     rrule: e.recurrence?.rule ?? null,
     exdates: JSON.stringify(e.recurrence?.exdates ?? []),
+    rrule_tz: e.recurrence?.tz ?? null,
     recurrence_parent_id: e.recurrenceParentId,
     source: e.source,
     subscription_id: e.subscriptionId,

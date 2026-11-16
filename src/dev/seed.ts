@@ -88,7 +88,7 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     task("Outline argument", { listId: essay.id, sectionId: sections[1].id }),
     task("Intro paragraph", { listId: essay.id, sectionId: sections[1].id }),
     task("Bibliography format", { listId: essay.id, sectionId: sections[2].id, priority: 1 }),
-    task("Team standup", { listId: work.id, schedule: at(0, "09:30", 15), recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", exdates: [] } }),
+    task("Team standup", { listId: work.id, schedule: at(0, "09:30", 15), recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", exdates: [], tz: null } }),
     task("Prepare Q4 planning deck", {
       listId: work.id,
       priority: 3,
@@ -103,11 +103,11 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     task("Reply to vendor email", { listId: work.id, priority: 1, schedule: day(0) }),
     task("Expense report", { listId: work.id, priority: 2, schedule: day(-2) }),
     task("1:1 with manager", { listId: work.id, schedule: at(1, "11:00", 30) }),
-    task("Pay rent", { listId: home.id, priority: 3, schedule: day(4), recurrence: { rule: "FREQ=MONTHLY", exdates: [] }, reminders: [{ kind: "dayOf", daysBefore: 1, time: "18:00" }] }),
+    task("Pay rent", { listId: home.id, priority: 3, schedule: day(4), recurrence: { rule: "FREQ=MONTHLY", exdates: [], tz: null }, reminders: [{ kind: "dayOf", daysBefore: 1, time: "18:00" }] }),
     task("Groceries", { listId: home.id, schedule: day(0), tags: [errand], checklist: ["Oats", "Spinach", "Coffee", "Eggs"].map((title) => ({ id: id(), title, done: false })) }),
     task("Book dentist", { listId: home.id, priority: 1, tags: [health, errand] }),
-    task("Gym", { listId: home.id, schedule: at(0, "07:00", 60), tags: [health], recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,WE,FR", exdates: [] } }),
-    task("Water plants", { listId: home.id, schedule: day(1), recurrence: { rule: "FREQ=DAILY;INTERVAL=3", exdates: [] } }),
+    task("Gym", { listId: home.id, schedule: at(0, "07:00", 60), tags: [health], recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,WE,FR", exdates: [], tz: null } }),
+    task("Water plants", { listId: home.id, schedule: day(1), recurrence: { rule: "FREQ=DAILY;INTERVAL=3", exdates: [], tz: null } }),
     task("Call mom", { schedule: day(5) }),
     task("Look into a standing desk", {}),
     task("Renew passport", { priority: 2, schedule: day(12), tags: [errand] }),
@@ -137,14 +137,14 @@ export function sampleWorkspace(today = todayLocal()): Workspace {
     ...p,
   });
   const events: CalendarEvent[] = [
-    event("Chem lecture", at(0, "10:00", 90), { color: "#8a4fd8", recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,WE", exdates: [] } }),
+    event("Chem lecture", at(0, "10:00", 90), { color: "#8a4fd8", recurrence: { rule: "FREQ=WEEKLY;BYDAY=MO,WE", exdates: [], tz: null } }),
     event("Lunch with Priya", at(1, "12:30", 60), { color: "#e1583f" }),
     event("Dentist", at(3, "15:00", 45), { color: "#0e8a85" }),
     event("Design review", at(2, "14:30", 60), { color: "#2f6fed" }),
     event("Long weekend", day(5), { spanDays: 3, color: "#d18a14" }),
     event("Chem final exam", day(23), { color: "#8a4fd8", countdown: "until", pinned: true }),
     event("Trip to Japan", day(74), { color: "#2f6fed", countdown: "until", pinned: true }),
-    event("Mum's birthday", { kind: "day", date: "1968" + d(65).slice(4) }, { color: "#d6457a", countdown: "until", recurrence: { rule: "FREQ=YEARLY", exdates: [] } }),
+    event("Mum's birthday", { kind: "day", date: "1968" + d(65).slice(4) }, { color: "#d6457a", countdown: "until", recurrence: { rule: "FREQ=YEARLY", exdates: [], tz: null } }),
     event("Started running", day(-45), { color: "#e1583f", countdown: "since" }),
   ];
   return { tasks, events, lists, folders, sections, tags };
