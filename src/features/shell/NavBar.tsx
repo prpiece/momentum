@@ -16,7 +16,7 @@ import { ListDialog } from "../tasks/ListDialog";
 import { useCounts } from "../tasks/selectors";
 import { WindowControls } from "./WindowControls";
 import { RequestBadge } from "../friends/RequestBadge";
-import { MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
+import { HOME_NAV, MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
 
 const GAP = 2; // px between items (gap-0.5)
 const ICON = 16;
@@ -56,6 +56,7 @@ export function NavBar({ position, style }: { position: BarPosition; style: BarS
   const floating = style === "floating";
 
   const dests = [
+    { ...HOME_NAV, count: undefined, drop: undefined, badge: undefined },
     ...SIDEBAR_SMART_NAV.map((n) => ({ ...n, count: counts.smart[n.id] || undefined, drop: { type: "smart", id: n.id } as DropData, badge: undefined })),
     ...MODULE_NAV.map((n) => ({ ...n, count: undefined, drop: undefined, badge: n.id === "focus" ? <FocusBadge /> : n.id === "friends" ? <RequestBadge /> : undefined })),
   ];

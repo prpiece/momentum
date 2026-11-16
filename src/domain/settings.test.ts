@@ -146,7 +146,7 @@ describe("parseSettings view options", () => {
 
   it("accepts list and tag views as default view", () => {
     expect(parseSettings({ defaultView: "list:abc" }).defaultView).toBe("list:abc");
-    expect(parseSettings({ defaultView: "list:" }).defaultView).toBe("today");
+    expect(parseSettings({ defaultView: "list:" }).defaultView).toBe(DEFAULT_SETTINGS.defaultView);
   });
 });
 

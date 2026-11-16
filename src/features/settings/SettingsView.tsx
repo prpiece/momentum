@@ -30,7 +30,7 @@ import { hydrateHabits, saveHabitData } from "../../stores/habits";
 import { openSettingsPage, useSettingsPage } from "../../stores/settings";
 import { discardDraft, draftIsDirty, saveDraft, useSettingsDraft } from "../../stores/settingsDraft";
 import { askSave, setLeaveGuard, toast, useUi } from "../../stores/ui";
-import { MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
+import { HOME_NAV, MODULE_NAV, SMART_LIST_NAV } from "../shell/nav";
 
 /** One bordered card per page (D198); each direct child is a row with a hairline above it. */
 function Card({ children }: { children: ReactNode }) {
@@ -105,7 +105,7 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (v: strin
   );
 }
 
-const DEFAULT_VIEWS: { id: ViewId; label: string }[] = [...SMART_LIST_NAV, ...MODULE_NAV].filter((n) => n.id !== "trash");
+const DEFAULT_VIEWS: { id: ViewId; label: string }[] = [HOME_NAV, ...SMART_LIST_NAV, ...MODULE_NAV].filter((n) => n.id !== "trash");
 
 type Page = { id: string; title: string; icon: LucideIcon };
 const PAGES: Page[] = [
@@ -226,7 +226,7 @@ export function SettingsView() {
   const bodies: Record<string, ReactNode> = {
     "settings-general": (
       <Card>
-        <Row label="Start view">
+        <Row label="Open to">
           <select
             value={s.defaultView}
             onChange={(e) => {

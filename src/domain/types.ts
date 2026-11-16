@@ -10,7 +10,7 @@ export type Instant = string;
 export const SMART_LISTS = ["inbox", "today", "upcoming", "someday", "waiting"] as const;
 export type SmartListId = (typeof SMART_LISTS)[number];
 
-export const MODULE_VIEWS = ["calendar", "habits", "focus", "progress", "friends", "trash", "settings"] as const;
+export const MODULE_VIEWS = ["home", "calendar", "habits", "focus", "progress", "friends", "trash", "settings"] as const;
 export type ModuleView = (typeof MODULE_VIEWS)[number];
 
 /** Every top-level screen. */

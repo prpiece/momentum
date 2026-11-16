@@ -2,6 +2,7 @@ import {
   AlarmClock,
   Archive,
   Hourglass,
+  House,
   CalendarDays,
   ChartColumn,
   CalendarRange,
@@ -26,7 +27,9 @@ export const SMART_LIST_NAV: NavDef<SmartListId>[] = [
 ];
 export const SIDEBAR_SMART_NAV = SMART_LIST_NAV;
 
-export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
+export const HOME_NAV: NavDef<"home"> = { id: "home", label: "Home", icon: House };
+
+export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings" | "home">>[] = [
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "habits", label: "Habits", icon: Target },
   { id: "focus", label: "Focus", icon: AlarmClock },
@@ -35,9 +38,10 @@ export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings">>[] = [
   { id: "trash", label: "Trash", icon: Trash2 },
 ];
 
-
+/** Rarely opened destinations the sidebar folds under "More" (they stay in the palette and on Home). */
+export const SIDEBAR_MORE: readonly ViewId[] = ["someday", "waiting", "progress", "trash"];
 
 export const SETTINGS_NAV: NavDef<"settings"> = { id: "settings", label: "Settings", icon: Settings };
 
-const ALL = [...SMART_LIST_NAV, ...MODULE_NAV, SETTINGS_NAV];
+const ALL = [HOME_NAV, ...SMART_LIST_NAV, ...MODULE_NAV, SETTINGS_NAV];
 export const navFor = (id: ViewId) => ALL.find((n) => n.id === id) ?? SMART_LIST_NAV[1];

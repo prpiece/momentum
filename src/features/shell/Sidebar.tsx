@@ -1,6 +1,8 @@
 import { keyLabel } from "../../lib/platform";
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronRight,
   FolderPlus,
   ListPlus,
@@ -29,7 +31,7 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { isViewId } from "../../domain/settings";
 import { scheduleForKey } from "../../domain/recurrence";
-import type { Folder, SavedFilter, TaskList } from "../../domain/types";
+import type { Folder, SavedFilter, SmartListId, TaskList, ViewId } from "../../domain/types";
 import { canAddChild, canNest, childFolders } from "../../domain/folders";
 import { justDragged, onDrop, type DragData, type DropData } from "../../lib/dnd";
 import { withUndo } from "../../stores/undo";
@@ -44,7 +46,8 @@ import { RequestBadge } from "../friends/RequestBadge";
 import { confirmShareMove } from "../friends/moveGuard";
 import { openShare } from "../friends/friendsUi";
 import { SharedMark } from "../friends/SharedMark";
-import { MODULE_NAV, SETTINGS_NAV, SIDEBAR_SMART_NAV } from "./nav";
+import { HOME_NAV, MODULE_NAV, SETTINGS_NAV, SIDEBAR_MORE, SIDEBAR_SMART_NAV } from "./nav";
+import { dropListOn, listSiblings, moveListToFolder, stepFolder, stepList } from "./sidebarMoves";
 
 type Side = "left" | "right";
 
@@ -54,6 +57,7 @@ const dragged = (id: string) => {
 };
 
 onDrop("list", (drag, drop) => {
+  if (drag.type === "listrow") return void dropListOn(drag.id, drop.listId);
   if (drag.type !== "task") return;
   const ids = dragged(drag.id);
   const name = useData.getState().lists[drop.listId]?.name ?? "list";
@@ -63,6 +67,7 @@ onDrop("list", (drag, drop) => {
 });
 
 onDrop("folder", (drag, drop) => {
+  if (drag.type === "listrow") return void moveListToFolder(drag.id, drop.id);
   if (drag.type !== "folder") return;
   const { id: folderId } = drag;
   if (drop.id) void confirmShareMove("folder", drop.id, "this folder").then((ok) => ok && moveFolder(folderId, drop.id));
@@ -113,16 +118,26 @@ function NavItem(props: {
   drop?: DropData;
   indent?: boolean;
   menu?: () => MenuEntry[];
+  /** A list id: the row can be dragged to reorder it or move it into a folder. */
+  dragList?: string;
 }) {
   const active = useUi((s) => s.view === props.id);
-  const { setNodeRef, isOver } = useDroppable({ id: `nav:${props.id}`, data: props.drop, disabled: !props.drop });
+  const drop = useDroppable({ id: `nav:${props.id}`, data: props.drop, disabled: !props.drop });
+  const drag = useDraggable({ id: `listrow:${props.id}`, data: { type: "listrow", id: props.dragList ?? "" } satisfies DragData, disabled: !props.dragList });
+  const isOver = drop.isOver && !drag.isDragging;
+  const t = drag.transform;
   return (
-    <li ref={setNodeRef} className="group/nav relative">
+    <li
+      ref={(n) => (drop.setNodeRef(n), drag.setNodeRef(n))}
+      style={t ? { transform: `translate3d(${t.x}px, ${t.y}px, 0)`, position: "relative", zIndex: 20 } : undefined}
+      className={`group/nav relative rounded-control ${drag.isDragging ? "bg-raised opacity-90 shadow-float ring-1 ring-accent" : ""}`}
+    >
       {/* The rail names each icon in a tooltip (D208). */}
       <Tip label={props.label} side={props.side === "left" ? "right" : "left"} disabled={!props.collapsed}>
       <button
         type="button"
-        onClick={props.onClick ?? (() => isViewId(props.id) && go(props.id))}
+        {...(props.dragList ? { ...drag.listeners, onKeyDown: undefined } : {})} /* pointer drag only: the keyboard path is the menu's Move up/down */
+        onClick={props.onClick ?? (() => !justDragged() && isViewId(props.id) && go(props.id))}
         onContextMenu={(e) => props.menu && openContextMenu(e, props.menu())}
         aria-current={active ? "page" : undefined}
         aria-label={props.collapsed ? props.label : undefined}
@@ -168,6 +183,10 @@ function SectionHeader({ label, open, onToggle, actions, tour }: { label: string
   );
 }
 
+function SectionLabel({ children }: { children: ReactNode }) {
+  return <div className="t-label mt-3 h-7 px-2 leading-7 text-muted">{children}</div>;
+}
+
 function InlineName({ initial, onDone }: { initial: string; onDone: (v: string | null) => void }) {
   return (
     <input
@@ -198,12 +217,17 @@ export function Sidebar() {
   const lists = useData((s) => s.lists);
   const folders = useData((s) => s.folders);
   const counts = useCounts();
-  const [openSec, setOpenSec] = useState({ lists: true, filters: true, archived: false });
+  const [openSec, setOpenSec] = useState({ lists: true, filters: true, archived: false, more: false });
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   /** Where the inline new-folder input shows: "" is the top level, an id is under that folder. */
   const [newFolder, setNewFolder] = useState<string | null>(null);
   const [editList, setEditList] = useState<TaskList | null>(null);
   const [editingFilter, setEditingFilter] = useState<{ id: string; field: "name" | "query" } | null>(null);
+
+  const view = useUi((s) => s.view);
+  const shown = (n: { id: string }) => !SIDEBAR_MORE.includes(n.id as ViewId);
+  const moreItems = [...SIDEBAR_SMART_NAV, ...MODULE_NAV].filter((n) => !shown(n));
+  const moreOpen = openSec.more || moreItems.some((n) => n.id === view);
 
   const Toggle = side === "left" ? (collapsed ? PanelLeftOpen : PanelLeftClose) : collapsed ? PanelRightOpen : PanelRightClose;
   const userLists = Object.values(lists)
@@ -248,6 +272,24 @@ export function Sidebar() {
       />
     );
 
+  /** Keyboard path for what a drag does (D71): step through the siblings, or change folder. */
+  const listMoveEntries = (l: TaskList): MenuEntry[] => {
+    if (l.archived) return [];
+    const sibs = listSiblings(l).sort((a, b) => a.sortOrder - b.sortOrder);
+    const i = sibs.findIndex((x) => x.id === l.id);
+    const home = l.folderId && folders[l.folderId] ? l.folderId : null;
+    return [
+      "sep",
+      ...(i > 0 ? [{ label: "Move up", icon: <ArrowUp size={14} />, run: () => stepList(l, -1) }] : []),
+      ...(i >= 0 && i < sibs.length - 1 ? [{ label: "Move down", icon: <ArrowDown size={14} />, run: () => stepList(l, 1) }] : []),
+      ...(home ? [{ label: "Move out of folder", icon: <ChevronRight size={14} />, run: () => void moveListToFolder(l.id, null) }] : []),
+      ...Object.values(folders)
+        .filter((f) => f.id !== home)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((f): MenuEntry => ({ label: `Move into ${f.name}`, icon: <ChevronRight size={14} />, run: () => void moveListToFolder(l.id, f.id) })),
+    ];
+  };
+
   const listItem = (l: TaskList, indent = false) => (
     <NavItem
       key={l.id}
@@ -259,12 +301,14 @@ export function Sidebar() {
       count={counts.lists[l.id]}
       drop={{ type: "list", listId: l.id }}
       indent={indent}
+      dragList={l.archived ? undefined : l.id}
       badge={<SharedMark kind="list" id={l.id} />}
       menu={() => [
         { label: "Edit list…", icon: <Pencil size={14} />, run: () => setEditList(l) },
         { label: "Share…", icon: <Share2 size={14} />, run: () => openShare("list", l.id) },
         { label: l.pinned ? "Unpin" : "Pin to top", icon: l.pinned ? <PinOff size={14} /> : <Pin size={14} />, run: () => updateList(l.id, { pinned: !l.pinned }) },
         { label: l.archived ? "Unarchive" : "Archive", icon: l.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />, run: () => updateList(l.id, { archived: !l.archived }) },
+        ...listMoveEntries(l),
         "sep",
         {
           label: "Delete list",
@@ -337,14 +381,35 @@ export function Sidebar() {
 
       <nav className="-mx-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden border-y border-border px-2 py-2">
         <ul data-tour="nav" className="space-y-px">
-          {SIDEBAR_SMART_NAV.map((n) => (
+          <NavItem id={HOME_NAV.id} label={HOME_NAV.label} icon={icon(HOME_NAV.icon)} collapsed={collapsed} side={side} />
+          {SIDEBAR_SMART_NAV.filter(shown).map((n) => (
             <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} count={counts.smart[n.id] || undefined} drop={smartDrop[n.id]} />
           ))}
         </ul>
-        <ul className="mt-px space-y-px">
-          {MODULE_NAV.map((n) => (
+        {!collapsed && <SectionLabel>Tools</SectionLabel>}
+        <ul className={`space-y-px ${collapsed ? "mt-px" : ""}`}>
+          {MODULE_NAV.filter(shown).map((n) => (
             <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={collapsed} side={side} badge={n.id === "focus" ? <FocusBadge /> : n.id === "friends" ? <RequestBadge /> : undefined} />
           ))}
+        </ul>
+        {/* Rarely used views fold away; the one you're in keeps the group open. */}
+        <ul className="mt-px space-y-px">
+          {collapsed ? (
+            moreItems.map((n) => <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed side={side} />)
+          ) : (
+            <li>
+              <button type="button" onClick={() => setOpenSec({ ...openSec, more: !openSec.more })} aria-expanded={moreOpen} className="flex h-8 w-full items-center gap-2 px-2 text-[length:var(--fs-sm)] text-muted hover:text-fg">
+                <ChevronRight size={12} className={`transition-transform duration-[var(--dur)] ${moreOpen ? "rotate-90" : ""}`} /> More
+              </button>
+              <Collapse open={moreOpen}>
+                <ul className="space-y-px">
+                  {moreItems.map((n) => (
+                    <NavItem key={n.id} id={n.id} label={n.label} icon={icon(n.icon)} collapsed={false} side={side} count={counts.smart[n.id as SmartListId] || undefined} />
+                  ))}
+                </ul>
+              </Collapse>
+            </li>
+          )}
         </ul>
 
         {!collapsed && (
@@ -408,7 +473,8 @@ export function Sidebar() {
 
 /** Only while a folder is dragged: dropping here moves it to the top level. */
 function TopLevelDrop() {
-  const dragging = useDndContext().active?.data.current?.type === "folder";
+  const type = useDndContext().active?.data.current?.type;
+  const dragging = type === "folder" || type === "listrow";
   const { setNodeRef, isOver } = useDroppable({ id: "folder-drop:top", data: { type: "folder", id: null } satisfies DropData, disabled: !dragging });
   if (!dragging) return null;
   return (
@@ -421,18 +487,24 @@ function TopLevelDrop() {
 const iconBtn = "btn btn-ghost icon-btn size-6 text-muted";
 
 function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; count: number; onRename: () => void; onAddSub: () => void }) {
+  const sibs = Object.values(useData((s) => s.folders))
+    .filter((f) => f.parentId === folder.parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const at = sibs.findIndex((f) => f.id === folder.id);
   const [newList, setNewList] = useState(false);
   const folders = useData((s) => s.folders);
   const canSub = canAddChild(folders, folder.id);
   const drag = useDraggable({ id: `folder:${folder.id}`, data: { type: "folder", id: folder.id } satisfies DragData });
   const drop = useDroppable({ id: `folder-drop:${folder.id}`, data: { type: "folder", id: folder.id } satisfies DropData });
   const dragId = useDndContext().active?.data.current;
-  const target = drop.isOver && typeof dragId === "object" && dragId?.type === "folder" && canNest(folders, dragId.id, folder.id) && dragId.id !== folder.id;
+  const target = drop.isOver && typeof dragId === "object" && (dragId?.type === "listrow" || (dragId?.type === "folder" && canNest(folders, dragId.id, folder.id) && dragId.id !== folder.id));
   const items = (): MenuEntry[] => [
     { label: "New list in folder…", icon: <Plus size={14} />, run: () => setNewList(true) },
     ...(canSub ? [{ label: "New subfolder…", icon: <FolderPlus size={14} />, run: onAddSub }] : []),
     { label: "Rename", icon: <Pencil size={14} />, run: onRename },
     { label: "Share…", icon: <Share2 size={14} />, run: () => openShare("folder", folder.id) },
+    ...(at > 0 ? [{ label: "Move up", icon: <ArrowUp size={14} />, run: () => stepFolder(folder.id, -1) }] : []),
+    ...(at >= 0 && at < sibs.length - 1 ? [{ label: "Move down", icon: <ArrowDown size={14} />, run: () => stepFolder(folder.id, 1) }] : []),
     ...(folder.parentId ? [{ label: "Move to top level", icon: <ChevronRight size={14} />, run: () => void moveFolder(folder.id, null) }] : []),
     // Keyboard path for nesting (D71): the same targets a drag accepts.
     ...Object.values(folders)
@@ -463,7 +535,7 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
         onClick={() => !justDragged() && updateFolder(folder.id, { collapsed: !folder.collapsed })}
         onContextMenu={(e) => openContextMenu(e, items())}
         aria-expanded={!folder.collapsed}
-        className={`nav-item w-full font-medium text-fg-2 ${canSub ? "group-hover/nav:pr-[5rem] group-focus-within/nav:pr-[5rem]" : "group-hover/nav:pr-14 group-focus-within/nav:pr-14"}`}
+        className="nav-item w-full font-medium text-fg-2 group-hover/nav:pr-14 group-focus-within/nav:pr-14"
       >
         <span className="ni-icon">
           <ChevronRight size={14} className={`size-3.5 text-muted transition-transform duration-[var(--dur)] ${folder.collapsed ? "" : "rotate-90"}`} />
@@ -477,11 +549,6 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
         <button type="button" aria-label={`New list in ${folder.name}`} title="New list" onClick={() => setNewList(true)} className={iconBtn}>
           <ListPlus size={14} />
         </button>
-        {canSub && (
-          <button type="button" aria-label={`New subfolder in ${folder.name}`} title="New subfolder" onClick={onAddSub} className={iconBtn}>
-            <FolderPlus size={14} />
-          </button>
-        )}
         <button type="button" aria-label={`${folder.name} options`} onClick={(e) => openMenuAt(e.currentTarget, items())} className={iconBtn}>
           <MoreHorizontal size={15} />
         </button>

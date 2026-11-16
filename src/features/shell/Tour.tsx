@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, Check, Lightbulb, X } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Logo } from "../../components/Logo";
 import { Keys } from "../../components/ui/Keys";
+import { FEATURES } from "../../domain/features";
 import type { ViewId } from "../../domain/types";
 import { useSettings } from "../../stores/settings";
 import { useAppVersion } from "../../lib/updater";
@@ -28,8 +29,42 @@ type Step = {
   interactive?: boolean;
 };
 
-/** The tour (D69, cut to four slides in v1.0, D178): the main ideas only. Help has the rest. */
+/** A feature's one-line how-to from the registry, so the tour and Help say the same thing. */
+const how = (id: string) => FEATURES.find((f) => f.id === id)?.howTo ?? "";
+
+/** What a token does, for the quick-add step. */
+const Tokens = ({ rows }: { rows: [token: string, what: string][] }) => (
+  <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1.5 text-[length:var(--fs-sm)]">
+    {rows.map(([t, what]) => (
+      <div key={t} className="contents">
+        <dt>
+          <Token>{t}</Token>
+        </dt>
+        <dd>{what}</dd>
+      </div>
+    ))}
+  </dl>
+);
+
+/**
+ * The tour (D69, D178, D269): ten short steps. Each says what the part does and why it helps; shortcuts
+ * come last, as a hint, because not everyone uses them. The how-to lines come from the feature registry.
+ */
 const STEPS: Step[] = [
+  {
+    title: "Welcome to Momentum",
+    target: "main",
+    view: "home",
+    body: (
+      <>
+        <p>This is Home. {how("home")}</p>
+        <p>Start here each day for a quick look at what matters, then jump to any section from the tiles, or from the navigation on the side.</p>
+        <Tip>
+          <Kbd>G O</Kbd> comes back to Home from anywhere.
+        </Tip>
+      </>
+    ),
+  },
   {
     title: "Capture anything instantly",
     target: "quickadd",
@@ -37,51 +72,127 @@ const STEPS: Step[] = [
     interactive: true,
     body: (
       <>
-        <p>Momentum is the planner you do with friends. It starts with getting things out of your head: type a task and press Enter. Try one now.</p>
-        <div className="flex flex-wrap gap-1.5">
-          <Token>tomorrow 5pm</Token> <Token>!high</Token> <Token>#school</Token> <Token>~Work</Token> <Token>every mon</Token>
-        </div>
+        <p>Type what is on your mind and press Enter. Add details in plain words and Momentum picks them out, so you never have to click through forms. Try one now.</p>
+        <Tokens
+          rows={[
+            ["tomorrow 5pm", "sets the date and time"],
+            ["every mon", "repeats it"],
+            ["!high", "sets the priority"],
+            ["#school", "adds a tag"],
+            ["~Work", "files it in a list"],
+          ]}
+        />
         <Tip>
-          Press <Kbd>N</Kbd> in the app, or <Kbd>Ctrl Shift A</Kbd> from any other app (change it in Settings). Everything works offline.
+          Press <Kbd>N</Kbd> in the app, or <Kbd>Ctrl Shift A</Kbd> from any other app (change it in Settings).
         </Tip>
       </>
     ),
   },
   {
-    title: "One view, four ways to see it",
-    target: "toolbar",
+    title: "Lists and folders",
+    target: "lists",
     view: "today",
     body: (
       <>
-        <p>Inbox catches new tasks, Today shows what's due, Upcoming the days ahead. Each view can show as a list, a matrix of urgent and important, or a timeline; lists can also be a board.</p>
+        <p>
+          {how("lists")} Drag a list to reorder it or drop it on a folder to file it. Right-click for Move up and Move down, rename, colour or archive.
+        </p>
+        <p>Keeping work, school and home apart means each list stays short and easy to scan.</p>
+        <Tip>Use the + beside Lists to add one, and the folder button to group them.</Tip>
+      </>
+    ),
+  },
+  {
+    title: "Today and Upcoming",
+    target: "nav",
+    view: "today",
+    body: (
+      <>
+        <p>{how("smart-views")}</p>
+        <p>You decide the day once, then open Today and just work down it. Anything you did not finish stays there, marked overdue, until you handle it.</p>
         <Tip>
-          <Kbd>G M</Kbd> switches the view you're in to the matrix. Turn on Completed to see what's finished.
+          <Kbd>G I</Kbd>, <Kbd>G T</Kbd> and <Kbd>G U</Kbd> jump to Inbox, Today and Upcoming.
         </Tip>
       </>
     ),
   },
   {
-    title: "Habits and focus",
+    title: "Plan your time on the calendar",
+    target: "main",
+    view: "calendar",
+    body: (
+      <>
+        <p>{how("calendar")} Dropping a task on a time slot blocks out time for it.</p>
+        <p>Seeing tasks next to events shows how much really fits in a day, so your plan stays realistic.</p>
+        <Tip>
+          <Kbd>G C</Kbd> opens the calendar; <Kbd>D</Kbd>, <Kbd>W</Kbd> and <Kbd>M</Kbd> switch between day, week and month.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    title: "Build habits",
     target: "main",
     view: "habits",
     body: (
       <>
-        <p>Check in your habits each day, and run a focus timer on a task.</p>
+        <p>{how("habits")}</p>
+        <p>Small things done every day add up. Streaks make the chain visible, so it is easy to see what you want to keep going.</p>
         <Tip>
-          <Kbd>Ctrl Alt M</Kbd> keeps the timer and your next tasks on top while you work elsewhere. You can change the key in Settings.
+          <Kbd>G H</Kbd> opens Habits. Today lists the habits due, so you can check them off there too.
         </Tip>
       </>
     ),
   },
   {
-    title: "Progress, and finding anything",
-    target: "search",
-    view: "progress",
+    title: "Focus with a timer",
+    target: "main",
+    view: "focus",
     body: (
       <>
-        <p>Progress shows what you finished and how long you focused. When you're not sure how to do something, search for it.</p>
+        <p>{how("focus")}</p>
+        <p>Short, timed stretches with breaks in between keep your attention on one thing, and every session is logged in Progress.</p>
         <Tip>
-          <Kbd>Ctrl K</Kbd> finds any task or command. Settings → Help lists every shortcut and token.
+          <Kbd>Ctrl Alt M</Kbd> keeps the timer and your next tasks on top while you work in other apps. You can change the key in Settings.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    title: "Urgent or important?",
+    target: "toolbar",
+    view: "today",
+    body: (
+      <>
+        <p>{how("matrix-mode")}</p>
+        <p>When everything feels like a priority, the four quadrants show what to do now, what to schedule, what to hand off and what to drop. Board and Timeline are in the same menu.</p>
+        <Tip>
+          <Kbd>G M</Kbd> turns the view you are in into the matrix.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    title: "Share and plan with friends",
+    target: "main",
+    view: "friends",
+    body: (
+      <>
+        <p>{how("sharing")}</p>
+        <p>Shared lists work well for a group project or a household. Friends see nothing of yours unless you share it, and you can also send a single task. Friends needs a free account, which also syncs your devices.</p>
+      </>
+    ),
+  },
+  {
+    title: "Find anything, do anything",
+    target: "search",
+    view: "home",
+    body: (
+      <>
+        <p>{how("palette")} You can also type a command such as “Dark theme” or “New list”.</p>
+        <p>Settings → Help lists every feature, with its shortcut where it has one, and you can retake this tour from there.</p>
+        <Tip>
+          <Kbd>Ctrl K</Kbd> opens search from anywhere. <Kbd>?</Kbd> lists all shortcuts.
         </Tip>
       </>
     ),

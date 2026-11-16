@@ -12,6 +12,7 @@ export const PALETTE_IDS = [
   "new-task",
   "new-list",
   "import",
+  "go-home",
   "go-inbox",
   "go-today",
   "go-upcoming",
@@ -36,6 +37,7 @@ export type PaletteId = (typeof PALETTE_IDS)[number];
 
 /** `G` then a letter jumps to a view; `G M` (Matrix mode) is handled in lib/shortcuts.ts. */
 export const GO: Record<string, ViewId> = {
+  o: "home",
   i: "inbox",
   t: "today",
   u: "upcoming",
@@ -120,6 +122,8 @@ export const FEATURES: Feature[] = [
   { id: "day-end", title: "Late nights count as the same day", howTo: "Settings → General → Day ends at: before that hour, Today, overdue and habits still count as the day before.", icon: "sun", group: "Keyboard", since: "1.3.0", core: false, commands: [] },
 
   // ---- Views
+  { id: "home", title: "Start from Home", howTo: "Home shows today's tasks, what's next on your calendar, your habits and focus time, with a tile for every section. Choose what the app opens to in Settings → General → Open to.", icon: "sun", group: "Views", since: "1.3.0", core: false,
+    commands: [palette("go-home", "Go to Home"), keys("G O", "Home")] },
   { id: "smart-views", title: "Inbox, Today and Upcoming", howTo: "New tasks land in Inbox; Today shows what's planned for today, overdue or at its deadline; Upcoming, the days ahead.", icon: "sun", group: "Views", since: OLD, core: false,
     commands: [palette("go-inbox", "Go to Inbox"), palette("go-today", "Go to Today"), palette("go-upcoming", "Go to Upcoming"), keys("G I / G T / G U", "Inbox / Today / Upcoming")] },
   { id: "matrix-mode", title: "Sort tasks by urgent and important", howTo: "Switch any view to Matrix and drag tasks between the four quadrants.", icon: "grid", group: "Views", since: "1.0.0", core: true, done: "view:matrix",

@@ -50,7 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarSide: "left",
   taskOpen: "side",
   sidebarCollapsed: false,
-  defaultView: "today",
+  defaultView: "home",
   weekStart: 1,
   timeFormat: "24h",
   smartParse: true,

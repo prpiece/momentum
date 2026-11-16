@@ -5,7 +5,7 @@ import type { ViewId } from "../../domain/types";
 import { useData } from "../../stores/data";
 import { go, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";
 import { focusQuickAdd } from "../tasks/QuickAdd";
-import { MODULE_NAV, SETTINGS_NAV, SMART_LIST_NAV } from "./nav";
+import { HOME_NAV, MODULE_NAV, SETTINGS_NAV, SMART_LIST_NAV } from "./nav";
 
 const MAIN: { id: ViewId; label: string; icon: LucideIcon }[] = [
   { id: "today", label: "Today", icon: Sun },
@@ -35,7 +35,7 @@ export function PhoneBar() {
   const lists = useData((s) => s.lists);
   const userLists = useMemo(() => Object.values(lists).filter((l) => l.id !== "inbox" && !l.archived).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.sortOrder - b.sortOrder), [lists]);
   const more = (): MenuEntry[] => [
-    ...[...SMART_LIST_NAV, ...MODULE_NAV].filter((n) => !IN_BAR.has(n.id)).map((n): MenuEntry => ({ label: n.label, icon: <n.icon size={16} />, run: () => go(n.id) })),
+    ...[HOME_NAV, ...SMART_LIST_NAV, ...MODULE_NAV].filter((n) => !IN_BAR.has(n.id)).map((n): MenuEntry => ({ label: n.label, icon: <n.icon size={16} />, run: () => go(n.id) })),
     ...(userLists.length ? (["sep"] as const) : []),
     ...userLists.map((l): MenuEntry => ({ label: l.name, icon: <ListGlyph icon={l.icon} color={l.color} size={16} />, run: () => go(`list:${l.id}`) })),
     "sep",

@@ -14,6 +14,7 @@ import { EventDialog } from "./features/calendar/EventDialog";
 import { FocusView } from "./features/focus/FocusView";
 import { FriendDialogs } from "./features/friends/FriendDialogs";
 import { FriendsView } from "./features/friends/FriendsView";
+import { HomeView } from "./features/home/HomeView";
 import { HabitsView } from "./features/habits/HabitsView";
 import { ProgressView } from "./features/progress/ProgressView";
 import { SettingsView } from "./features/settings/SettingsView";
@@ -42,9 +43,10 @@ import { toast, useUi } from "./stores/ui";
 
 
 /** Views that are not task lists: the background image stays off them. */
-const PAGE_VIEWS: readonly string[] = ["settings", "calendar", "habits", "progress", "focus", "friends", "trash"];
+const PAGE_VIEWS: readonly string[] = ["home", "settings", "calendar", "habits", "progress", "focus", "friends", "trash"];
 
 function View({ view, spec }: { view: ViewId; spec: TaskViewSpec | null }) {
+  if (view === "home") return <HomeView />;
   if (view === "settings") return <SettingsView />;
   if (view === "calendar") return <CalendarView />;
   if (view === "habits") return <HabitsView />;

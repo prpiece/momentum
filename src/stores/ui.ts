@@ -82,6 +82,7 @@ export const go = (view: ViewId) => {
 export const askSave = () =>
   new Promise<"save" | "discard" | "stay">((resolve) => {
     const end = (r: "save" | "discard" | "stay") => (set({ confirmAsk: null }), resolve(r));
+    useUi.getState().confirmAsk?.resolve(false); // DATA-12: never leave an earlier prompt's promise hanging
     set({
       confirmAsk: {
         title: "Save your changes?",
@@ -137,7 +138,8 @@ setScopeAsker((verb) => askScope(verb));
 
 /** Ask which occurrences a change to a recurring task applies to. Resolves null on cancel. */
 export const askScope = (verb: ScopeAsk["verb"]) =>
-  new Promise<Scope | null>((resolve) =>
+  new Promise<Scope | null>((resolve) => {
+    useUi.getState().scopeAsk?.resolve(null); // DATA-12
     set({
       scopeAsk: {
         verb,
@@ -146,11 +148,12 @@ export const askScope = (verb: ScopeAsk["verb"]) =>
           resolve(s);
         },
       },
-    }),
-  );
+    });
+  });
 
 export const confirm = (title: string, body: string, confirmLabel = "Delete") =>
-  new Promise<boolean>((resolve) =>
+  new Promise<boolean>((resolve) => {
+    useUi.getState().confirmAsk?.resolve(false); // DATA-12
     set({
       confirmAsk: {
         title,
@@ -161,5 +164,5 @@ export const confirm = (title: string, body: string, confirmLabel = "Delete") =>
           resolve(ok);
         },
       },
-    }),
-  );
+    });
+  });

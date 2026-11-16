@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { after, before, reorder } from "./order";
+import { after, before, moveBy, moveNear, reorder } from "./order";
 
 const items = [
   { id: "a", sortOrder: 0 },
@@ -54,5 +54,26 @@ describe("reorder", () => {
     expect(after(items)).toBe(3);
     expect(before(items)).toBe(-1);
     expect(after([])).toBe(0);
+  });
+});
+
+describe("moveBy and moveNear", () => {
+  const ids = apply;
+  it("steps one place and stops at the ends", () => {
+    expect(ids(items, moveBy(items, "b", -1))).toEqual(["b", "a", "c"]);
+    expect(ids(items, moveBy(items, "b", 1))).toEqual(["a", "c", "b"]);
+    expect(moveBy(items, "a", -1)).toEqual([]);
+    expect(moveBy(items, "c", 1)).toEqual([]);
+  });
+  it("lands after the target from above, before it from below", () => {
+    expect(ids(items, moveNear(items, "a", "c"))).toEqual(["b", "c", "a"]);
+    expect(ids(items, moveNear(items, "c", "a"))).toEqual(["c", "a", "b"]);
+    expect(moveNear(items, "a", "a")).toEqual([]);
+  });
+  it("lands before the target when coming from another container", () => {
+    const other = [{ id: "x", sortOrder: 0 }, { id: "y", sortOrder: 1 }];
+    const changed = moveNear(other, "a", "y");
+    expect(apply([...other, { id: "a", sortOrder: 9 }], changed)).toEqual(["x", "a", "y"]);
+    expect(moveNear(other, "a", "nope")).toEqual([]);
   });
 });

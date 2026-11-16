@@ -37,3 +37,26 @@ export function reorder(items: readonly Ordered[], movedId: string, toIndex: num
   const current = new Map(items.map((i) => [i.id, i.sortOrder]));
   return ids.map((id, i) => ({ id, sortOrder: i })).filter((o) => current.get(o.id) !== o.sortOrder);
 }
+
+const byOrder = (items: readonly Ordered[]) => [...items].sort((a, b) => a.sortOrder - b.sortOrder);
+
+/** One step up (-1) or down (+1) among `items`; empty at either end. */
+export function moveBy(items: readonly Ordered[], id: string, delta: -1 | 1): Ordered[] {
+  const i = byOrder(items).findIndex((x) => x.id === id);
+  const to = i + delta;
+  return i < 0 || to < 0 || to >= items.length ? [] : reorder(items, id, to);
+}
+
+/**
+ * Drop `movedId` on `targetId` among `items` (the target's siblings, which may or may not hold the
+ * moved item): from above it lands after the target, from below or from another container, before it.
+ */
+export function moveNear(items: readonly Ordered[], movedId: string, targetId: string): Ordered[] {
+  if (movedId === targetId) return [];
+  const sorted = byOrder(items);
+  const from = sorted.findIndex((x) => x.id === movedId);
+  const rest = sorted.filter((x) => x.id !== movedId);
+  const t = rest.findIndex((x) => x.id === targetId);
+  if (t < 0) return [];
+  return reorder(items, movedId, from >= 0 && from < sorted.findIndex((x) => x.id === targetId) ? t + 1 : t);
+}

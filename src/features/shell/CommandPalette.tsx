@@ -54,6 +54,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       "new-task": () => (close(), setTimeout(focusQuickAdd, 50)),
       "new-list": onNewList,
       import: () => (close(), setImport(true)),
+      "go-home": navTo("home"),
       "go-inbox": navTo("inbox"),
       "go-today": navTo("today"),
       "go-upcoming": navTo("upcoming"),
