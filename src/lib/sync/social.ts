@@ -22,6 +22,7 @@ export type IncomingTask = { id: string; sender: Profile; payload: SentPayload; 
 export type OutgoingTask = { id: string; recipientId: string; handle: string | null; title: string; status: "pending" | "accepted" | "declined"; createdAt: string };
 export type BuddyHabit = { owner: Profile; habitId: string; name: string; today: number; canNudge: boolean };
 export type MyBuddy = { habitId: string; buddyId: string; handle: string | null; nudges: boolean };
+export type TaskComment = Profile & { commentId: string; body: string; createdAt: string; editedAt: string | null; mine: boolean };
 export type Permission = "add" | "full";
 export type Connection = { id: string; source: "discord" | "slack" | "telegram"; label: string | null; digestTime: string | null; createdAt: string; permission: Permission };
 export type MyInvite = { code: string; kind: "friend" | "share"; shareId: string | null; shareName: string | null; role: "editor" | "viewer" | null; maxUses: number | null; uses: number; expiresAt: string };
@@ -69,6 +70,8 @@ const MESSAGES: Record<string, string> = {
   too_many_invites: "That's a lot of links today. Try again tomorrow.",
   too_many_sent: "You've sent a lot of tasks today. Try again tomorrow.",
   too_many_reports: "That's a lot of reports. Try again later.",
+  no_such_task: "That task isn't shared with you any more.",
+  too_many_comments: "That's a lot of comments. Try again later.",
   bad_value: "That change has a value the app can't use.",
 };
 /** What each server call does, for "Couldn't …" toasts (D289). */
@@ -82,6 +85,7 @@ const WHAT: Record<string, string> = {
   buddy_habits: "load your buddies' habits", my_buddies: "load your check-in buddies", set_buddies: "save your check-in buddies", nudge: "send the nudge",
   create_link_code: "make a link code", my_connections: "load your connections", remove_connection: "remove the connection", set_digest: "save the digest time",
   has_webhook: "check your webhook", my_invites: "load your invite links", my_blocks: "load the people you blocked", unblock_account: "unblock them",
+  task_comments: "load the comments", add_task_comment: "post the comment", edit_task_comment: "save the comment", delete_task_comment: "delete the comment",
   set_connection_permission: "change what that chat can do", webhook_permission: "check your webhook", set_webhook_permission: "change what the webhook can do", buddy_decline: "leave as a check-in buddy", create_webhook: "make a webhook", delete_webhook: "delete the webhook",
 };
 export class SocialError extends Error {}
@@ -180,6 +184,20 @@ export const deleteShare = (shareId: string) => call("delete_share", { p_share: 
 export const transferShare = (shareId: string, to: string) => call("transfer_share", { p_share: shareId, p_to: to }).then(() => undefined);
 /** Who would gain access if something moved into this list or folder (the move confirmation, D135). */
 export const audience = async (kind: ShareKind, id: string): Promise<Profile[]> => all(await call("audience", { p_kind: kind, p_id: id }), (r) => profile(r, "account_id"));
+
+// ---------- comments on shared tasks (FEAT-14) ----------
+
+/** A row from `task_comments`; the author's profile rides along. Exported for the boundary test. */
+export const commentRow = (r: Raw): TaskComment | null => {
+  const p = profile(r, "author_id");
+  return p && typeof r.id === "string" && typeof r.body === "string" && typeof r.created_at === "string"
+    ? { ...p, commentId: r.id, body: r.body, createdAt: r.created_at, editedAt: str(r.edited_at), mine: r.mine === true }
+    : null;
+};
+export const taskComments = async (taskId: string): Promise<TaskComment[]> => all(await call("task_comments", { p_task: taskId }), commentRow);
+export const addTaskComment = (taskId: string, body: string) => call("add_task_comment", { p_task: taskId, p_body: body }).then(() => undefined);
+export const editTaskComment = (id: string, body: string) => call("edit_task_comment", { p_id: id, p_body: body }).then(() => undefined);
+export const deleteTaskComment = (id: string) => call("delete_task_comment", { p_id: id }).then(() => undefined);
 
 // ---------- sent tasks ----------
 

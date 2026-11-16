@@ -27,6 +27,7 @@ import { NoteMarkdown } from "./NoteMarkdown";
 import { InlineAdd } from "./InlineAdd";
 import { DeadlineEditor, DurationEditor, WaitingEditor } from "./PlanningEditors";
 import { ScheduleEditor } from "./ScheduleEditor";
+import { TaskComments } from "./TaskComments";
 import { durationMinutes, formatMinutes, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { deadlinePassed } from "../../domain/taskViews";
 import { blockedBy } from "../../domain/waiting";
@@ -237,6 +238,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         <Blocking task={t} />
         <Subtasks task={t} />
         <Checklist task={t} />
+        <TaskComments task={t} />
         <ActivityLog task={t} />
       </div>
 

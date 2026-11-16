@@ -56,3 +56,23 @@ describe("invite links", () => {
     expect(rpc).toHaveBeenLastCalledWith("create_share_invite", { p_share: "s", p_role: "viewer", p_max_uses: null });
   });
 });
+
+describe("task comments", () => {
+  it("keeps valid rows and drops malformed ones", async () => {
+    rpc.mockResolvedValue({
+      data: [
+        { id: "c1", author_id: "a1", handle: "ann", display_name: null, avatar: null, body: "hi", created_at: "2026-11-18T10:00:00Z", edited_at: null, mine: true },
+        { id: "c2", author_id: "a2", body: 5, created_at: "x" },
+        { id: "c3", body: "no author", created_at: "x" },
+      ],
+      error: null,
+    });
+    const rows = await api.taskComments("t1");
+    expect(rpc).toHaveBeenCalledWith("task_comments", { p_task: "t1" });
+    expect(rows).toEqual([{ id: "a1", handle: "ann", displayName: null, avatar: null, commentId: "c1", body: "hi", createdAt: "2026-11-18T10:00:00Z", editedAt: null, mine: true }]);
+  });
+  it("turns a server refusal into a sentence", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "no_such_task", code: "P0002" } });
+    await expect(api.addTaskComment("t1", "x")).rejects.toThrow("isn't shared");
+  });
+});
