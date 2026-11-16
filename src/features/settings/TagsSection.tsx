@@ -1,5 +1,6 @@
 import { Hash, Trash2 } from "lucide-react";
 import { useMemo } from "react";
+import { withStructureUndo } from "../../stores/undo";
 import { removeTag, updateTag, useData } from "../../stores/data";
 import { confirm } from "../../stores/ui";
 
@@ -34,7 +35,7 @@ export function TagsSection() {
             type="button"
             aria-label={`Delete tag ${t.name}`}
             onClick={async () => {
-              if (await confirm(`Delete tag “${t.name}”?`, "It is removed from every task.")) removeTag(t.id);
+              if (await confirm(`Delete tag “${t.name}”?`, "It is removed from every task.")) withStructureUndo(`Deleted tag “${t.name}”`, () => removeTag(t.id));
             }}
             className="grid size-6 place-items-center rounded-control text-muted opacity-0 hover:text-danger focus:opacity-100 group-hover:opacity-100"
           >

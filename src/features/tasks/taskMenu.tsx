@@ -1,10 +1,10 @@
-import { AlarmClock, Archive, Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, Flag, FolderInput, PanelRightOpen, Pin, PinOff, Send, Sun, Sunrise, Trash2 } from "lucide-react";
+import { AlarmClock, Archive, Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, FastForward, Flag, FolderInput, PanelRightOpen, Pin, PinOff, Send, Sun, Sunrise, Trash2 } from "lucide-react";
 import { openSnooze } from "./SnoozeDialog";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
-import { scheduleForKey } from "../../domain/recurrence";
+import { missedKeys, scheduleForKey } from "../../domain/recurrence";
 import { PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type LocalDate, type Schedule, type Task } from "../../domain/types";
 import { withUndo } from "../../stores/undo";
-import { duplicateTask, moveTasks, setStatus, useData } from "../../stores/data";
+import { duplicateTask, moveTasks, setStatus, skipMissed, useData } from "../../stores/data";
 import { openTask, toast, useUi, type MenuEntry } from "../../stores/ui";
 import { openSend } from "../friends/friendsUi";
 import { confirmShareMove } from "../friends/moveGuard";
@@ -16,6 +16,13 @@ export function bulkReschedule(ids: string[], label: string, patch: (t: Task) =>
   const movable = ids.filter((id) => tasks[id] && !tasks[id].recurrence);
   if (movable.length < ids.length) toast("Repeating tasks are rescheduled from the task itself (Enter to open it).");
   if (movable.length) bulkEdit(movable, label, patch);
+}
+
+/** "Skip to today" (TIME-20): every missed occurrence of a repeating task goes in one undo step. */
+export function skipMissedWithUndo(id: string) {
+  let n = 0;
+  withUndo("Skipped missed occurrences", () => void (n = skipMissed(id, todayLocal())));
+  if (!n) toast("Nothing missed to skip.");
 }
 
 /**
@@ -76,6 +83,7 @@ export function taskMenu(id: string, key: string | null): MenuEntry[] {
       ? []
       : [
           { label: t.pinned ? "Unpin" : "Pin to top", icon: t.pinned ? <PinOff size={14} /> : <Pin size={14} />, run: () => void editTask(id, { pinned: !t.pinned }) },
+          ...(t.status === "open" && missedKeys(t, today).length ? [{ label: "Skip to today", icon: <FastForward size={14} />, run: () => skipMissedWithUndo(id) }] : []),
           { label: "Send to friend…", icon: <Send size={14} />, run: () => openSend(id) },
           { label: "Duplicate", icon: <Copy size={14} />, run: () => withUndo("Duplicated", () => duplicateTask(id)) },
           { label: t.status === "wont_do" ? "Reopen" : "Won't do", icon: <Ban size={14} />, run: () => setWontDo(id, key) },

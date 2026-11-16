@@ -215,11 +215,28 @@ export function describeRule(rule: string): string {
 
 const WKST: Record<WeekStart, string> = { 0: "SU", 1: "MO", 6: "SA" };
 
-/** The Custom repeat builder's rule. Multi-day, multi-week rules count weeks from the user's week start (TIME-09). */
-export function customRule(freq: string, interval: number, days: string[], ws: WeekStart): string {
-  const byday = freq === "WEEKLY" && days.length ? `;BYDAY=${days.join(",")}` : "";
-  const wkst = byday && interval > 1 && days.length > 1 && ws !== 1 ? `;WKST=${WKST[ws]}` : "";
-  return `FREQ=${freq}${interval > 1 ? `;INTERVAL=${interval}` : ""}${byday}${wkst}`;
+export type RuleEnd = { kind: "never" } | { kind: "count"; n: number } | { kind: "until"; date: string };
+
+/**
+ * The Custom repeat builder's rule. Multi-day, multi-week rules count weeks from the user's week start (TIME-09).
+ * `nth` makes a monthly rule "on the 2nd Tuesday" (n = -1: the last); `end` adds COUNT or a floating UNTIL (TIME-19).
+ */
+export function customRule(freq: string, interval: number, days: string[], ws: WeekStart, opts: { end?: RuleEnd; nth?: { n: number; day: string } } = {}): string {
+  const nth = freq === "MONTHLY" && opts.nth ? `;BYDAY=${opts.nth.n}${opts.nth.day}` : "";
+  const byday = nth || (freq === "WEEKLY" && days.length ? `;BYDAY=${days.join(",")}` : "");
+  const wkst = !nth && byday && interval > 1 && days.length > 1 && ws !== 1 ? `;WKST=${WKST[ws]}` : "";
+  const e = opts.end;
+  const end = e?.kind === "count" ? `;COUNT=${e.n}` : e?.kind === "until" ? `;UNTIL=${e.date.replace(/-/g, "")}T235959` : "";
+  return `FREQ=${freq}${interval > 1 ? `;INTERVAL=${interval}` : ""}${byday}${wkst}${end}`;
+}
+
+/** Keys of occurrences before `today` that are neither handled nor excluded: what "Skip to today" excludes (TIME-20). */
+export function missedKeys(t: Recurring, today: string): string[] {
+  const from = scheduleDate(t.schedule);
+  if (!t.recurrence || !from) return [];
+  return occurrencesBetween(t, fromLocalDate(from), atLocalTime(today, "00:00"))
+    .map((o) => o.key)
+    .filter((k) => k.slice(0, 10) < today);
 }
 
 export const REPEAT_PRESETS = [

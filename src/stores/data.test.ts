@@ -15,6 +15,7 @@ import {
   removeList,
   removeTag,
   updateTag,
+  updateList,
   editOccurrence,
   moveSection,
   moveTasks,
@@ -25,7 +26,10 @@ import {
   setEditGuard,
   setParent,
   setStatus,
+  skipMissed,
   undoable,
+  undoableStructure,
+  removeSection,
   updateTask,
   useData,
 } from "./data";
@@ -362,5 +366,50 @@ describe("HAB-19 waiting and someday flow down to open subtasks", () => {
     updateTask(p.id, { schedule: { kind: "none" } });
     expect(T()[a.id].schedule.kind).toBe("none");
     expect(T()[b.id].schedule).toEqual({ kind: "day", date: "2026-12-03" });
+  });
+});
+
+describe("skipMissed (TIME-20)", () => {
+  it("excludes every missed occurrence in one write, which undoes as one step", () => {
+    const s = addTask({ title: "Gym", schedule: { kind: "day", date: "2026-11-10" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+    let n = 0;
+    const revert = undoable(() => void (n = skipMissed(s.id, "2026-11-14")));
+    expect(n).toBe(4);
+    expect(useData.getState().tasks[s.id].recurrence?.exdates).toEqual(["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13"]);
+    expect(skipMissed(s.id, "2026-11-14")).toBe(0);
+    revert();
+    expect(useData.getState().tasks[s.id].recurrence?.exdates).toEqual([]);
+  });
+});
+
+describe("undoableStructure (DATA-15)", () => {
+  it("brings back a deleted list with its tasks and sections", () => {
+    const l = addList("Work");
+    const sec = addSection(l.id, "Doing");
+    const t = addTask({ title: "A", listId: l.id, sectionId: sec.id });
+    const revert = undoableStructure(() => removeList(l.id));
+    expect(useData.getState().lists[l.id]).toBeUndefined();
+    expect(useData.getState().tasks[t.id]).toBeUndefined();
+    revert();
+    expect(useData.getState().lists[l.id]).toBeDefined();
+    expect(useData.getState().sections[sec.id]).toBeDefined();
+    expect(useData.getState().tasks[t.id].sectionId).toBe(sec.id);
+  });
+
+  it("brings back a tag on its tasks, a section's tasks and a folder's lists", () => {
+    const [tag] = ensureTags(["x"]);
+    const l = addList("L");
+    const sec = addSection(l.id, "S");
+    const t = addTask({ title: "A", listId: l.id, sectionId: sec.id, tags: [tag] });
+    undoableStructure(() => removeTag(tag))();
+    expect(useData.getState().tags[tag]).toBeDefined();
+    expect(useData.getState().tasks[t.id].tags).toEqual([tag]);
+    undoableStructure(() => removeSection(sec.id))();
+    expect(useData.getState().tasks[t.id].sectionId).toBe(sec.id);
+    const f = addFolder("F")!;
+    updateList(l.id, { folderId: f.id });
+    undoableStructure(() => removeFolder(f.id))();
+    expect(useData.getState().folders[f.id]).toBeDefined();
+    expect(useData.getState().lists[l.id].folderId).toBe(f.id);
   });
 });

@@ -1,9 +1,11 @@
-import { CalendarPlus, Download, ListPlus, Upload } from "lucide-react";
+import { CalendarPlus, Download, FileSpreadsheet, ListPlus, Upload } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "../../components/Logo";
 import { isTauri } from "../../db/client";
 import { exportBackup, importIcs, pickFile, readBackup, restoreBackup } from "../../db/backup";
 import { ACCENT_PRESETS } from "../../domain/color";
+import { tasksToCsv } from "../../domain/csv";
+import { useData } from "../../stores/data";
 import { dataDirLabel } from "../../lib/platform";
 import { useAppVersion } from "../../lib/updater";
 import { confirm, toast } from "../../stores/ui";
@@ -33,6 +35,17 @@ export function DataSection() {
     if (path) toast(`Backup saved to ${path}`);
   });
 
+  const csvIt = run(async () => {
+    const { lists, tags, tasks } = useData.getState();
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const path = await save({ defaultPath: `momentum-tasks-${new Date().toISOString().slice(0, 10)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }] });
+    if (!path) return;
+    const all = Object.values(tasks);
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("write_text_file", { path, contents: tasksToCsv(all, (id) => lists[id]?.name ?? "", (id) => tags[id]?.name ?? id) });
+    toast(`Exported ${all.filter((t) => !t.deletedAt).length} tasks to ${path}`);
+  });
+
   const importIt = run(async () => {
     const path = await pickFile(["zip", "json"], "Momentum backup");
     if (!path) return;
@@ -58,6 +71,9 @@ export function DataSection() {
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={!isTauri || busy} onClick={exportIt} className={btn}>
           <Download size={15} /> Export backup (.zip)
+        </button>
+        <button type="button" disabled={!isTauri || busy} onClick={csvIt} className={btn}>
+          <FileSpreadsheet size={15} /> Export tasks (.csv)
         </button>
         <button type="button" disabled={!isTauri || busy} onClick={importIt} className={btn}>
           <Upload size={15} /> Restore from backup

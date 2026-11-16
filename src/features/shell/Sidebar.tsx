@@ -34,7 +34,7 @@ import { scheduleForKey } from "../../domain/recurrence";
 import type { Folder, SavedFilter, SmartListId, TaskList, ViewId } from "../../domain/types";
 import { canAddChild, canNest, childFolders } from "../../domain/folders";
 import { justDragged, onDrop, type DragData, type DropData } from "../../lib/dnd";
-import { withUndo } from "../../stores/undo";
+import { withStructureUndo, withUndo } from "../../stores/undo";
 import { addFolder, moveFolder, moveTasks, removeFolder, removeList, updateFolder, updateList, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { confirm, go, openContextMenu, openMenuAt, setPalette, useUi, type MenuEntry } from "../../stores/ui";
@@ -315,9 +315,9 @@ export function Sidebar() {
           icon: <Trash2 size={14} />,
           danger: true,
           run: async () => {
-            if (await confirm(`Delete “${l.name}”?`, "The list and all of its tasks are deleted. This can't be undone.")) {
+            if (await confirm(`Delete “${l.name}”?`, "The list and all of its tasks are deleted. You can undo it right after.")) {
               if (useUi.getState().view === `list:${l.id}`) go("inbox");
-              removeList(l.id);
+              withStructureUndo(`Deleted “${l.name}”`, () => removeList(l.id));
             }
           },
         },
@@ -524,7 +524,7 @@ function FolderRow({ folder, count, onRename, onAddSub }: { folder: Folder; coun
       icon: <Trash2 size={14} />,
       danger: true,
       run: async () => {
-        if (await confirm(`Delete folder “${folder.name}”?`, "Its lists and subfolders move up one level; no tasks are deleted.")) removeFolder(folder.id);
+        if (await confirm(`Delete folder “${folder.name}”?`, "Its lists and subfolders move up one level; no tasks are deleted.")) withStructureUndo(`Deleted folder “${folder.name}”`, () => removeFolder(folder.id));
       },
     },
   ];

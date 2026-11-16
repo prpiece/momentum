@@ -5,6 +5,7 @@ import { ColorField } from "../../components/ui/ColorField";
 import { Button, Dialog } from "../../components/ui/Dialog";
 import { ACCENT_PRESETS } from "../../domain/color";
 import type { TaskList } from "../../domain/types";
+import { withStructureUndo } from "../../stores/undo";
 import { addList, removeList, updateList, useData } from "../../stores/data";
 import { confirm, go } from "../../stores/ui";
 import { confirmShareMove } from "../friends/moveGuard";
@@ -92,8 +93,8 @@ export function ListDialog({ list, onClose, folderId = null }: { list?: TaskList
                 variant="ghost"
                 className="text-danger"
                 onClick={async () => {
-                  if (await confirm(`Delete “${list.name}”?`, "The list and all its tasks are deleted permanently.")) {
-                    removeList(list.id);
+                  if (await confirm(`Delete “${list.name}”?`, "The list and all its tasks are deleted. You can undo it right after.")) {
+                    withStructureUndo(`Deleted “${list.name}”`, () => removeList(list.id));
                     go("inbox");
                     onClose();
                   }

@@ -11,7 +11,7 @@ import { onDrop } from "../../lib/dnd";
 import { confirmShareMove } from "../friends/moveGuard";
 import { insertionIndex, placeAt } from "./kanbanDrop";
 import { addSection, mayEdit, moveSection, moveTasks, removeSection, updateSection, updateTask, useData } from "../../stores/data";
-import { withUndo } from "../../stores/undo";
+import { withStructureUndo, withUndo } from "../../stores/undo";
 import { confirm, openContextMenu, openTask, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
 import { InlineAdd } from "./InlineAdd";
@@ -163,7 +163,7 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
               danger
               onSelect={async () => {
                 menu.close();
-                if (await confirm(`Delete section “${section.name}”?`, "Its tasks move to “Unsectioned”.")) removeSection(section.id);
+                if (await confirm(`Delete section “${section.name}”?`, "Its tasks move to “Unsectioned”.")) withStructureUndo(`Deleted section “${section.name}”`, () => removeSection(section.id));
               }}
             >
               Delete section

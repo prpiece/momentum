@@ -1,7 +1,8 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { format } from "date-fns";
-import { Ban, CalendarCheck, CalendarDays, Check, ChevronRight, Copy, Flag, GripVertical, Hash, Hourglass, ImagePlus, Pin, Plus, Send, Timer, Trash2, X } from "lucide-react";
+import { Ban, CalendarCheck, CalendarDays, Check, ChevronRight, Copy, FastForward, Flag, GripVertical, Hash, Hourglass, ImagePlus, Pin, Plus, Send, Timer, Trash2, X } from "lucide-react";
+import { skipMissedWithUndo } from "./taskMenu";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Dialog, IconButton } from "../../components/ui/Dialog";
@@ -11,7 +12,7 @@ import { isTauri } from "../../db/client";
 import { loadActivity } from "../../db/repo";
 import { DropLine, dropSide, SORT_TRANSITION } from "../../lib/dnd";
 import { importImage, MAX_IMAGE_BYTES, newImageName, writeImage } from "../../lib/appFiles";
-import { scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
+import { missedKeys, scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
 import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type Activity, type Task } from "../../domain/types";
 import { depthOf, duplicateTask, ensureTags, reorderTask, uid, updateTask, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
@@ -81,6 +82,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
   const tasksById = useData((s) => s.tasks);
 
   const list = lists[t.listId];
+  const missed = t.status === "open" ? missedKeys(t, todayLocal()).length : 0;
   const icon = (I: typeof Pin) => <I size={16} strokeWidth={1.75} />;
   return (
     <>
@@ -103,6 +105,11 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         <IconButton className="btn-sm" label="Duplicate" onClick={() => duplicateTask(t.id)}>
           {icon(Copy)}
         </IconButton>
+        {missed > 0 && (
+          <IconButton className="btn-sm" label={`Skip ${missed} missed to today`} onClick={() => skipMissedWithUndo(t.id)}>
+            {icon(FastForward)}
+          </IconButton>
+        )}
         <IconButton className="btn-sm" label="Send to friend" onClick={() => openSend(t.id)}>
           {icon(Send)}
         </IconButton>

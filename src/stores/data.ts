@@ -3,7 +3,7 @@ import { onWriteError } from "../db/client";
 import * as repo from "../db/repo";
 import { canAddChild, canNest, childFolders } from "../domain/folders";
 import { after, before, reorder as reorderItems } from "../domain/order";
-import { detachOccurrence, effective, shiftSeries, splitSeries } from "../domain/recurrence";
+import { detachOccurrence, effective, missedKeys, shiftSeries, splitSeries } from "../domain/recurrence";
 import { scheduleDate } from "../domain/dates";
 import { waitLoops } from "../domain/waiting";
 import { toast } from "./toast";
@@ -649,7 +649,40 @@ export function removeTag(id: string) {
   void repo.deleteTag(id);
 }
 
+/** "Skip to today" (TIME-20): exclude every missed occurrence before `today` in one write. Returns how many. */
+export function skipMissed(id: string, today: string): number {
+  const t = get().tasks[id];
+  const keys = t ? missedKeys(t, today) : [];
+  if (t?.recurrence && keys.length) commit([{ ...t, recurrence: { ...t.recurrence, exdates: [...new Set([...t.recurrence.exdates, ...keys])] }, updatedAt: now() }]);
+  return keys.length;
+}
+
 // ---------- undo ----------
+
+/**
+ * Structural deletes (list, folder, section, tag) don't go through `commit`, so `undoable` can't revert them.
+ * Run `fn`, and return a function that puts back every list/folder/section/tag/task row it removed or changed (DATA-15).
+ */
+export function undoableStructure(fn: () => void): () => void {
+  const was = get();
+  fn();
+  return () => {
+    const cur = get();
+    const diff = <T,>(a: ById<T>, b: ById<T>) => Object.values(a).filter((x) => b[(x as { id: string }).id] !== x);
+    const folders = diff(was.folders, cur.folders);
+    const lists = diff(was.lists, cur.lists);
+    const sections = diff(was.sections, cur.sections);
+    const tags = diff(was.tags, cur.tags);
+    const tasks = diff(was.tasks, cur.tasks);
+    set({ folders: was.folders, lists: was.lists, sections: was.sections, tags: was.tags, tasks: { ...cur.tasks, ...byId(tasks) } });
+    // Parents before children, so foreign keys hold.
+    folders.forEach((f) => void repo.saveFolder(f));
+    tags.forEach((x) => void repo.saveTag(x));
+    lists.forEach((l) => void repo.saveList(l));
+    sections.forEach((x) => void repo.saveSection(x));
+    if (tasks.length) void repo.saveTasks([...tasks].sort((a, b) => Number(!!a.parentId) - Number(!!b.parentId)));
+  };
+}
 
 /**
  * Run `fn` and return a function that reverts exactly the tasks it touched

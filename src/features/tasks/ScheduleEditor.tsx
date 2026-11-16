@@ -1,7 +1,7 @@
 import { Bell, CalendarDays, Clock, Plus, Repeat, X } from "lucide-react";
 import { useState } from "react";
-import { addDaysLocal, atLocalTime, durationMinutes, hhmm, scheduleDate, timed, todayLocal } from "../../domain/dates";
-import { customRule, describeRule, REPEAT_PRESETS } from "../../domain/recurrence";
+import { addDaysLocal, atLocalTime, durationMinutes, fromLocalDate, hhmm, scheduleDate, timed, todayLocal } from "../../domain/dates";
+import { customRule, describeRule, REPEAT_PRESETS, type RuleEnd } from "../../domain/recurrence";
 import { BEFORE_PRESETS, DAY_PRESETS, reminderLabel } from "../../domain/reminders";
 import type { Recurrence, Reminder, Schedule } from "../../domain/types";
 import { useSettings } from "../../stores/settings";
@@ -115,7 +115,7 @@ export function ScheduleEditor(props: {
               {rule && !isPreset && <option value="__current">{describeRule(rule)}</option>}
               <option value="__custom">Custom…</option>
             </select>
-            {custom && <RuleBuilder onDone={(r) => (setCustom(false), props.onRecurrence({ rule: r, exdates: props.recurrence?.exdates ?? [] }))} />}
+            {custom && <RuleBuilder date={date} onDone={(r) => (setCustom(false), props.onRecurrence({ rule: r, exdates: props.recurrence?.exdates ?? [] }))} />}
           </div>
         </Row>
       )}
@@ -157,12 +157,20 @@ export function ScheduleEditor(props: {
   );
 }
 
-function RuleBuilder({ onDone }: { onDone: (rule: string) => void }) {
+function RuleBuilder({ date, onDone }: { date: string; onDone: (rule: string) => void }) {
   const [interval, setInterval] = useState(1);
   const [freq, setFreq] = useState("WEEKLY");
   const [days, setDays] = useState<string[]>([]);
   const ws = useSettings((s) => s.settings.weekStart);
-  const rule = customRule(freq, interval, days, ws);
+  const d = fromLocalDate(date);
+  const [byNth, setByNth] = useState(false);
+  const [nthN, setNthN] = useState(Math.ceil(d.getDate() / 7));
+  const [nthDay, setNthDay] = useState(WEEKDAYS[(d.getDay() + 6) % 7]);
+  const [endKind, setEndKind] = useState<RuleEnd["kind"]>("never");
+  const [count, setCount] = useState(10);
+  const [until, setUntil] = useState(date);
+  const end: RuleEnd = endKind === "count" ? { kind: "count", n: count } : endKind === "until" && until ? { kind: "until", date: until } : { kind: "never" };
+  const rule = customRule(freq, interval, days, ws, { end, nth: byNth ? { n: nthN, day: nthDay } : undefined });
   return (
     <div className="space-y-2 rounded-card border border-border p-2.5">
       <div className="flex items-center gap-1.5 text-sm">
@@ -190,6 +198,42 @@ function RuleBuilder({ onDone }: { onDone: (rule: string) => void }) {
           ))}
         </div>
       )}
+      {freq === "MONTHLY" && (
+        <div className="flex flex-wrap items-center gap-1.5 text-sm">
+          <select value={byNth ? "nth" : "date"} onChange={(e) => setByNth(e.target.value === "nth")} className={field} aria-label="Monthly on">
+            <option value="date">On the same date</option>
+            <option value="nth">On the…</option>
+          </select>
+          {byNth && (
+            <>
+              <select value={nthN} onChange={(e) => setNthN(Number(e.target.value))} className={field} aria-label="Which">
+                {[1, 2, 3, 4, -1].map((n) => (
+                  <option key={n} value={n}>
+                    {n === -1 ? "last" : ["", "1st", "2nd", "3rd", "4th"][n]}
+                  </option>
+                ))}
+              </select>
+              <select value={nthDay} onChange={(e) => setNthDay(e.target.value)} className={field} aria-label="Weekday">
+                {WEEKDAYS.map((w, i) => (
+                  <option key={w} value={w}>
+                    {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][i]}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-1.5 text-sm">
+        Ends
+        <select value={endKind} onChange={(e) => setEndKind(e.target.value as RuleEnd["kind"])} className={field} aria-label="Ends">
+          <option value="never">Never</option>
+          <option value="until">On a date</option>
+          <option value="count">After a number of times</option>
+        </select>
+        {endKind === "until" && <input type="date" value={until} min={date} onChange={(e) => setUntil(e.target.value)} className={field} aria-label="End date" />}
+        {endKind === "count" && <input type="number" min={1} max={999} value={count} onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))} className={`${field} w-16`} aria-label="Occurrences" />}
+      </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted">{describeRule(rule)}</span>
         <button type="button" onClick={() => onDone(rule)} className="h-7 rounded-control bg-accent px-3 text-xs font-medium text-accent-fg">

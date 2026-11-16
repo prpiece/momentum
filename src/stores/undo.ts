@@ -1,4 +1,4 @@
-import { undoable } from "./data";
+import { undoable, undoableStructure } from "./data";
 import { toast } from "./toast";
 
 const stack: (() => void)[] = [];
@@ -6,6 +6,11 @@ const stack: (() => void)[] = [];
 /** Run a task mutation, show a toast with Undo, and make it Ctrl+Z-able. */
 export function withUndo(message: string, fn: () => void) {
   pushUndo(message, undoable(fn));
+}
+
+/** Like `withUndo`, for deleting a list, folder, section or tag. */
+export function withStructureUndo(message: string, fn: () => void) {
+  pushUndo(message, undoableStructure(fn));
 }
 
 /** Offer Undo (and Ctrl+Z) for a change that brings its own revert, such as one that also creates lists. */

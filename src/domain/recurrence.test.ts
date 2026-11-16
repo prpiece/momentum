@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { atLocalTime, durationMinutes, timed, wallKey } from "./dates";
-import { customRule, describeRule, detachOccurrence, isValidRule, effective, nextOccurrence, occurrencesBetween, shiftSeries, splitSeries, summarizeSchedule } from "./recurrence";
+import { customRule, describeRule, detachOccurrence, isValidRule, effective, missedKeys, nextOccurrence, occurrencesBetween, shiftSeries, splitSeries, summarizeSchedule } from "./recurrence";
 import type { Schedule, Task } from "./types";
 
 describe("summarizeSchedule", () => {
@@ -257,5 +257,47 @@ describe("shiftSeries (all occurrences)", () => {
     expect(moved.recurrence?.exdates).toEqual(["2026-11-19"]);
     expect(keys(moved, atLocalTime("2026-11-16", "00:00"), atLocalTime("2026-11-22", "23:59"))).toEqual(["2026-11-16", "2026-11-20"]);
     expect(keys(moved, atLocalTime("2026-11-23", "00:00"), atLocalTime("2026-11-29", "23:59"))).toEqual(["2026-11-23", "2026-11-26", "2026-11-27"]);
+  });
+});
+
+describe("custom rule end and nth weekday (TIME-19)", () => {
+  const day = (date: string, rule: string, exdates: string[] = []) => task({ kind: "day", date }, rule, exdates);
+
+  it("writes COUNT and a floating UNTIL", () => {
+    expect(customRule("DAILY", 1, [], 1, { end: { kind: "count", n: 5 } })).toBe("FREQ=DAILY;COUNT=5");
+    expect(customRule("WEEKLY", 2, [], 1, { end: { kind: "until", date: "2026-12-31" } })).toBe("FREQ=WEEKLY;INTERVAL=2;UNTIL=20261231T235959");
+    expect(customRule("DAILY", 1, [], 1, { end: { kind: "never" } })).toBe("FREQ=DAILY");
+  });
+
+  it("stops at the count and at the until date", () => {
+    const counted = day("2026-11-16", customRule("DAILY", 1, [], 1, { end: { kind: "count", n: 3 } }));
+    expect(occurrencesBetween(counted, atLocalTime("2026-11-01", "00:00"), atLocalTime("2026-12-31", "00:00")).map((o) => o.key)).toEqual(["2026-11-16", "2026-11-17", "2026-11-18"]);
+    const until = day("2026-11-16", customRule("DAILY", 1, [], 1, { end: { kind: "until", date: "2026-11-18" } }));
+    expect(occurrencesBetween(until, atLocalTime("2026-11-01", "00:00"), atLocalTime("2026-12-31", "00:00")).map((o) => o.key)).toEqual(["2026-11-16", "2026-11-17", "2026-11-18"]);
+  });
+
+  it("repeats monthly on the 2nd Tuesday and the last Friday", () => {
+    expect(customRule("MONTHLY", 1, [], 1, { nth: { n: 2, day: "TU" } })).toBe("FREQ=MONTHLY;BYDAY=2TU");
+    expect(customRule("MONTHLY", 1, [], 1, { nth: { n: -1, day: "FR" } })).toBe("FREQ=MONTHLY;BYDAY=-1FR");
+    const second = day("2026-11-10", "FREQ=MONTHLY;BYDAY=2TU");
+    expect(occurrencesBetween(second, atLocalTime("2026-11-01", "00:00"), atLocalTime("2027-01-31", "00:00")).map((o) => o.key)).toEqual(["2026-11-10", "2026-12-08", "2027-01-12"]);
+    const last = day("2026-11-27", "FREQ=MONTHLY;BYDAY=-1FR");
+    expect(occurrencesBetween(last, atLocalTime("2026-11-01", "00:00"), atLocalTime("2027-01-31", "00:00")).map((o) => o.key)).toEqual(["2026-11-27", "2026-12-25", "2027-01-29"]);
+  });
+
+  it("describes them in words", () => {
+    expect(describeRule("FREQ=MONTHLY;BYDAY=2TU")).toMatch(/2nd Tuesday/);
+    expect(describeRule("FREQ=MONTHLY;BYDAY=-1FR")).toMatch(/last Friday/);
+    expect(describeRule("FREQ=DAILY;COUNT=5")).toMatch(/for 5 times/);
+    expect(describeRule("FREQ=DAILY;UNTIL=20261231T235959")).toMatch(/until December 31, 2026/);
+  });
+});
+
+describe("missedKeys (TIME-20)", () => {
+  it("lists unhandled occurrences before today", () => {
+    const t = task({ kind: "day", date: "2026-11-10" }, "FREQ=DAILY", ["2026-11-11"]);
+    expect(missedKeys(t, "2026-11-14")).toEqual(["2026-11-10", "2026-11-12", "2026-11-13"]);
+    expect(missedKeys(t, "2026-11-10")).toEqual([]);
+    expect(missedKeys({ ...t, recurrence: null }, "2026-11-14")).toEqual([]);
   });
 });
