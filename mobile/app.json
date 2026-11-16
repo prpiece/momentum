@@ -79,11 +79,29 @@
           ]
         }
       ],
-      "./plugins/with-add-shortcut"
+      "./plugins/with-add-shortcut",
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "8f24dde7-5e8f-4cfa-b04f-9e8a68a0ea5f"
+      }
+    },
+    "owner": "paritalaphanikumari",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8f24dde7-5e8f-4cfa-b04f-9e8a68a0ea5f"
     }
   }
 }
