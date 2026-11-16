@@ -59,7 +59,7 @@ function list(view_: string, limit: number) {
     if (named) vms = d.active.filter((v) => v.task.status === "open" && v.task.listId === named.id);
     else {
       // Anything else is a filter in quick-add grammar: `#tag !high ~list overdue`.
-      const f = parseFilter(view_, new Date(), Object.values(lists).map((l) => l.name));
+      const f = parseFilter(view_, new Date(), Object.values(lists).map((l) => l.name), useSettings.getState().settings.weekStart);
       const ctx = { today: today(), lists, tags: useData.getState().tags };
       vms = d.active.filter((v) => matchesFilter(v, f, ctx) && (f.status !== null || v.task.status === "open"));
     }

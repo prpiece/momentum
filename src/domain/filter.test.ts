@@ -176,6 +176,28 @@ describe("v1.2.4 filter findings", () => {
     expect(parseFilter("-#work", NOW).chips.map((c) => c.text)).toEqual(["-#work"]);
   });
 
+  it("QA-13: 'or' between tags matches either", () => {
+    const w = some({ tags: ["w"] }), sc = some({ tags: ["s"] }), none = some({});
+    expect(hits("#work or #school", w, sc, none)).toEqual([true, true, false]);
+    expect(hits("#work #school", w, sc, none)).toEqual([false, false, false]);
+    const f = parseFilter("#work or #school", NOW);
+    expect(f).toMatchObject({ text: "", tags: [], anyTags: ["work", "school"] });
+    expect(f.chips.map((c) => c.text)).toEqual(["#work", "#school"]);
+  });
+
+  it("QA-14: this week / next week are ranges that follow the week start", () => {
+    const sun = some({ schedule: { kind: "day", date: "2026-10-25" } });
+    const mon = some({ schedule: { kind: "day", date: "2026-10-26" } });
+    const f = (q: string, ws?: 0 | 1 | 6) => parseFilter(q, NOW, [], ws);
+    expect(f("this week").date).toEqual({ kind: "range", from: "2026-10-19", to: "2026-10-25" });
+    expect(f("next week").date).toEqual({ kind: "range", from: "2026-10-26", to: "2026-11-01" });
+    expect(f("this week", 0).date).toEqual({ kind: "range", from: "2026-10-25", to: "2026-10-31" });
+    expect(f("this week #work").text).toBe("");
+    const m = (q: string) => [sun, mon].map((v) => matchesFilter(v, f(q), ctx));
+    expect(m("this week")).toEqual([true, false]);
+    expect(m("next week")).toEqual([false, true]);
+  });
+
   it("QA-12: list names match without accents", () => {
     expect(hits("~HomeStuff", some({ listId: "home" }))).toEqual([true]);
     expect(hits("~hömestuff", some({ listId: "home" }))).toEqual([true]);

@@ -66,8 +66,8 @@ export const TaskRow = memo(function TaskRow(props: {
       style={style}
       {...attributes}
       {...listeners}
-      role="option"
-      aria-selected={selected}
+      role="listitem"
+      aria-current={selected ? "true" : undefined}
       data-task-id={t.id}
       onClick={(e) => props.onClick(t.id, e)}
       onContextMenu={(e) => openContextMenu(e, taskMenu(t.id, vm.key))}

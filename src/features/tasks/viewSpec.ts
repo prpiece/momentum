@@ -4,6 +4,7 @@ import { matchesFilter, nameKey, parseFilter } from "../../domain/filter";
 import { inSmartScope, type TaskVM } from "../../domain/taskViews";
 import { SMART_LISTS, type LocalDate, type SavedFilter, type SmartListId, type Tag, type TaskList, type ViewId } from "../../domain/types";
 import type { NewTask } from "../../stores/data";
+import { useSettings } from "../../stores/settings";
 import { SMART_LIST_NAV } from "../shell/nav";
 
 export type TaskViewSpec = {
@@ -83,7 +84,7 @@ export function taskViewSpec(
     const saved = savedFilters.find((f) => `filter:${f.id}` === view);
     if (!saved) return null;
     // ponytail: dates in the query resolve when the spec is built (each App render), not per day boundary.
-    const f = parseFilter(saved.query, new Date(), Object.values(lists).map((l) => l.name));
+    const f = parseFilter(saved.query, new Date(), Object.values(lists).map((l) => l.name), useSettings.getState().settings.weekStart);
     const listId = f.listName === null ? undefined : Object.values(lists).find((l) => nameKey(l.name) === nameKey(f.listName ?? ""))?.id;
     const tagIds = Object.values(tags)
       .filter((t) => f.tags.some((n) => n.toLowerCase() === t.name.toLowerCase()))

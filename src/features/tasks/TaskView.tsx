@@ -66,7 +66,7 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   const viewOnly = !!list && !canEdit(list.id, { [list.id]: list }, folders, shares);
   const tags = useData((s) => s.tags);
   const query = useUi((s) => s.filters[spec.id] ?? "");
-  const adhoc = useMemo(() => parseFilter(query, new Date(), Object.values(lists).map((l) => l.name)), [query, lists]);
+  const adhoc = useMemo(() => parseFilter(query, new Date(), Object.values(lists).map((l) => l.name), settings.weekStart), [query, lists, settings.weekStart]);
   const options = viewOptionsOf(spec.id, settings.viewOptions);
   const setOptions = (o: Parameters<typeof setViewOptions>[1]) => setViewOptions(spec.id, o);
   const layout: Mode = options.mode === "matrix" ? "matrix" : list ? list.layout : options.mode;

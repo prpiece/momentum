@@ -1,15 +1,18 @@
+import { addDays, endOfWeek, startOfWeek } from "date-fns";
 import { toLocalDate } from "./dates";
 import { nameKey } from "./fuzzy";
 import { parseQuickAdd, type Chip } from "./quickAdd";
 import { matchScore, type TaskVM } from "./taskViews";
-import type { LocalDate, Priority, Tag, TaskList, TaskStatus } from "./types";
+import type { LocalDate, Priority, Tag, TaskList, TaskStatus, WeekStart } from "./types";
 
-export type DateFilter = { kind: "on"; date: LocalDate } | { kind: "overdue" } | { kind: "none" };
+export type DateFilter = { kind: "on"; date: LocalDate } | { kind: "range"; from: LocalDate; to: LocalDate } | { kind: "overdue" } | { kind: "none" };
 
 /** A filter query in quick-add grammar (`#tag !high ~list tomorrow`) plus a few filter-only keywords. */
 export type TaskFilter = {
   text: string;
   tags: string[];
+  /** `#a or #b`: any one of these. */
+  anyTags: string[];
   priority: Priority | null;
   listName: string | null;
   /** `-#tag`, `-~list`, `-!high` leave out what they name. */
@@ -36,8 +39,8 @@ const KEYWORDS: Record<string, (f: TaskFilter) => void> = {
 
 export { nameKey };
 
-export function parseFilter(query: string, now: Date, listNames: readonly string[] = []): TaskFilter {
-  const f: TaskFilter = { text: "", tags: [], priority: null, listName: null, notTags: [], notLists: [], notPriorities: [], date: null, someday: false, deadline: null, durationMin: null, waiting: null, status: null, chips: [] };
+export function parseFilter(query: string, now: Date, listNames: readonly string[] = [], weekStart: WeekStart = 1): TaskFilter {
+  const f: TaskFilter = { text: "", tags: [], anyTags: [], priority: null, listName: null, notTags: [], notLists: [], notPriorities: [], date: null, someday: false, deadline: null, durationMin: null, waiting: null, status: null, chips: [] };
   // Keywords are blanked (not removed) so quick-add chip offsets still index into `query`.
   let rest = query;
   for (const m of query.matchAll(/\S+/g)) {
@@ -56,6 +59,21 @@ export function parseFilter(query: string, now: Date, listNames: readonly string
     negated.add(at + 1);
     rest = rest.slice(0, at) + " " + rest.slice(at + 1);
   }
+  // "this week" / "next week": a Monday-to-Sunday style range (per the week-start setting), not one day.
+  for (const m of rest.matchAll(/(^|\s)(this|next)\s+week\b/gi)) {
+    const start = (m.index ?? 0) + m[1].length;
+    const first = startOfWeek(m[2].toLowerCase() === "next" ? addDays(now, 7) : now, { weekStartsOn: weekStart });
+    f.date ??= { kind: "range", from: toLocalDate(first), to: toLocalDate(endOfWeek(first, { weekStartsOn: weekStart })) };
+    f.chips.push({ kind: "date", text: m[0].slice(m[1].length), start, end: (m.index ?? 0) + m[0].length });
+    rest = rest.slice(0, start) + " ".repeat(m[0].length - m[1].length) + rest.slice((m.index ?? 0) + m[0].length);
+  }
+  // `#a or #b`: blank the "or"s and remember which tags belong to the group.
+  const anyOf = new Set<number>();
+  for (const m of rest.matchAll(/(?:^|\s)#\S+(?:\s+or\s+#\S+)+/gi)) {
+    const at = m.index ?? 0;
+    for (const t of m[0].matchAll(/#/g)) anyOf.add(at + (t.index ?? 0));
+    for (const o of m[0].matchAll(/\sor\s/gi)) rest = rest.slice(0, at + (o.index ?? 0) + 1) + "  " + rest.slice(at + (o.index ?? 0) + 3);
+  }
   if (!rest.trim()) return f;
 
   const p = parseQuickAdd(rest, now, true, listNames);
@@ -63,7 +81,7 @@ export function parseFilter(query: string, now: Date, listNames: readonly string
   const chips = p.chips.filter((c) => c.kind !== "repeat");
   for (const c of chips) {
     if (!negated.has(c.start)) {
-      if (c.kind === "tag") f.tags.push(c.value ?? c.text.slice(1));
+      if (c.kind === "tag") (anyOf.has(c.start) ? f.anyTags : f.tags).push(c.value ?? c.text.slice(1));
       else if (c.kind === "list") f.listName ??= c.text.slice(1);
       else if (c.kind === "priority") f.priority ??= parseQuickAdd(c.text, now).priority;
       continue;
@@ -88,7 +106,7 @@ export function parseFilter(query: string, now: Date, listNames: readonly string
 }
 
 export const isEmptyFilter = (f: TaskFilter) =>
-  !f.text && !f.tags.length && f.priority === null && f.listName === null && f.date === null && f.status === null &&
+  !f.text && !f.tags.length && !f.anyTags.length && f.priority === null && f.listName === null && f.date === null && f.status === null &&
   !f.notTags.length && !f.notLists.length && !f.notPriorities.length && !f.someday && f.deadline === null && f.durationMin === null && f.waiting === null;
 
 type Ctx = { today: LocalDate; lists: Record<string, TaskList>; tags: Record<string, Tag> };
@@ -103,9 +121,9 @@ export function matchesFilter(vm: TaskVM, f: TaskFilter, ctx: Ctx): boolean {
   }
   if (f.notPriorities.includes(t.priority)) return false;
   if (f.notLists.some((n) => nameKey(ctx.lists[t.listId]?.name ?? "") === nameKey(n))) return false;
-  if (f.tags.length || f.notTags.length) {
+  if (f.tags.length || f.anyTags.length || f.notTags.length) {
     const names = new Set(t.tags.map((id) => nameKey(ctx.tags[id]?.name ?? "")));
-    if (!f.tags.every((n) => names.has(nameKey(n))) || f.notTags.some((n) => names.has(nameKey(n)))) return false;
+    if (!f.tags.every((n) => names.has(nameKey(n))) || (f.anyTags.length > 0 && !f.anyTags.some((n) => names.has(nameKey(n)))) || f.notTags.some((n) => names.has(nameKey(n)))) return false;
   }
   if (f.someday && t.schedule.kind !== "someday") return false;
   if (f.deadline !== null && !(t.deadline !== null && t.deadline <= f.deadline)) return false;
@@ -114,6 +132,7 @@ export function matchesFilter(vm: TaskVM, f: TaskFilter, ctx: Ctx): boolean {
   if (f.date) {
     if (f.date.kind === "none" && vm.schedule.kind !== "none") return false;
     if (f.date.kind === "overdue" && !(t.status === "open" && vm.date !== null && vm.date < ctx.today)) return false;
+    if (f.date.kind === "range" && !(vm.date !== null && vm.date >= f.date.from && vm.date <= f.date.to)) return false;
     if (f.date.kind === "on" && vm.date !== f.date.date) return false;
   }
   return !f.text || matchScore(t.title, f.text) !== null;

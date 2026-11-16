@@ -348,6 +348,21 @@ describe("v1.2.4 quick-add findings", () => {
     expect(parseQuickAdd("pills daily x5", FRI(10))).toMatchObject({ title: "pills", rule: "FREQ=DAILY;COUNT=5" });
   });
 
+  it("QA-07: 'for N weeks' counts the occurrences; weeknight is Mon-Fri", () => {
+    expect(parseQuickAdd("yoga weekly for 5 weeks", FRI(10))).toMatchObject({ title: "yoga", rule: "FREQ=WEEKLY;COUNT=5" });
+    expect(parseQuickAdd("run every mon and wed for 4 weeks", FRI(10))).toMatchObject({ title: "run", rule: "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=8" });
+    expect(parseQuickAdd("stretch daily for 2 weeks", FRI(10)).rule).toMatch(/^FREQ=DAILY;UNTIL=20261127/);
+    expect(parseQuickAdd("read every weeknight", FRI(10))).toMatchObject({ title: "read", rule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" });
+  });
+
+  it("QA-18: eod, eow, eom and 'remind me to'", () => {
+    expect(parseQuickAdd("send report eod", FRI(15))).toMatchObject({ title: "send report", schedule: { kind: "day", date: "2026-11-13" } });
+    expect(parseQuickAdd("send report eow", new Date(2026, 10, 11, 9))).toMatchObject({ title: "send report", schedule: { kind: "day", date: "2026-11-13" } });
+    expect(parseQuickAdd("send report end of week", new Date(2026, 10, 14, 9)).schedule).toEqual({ kind: "day", date: "2026-11-20" });
+    expect(parseQuickAdd("invoice eom", FRI(10))).toMatchObject({ title: "invoice", schedule: { kind: "day", date: "2026-11-30" } });
+    expect(parseQuickAdd("remind me to call mom tomorrow", FRI(10))).toMatchObject({ title: "call mom", schedule: { kind: "day", date: "2026-11-14" } });
+  });
+
   it("QA-08: ambiguous lone words are not dates", () => {
     for (const t of ["SAT prep", "study for the sat", "sun cream", "mon ami", "march madness", "pay $5 now"])
       expect(parseQuickAdd(t, FRI(10))).toMatchObject({ title: t, schedule: { kind: "none" } });

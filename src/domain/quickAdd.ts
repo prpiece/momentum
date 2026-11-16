@@ -1,5 +1,5 @@
 import { casual } from "chrono-node/en";
-import { addMinutes, startOfDay } from "date-fns";
+import { add as addDur, addDays, addMinutes, endOfMonth, startOfDay } from "date-fns";
 import { addDaysLocal, formatMinutes, relativeDayLabel, toLocalDate } from "./dates";
 import { bestName, nameKey } from "./fuzzy";
 import type { LocalDate, Priority, Recurrence, Schedule, Waiting } from "./types";
@@ -117,12 +117,12 @@ const ordinal = (w: string) => ORDINALS[w.toLowerCase()] ?? parseInt(w, 10);
 function repeatMatches(text: string, now: Date): Match[] {
   const out: Match[] = [];
   // `until <date>` / `x5` / `5 times` end a repeat; they are read first and appended to whichever rule matches.
-  let ending = "";
+  let ending: string | ((rule: string) => string) = "";
   const add = (re: RegExp, rule: (m: RegExpExecArray) => string | null) => {
     for (const m of text.matchAll(re)) {
       const r = rule(m as RegExpExecArray);
       const start = m.index ?? 0;
-      if (r) out.push({ kind: "repeat", start, end: start + m[0].length, apply: (p) => void (p.rule = r + ending) });
+      if (r) out.push({ kind: "repeat", start, end: start + m[0].length, apply: (p) => void (p.rule = r + (typeof ending === "function" ? ending(r) : ending)) });
     }
   };
   add(/\b(?:bi-?weekly|fortnightly|every\s+fortnight)\b/gi, () => "FREQ=WEEKLY;INTERVAL=2");
@@ -141,7 +141,7 @@ function repeatMatches(text: string, now: Date): Match[] {
     const w = m[1].toLowerCase();
     return `FREQ=${w === "annually" ? "YEARLY" : w.toUpperCase()}`;
   });
-  add(/\bevery\s+(weekday|weekdays|workday)\b/gi, () => "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
+  add(/\bevery\s+(weekday|weekdays|workday|weeknight|weeknights)\b/gi, () => "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
   add(/\bevery\s+(other\s+|(\d+)\s+)?(day|week|month|year)s?\b/gi, (m) => {
     const interval = m[1]?.trim() === "other" ? 2 : m[2] ? Number(m[2]) : 1;
     return `FREQ=${UNIT[m[3].toLowerCase()]}${interval > 1 ? `;INTERVAL=${interval}` : ""}`;
@@ -162,6 +162,35 @@ function repeatMatches(text: string, now: Date): Match[] {
       ending = `;COUNT=${m[1] ?? m[2]}`;
       out.push({ kind: "repeat", start: m.index ?? 0, end: (m.index ?? 0) + m[0].length, apply: () => undefined });
     }
+    // "for 5 weeks": that many occurrences when the span is in the repeat's own unit, otherwise an end date.
+    for (const m of text.matchAll(/\bfor\s+(\d{1,3})\s+(day|week|month|year)s?\b/gi)) {
+      if (ending) break;
+      const n = Number(m[1]);
+      const unit = m[2].toLowerCase();
+      ending = (rule) => {
+        if (rule.includes(`FREQ=${FREQ_OF[unit]}`)) {
+          const interval = Number(/INTERVAL=(\d+)/.exec(rule)?.[1] ?? 1);
+          const perPeriod = unit === "week" ? (/BYDAY=([A-Z,]+)/.exec(rule)?.[1].split(",").length ?? 1) : 1;
+          return `;COUNT=${Math.ceil(n / interval) * perPeriod}`;
+        }
+        return `;UNTIL=${toLocalDate(addDur(now, { [`${unit}s`]: n })).replace(/-/g, "")}T235959Z`;
+      };
+      out.push({ kind: "repeat", start: m.index ?? 0, end: (m.index ?? 0) + m[0].length, apply: () => undefined });
+    }
+  }
+  return out;
+}
+const FREQ_OF: Record<string, string> = { day: "DAILY", week: "WEEKLY", month: "MONTHLY", year: "YEARLY" };
+
+/** `eod` / `eow` / `eom` and "end of day/week/month": a day, with no time (QA-18). eow is Friday, the end of the working week. */
+function endMatches(text: string, now: Date): Match[] {
+  const out: Match[] = [];
+  for (const m of text.matchAll(/(?<=^|\s)(eod|eow|eom|end of (?:the )?(?:day|week))(?=\s|$|[,.;])/gi)) {
+    const w = m[1].toLowerCase();
+    const d = w.endsWith("d") || w.endsWith("day") ? now : w === "eom" ? endOfMonth(now) : addDays(now, (5 - now.getDay() + 7) % 7);
+    const date = toLocalDate(d);
+    const start = m.index ?? 0;
+    out.push({ kind: "date", start, end: start + m[0].length, apply: (p) => void (p.schedule.kind === "someday" || (p.schedule = { kind: "day", date })) });
   }
   return out;
 }
@@ -301,12 +330,12 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
   if (!enabled) return result;
 
   const matches: Match[] = [];
-  for (const m of [...planningMatches(input, now), ...tokenMatches(input, listNames), ...(origin === "spoken" ? keywordMatches(input, listNames) : []), ...repeatMatches(input, now)]) {
+  for (const m of [...planningMatches(input, now), ...tokenMatches(input, listNames), ...endMatches(input, now), ...(origin === "spoken" ? keywordMatches(input, listNames) : []), ...repeatMatches(input, now)]) {
     if (!matches.some((x) => overlaps(x, m))) matches.push(m);
   }
 
   let explicitEnd = false;
-  const [date] = parseDates(mask(input, matches), now);
+  const [date] = matches.some((m) => m.kind === "date") ? [] : parseDates(mask(input, matches), now);
   if (date) {
     const start = date.index;
     const end = start + date.text.length;
@@ -352,6 +381,7 @@ export function parseQuickAdd(input: string, now: Date, enabled = true, listName
   const title = mask(input, matches)
     .replace(/\(\s*\)|\[\s*\]|["“”]\s*["“”]/g, " ")
     .replace(/\s+(on|at|by|for|due)\s*$/i, "")
+    .replace(/^\s*remind me (?:to|about|that)\s+/i, "")
     .replace(/\s+/g, " ")
     // Spoken text leaves punctuation where tokens were ("tomorrow, priority high."): drop the orphans.
     .replace(/\s+([,.;:!?])(?=\s|$)/g, "$1")
