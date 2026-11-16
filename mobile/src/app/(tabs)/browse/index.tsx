@@ -11,7 +11,7 @@ import { requestCount, useSocial } from "@core/stores/social";
 import { roleFor } from "@/social/roles";
 import { GUTTER, INSET, resolveColor, useColors } from "@/theme";
 import { Icon, IconButton, Label, NavRow, PageHeader, Text } from "@/ui/kit";
-import { folderMenu, listMenu, newListOrFolder } from "@/ui/listActions";
+import { archivedMenu, folderMenu, listMenu, newListOrFolder } from "@/ui/listActions";
 import { useQuickAddContext } from "@/ui/QuickAdd";
 
 const open = (id: string) => router.push({ pathname: "/browse/list/[id]", params: { id } });
@@ -37,6 +37,7 @@ export default function Browse() {
   }, [tasks, lists]);
   const n = (k: number | undefined) => (k ? String(k) : undefined);
   const colorOf = (v: string) => resolveColor(c, v, c.muted);
+  const archivedCount = Object.values(lists).filter((l) => l.archived).length;
   const visible = Object.values(lists).filter((l) => l.id !== INBOX_ID && !l.archived);
 
   const tree = (parent: string | null, depth: number): ReactNode[] => [
@@ -93,6 +94,7 @@ export default function Browse() {
           Group tasks into lists, like Chemistry or Home. Tap + to make one.
         </Text>
       )}
+      {archivedCount ? <NavRow icon="archive" title="Archived lists" detail={String(archivedCount)} onPress={() => void archivedMenu()} /> : null}
       <View style={[s.divider, { backgroundColor: c.border }]} />
       <NavRow icon="clock" title="Focus" onPress={() => router.push("/focus")} />
       <NavRow icon="users" title="Friends" detail={requests ? `${requests} new` : undefined} onPress={() => router.push("/friends")} />

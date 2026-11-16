@@ -6,6 +6,9 @@ import { ACCENTS } from "@core/domain/color";
 import { discardDraft, saveDraft, useSettingsDraft } from "@core/stores/settingsDraft";
 import { useColors } from "@/theme";
 import { formatTime } from "@core/domain/dates";
+import { PRIORITIES, PRIORITY_LABEL, type Priority } from "@core/domain/types";
+import { useData } from "@core/stores/data";
+import { tagsMenu } from "@/ui/listActions";
 import { Button, Icon, Label, Segmented, Text } from "@/ui/kit";
 
 /** The settings that matter on a phone. They sync, so they match the computer. */
@@ -13,6 +16,7 @@ export default function Settings() {
   const c = useColors();
   const { draft: s, update, dirty, save, discard } = useSettingsDraft();
   const nav = useNavigation();
+  const lists = useData((x) => x.lists);
   // Leaving with unsaved changes asks first (D232); a draft nobody saved is dropped when the screen closes.
   usePreventRemove(dirty, ({ data }) =>
     Alert.alert("Save your changes?", "You changed settings that aren't saved yet.", [
@@ -48,6 +52,45 @@ export default function Settings() {
       </Text>
       <Label>Time format</Label>
       <Segmented value={s.timeFormat} options={[{ value: "12h", label: "12-hour" }, { value: "24h", label: "24-hour" }]} onChange={(timeFormat) => update({ timeFormat })} />
+      <Label>Date format</Label>
+      <Segmented
+        value={s.dateFormat}
+        options={[{ value: "system", label: "System" }, { value: "dmy", label: "31/12" }, { value: "mdy", label: "12/31" }, { value: "iso", label: "2026-12-31" }]}
+        onChange={(dateFormat) => update({ dateFormat })}
+      />
+      <Text variant="meta" style={{ color: c.muted, marginTop: 6 }}>Also how quick add reads 3/4.</Text>
+      <Label>New tasks</Label>
+      <Text variant="meta" style={{ color: c.muted, marginBottom: 6 }}>List</Text>
+      <Segmented
+        value={s.taskDefaults.listId ?? ""}
+        options={[{ value: "", label: "Inbox" }, ...Object.values(lists).filter((l) => !l.archived && l.id !== "inbox").sort((a, b) => a.sortOrder - b.sortOrder).map((l) => ({ value: l.id, label: l.name }))]}
+        onChange={(v) => update({ taskDefaults: { ...s.taskDefaults, listId: v || null } })}
+      />
+      <Text variant="meta" style={{ color: c.muted, marginVertical: 6 }}>Priority</Text>
+      <Segmented
+        value={String(s.taskDefaults.priority)}
+        options={PRIORITIES.map((p) => ({ value: String(p), label: PRIORITY_LABEL[p] }))}
+        onChange={(v) => update({ taskDefaults: { ...s.taskDefaults, priority: Number(v) as Priority } })}
+      />
+      <Text variant="meta" style={{ color: c.muted, marginVertical: 6 }}>Reminder for timed tasks</Text>
+      <Segmented
+        value={s.taskDefaults.reminderMin === null ? "" : String(s.taskDefaults.reminderMin)}
+        options={[["", "None"], ["0", "At start"], ["5", "5 min"], ["10", "10 min"], ["30", "30 min"], ["60", "1 h"], ["1440", "1 day"]].map(([value, label]) => ({ value, label }))}
+        onChange={(v) => update({ taskDefaults: { ...s.taskDefaults, reminderMin: v === "" ? null : Number(v) } })}
+      />
+      {s.templates.length ? (
+        <>
+          <Label>Templates</Label>
+          {s.templates.map((t) => (
+            <View key={t.id} style={st.switchRow}>
+              <Text style={{ color: c.fg, fontSize: 16, flex: 1 }} numberOfLines={1}>{t.name}</Text>
+              <Pressable onPress={() => update({ templates: s.templates.filter((x) => x.id !== t.id) })} accessibilityRole="button" accessibilityLabel={`Delete template ${t.name}`} style={{ padding: 12 }}>
+                <Icon name="trash-2" color={c.muted} size={18} />
+              </Pressable>
+            </View>
+          ))}
+        </>
+      ) : null}
       <Label>Reminders</Label>
       <View style={st.switchRow}>
         <Text style={{ color: c.fg, fontSize: 16, flex: 1 }}>Notifications</Text>
@@ -111,6 +154,8 @@ export default function Settings() {
           />
         </View>
       ))}
+      <Label>Tags</Label>
+      <Button label="Rename, colour or delete tags" icon="tag" kind="secondary" onPress={() => void tagsMenu()} />
       <Label>Trash</Label>
       <Button label="Deleted tasks" icon="trash-2" kind="secondary" onPress={() => router.push("/trash" as "/connections") /* typed routes regenerate on the next expo start */} />
       <Label>Connections</Label>

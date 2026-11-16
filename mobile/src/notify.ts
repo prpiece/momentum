@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Alert, AppState, Platform } from "react-native";
 import { isAlarm } from "@core/domain/alarms";
-import { remainingMs } from "@core/domain/focus";
+import { nextPhase, phaseMs, remainingMs } from "@core/domain/focus";
 import { upcomingFires, type ReminderTarget } from "@core/domain/reminders";
 import { derive } from "@core/domain/taskViews";
 import { useData } from "@core/stores/data";
@@ -25,6 +25,8 @@ const LIMIT = 56;
 const SNOOZE_MIN = 10;
 const CHANNEL = "reminders";
 const FOCUS_ID = "focus";
+/** Phase ends scheduled ahead for one session (8 = 4 rounds); it tops up whenever the app runs. */
+const FOCUS_PHASES = 8;
 const SNOOZED = ":snooze";
 
 Notifications.setNotificationHandler({
@@ -163,12 +165,21 @@ async function apply() {
     });
   }
   if (focusLeft !== null && timer.status === "running") {
-    keep.add(FOCUS_ID);
-    await Notifications.scheduleNotificationAsync({
-      identifier: FOCUS_ID,
-      content: timer.phase === "focus" ? { title: "Focus session done", body: "Time for a break." } : { title: "Break's over", body: "Back to focus." },
-      trigger: at(new Date(now + focusLeft)),
-    });
+    // Every phase end of the session, so a Pomodoro chain keeps notifying with the app closed. Any change to the timer (skip, stop) reschedules and prunes these.
+    let s = timer;
+    let t = now + focusLeft;
+    for (let i = 0; i < FOCUS_PHASES; i++) {
+      const id = `${FOCUS_ID}:${i}`;
+      keep.add(id);
+      await Notifications.scheduleNotificationAsync({
+        identifier: id,
+        content: s.phase === "focus" ? { title: "Focus session done", body: "Time for a break." } : { title: "Break's over", body: "Back to focus." },
+        trigger: at(new Date(t)),
+      });
+      if (s.phase === "focus" && s.cycles.kind === "finite" && s.round >= s.cycles.count) break;
+      s = { ...s, ...nextPhase(s, settings.pomodoro) };
+      t += phaseMs(s.phase, settings.pomodoro);
+    }
   }
   await prune(keep);
 }

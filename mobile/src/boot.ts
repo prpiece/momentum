@@ -10,6 +10,7 @@ import { Alert, AppState, Platform } from "react-native";
 import { setDriver, write } from "@core/db/client";
 import { setDeviceStore, setSnapshot, setSyncHost, startSync } from "@core/lib/sync/engine";
 import { configureSync, supabase } from "@core/lib/sync/supabase";
+import { setDateOrder } from "@core/domain/dates";
 import { hydrate } from "@core/stores/data";
 import { hydrateFocus } from "@core/stores/focus";
 import { hydrateHabits } from "@core/stores/habits";
@@ -92,7 +93,12 @@ setNudgeHandler((from, habit) =>
 );
 startFocusPublishing();
 
+// "3/4" reads the way the synced date format says, now and whenever it changes (the desktop does this in applySettings).
+const applyDateOrder = (f: string) => setDateOrder(f === "dmy" || f === "mdy" || f === "iso" ? f : "system", Intl.DateTimeFormat().resolvedOptions().locale);
+useSettings.subscribe((st, prev) => st.settings.dateFormat !== prev.settings.dateFormat && applyDateOrder(st.settings.dateFormat));
+
 export const ready = Promise.all([useSettings.getState().hydrate(), hydrate(), hydrateHabits(), hydrateFocus()]).then(() => {
+  applyDateOrder(useSettings.getState().settings.dateFormat);
   startWidgets();
   startSocial(); // follows the signed-in account that startSync restores
   return startSync();
