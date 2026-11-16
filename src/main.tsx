@@ -85,6 +85,8 @@ if (popup === "mini") {
           window.addEventListener("online", sync);
           return () => window.removeEventListener("online", sync);
         },
+        // Note images go up once their task is on the server (D291).
+        afterPush: () => void import("./lib/appFiles").then((f) => f.uploadAttachments()).catch(console.error),
       });
       void import("./features/friends/boot").then((b) => b.startFriends());
       return s.startSync();

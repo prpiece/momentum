@@ -1,6 +1,8 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { isTauri } from "../db/client";
-import { attachmentRefs, staleAttachments } from "../domain/attachments";
+import { attachmentRefs, MAX_IMAGE_BYTES, staleAttachments } from "../domain/attachments";
+import { downloadNoteImage, uploadNoteImages } from "./sync/attachments";
+import { useData } from "../stores/data";
 
 /**
  * Images kept in the app's config dir (D78 attachments). Rust validates every
@@ -10,7 +12,7 @@ export type ImageFolder = "attachments" | "backgrounds";
 export type StoredImage = { name: string; modified: number };
 
 export const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp"] as const;
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+export { MAX_IMAGE_BYTES };
 
 const dirs: Partial<Record<ImageFolder, Promise<string>>> = {};
 const dirOf = (kind: ImageFolder) => (dirs[kind] ??= invoke<string>("image_dir", { kind }));
@@ -42,4 +44,37 @@ export async function sweepAttachments(descriptions: Iterable<string>): Promise<
   if (!isTauri) return;
   const refs = attachmentRefs(descriptions);
   for (const name of staleAttachments(await listImages("attachments"), refs, Date.now() / 1000, 1)) await deleteImage("attachments", name);
+}
+
+/** After each push: upload the note images other devices and share members don't have yet (D291). */
+export async function uploadAttachments(): Promise<void> {
+  if (!isTauri) return;
+  const read = async (name: string) => {
+    const res = await fetch((await imageUrl("attachments", name)) ?? "");
+    if (!res.ok) throw new Error(`can't read ${name} (${res.status})`);
+    return res.blob();
+  };
+  const list = async () => (await listImages("attachments")).map((f) => f.name);
+  await uploadNoteImages({ list, read }, Object.values(useData.getState().tasks).map((t) => t.description));
+}
+
+const fetching = new Map<string, Promise<boolean>>();
+/** A note image this device lacks: download it into the attachments folder; true once it's there (D291). */
+export function fetchAttachment(name: string): Promise<boolean> {
+  let p = fetching.get(name);
+  if (!p) {
+    p = (async () => {
+      const blob = isTauri ? await downloadNoteImage(name) : null;
+      if (!blob) return false;
+      await writeImage("attachments", name, blob);
+      return true;
+    })()
+      .catch((err: unknown) => {
+        console.warn(`Note image ${name} didn't download`, err);
+        return false;
+      })
+      .finally(() => fetching.delete(name));
+    fetching.set(name, p);
+  }
+  return p;
 }

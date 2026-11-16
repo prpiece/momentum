@@ -360,8 +360,9 @@ export function syncNow(): Promise<void> {
 /**
  * What sync needs from the app it runs in (PLAN D229): the platform name for the device list,
  * whether the network is up, and when to sync again (back online; on the phone, back in front).
+ * `afterPush` runs in the background once the server has this device's records (desktop: note image uploads, D291).
  */
-export type SyncHost = { platform: string | null; online(): boolean; watch(sync: () => void): () => void };
+export type SyncHost = { platform: string | null; online(): boolean; watch(sync: () => void): () => void; afterPush?(): void };
 let host: SyncHost = { platform: null, online: () => true, watch: () => () => undefined };
 export const setSyncHost = (h: SyncHost) => void (host = h);
 
@@ -401,6 +402,7 @@ async function runOnce() {
     const { data: meta } = await supabase.from("server_meta").select("min_client_schema").maybeSingle();
     const tooOld = typeof meta?.min_client_schema === "number" && meta.min_client_schema > CLIENT_SCHEMA;
     if (tooOld || (await push(await deviceId())) === "updateRequired") return useSync.setState({ status: { kind: "updateRequired" } });
+    host.afterPush?.();
     await pull();
     if (session !== started) return; // signed out meanwhile
     if (!named) named = await namePlatform(await deviceId()); // push may have taken a new id

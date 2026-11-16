@@ -2,30 +2,44 @@ import { Copy, Maximize2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { imageUrl } from "../../lib/appFiles";
+import { fetchAttachment, imageUrl } from "../../lib/appFiles";
 import { toast } from "../../stores/ui";
 import { ImageLightbox } from "./ImageLightbox";
 
 const PREFIX = "attachment:";
 
+/** `loading` also covers downloading a file this device lacks (D291); a `fetched` file that still won't load has failed. */
+type Shown = { kind: "loading" } | { kind: "local" | "fetched"; url: string } | { kind: "failed" };
+
 function NoteImage({ src, alt }: { src: string; alt: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const name = src.slice(PREFIX.length);
+  const [shown, setShown] = useState<Shown>({ kind: "loading" });
   const [big, setBig] = useState(false);
   useEffect(() => {
     let live = true;
-    void imageUrl("attachments", src.slice(PREFIX.length)).then((u) => live && setUrl(u));
+    setShown({ kind: "loading" });
+    void imageUrl("attachments", name).then((u) => live && setShown(u ? { kind: "local", url: u } : { kind: "failed" }));
     return () => {
       live = false;
     };
-  }, [src]);
-  if (!url || failed) return <span className="rounded-control bg-surface-2 px-1.5 py-0.5 text-xs text-muted">{alt || "Image"} (unavailable)</span>;
+  }, [name]);
+  // Not on this device: fetch it once from the server, then load the file again (the query busts the failed load).
+  const missing = () => {
+    if (shown.kind !== "local") return setShown({ kind: "failed" });
+    const url = shown.url;
+    setShown({ kind: "loading" });
+    void fetchAttachment(name).then((ok) => setShown(ok ? { kind: "fetched", url: `${url}?v=${Date.now()}` } : { kind: "failed" }));
+  };
+  const chip = "rounded-control bg-surface-2 px-1.5 py-0.5 text-xs text-muted";
+  if (shown.kind === "loading") return <span className={chip} aria-busy="true">{alt || "Image"} (loading…)</span>;
+  if (shown.kind === "failed") return <span className={chip}>{alt || "Image"} (unavailable)</span>;
+  const url = shown.url;
   const btn =
     "grid size-7 place-items-center rounded-control bg-raised/90 text-fg-2 opacity-0 shadow-float transition-opacity hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent group-hover/img:opacity-100";
   return (
     // The stops keep clicks and keys (also from the portalled viewer) from reaching the note's click-to-edit.
     <span className="group/img relative my-2 block w-fit" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-      <img src={url} alt={alt} onError={() => setFailed(true)} onClick={() => setBig(true)} className="max-h-64 max-w-full cursor-zoom-in rounded-card object-contain" />
+      <img src={url} alt={alt} onError={missing} onClick={() => setBig(true)} className="max-h-64 max-w-full cursor-zoom-in rounded-card object-contain" />
       <span className="absolute right-1.5 top-1.5 flex gap-1">
         <button type="button" aria-label="Enlarge image" title="Enlarge image" onClick={() => setBig(true)} className={btn}>
           <Maximize2 size={14} />

@@ -367,6 +367,32 @@ describe("attachments", () => {
     expect((await up(E, `user/${E.id}/${uid()}.png`)).error).not.toBeNull();
   });
 
+  // Note images (D291): `notes/<file>`, readable by whoever can see a task that references it.
+  it("note images follow the tasks that reference them", async () => {
+    const img = `${uid()}.png`, other = `${uid()}.png`, tN = uid(), tQ = uid();
+    const note = (f: string) => ({ description: `see ![](attachment:${f})` });
+    expect((await send(O.db, task(tN, B, note(img)), task(tQ, P, note(other)))).refused).toEqual([]);
+    const get = (u: User, f: string) => u.db.storage.from("attachments").download(`notes/${f}`);
+    // Uploading needs a referencing task you can edit; a second upload of the same name is a duplicate.
+    expect((await up(O, `notes/${uid()}.png`)).error).not.toBeNull();
+    expect((await up(V, `notes/${img}`)).error).not.toBeNull();
+    expect((await up(O, `notes/${img}`)).error).toBeNull();
+    expect((await up(E, `notes/${img}`)).error).not.toBeNull();
+    expect((await up(O, `notes/${other}`)).error).toBeNull();
+    // Members of a share covering the task read it; nobody else does, and personal tasks stay private.
+    for (const x of [O, E, V]) expect((await get(x, img)).error).toBeNull();
+    for (const x of [L, Fr, S, K]) expect((await get(x, img)).error).not.toBeNull();
+    expect((await get(E, other)).error).not.toBeNull();
+    // Naming the file in a task of your own grants nothing: the uploader can't see that task.
+    const sl = uid();
+    await send(S.db, list(sl), task(uid(), sl, note(img)));
+    expect((await get(S, img)).error).not.toBeNull();
+    // Access moves with the task.
+    await send(O.db, { tbl: "tasks", id: tN, fields: { list_id: P } });
+    expect((await get(V, img)).error).not.toBeNull();
+    expect((await get(O, img)).error).toBeNull();
+  });
+
   it("refuses anything but images", async () => {
     const r = await E.db.storage.from("attachments").upload(`share/${shareF}/${B}/${uid()}.svg`, "<svg/>", { contentType: "image/svg+xml" });
     expect(r.error).not.toBeNull();

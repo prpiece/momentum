@@ -23,6 +23,7 @@ import { askText, choose } from "@/ui/Sheet";
 import { Ring, useComplete } from "@/ui/TaskRow";
 import { sendToFriend } from "@/social/actions";
 import { canEdit, useRole } from "@/social/roles";
+import { NoteImages } from "@/ui/NoteImages";
 
 /**
  * A task's sheet (S4): title and notes, then the fields people change most, with repeat and
@@ -42,7 +43,7 @@ export default function TaskSheet() {
   const vm = d.byId.get(id);
   const kids = useMemo(() => (vm ? sortVMs(d.childrenOf(id), "manual") : []), [d, id, vm]);
   const [title, setTitle] = useState(t?.title ?? "");
-  // Attachments don't sync (D229): hide their markdown, keep it when the notes are saved.
+  // Images show below the notes (D291); their markdown stays out of the text field and is kept when the notes are saved.
   const attachments = (t?.description ?? "").match(ATTACHMENT) ?? [];
   const [notes, setNotes] = useState((t?.description ?? "").replace(ATTACHMENT, "").trim());
   const [more, setMore] = useState(false);
@@ -246,14 +247,7 @@ export default function TaskSheet() {
               style={[s.notes, { color: c.fg2 }]}
               accessibilityLabel="Notes"
             />
-            {attachments.length ? (
-              <View style={s.image}>
-                <Icon name="image" size={16} color={c.muted} />
-                <Text variant="meta" style={{ color: c.muted }}>
-                  {attachments.length > 1 ? `${attachments.length} images on desktop` : "Image on desktop"}
-                </Text>
-              </View>
-            ) : null}
+            {attachments.length ? <NoteImages description={attachments.join(" ")} /> : null}
           </View>
         </View>
 
@@ -343,5 +337,4 @@ const s = StyleSheet.create({
   subRow: { flexDirection: "row", alignItems: "center", minHeight: 44, paddingLeft: GUTTER - 12, paddingRight: GUTTER, gap: 4 },
   subInput: { flex: 1, fontFamily: FONTS[400], fontSize: 15, padding: 0, minHeight: 44 },
   footer: { flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, marginTop: 16, borderTopWidth: StyleSheet.hairlineWidth },
-  image: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
 });
