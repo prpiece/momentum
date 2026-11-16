@@ -1,3 +1,4 @@
+import { INBOX_ID } from "../domain/types";
 import type { ImportPlan } from "../domain/importPlan";
 import { addFolder, addList, addSection, addTask, ensureTags, removeFolder, removeList, removeSection, removeTag, useData } from "./data";
 import { pushUndo } from "./undo";
@@ -13,7 +14,7 @@ export function applyImportPlan(plan: ImportPlan): void {
   const oldTags = new Set(Object.keys(before.tags));
 
   const folders = new Map(plan.folders.map((name) => [name, addFolder(name)?.id ?? null]));
-  const lists = new Map(plan.lists.map((l) => [l.id, addList(l.name, l.folder ? (folders.get(l.folder) ?? null) : null).id]));
+  const lists = new Map(plan.lists.map((l) => [l.id, l.inbox ? INBOX_ID : addList(l.name, l.folder ? (folders.get(l.folder) ?? null) : null).id]));
   const sections = new Map(plan.sections.map((s) => [s.id, addSection(lists.get(s.list) ?? "", s.name).id]));
   const tagIds = new Map(plan.tasks.flatMap((t) => t.tags).map((n) => [n.toLowerCase(), ensureTags([n])[0]]));
 
@@ -43,7 +44,7 @@ export function applyImportPlan(plan: ImportPlan): void {
   });
 
   const made = {
-    lists: [...lists.values()],
+    lists: [...lists.values()].filter((id) => id !== INBOX_ID),
     sections: [...sections.values()],
     folders: [...folders.values()].flatMap((id) => (id && !oldFolders.has(id) ? [id] : [])),
     tags: Object.keys(useData.getState().tags).filter((id) => !oldTags.has(id)),

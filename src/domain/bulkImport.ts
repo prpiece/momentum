@@ -39,7 +39,7 @@ export function splitImport(text: string, separator?: string): { items: ImportIt
     const indent = separator ? 0 : indentOf(line);
     while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
     // Deeper than the limit: a sibling of the deepest allowed level.
-    if (stack.length > MAX_SUBTASK_DEPTH) stack.length = MAX_SUBTASK_DEPTH;
+    if (stack.length > MAX_SUBTASK_DEPTH - 1) stack.length = MAX_SUBTASK_DEPTH - 1;
     all.push({ text: title, parent: stack.length ? stack[stack.length - 1].index : null });
     stack.push({ indent, index: all.length - 1 });
   }

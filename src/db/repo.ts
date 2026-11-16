@@ -2,7 +2,7 @@ import type { Activity, ActivityKind, CalendarEvent, Folder, Section, Tag, Task,
 import { folderDepth } from "../domain/folders";
 import { TRASH_DAYS } from "../domain/trash";
 import { parseSubscription, subscriptionToRow, type CalendarSubscription } from "../domain/subscriptions";
-import { select, upsert, write } from "./client";
+import { select, selectAfterWrites, upsert, write } from "./client";
 import {
   eventToRow,
   folderToRow,
@@ -34,9 +34,10 @@ export type Workspace = {
 export async function loadWorkspace(purge = true): Promise<Workspace> {
   // Soft-deleted events only exist to make undo cheap; tasks wait in the Trash.
   const cutoff = new Date(Date.now() - TRASH_DAYS * 86_400_000).toISOString();
-  if (purge) await write(["DELETE FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < $1", [cutoff]], ["DELETE FROM calendar_events WHERE deleted_at IS NOT NULL"]);
+  // A live subtask parked under an expired trashed parent is detached first: parent_id cascades and would delete it silently (DATA-04).
+  if (purge) await write(["UPDATE tasks SET parent_id = NULL WHERE deleted_at IS NULL AND parent_id IN (SELECT id FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < $1)", [cutoff]], ["DELETE FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < $1", [cutoff]], ["DELETE FROM calendar_events WHERE deleted_at IS NOT NULL"]);
   const [tasks, events, lists, folders, sections, tags] = await Promise.all(
-    ["tasks", "calendar_events", "lists", "folders", "sections", "tags"].map((t) => select<Row>(`SELECT * FROM ${t}`)),
+    ["tasks", "calendar_events", "lists", "folders", "sections", "tags"].map((t) => selectAfterWrites<Row>(`SELECT * FROM ${t}`)),
   );
   return {
     tasks: parseAll(tasks, parseTask),

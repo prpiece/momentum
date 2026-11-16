@@ -40,12 +40,32 @@ export async function select<T>(sql: string, params: unknown[] = []): Promise<T[
   return (await db()).select<T[]>(sql, params);
 }
 
+/** A read queued behind every write made so far, so it can't miss an edit that is still being saved (SYNC-14). */
+export const selectAfterWrites = <T>(sql: string, params: unknown[] = []): Promise<T[]> =>
+  open ? transact((d) => d.select<T[]>(sql, params)) : Promise.resolve([]);
+
 type WriteErrorListener = (err: unknown) => void;
 const errorListeners = new Set<WriteErrorListener>();
 export const onWriteError = (fn: WriteErrorListener) => {
   errorListeners.add(fn);
   return () => void errorListeners.delete(fn);
 };
+
+/** Runs `fn` and throws the first write error raised meanwhile (write() itself never rejects), e.g. so a restore can't claim success. */
+export async function failedWrites<T>(fn: () => Promise<T>): Promise<T> {
+  let first: unknown;
+  let failed = false;
+  const off = onWriteError((err) => {
+    if (!failed) [failed, first] = [true, err];
+  });
+  try {
+    const out = await fn();
+    if (failed) throw first;
+    return out;
+  } finally {
+    off();
+  }
+}
 
 // Every write goes through one chain so a burst of edits lands in the order it was made.
 let chain: Promise<unknown> = Promise.resolve();

@@ -65,3 +65,10 @@ describe("TickTick CSV", () => {
     expect(p.ok && p.plan.counts).toMatchObject({ tasks: 2, skipped: 1 });
   });
 });
+
+describe("DATA-09 TickTick", () => {
+  it("a priority cell like constructor is no priority", () => {
+    const r = parseExternalImport(file(row({ "List Name": "L", Title: "A", Priority: "constructor", taskId: "1" })));
+    expect(r.ok && r.plan.tasks[0].priority).toBe(0);
+  });
+});

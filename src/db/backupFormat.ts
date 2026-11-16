@@ -14,6 +14,8 @@ import { parseLegacyCountdown, parseSession } from "./miscRows";
 import { parseSubscription, type CalendarSubscription } from "../domain/subscriptions";
 
 export const BACKUP_FORMAT = 1;
+/** The newest migration number; stamped on exports. migrations.test.ts fails when a new migration isn't reflected here. */
+export const LATEST_SCHEMA = 10;
 
 /** Parents before children: the order rows must be inserted in. */
 export const BACKUP_TABLES = [
@@ -101,7 +103,8 @@ export function validateBackup(raw: unknown): Validation {
   const count = (r: Restored) => (r.settings ? 1 : 0) + [r.folders, r.lists, r.sections, r.tags, r.tasks, r.activity, r.subscriptions, r.events, r.groups, r.habits, r.checkins, r.sessions].reduce((n, a) => n + a.length, 0);
   // Rows lost to validation or orphan cleanup (a re-created Inbox isn't counted as kept).
   const inboxAdded = repaired.lists.length - data.lists.length;
-  return { ok: true, data: repaired, dropped: total - (count(repaired) - inboxAdded) };
+  const tagsMerged = data.tags.length - repaired.tags.length;
+  return { ok: true, data: repaired, dropped: total - (count(repaired) - inboxAdded) - tagsMerged };
 }
 
 /** Point every reference at something that exists (or clear it), so inserts never violate FKs. */
@@ -125,8 +128,14 @@ export function repairReferences(d: Restored): Restored {
     }
     return false;
   };
+  // tags.name is UNIQUE NOCASE: case-variants ("Work", "work") would fail the insert and abort the whole restore (DATA-01).
+  const tagByName = new Map<string, string>();
+  const tagOf = new Map<string, string>();
+  for (const g of d.tags) tagOf.set(g.id, tagByName.get(g.name.toLowerCase()) ?? (tagByName.set(g.name.toLowerCase(), g.id), g.id));
+  const tags = d.tags.filter((g) => tagOf.get(g.id) === g.id);
   const tasks = d.tasks.map((t) => ({
     ...t,
+    tags: [...new Set(t.tags.flatMap((id) => tagOf.get(id) ?? []))],
     listId: listIds.has(t.listId) ? t.listId : INBOX_ID,
     parentId: t.parentId && taskIds.has(t.parentId) && !cyclic(t.id) ? t.parentId : null,
     sectionId: t.sectionId && sectionIds.has(t.sectionId) ? t.sectionId : null,
@@ -143,6 +152,7 @@ export function repairReferences(d: Restored): Restored {
     folders,
     lists: lists.map((l) => ({ ...l, folderId: l.folderId && folderIds.has(l.folderId) ? l.folderId : null })),
     sections,
+    tags,
     tasks,
     activity: d.activity.filter((a) => taskIds.has(a.taskId)),
     events: events.map((e) => ({ ...e, recurrenceParentId: e.recurrenceParentId && eventIds.has(e.recurrenceParentId) ? e.recurrenceParentId : null })),

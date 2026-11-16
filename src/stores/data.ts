@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { onWriteError } from "../db/client";
 import * as repo from "../db/repo";
 import { canAddChild, canNest, childFolders } from "../domain/folders";
 import { after, before, reorder as reorderItems } from "../domain/order";
@@ -116,25 +117,94 @@ export function depthOf(id: string | null): number {
   return id ? d + 1 : 0;
 }
 
+/** Whether `id` may sit under `parentId`: it exists and is live, no cycle, within MAX_SUBTASK_DEPTH. The one guard for every parent change (DATA-05). */
+function canParent(id: string, parentId: string): boolean {
+  const p = get().tasks[parentId];
+  if (!p || p.deletedAt || parentId === id) return false;
+  const seen = new Set<string>();
+  for (let a: Task | undefined = p; a; a = a.parentId ? get().tasks[a.parentId] : undefined) {
+    if (a.id === id) return false;
+    if (seen.has(a.id)) break;
+    seen.add(a.id);
+  }
+  const height = Math.max(0, ...descendants(id).map((d) => depthOf(d.id) - depthOf(id)));
+  return depthOf(parentId) + 1 + height <= MAX_SUBTASK_DEPTH;
+}
+
+/**
+ * HAB-19 / D330: setting a parent to waiting or someday copies that state onto its open subtasks, as part of the same
+ * commit (one undo step). Each subtask stays editable on its own. Clearing it on the parent clears only the subtasks that
+ * still carry the identical value. Nothing here runs when a subtask itself is edited.
+ */
+function inheritedByOpenSubtasks(was: Task, now: Task): Task[] {
+  const wait = (w: Task["waiting"]) => JSON.stringify(w);
+  const waitChanged = wait(was.waiting) !== wait(now.waiting);
+  const somedayWas = was.schedule.kind === "someday";
+  const somedayNow = now.schedule.kind === "someday";
+  if (!waitChanged && somedayWas === somedayNow) return [];
+  const all = get().tasks;
+  const blocker = now.waiting?.kind === "task" ? now.waiting.taskId : null;
+  const related = (id: string) => {
+    // The blocker, its ancestors and its descendants can't wait on it (a task never waits on itself or its own descendant).
+    for (let a = blocker ? all[blocker] : undefined, n = 0; a && n < 50; a = a.parentId ? all[a.parentId] : undefined, n++) if (a.id === id) return true;
+    for (let a: Task | undefined = all[id], n = 0; a && n < 50; a = a.parentId ? all[a.parentId] : undefined, n++) if (a.id === blocker) return true;
+    return false;
+  };
+  const out: Task[] = [];
+  for (const d of descendants(was.id)) {
+    if (d.status !== "open") continue;
+    let next = d;
+    if (waitChanged) {
+      if (now.waiting && !related(d.id) && !waitLoops(d.id, now.waiting, all)) next = { ...next, waiting: now.waiting };
+      else if (!now.waiting && wait(d.waiting) === wait(was.waiting)) next = { ...next, waiting: null };
+    }
+    if (somedayNow && !somedayWas) next = { ...next, schedule: { kind: "someday" }, recurrence: null };
+    else if (somedayWas && !somedayNow && next.schedule.kind === "someday") next = { ...next, schedule: { kind: "none" } };
+    if (next !== d) out.push({ ...next, updatedAt: now.updatedAt });
+  }
+  return out;
+}
+
 const siblings = (listId: string, parentId: string | null) =>
   live().filter((t) => t.listId === listId && t.parentId === parentId);
 
 // ---------- hydrate ----------
 
+/** Rows edited while the load was reading keep their store version: the read can't have seen those edits (SYNC-14). */
+const keepEdited = <T,>(loaded: ById<T>, then: ById<T>, now: ById<T>): ById<T> => {
+  for (const id of Object.keys(now)) if (now[id] !== then[id]) loaded[id] = now[id];
+  return loaded;
+};
+
 export async function hydrate(purge = true) {
+  reloadOnWriteError();
+  const [tasksThen, eventsThen] = [get().tasks, get().events];
   const ws = await repo.loadWorkspace(purge);
   const lists = byId(ws.lists);
   lists[INBOX_ID] ??= INBOX;
   set({
     ready: true,
-    tasks: byId(ws.tasks),
-    events: byId(ws.events),
+    tasks: keepEdited(byId(ws.tasks), tasksThen, get().tasks),
+    events: keepEdited(byId(ws.events), eventsThen, get().events),
     lists,
     folders: byId(ws.folders),
     sections: byId(ws.sections),
     tags: byId(ws.tags),
   });
 }
+
+// A write the database refused (UNIQUE, CHECK, disk full) must not leave the UI showing a state that will vanish at restart (DATA-11).
+let reloading = false;
+let listening = false; // registered by the first hydrate, which every app (and no mocked-client test) runs at startup
+const reloadOnWriteError = () => {
+  if (listening) return;
+  listening = true;
+  onWriteError(() => {
+    if (reloading) return;
+    reloading = true;
+    void hydrate(false).finally(() => (reloading = false));
+  });
+};
 
 /** Replace the whole store (used by the dev seed in browser mode and by JSON import). */
 export function replaceAll(ws: repo.Workspace) {
@@ -147,7 +217,7 @@ export function replaceAll(ws: repo.Workspace) {
 
 export function addTask(input: NewTask, position: "top" | "bottom" = "top"): Task {
   const listId = input.listId ?? INBOX_ID;
-  const parentId = input.parentId ?? null;
+  const parentId = input.parentId && canParent("", input.parentId) ? input.parentId : null;
   const sib = siblings(listId, parentId);
   const t: Task = {
     description: "",
@@ -161,7 +231,7 @@ export function addTask(input: NewTask, position: "top" | "bottom" = "top"): Tas
     recurrence: null,
     recurrenceParentId: null,
     // A subtask starts with its parent's tags (D267); later edits don't flow down.
-    tags: input.parentId ? [...(get().tasks[input.parentId]?.tags ?? [])] : [],
+    tags: parentId ? [...(get().tasks[parentId]?.tags ?? [])] : [],
     checklist: [],
     reminders: [],
     pinned: false,
@@ -176,7 +246,7 @@ export function addTask(input: NewTask, position: "top" | "bottom" = "top"): Tas
     updatedAt: now(),
   };
   if (t.schedule.kind === "none" || t.schedule.kind === "someday") t.recurrence = null;
-  if (input.parentId && input.tags) t.tags = [...new Set([...(get().tasks[input.parentId]?.tags ?? []), ...input.tags])];
+  if (parentId && input.tags) t.tags = [...new Set([...(get().tasks[parentId]?.tags ?? []), ...input.tags])];
   commit([t]);
   log(t.id, "created");
   return t;
@@ -185,10 +255,12 @@ export function addTask(input: NewTask, position: "top" | "bottom" = "top"): Tas
 export function updateTask(id: string, patch: Partial<Task>) {
   const t = get().tasks[id];
   if (!t) return;
+  if (patch.parentId && patch.parentId !== t.parentId && !canParent(id, patch.parentId)) patch = { ...patch, parentId: t.parentId };
   const next: Task = { ...t, ...patch, updatedAt: now() };
   if (next.schedule.kind === "none" || next.schedule.kind === "someday") next.recurrence = null;
   if (patch.waiting !== undefined && waitLoops(id, patch.waiting, get().tasks)) next.waiting = t.waiting;
   const changed = [next];
+  changed.push(...inheritedByOpenSubtasks(t, next));
   if (patch.listId && patch.listId !== t.listId) {
     log(id, "moved", get().lists[patch.listId]?.name ?? "");
     // Subtasks travel with their parent; a moved subtask leaves its parent behind.
@@ -270,16 +342,24 @@ export function purgeTasks(ids: string[]) {
 export function duplicateTask(id: string): Task | null {
   const t = get().tasks[id];
   if (!t) return null;
-  const copy = (src: Task, parentId: string | null, title = src.title): Task => {
-    const c = addTask({ ...src, parentId, title, status: "open", completedAt: null, sortOrder: src.sortOrder + 0.5 });
-    childrenOf(src.id).forEach((k) => copy(k, c.id));
+  const copy = (src: Task, parentId: string | null, sortOrder: number, title = src.title): Task => {
+    const c = addTask({ ...src, parentId, title, status: "open", completedAt: null, sortOrder });
+    childrenOf(src.id).forEach((k) => copy(k, c.id, k.sortOrder));
     return c;
   };
-  return copy(t, t.parentId, `${t.title} (copy)`);
+  // Just after the original: halfway to the next sibling, so repeated copies keep distinct orders (DATA-08).
+  const next = siblings(t.listId, t.parentId).filter((x) => x.sortOrder > t.sortOrder).reduce((m, x) => Math.min(m, x.sortOrder), Infinity);
+  return copy(t, t.parentId, Number.isFinite(next) ? (t.sortOrder + next) / 2 : t.sortOrder + 1, `${t.title} (copy)`);
 }
 
 export function moveTasks(ids: string[], listId: string, sectionId: string | null = null) {
-  for (const id of ids) updateTask(id, { listId, sectionId });
+  // A subtask whose ancestor is also moving travels with it; moving it on its own would detach it (UI-10).
+  const picked = new Set(ids);
+  const hasPickedAncestor = (id: string) => {
+    for (let p = get().tasks[id]?.parentId, n = 0; p && n < 50; p = get().tasks[p]?.parentId, n++) if (picked.has(p)) return true;
+    return false;
+  };
+  for (const id of ids) if (!hasPickedAncestor(id)) updateTask(id, { listId, sectionId });
 }
 
 /** Drag reorder among siblings (already sorted for display). */
@@ -300,10 +380,8 @@ export function setParent(id: string, parentId: string | null): boolean {
   const t = get().tasks[id];
   if (!t) return false;
   if (parentId) {
+    if (!canParent(id, parentId)) return false;
     const p = get().tasks[parentId];
-    if (!p || parentId === id || descendants(id).some((d) => d.id === parentId)) return false;
-    const subtreeHeight = Math.max(0, ...descendants(id).map((d) => depthOf(d.id) - depthOf(id)));
-    if (depthOf(parentId) + 1 + subtreeHeight > MAX_SUBTASK_DEPTH) return false;
     updateTask(id, { parentId, listId: p.listId, sortOrder: after(childrenOf(parentId)) });
     return true;
   }
@@ -432,8 +510,15 @@ export function removeList(id: string) {
   if (!canEditList(id)) return viewOnlyToast();
   set((s) => {
     const { [id]: _gone, ...lists } = s.lists;
-    const tasks = Object.fromEntries(Object.entries(s.tasks).filter(([, t]) => t.listId !== id));
-    return { lists, tasks };
+    // parent_id cascades in the DB: a subtask in another list goes with its parent, and so do the list's sections.
+    const gone = new Set(Object.values(s.tasks).filter((t) => t.listId === id).map((t) => t.id));
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const t of Object.values(s.tasks)) if (t.parentId && gone.has(t.parentId) && !gone.has(t.id) && gone.add(t.id)) grew = true;
+    }
+    const tasks = Object.fromEntries(Object.entries(s.tasks).filter(([k]) => !gone.has(k)));
+    const sections = Object.fromEntries(Object.entries(s.sections).filter(([, x]) => x.listId !== id));
+    return { lists, tasks, sections };
   });
   void repo.deleteList(id);
 }
@@ -540,16 +625,23 @@ export function ensureTags(names: string[]): string[] {
   });
 }
 
-export function updateTag(id: string, patch: Partial<Tag>) {
+/** Returns false (with a toast) when the new name is another tag's name, in any case: tags.name is UNIQUE NOCASE (DATA-02). */
+export function updateTag(id: string, patch: Partial<Tag>): boolean {
   const t = get().tags[id];
-  if (!t) return;
+  if (!t) return false;
+  const name = patch.name?.toLowerCase();
+  if (name !== undefined && Object.values(get().tags).some((o) => o.id !== id && o.name.toLowerCase() === name)) {
+    toast(`A tag named “${patch.name}” already exists.`);
+    return false;
+  }
   const next = { ...t, ...patch };
   set((s) => ({ tags: { ...s.tags, [id]: next } }));
   void repo.saveTag(next);
+  return true;
 }
 
 export function removeTag(id: string) {
-  commit(live().filter((t) => t.tags.includes(id)).map((t) => ({ ...t, tags: t.tags.filter((x) => x !== id) })));
+  commit(Object.values(get().tasks).filter((t) => t.tags.includes(id)).map((t) => ({ ...t, tags: t.tags.filter((x) => x !== id) })));
   set((s) => {
     const { [id]: _gone, ...tags } = s.tags;
     return { tags };

@@ -85,6 +85,19 @@ describe("validateBackup", () => {
   });
 });
 
+describe("DATA-01 tags", () => {
+  it("merges tags whose names differ only in case and remaps task tag ids (tags.name is UNIQUE NOCASE)", () => {
+    const f = file();
+    f.tables.tags = [{ id: "t1", name: "Work", color: null }, { id: "t2", name: "work", color: null }];
+    f.tables.tasks = [{ ...f.tables.tasks[0], tags: JSON.stringify(["t2", "t1", "ghost"]) }];
+    const r = validateBackup(JSON.parse(JSON.stringify(f)));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.data.tags.map((t) => t.id)).toEqual(["t1"]);
+    expect(r.data.tasks[0].tags).toEqual(["t1"]);
+    expect(r.dropped).toBe(0);
+  });
+});
+
 describe("pre-v1.0 backups", () => {
   it("turn countdowns into all-day events (D163)", () => {
     const f = file();

@@ -6,7 +6,7 @@ import { MAX_SUBTASK_DEPTH, type LocalDate, type Priority, type Schedule } from 
  * The parsers (`importTodoist`, `importTickTick`) build it; `stores/importPlan.ts` applies it.
  * Every list is new, even when a list of the same name exists.
  */
-export type PlanList = { id: string; name: string; /** Folder name (TickTick), or null. */ folder: string | null };
+export type PlanList = { id: string; name: string; /** Folder name (TickTick), or null. */ folder: string | null; /** Todoist's Inbox project: it maps to the built-in Inbox, not a new list. */ inbox?: boolean };
 export type PlanSection = { id: string; list: string; name: string };
 export type PlanTask = {
   id: string;
@@ -78,7 +78,7 @@ export function finalize(raw: RawPlan): ImportPlan {
   const walk = (parent: string | null, chain: string[]) => {
     for (const t of kids.get(parent) ?? []) {
       // Deeper than the limit: a sibling of the deepest allowed level.
-      const up = chain.slice(0, MAX_SUBTASK_DEPTH);
+      const up = chain.slice(0, MAX_SUBTASK_DEPTH - 1);
       tasks.push({ ...t, parent: up.length ? up[up.length - 1] : null });
       walk(t.id, [...chain, t.id]);
     }

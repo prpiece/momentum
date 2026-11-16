@@ -32,14 +32,14 @@ describe("splitImport", () => {
     const parents = splitImport("Main\n\tSub\n\t\tDeeper\n\tSub 2").items.map((i) => i.parent);
     expect(parents).toEqual([null, 0, 1, 0]);
   });
-  it("caps nesting at the subtask depth limit", () => {
+  it("caps nesting at the subtask depth limit (DATA-03: top level counts as 1, so 5 levels)", () => {
     const text = Array.from({ length: 8 }, (_, i) => `${" ".repeat(i * 2)}- L${i}`).join("\n");
     const items = splitImport(text).items;
     const depth = (i: number): number => {
       const p = items[i].parent;
       return p === null ? 0 : 1 + depth(p);
     };
-    expect(items.map((_, i) => depth(i))).toEqual([0, 1, 2, 3, 4, 5, 5, 5]);
+    expect(items.map((_, i) => depth(i))).toEqual([0, 1, 2, 3, 4, 4, 4, 4]);
   });
   it("splits on a custom separator, flat", () => {
     expect(splitImport("a; b ;;\n c;", ";").items).toEqual(["a", "b", "c"].map((text) => ({ text, parent: null })));

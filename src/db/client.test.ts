@@ -24,3 +24,18 @@ describe("numberedParams", () => {
     expect(new DatabaseSync(":memory:").prepare(sql).get(1, 2)).toEqual({ b: 2, a: 1, again: 2 });
   });
 });
+
+describe("failedWrites (DATA-01)", () => {
+  it("throws the first write error raised while fn runs, instead of letting write() swallow it", async () => {
+    const { setDriver, write, failedWrites } = await import("./client");
+    setDriver(async () => ({
+      select: async <T,>() => [] as T,
+      execute: async (sql: string) => {
+        if (sql === "BAD") throw new Error("UNIQUE constraint failed: tags.name");
+        return { rowsAffected: 1 };
+      },
+    }));
+    await expect(failedWrites(async () => { await write(["OK"]); await write(["BAD"]); await write(["OK"]); })).rejects.toThrow(/UNIQUE/);
+    await expect(failedWrites(() => write(["OK"]))).resolves.toBeUndefined();
+  });
+});

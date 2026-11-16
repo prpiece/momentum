@@ -19,8 +19,7 @@ export function TagsSection() {
             aria-label={`Rename tag ${t.name}`}
             onBlur={(e) => {
               const v = e.target.value.trim();
-              if (v && v !== t.name) updateTag(t.id, { name: v });
-              else e.target.value = t.name;
+              if (!v || v === t.name || !updateTag(t.id, { name: v })) e.target.value = t.name;
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") e.currentTarget.blur();

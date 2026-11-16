@@ -10,6 +10,11 @@ import {
   deleteOccurrence,
   deleteTasks,
   depthOf,
+  duplicateTask,
+  ensureTags,
+  removeList,
+  removeTag,
+  updateTag,
   editOccurrence,
   moveSection,
   moveTasks,
@@ -224,5 +229,138 @@ describe("H11 view-only lists", () => {
     } finally {
       setEditGuard(() => true);
     }
+  });
+});
+
+describe("v1.2.4 store fixes", () => {
+  const tasks = () => useData.getState().tasks;
+
+  it("DATA-02: renaming a tag to another tag's name (any case) is refused", () => {
+    const [a, b] = ensureTags(["Work", "Home"]);
+    expect(updateTag(b, { name: "work" })).toBe(false);
+    expect(useData.getState().tags[b].name).toBe("Home");
+    expect(updateTag(a, { name: "WORK" })).toBe(true); // its own name, other case
+    expect(updateTag(b, { name: "Errands" })).toBe(true);
+  });
+
+  it("DATA-04: setParent refuses a trashed parent", () => {
+    const p = addTask({ title: "P" });
+    const c = addTask({ title: "C" });
+    deleteTasks([p.id]);
+    expect(setParent(c.id, p.id)).toBe(false);
+    expect(tasks()[c.id].parentId).toBeNull();
+  });
+
+  it("DATA-05: updateTask and addTask ignore a parent that would make a cycle, exceed the depth, or is missing", () => {
+    const a = addTask({ title: "A" });
+    const b = addTask({ title: "B", parentId: a.id });
+    updateTask(a.id, { parentId: b.id });
+    expect(tasks()[a.id].parentId).toBeNull();
+    updateTask(a.id, { parentId: a.id });
+    expect(tasks()[a.id].parentId).toBeNull();
+    updateTask(b.id, { parentId: "ghost" });
+    expect(tasks()[b.id].parentId).toBe(a.id);
+    let p = a;
+    for (let i = 2; i <= 5; i++) p = addTask({ title: `L${i}`, parentId: p.id });
+    expect(addTask({ title: "too deep", parentId: p.id }).parentId).toBeNull();
+    expect(depthOf(p.id)).toBe(5);
+  });
+
+  it("DATA-06: removing a list drops its sections and the cross-list subtasks of its tasks", () => {
+    const l = addList("Gone");
+    const sec = addSection(l.id, "S");
+    const p = addTask({ title: "P", listId: l.id });
+    const c = addTask({ title: "C", parentId: p.id, listId: "inbox" }); // lives elsewhere, child of p
+    useData.setState((s) => ({ tasks: { ...s.tasks, [c.id]: { ...s.tasks[c.id], listId: "inbox" } } }));
+    const keep = addTask({ title: "Keep" });
+    removeList(l.id);
+    expect(useData.getState().sections[sec.id]).toBeUndefined();
+    expect(Object.keys(tasks())).toEqual([keep.id]);
+  });
+
+  it("DATA-07: removing a tag also strips it from trashed tasks", () => {
+    const [tag] = ensureTags(["x"]);
+    const t = addTask({ title: "T", tags: [tag] });
+    deleteTasks([t.id]);
+    removeTag(tag);
+    restoreTasks([t.id]);
+    expect(tasks()[t.id].tags).toEqual([]);
+  });
+
+  it("DATA-08: duplicating twice gives distinct sort orders, each right after its source", () => {
+    const a = addTask({ title: "A", sortOrder: 1 });
+    const z = addTask({ title: "Z", sortOrder: 2 });
+    const c1 = duplicateTask(a.id)!;
+    const c2 = duplicateTask(a.id)!;
+    const orders = [a, c2, c1, z].map((t) => tasks()[t.id].sortOrder);
+    expect(orders).toEqual([...orders].sort((x, y) => x - y));
+    expect(new Set(orders).size).toBe(4);
+  });
+
+  it("UI-10: moving a parent and its subtask together keeps them nested, in either order", () => {
+    for (const order of [0, 1]) {
+      const p = addTask({ title: "P" });
+      const c = addTask({ title: "C", parentId: p.id });
+      moveTasks(order ? [p.id, c.id] : [c.id, p.id], "work");
+      expect(tasks()[c.id]).toMatchObject({ parentId: p.id, listId: "work" });
+    }
+  });
+});
+
+describe("HAB-19 waiting and someday flow down to open subtasks", () => {
+  const T = () => useData.getState().tasks;
+  const WAIT = { kind: "person", who: "Sam", followUp: "2026-12-01" } as const;
+  const tree = () => {
+    const p = addTask({ title: "P" });
+    const a = addTask({ title: "A", parentId: p.id });
+    const b = addTask({ title: "B", parentId: a.id });
+    const done = addTask({ title: "Done", parentId: p.id, status: "done" });
+    return { p, a, b, done };
+  };
+
+  it("a person wait is copied to open subtasks at every depth, not to finished ones; one undo reverts all", () => {
+    const { p, a, b, done } = tree();
+    const undo = undoable(() => updateTask(p.id, { waiting: WAIT }));
+    expect([T()[a.id].waiting, T()[b.id].waiting]).toEqual([WAIT, WAIT]);
+    expect(T()[done.id].waiting).toBeNull();
+    undo();
+    expect([T()[p.id].waiting, T()[a.id].waiting, T()[b.id].waiting]).toEqual([null, null, null]);
+  });
+
+  it("clearing on the parent clears identical copies only; a subtask's own wait stays", () => {
+    const { p, a, b } = tree();
+    updateTask(p.id, { waiting: WAIT });
+    const own = { kind: "person", who: "Kim", followUp: "2026-12-05" } as const;
+    updateTask(b.id, { waiting: own });
+    updateTask(p.id, { waiting: null });
+    expect(T()[a.id].waiting).toBeNull();
+    expect(T()[b.id].waiting).toEqual(own);
+  });
+
+  it("clearing on a subtask touches only that subtask", () => {
+    const { p, a, b } = tree();
+    updateTask(p.id, { waiting: WAIT });
+    updateTask(b.id, { waiting: null });
+    expect([T()[p.id].waiting, T()[a.id].waiting, T()[b.id].waiting]).toEqual([WAIT, WAIT, null]);
+  });
+
+  it("waiting on a task skips that task and its ancestors and descendants", () => {
+    const { p, a, b } = tree();
+    const sib = addTask({ title: "Sib", parentId: p.id });
+    updateTask(p.id, { waiting: { kind: "task", taskId: a.id } });
+    expect(T()[a.id].waiting).toBeNull(); // the blocker itself
+    expect(T()[b.id].waiting).toBeNull(); // its descendant
+    expect(T()[sib.id].waiting).toEqual({ kind: "task", taskId: a.id });
+  });
+
+  it("someday is copied to open subtasks and cleared again only where it is still someday", () => {
+    const { p, a, b } = tree();
+    updateTask(b.id, { schedule: { kind: "day", date: "2026-12-02" } });
+    updateTask(p.id, { schedule: { kind: "someday" } });
+    expect([T()[a.id].schedule.kind, T()[b.id].schedule.kind]).toEqual(["someday", "someday"]);
+    updateTask(b.id, { schedule: { kind: "day", date: "2026-12-03" } }); // edited on its own
+    updateTask(p.id, { schedule: { kind: "none" } });
+    expect(T()[a.id].schedule.kind).toBe("none");
+    expect(T()[b.id].schedule).toEqual({ kind: "day", date: "2026-12-03" });
   });
 });

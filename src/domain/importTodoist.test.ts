@@ -119,3 +119,36 @@ describe("boundaries", () => {
     }
   });
 });
+
+describe("v1.2.4 import fixes", () => {
+  it("DATA-09: a hostile priority cell like constructor or __proto__ is no priority", () => {
+    const csv = `TYPE,CONTENT,PRIORITY,INDENT
+task,A,constructor,1
+task,B,__proto__,1
+`;
+    expect(parseTodoist(csv, "x", TODAY)!.tasks.map((t) => t.priority)).toEqual([0, 0]);
+    const json = JSON.stringify({ items: [{ id: "1", content: "A", priority: "constructor" }] });
+    const r = parseExternalImport(json, "x");
+    expect(r.ok && r.plan.tasks[0].priority).toBe(0);
+  });
+  it("DATA-10: JSON items follow child_order, sections section_order, and the inbox project maps to Inbox", () => {
+    const json = JSON.stringify({
+      projects: [{ id: "i", name: "Inbox", inbox_project: true }],
+      sections: [{ id: "s2", project_id: "i", name: "Second", section_order: 2 }, { id: "s1", project_id: "i", name: "First", section_order: 1 }],
+      items: [{ id: "a", project_id: "i", content: "a", child_order: 2 }, { id: "b", project_id: "i", content: "b", child_order: 1 }],
+    });
+    const r = parseExternalImport(json, "x");
+    if (!r.ok) throw new Error("no plan");
+    expect(r.plan.tasks.map((t) => t.title)).toEqual(["b", "a"]);
+    expect(r.plan.sections.map((s) => s.name)).toEqual(["First", "Second"]);
+    expect(r.plan.lists).toEqual([{ id: "l1", name: "Inbox", folder: null, inbox: true }]);
+  });
+  it("DATA-03: a 7-level import nests at most 5 deep", () => {
+    const items = Array.from({ length: 7 }, (_, i) => ({ id: `${i}`, content: `L${i}`, ...(i ? { parent_id: `${i - 1}` } : {}) }));
+    const r = parseExternalImport(JSON.stringify({ items }), "x");
+    if (!r.ok) throw new Error("no plan");
+    const byId = new Map(r.plan.tasks.map((t) => [t.id, t]));
+    const depth = (id: string): number => { const p = byId.get(id)!.parent; return p ? 1 + depth(p) : 1; };
+    expect(Math.max(...r.plan.tasks.map((t) => depth(t.id)))).toBe(5);
+  });
+});

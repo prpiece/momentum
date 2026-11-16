@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import { eventCountdown } from "../domain/countdown";
+import { LATEST_SCHEMA } from "./backupFormat";
 import { parseEvent, type Row } from "./rows";
 
 const DIR = "src-tauri/migrations";
@@ -9,6 +10,10 @@ const files = readdirSync(DIR).filter((f) => f.endsWith(".sql")).sort();
 const apply = (db: DatabaseSync, from: number, to: number) => {
   for (const f of files.filter((f) => Number(f.slice(0, 4)) >= from && Number(f.slice(0, 4)) <= to)) db.exec(readFileSync(`${DIR}/${f}`, "utf8"));
 };
+it("DATA-13: LATEST_SCHEMA is the newest migration number", () => {
+  expect(LATEST_SCHEMA).toBe(Number(files[files.length - 1].slice(0, 4)));
+});
+
 const at = "2026-01-01T00:00:00.000Z";
 
 describe("0008 countdowns to events", () => {

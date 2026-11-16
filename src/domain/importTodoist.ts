@@ -12,6 +12,8 @@ import type { Priority, Schedule } from "./types";
  */
 
 const CSV_PRIORITY: Record<string, Priority> = { "1": 3, "2": 2, "3": 1, "4": 0 };
+/** A map lookup that ignores inherited keys like "constructor" (DATA-09). */
+const own = <K extends string | number>(m: Record<K, Priority>, k: K): Priority => (Object.prototype.hasOwnProperty.call(m, k) ? m[k] : 0);
 const API_PRIORITY: Record<number, Priority> = { 4: 3, 3: 2, 2: 1, 1: 0 };
 
 const DAY_CODES: Record<string, string> = { mon: "MO", tue: "TU", wed: "WE", thu: "TH", fri: "FR", sat: "SA", sun: "SU" };
@@ -160,7 +162,7 @@ function fromCsv(input: string, name: string, today: string): ImportPlan | null 
       section,
       title,
       description: cell(r, "DESCRIPTION"),
-      priority: CSV_PRIORITY[cell(r, "PRIORITY")] ?? 0,
+      priority: own(CSV_PRIORITY, cell(r, "PRIORITY")),
       status: "open",
       schedule: due.schedule,
       deadline: isLocalDate(deadline) ? deadline : null,
@@ -183,20 +185,22 @@ function fromJson(input: string, name: string, today: string): ImportPlan | null
   const out: Collected = { lists: [], sections: [], tasks: [], skipped: [], repeatsNotKept: 0 };
   const listOf = new Map<string, string>();
   const sectionOf = new Map<string, string>();
-  const listFor = (pid: string, title: string) => {
+  const listFor = (pid: string, title: string, inbox = false) => {
     let id = listOf.get(pid);
     if (!id) {
       id = `l${out.lists.length + 1}`;
       listOf.set(pid, id);
-      out.lists.push({ id, name: clean(title) || "Todoist", folder: null });
+      out.lists.push({ id, name: clean(title) || "Todoist", folder: null, ...(inbox ? { inbox } : {}) });
     }
     return id;
   };
   for (const p of Array.isArray(root.projects) ? root.projects : []) {
     const o = rec(p);
-    if (o && o.id !== undefined && !o.is_deleted && !o.is_archived) listFor(text(o.id), text(o.name));
+    if (o && o.id !== undefined && !o.is_deleted && !o.is_archived) listFor(text(o.id), text(o.name), o.inbox_project === true);
   }
-  for (const s of Array.isArray(root.sections) ? root.sections : []) {
+  const order = (x: unknown, key: string) => Number(rec(x)?.[key]) || 0;
+  const sorted = (xs: unknown, key: string) => (Array.isArray(xs) ? xs : []).map((x, i) => [x, i] as const).sort((a, b) => order(a[0], key) - order(b[0], key) || a[1] - b[1]);
+  for (const [s] of sorted(root.sections, "section_order")) {
     const o = rec(s);
     const list = o && listOf.get(text(o.project_id));
     if (!o || !list || o.is_deleted || !clean(text(o.name))) continue;
@@ -205,7 +209,7 @@ function fromJson(input: string, name: string, today: string): ImportPlan | null
     out.sections.push({ id, list, name: clean(text(o.name)) });
   }
   const ids = new Set<string>();
-  (root.items as unknown[]).forEach((item, i) => {
+  sorted(root.items, "child_order").forEach(([item, i]) => {
     const o = rec(item);
     const skip = (reason: string) => void out.skipped.push({ line: i + 1, reason });
     if (!o) return skip("not a task");
@@ -234,7 +238,7 @@ function fromJson(input: string, name: string, today: string): ImportPlan | null
       section: sectionOf.get(text(o.section_id)) ?? null,
       title,
       description: text(o.description),
-      priority: API_PRIORITY[Number(o.priority)] ?? 0,
+      priority: own(API_PRIORITY, Number(o.priority)),
       status: done ? "done" : "open",
       schedule: d.schedule,
       deadline: isLocalDate(dl) ? dl : null,

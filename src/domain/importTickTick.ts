@@ -106,7 +106,7 @@ export function parseTickTick(input: string): ImportPlan | null {
       section,
       title,
       description: notes.join("\n").trim(),
-      priority: PRIORITY[cell(r, "Priority")] ?? 0,
+      priority: Object.prototype.hasOwnProperty.call(PRIORITY, cell(r, "Priority")) ? PRIORITY[cell(r, "Priority")] : 0,
       status: status === "1" || status === "2" ? "done" : status === "-1" ? "wont_do" : "open",
       schedule,
       deadline: null,
