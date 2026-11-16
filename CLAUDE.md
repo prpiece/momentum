@@ -1,6 +1,6 @@
 # Momentum
 
-Offline, local-first desktop planner: Tauri 2 (Rust) + React/TS/Vite + Tailwind + Zustand + SQLite (`@tauri-apps/plugin-sql`). The plan, phases and decision log are in `PLAN.md`. Record each new decision there as `D<n>`.
+Local-first desktop and phone planner with optional accounts and online features: Tauri 2 (Rust) + React/TS/Vite + Tailwind + Zustand + SQLite (`@tauri-apps/plugin-sql`). The plan, phases and decision log are in `PLAN.md`. Record each new decision there as `D<n>`.
 
 ## Commands
 - `npm run tauri dev`: run the app. The first run compiles Rust and takes a few minutes.
@@ -41,7 +41,7 @@ Desktop and phone share one version and release together (PLAN D257). Bump it in
 - **Domain types are discriminated unions** (`status`, habit `frequency`, `goal`). Narrow them; never cast them.
 - **Validate at boundaries** (JSON import, .ics import, DB rows). Code inside the boundary trusts those types.
 - **Drag and drop:** dnd-kit pointer sensors only. `dragDropEnabled: false` is set in `tauri.conf.json` because Tauri's native file-drop handler would otherwise swallow drag events on Windows.
-- **Offline first:** the app works fully offline. Network calls are the update check (PLAN D59) and, when signed in, sync with Supabase (ADR 0001, PLAN D225). Fonts come from `@fontsource`.
+- **Local-first, online where it helps (changed 2026-11-15):** the core planner still works offline from local SQLite, but online-only features are allowed. Network calls today: the update check (D59), Supabase sync and Realtime (D225), note-image upload/download (D291), cloud backups (FEAT-06), calendar subscriptions (.ics), Google/Outlook calendar sync through the `calendar` Edge Function (D345), chat connectors, and the voice model download. A new network call needs a line on the privacy page (`site/privacy.html`). Fonts still come from `@fontsource`.
 - **Subtasks:** a view shows a subtask inside its parent when both are in it, otherwise on its own with the parent's name: lists via `flattenTree`, cards via `topLevelIn` (PLAN D196). Date grids show dated subtasks; only the Arrange panel and focus picker read `Derived.roots`.
 - **New dependencies** need a one-line reason in PLAN.md §4.
 
