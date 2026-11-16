@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { after, before, moveBy, moveNear, reorder } from "./order";
+import { after, before, idsMoveBy, idsMoveNear, moveBy, moveNear, reorder } from "./order";
 
 const items = [
   { id: "a", sortOrder: 0 },
@@ -75,5 +75,23 @@ describe("moveBy and moveNear", () => {
     const changed = moveNear(other, "a", "y");
     expect(apply([...other, { id: "a", sortOrder: 9 }], changed)).toEqual(["x", "a", "y"]);
     expect(moveNear(other, "a", "nope")).toEqual([]);
+  });
+});
+
+describe("ids helpers (per-view manual order, D331)", () => {
+  const ids = ["a", "b", "c", "d"];
+  it("drops onto a target: from above lands after it, from below before it", () => {
+    expect(idsMoveNear(ids, "a", "c")).toEqual(["b", "c", "a", "d"]);
+    expect(idsMoveNear(ids, "d", "b")).toEqual(["a", "d", "b", "c"]);
+  });
+  it("leaves the order alone for itself or an unknown target", () => {
+    expect(idsMoveNear(ids, "a", "a")).toEqual(ids);
+    expect(idsMoveNear(ids, "a", "zz")).toEqual(ids);
+  });
+  it("steps one place and stops at the ends", () => {
+    expect(idsMoveBy(ids, "b", -1)).toEqual(["b", "a", "c", "d"]);
+    expect(idsMoveBy(ids, "b", 1)).toEqual(["a", "c", "b", "d"]);
+    expect(idsMoveBy(ids, "a", -1)).toEqual(ids);
+    expect(idsMoveBy(ids, "d", 1)).toEqual(ids);
   });
 });

@@ -13,6 +13,14 @@ export function setViewOptions(view: ViewId, patch: Partial<ViewOptions>) {
   if (patch.mode === "matrix") trackDone("view:matrix");
 }
 
+/** Today and Upcoming keep their own Manual order, since their tasks come from many lists (D331). */
+export const isDayView = (v: string) => v === "today" || v === "upcoming";
+
+export function setManualOrder(view: ViewId, ids: string[]) {
+  const { settings, update } = useSettings.getState();
+  update({ manualOrder: { ...settings.manualOrder, [view]: ids } });
+}
+
 /** `G M`, the palette and voice: the current task view in Matrix mode, or Today when elsewhere (D164). */
 export function showInCurrentView(patch: Partial<ViewOptions>) {
   const view = useUi.getState().view;

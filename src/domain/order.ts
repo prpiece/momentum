@@ -60,3 +60,15 @@ export function moveNear(items: readonly Ordered[], movedId: string, targetId: s
   if (t < 0) return [];
   return reorder(items, movedId, from >= 0 && from < sorted.findIndex((x) => x.id === targetId) ? t + 1 : t);
 }
+
+const asItems = (ids: readonly string[]) => ids.map((id, sortOrder) => ({ id, sortOrder }));
+const applied = (ids: readonly string[], changes: Ordered[]): string[] => {
+  const m = new Map(changes.map((c) => [c.id, c.sortOrder]));
+  return asItems(ids).sort((a, b) => (m.get(a.id) ?? a.sortOrder) - (m.get(b.id) ?? b.sortOrder)).map((i) => i.id);
+};
+
+/** `moveNear` on a plain id list (a view's saved manual order): the new order. */
+export const idsMoveNear = (ids: readonly string[], movedId: string, targetId: string): string[] => applied(ids, moveNear(asItems(ids), movedId, targetId));
+
+/** `moveBy` on a plain id list: the new order. */
+export const idsMoveBy = (ids: readonly string[], id: string, delta: -1 | 1): string[] => applied(ids, moveBy(asItems(ids), id, delta));

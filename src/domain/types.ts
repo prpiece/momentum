@@ -303,6 +303,8 @@ export type Settings = {
   dayEndHour: number;
   /** One thing (D267): Today shows a single task; Low energy limits it to tasks of 15 minutes or less. Per device. */
   oneThing: { on: boolean; energy: Energy };
+  /** Today's and Upcoming's own Manual order (D331): task ids in display order, per view. Ids not listed follow, in their usual order. */
+  manualOrder: Record<string, string[]>;
 };
 
 export const ENERGIES = ["normal", "low"] as const;

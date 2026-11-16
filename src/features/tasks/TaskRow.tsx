@@ -25,6 +25,8 @@ export const TaskRow = memo(function TaskRow(props: {
   reorderable: boolean;
   /** Dropping onto this row moves the dragged task to its day (date-sorted views, D253). */
   movesByDate?: boolean;
+  /** Today and Upcoming: a row of the same day takes the drop too, as a reorder (D331). */
+  dayOrder?: boolean;
   showList: boolean;
   onClick: RowClick;
 }) {
@@ -83,7 +85,7 @@ export const TaskRow = memo(function TaskRow(props: {
     >
       <DropLine
         side={
-          props.reorderable || (props.movesByDate && isOver && active?.data.current?.date !== vm.date && active?.data.current?.container === props.container)
+          props.reorderable || (props.movesByDate && isOver && (props.dayOrder || active?.data.current?.date !== vm.date) && active?.data.current?.container === props.container)
             ? dropSide({ isOver, isDragging, index, activeIndex })
             : null
         }

@@ -101,6 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pomodoro: { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, cycles: { kind: "infinite" } },
   dayEndHour: 0,
   oneThing: { on: false, energy: "normal" },
+  manualOrder: {},
 };
 
 /** A view's options before the user changes any. Today and Upcoming hide finished tasks; lists show them in a Completed group. */
@@ -150,6 +151,13 @@ function parseViewOptions(raw: unknown): Settings["viewOptions"] {
       mode: oneOf(VIEW_MODES, v.mode) ? v.mode : d.mode,
     };
   }
+  return out;
+}
+
+function parseManualOrder(raw: unknown): Settings["manualOrder"] {
+  if (!isRecord(raw)) return {};
+  const out: Settings["manualOrder"] = {};
+  for (const [k, v] of Object.entries(raw)) if (Array.isArray(v)) out[k] = [...new Set(v.filter((x): x is string => typeof x === "string"))].slice(0, 2000);
   return out;
 }
 
@@ -351,6 +359,7 @@ export function parseSettings(raw: unknown): Settings {
     oneThing: isRecord(r.oneThing)
       ? { on: r.oneThing.on === true, energy: oneOf(ENERGIES, r.oneThing.energy) ? r.oneThing.energy : "normal" }
       : d.oneThing,
+    manualOrder: parseManualOrder(r.manualOrder),
   };
 }
 
@@ -358,7 +367,7 @@ export function parseSettings(raw: unknown): Settings {
 export const USER_SETTING_KEYS = [
   "theme", "accent", "taskOpen", "defaultView", "weekStart", "timeFormat", "smartParse", "showCompleted", "viewOptions",
   "savedFilters", "calendar", "matrix", "matrixColors", "pomodoro", "streakReminder", "sounds", "onboarded", "gettingStarted",
-  "dayEndHour",
+  "dayEndHour", "manualOrder",
 ] as const satisfies readonly (keyof Settings)[];
 
 /** Settings that stay on this device: hardware, window and OS integration, and the local background image. */

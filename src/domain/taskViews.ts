@@ -102,9 +102,11 @@ function dateKey(vm: TaskVM): string {
   return vm.date ?? "￿";
 }
 
-export function sortVMs(vms: readonly TaskVM[], sortBy: SortBy): TaskVM[] {
+/** `saved`: a view's own Manual order (task ids); tasks it doesn't list follow, by their usual order (D331). */
+export function sortVMs(vms: readonly TaskVM[], sortBy: SortBy, saved?: readonly string[]): TaskVM[] {
+  const rank = new Map(saved?.map((id, i) => [id, i]));
   const cmp: Record<SortBy, (a: TaskVM, b: TaskVM) => number> = {
-    manual: (a, b) => a.task.sortOrder - b.task.sortOrder,
+    manual: (a, b) => (rank.get(a.task.id) ?? Infinity) - (rank.get(b.task.id) ?? Infinity) || a.task.sortOrder - b.task.sortOrder,
     date: (a, b) => dateKey(a).localeCompare(dateKey(b)) || b.task.priority - a.task.priority,
     priority: (a, b) => b.task.priority - a.task.priority || dateKey(a).localeCompare(dateKey(b)),
     created: (a, b) => b.task.createdAt.localeCompare(a.task.createdAt),

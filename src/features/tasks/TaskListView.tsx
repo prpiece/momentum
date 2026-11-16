@@ -2,10 +2,11 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight } from "lucide-react";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { droppedSchedule } from "../../domain/calendar";
 import { todayLocal } from "../../domain/dates";
 import { rangeBetween } from "../../domain/focus";
+import { idsMoveBy, idsMoveNear } from "../../domain/order";
 import { flattenTree, groupVMs, sortVMs, topLevelIn, type TaskVM, type TreeRow } from "../../domain/taskViews";
 import type { ViewId, ViewOptions } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
@@ -15,7 +16,7 @@ import { useSettings } from "../../stores/settings";
 import { openTask, setSelection, toggleCollapsed, useUi } from "../../stores/ui";
 import type { Derived } from "../../domain/taskViews";
 import { TaskRow, type RowClick } from "./TaskRow";
-import { viewOptionsOf } from "./viewOptions";
+import { isDayView, setManualOrder, setViewOptions, viewOptionsOf } from "./viewOptions";
 import type { TaskViewSpec } from "./viewSpec";
 
 type Row =
@@ -25,11 +26,39 @@ type Row =
 /** Views ordered by date (Today, Upcoming, any list sorted or grouped by date) move tasks between days instead of reordering (D253). */
 const movesByDate = (o: ViewOptions) => o.groupBy === "date" || o.sortBy === "date";
 
+/** What each mounted Today/Upcoming shows: the top-level open task ids of every group, in display order (D331). */
+const dayGroups = new Map<string, string[][]>();
+
+/** Moves a task within its group of a day view and saves the whole view's order; the view switches to Manual. */
+function reorderInDay(view: string, id: string, step: (ids: string[]) => string[]) {
+  const groups = dayGroups.get(view);
+  if (!groups?.some((g) => g.includes(id))) return;
+  setManualOrder(view as ViewId, groups.map((g) => (g.includes(id) ? step(g) : g)).flat());
+  if (viewOptionsOf(view as ViewId, useSettings.getState().settings.viewOptions).sortBy !== "manual") setViewOptions(view as ViewId, { sortBy: "manual" });
+}
+
+/** Moves a task next to `targetId`, or by `delta` places, among its siblings in its list (a list's own Manual order is `sortOrder`). */
+function reorderSiblings(id: string, targetId?: string, delta?: -1 | 1) {
+  const tasks = useData.getState().tasks;
+  const a = tasks[id];
+  if (!a) return;
+  const sibs = Object.values(tasks)
+    .filter((t) => !t.deletedAt && t.listId === a.listId && t.parentId === a.parentId)
+    .sort((x, y) => x.sortOrder - y.sortOrder)
+    .map((t) => t.id);
+  const to = targetId ? sibs.indexOf(targetId) : sibs.indexOf(id) + (delta ?? 0);
+  if (to >= 0 && to < sibs.length) reorderTask(id, to, sibs);
+}
+
 // Dropping a task row onto another row in the same container reorders siblings, or in a date-ordered
-// view moves the task to that row's day (keeping its time).
+// view moves the task to that row's day (keeping its time). Today and Upcoming reorder within a group
+// (D331): always in Manual, and in the other sorts when the rows share a day.
 onDrop("task", (drag, drop) => {
   if (drag.type !== "task" || drag.container !== drop.container || drag.id === drop.id) return;
-  if (movesByDate(viewOptionsOf(drop.container as ViewId, useSettings.getState().settings.viewOptions))) {
+  const opts = viewOptionsOf(drop.container as ViewId, useSettings.getState().settings.viewOptions);
+  const group = isDayView(drop.container) ? dayGroups.get(drop.container)?.find((g) => g.includes(drag.id) && g.includes(drop.id)) : undefined;
+  if (group && (opts.sortBy === "manual" || drop.date === drag.date)) return reorderInDay(drop.container, drag.id, (ids) => idsMoveNear(ids, drag.id, drop.id));
+  if (movesByDate(opts)) {
     if (drop.date === undefined || drop.date === drag.date) return;
     const ref = { source: "task" as const, id: drag.id, key: drag.key };
     const current = currentSchedule(ref);
@@ -40,10 +69,7 @@ onDrop("task", (drag, drop) => {
   const a = tasks[drag.id];
   const b = tasks[drop.id];
   if (!a || !b || a.parentId !== b.parentId || a.listId !== b.listId) return;
-  const sibs = Object.values(tasks)
-    .filter((t) => !t.deletedAt && t.listId === b.listId && t.parentId === b.parentId)
-    .sort((x, y) => x.sortOrder - y.sortOrder);
-  reorderTask(a.id, sibs.findIndex((t) => t.id === b.id), sibs.map((t) => t.id));
+  reorderSiblings(a.id, b.id);
 });
 
 export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived: Derived; options: ViewOptions }) {
@@ -52,11 +78,13 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
   const tags = useData((s) => s.tags);
   const collapsed = useUi((s) => s.collapsed);
   const today = todayLocal();
-  const reorderable = !!spec.list && options.sortBy === "manual" && options.groupBy === "none";
+  const saved = useSettings((s) => s.settings.manualOrder[spec.id]);
+  const dayView = isDayView(spec.id);
+  const reorderable = (!!spec.list || dayView) && options.sortBy === "manual" && options.groupBy === "none";
   const container = spec.id;
   const byDate = !reorderable && movesByDate(options);
 
-  const rows = useMemo<Row[]>(() => {
+  const { rows, groups } = useMemo(() => {
     // Every view nests a subtask under its parent when both are in it; otherwise the subtask
     // stands alone, labelled with its parent (D196).
     const inView = new Set(vms.map((v) => v.task.id));
@@ -66,13 +94,19 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
     const collapsedSet = new Set(Object.keys(collapsed));
     const parentOf = (r: TreeRow) => (r.depth === 0 && r.vm.task.parentId ? derived.byId.get(r.vm.task.parentId)?.task.title : undefined);
     const out: Row[] = [];
+    const groups: string[][] = [];
     const openOnes = spec.splitCompleted ? vms.filter(isOpen) : vms;
     const roots = topLevelIn(openOnes);
-    for (const g of groupVMs(sortVMs(roots, options.sortBy), options.groupBy, { today, lists: new Map(Object.entries(lists)), tags: new Map(Object.entries(tags)) })) {
+    for (const g of groupVMs(sortVMs(roots, options.sortBy, saved), options.groupBy, { today, lists: new Map(Object.entries(lists)), tags: new Map(Object.entries(tags)) })) {
       // Day groups (Today, each of the next seven days) take drops too (D253).
       const date = options.groupBy !== "date" ? undefined : g.key === "1" ? today : g.key.startsWith("2:") ? g.key.slice(2) : undefined;
       if (g.label) out.push({ kind: "header", key: `h:${g.key}`, label: g.label, count: g.items.length, date });
-      for (const r of flattenTree(g.items, childrenOf, collapsedSet, all)) out.push({ kind: "task", key: `${g.key}:${r.vm.task.id}`, row: r, parent: parentOf(r) });
+      const ids: string[] = [];
+      for (const r of flattenTree(g.items, childrenOf, collapsedSet, all)) {
+        out.push({ kind: "task", key: `${g.key}:${r.vm.task.id}`, row: r, parent: parentOf(r) });
+        if (r.depth === 0) ids.push(r.vm.task.id);
+      }
+      groups.push(ids);
     }
     if (spec.splitCompleted) {
       // Finished subtasks of an open parent in the view stay nested under it.
@@ -89,8 +123,28 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
           }
       }
     }
-    return out;
-  }, [vms, derived, options, spec, collapsed, lists, tags, today]);
+    return { rows: out, groups };
+  }, [vms, derived, options, spec, collapsed, lists, tags, today, saved]);
+
+  useEffect(() => {
+    if (!dayView) return;
+    dayGroups.set(container, groups);
+    return () => void dayGroups.delete(container);
+  }, [dayView, container, groups]);
+
+  // Alt+Up / Alt+Down moves the focused row one place (D331).
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown") || !(e.target instanceof HTMLElement)) return;
+    const id = e.target.dataset.taskId;
+    if (!id) return;
+    const delta = e.key === "ArrowUp" ? -1 : 1;
+    if (dayView) reorderInDay(container, id, (ids) => idsMoveBy(ids, id, delta));
+    else if (reorderable) reorderSiblings(id, undefined, delta);
+    else return;
+    e.preventDefault();
+    const root = e.currentTarget;
+    requestAnimationFrame(() => root.querySelector(`[data-task-id="${id}"]`)?.scrollIntoView({ block: "nearest" }));
+  };
 
   const taskIds = useMemo(() => rows.flatMap((r) => (r.kind === "task" ? [r.row.vm.task.id] : [])), [rows]);
 
@@ -115,7 +169,7 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
   });
 
   return (
-    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto pb-24" role="listbox" aria-multiselectable="true" aria-label={spec.title}>
+    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto pb-24" role="listbox" onKeyDown={onKeyDown} aria-multiselectable="true" aria-label={spec.title}>
       <SortableContext items={taskIds.map((id) => `${container}:${id}`)} strategy={verticalListSortingStrategy}>
         {/* Centred page column; the scrollbar stays at the window edge. */}
         <div className="mx-auto max-w-[var(--content-max)] px-[calc(var(--gutter)-8px)]">
@@ -127,7 +181,7 @@ export function TaskListView(props: { spec: TaskViewSpec; vms: TaskVM[]; derived
                 {r.kind === "header" ? (
                   <GroupHeader label={r.label} count={r.count} toggleKey={r.collapsible} expanded={r.collapsible ? !!collapsed[r.collapsible] : true} date={byDate ? r.date : undefined} />
                 ) : (
-                  <TaskRow row={r.row} parent={r.parent} container={container} reorderable={reorderable} movesByDate={byDate} showList={!spec.list} onClick={onClick} />
+                  <TaskRow row={r.row} parent={r.parent} container={container} reorderable={reorderable} movesByDate={byDate} dayOrder={dayView} showList={!spec.list} onClick={onClick} />
                 )}
               </div>
             );

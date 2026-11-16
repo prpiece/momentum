@@ -277,3 +277,15 @@ describe("v1.2.4 smart list fixes", () => {
     expect(g.map((x) => x.label)).toEqual(["a", "b"]);
   });
 });
+
+describe("sortVMs with a saved manual order (D331)", () => {
+  it("follows the saved ids, then the rest by their own order", () => {
+    const [a, b, c, d] = [mk(), mk(), mk(), mk()].map((t) => toVM(t)!);
+    const saved = [c.task.id, a.task.id, "gone"];
+    expect(sortVMs([a, b, c, d], "manual", saved).map((v) => v.task.id)).toEqual([c.task.id, a.task.id, b.task.id, d.task.id]);
+  });
+  it("ignores the saved order for other sorts", () => {
+    const [a, b] = [mk({ priority: 1 }), mk({ priority: 3 })].map((t) => toVM(t)!);
+    expect(sortVMs([a, b], "priority", [a.task.id, b.task.id]).map((v) => v.task.id)).toEqual([b.task.id, a.task.id]);
+  });
+});

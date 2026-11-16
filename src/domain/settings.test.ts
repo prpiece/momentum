@@ -40,7 +40,7 @@ describe("parseSettings", () => {
       streakReminder: { on: false, time: "20:15" }, autoFocus: true,
       sounds: { enabled: false, volume: 0.3, picks: { focusEnd: "marimba", longBreak: "fanfare" } },
       onboarded: true, gettingStarted: { dismissed: true, done: ["habits", "tokens"], seenVersion: "1.0.0" }, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
-      dayEndHour: 3, oneThing: { on: true, energy: "low" },
+      dayEndHour: 3, oneThing: { on: true, energy: "low" }, manualOrder: { today: ["a", "b"] },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
@@ -208,6 +208,13 @@ describe("parseSettings layout", () => {
   it("drops the retired background keys", () => {
     const s = parseSettings({ background: { kind: "gradient", id: "ocean" }, backgroundDim: 50, dockLabels: false });
     expect(s).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+describe("manualOrder", () => {
+  it("keeps string ids per view and drops junk", () => {
+    expect(parseSettings({ manualOrder: { today: ["a", 5, "a", "b"], upcoming: "x", list: null } }).manualOrder).toEqual({ today: ["a", "b"] });
+    expect(parseSettings({ manualOrder: [1] }).manualOrder).toEqual({});
   });
 });
 
