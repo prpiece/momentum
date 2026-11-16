@@ -2,7 +2,7 @@ import { casual } from "chrono-node/en";
 import { add as addDur, addDays, addMinutes, endOfMonth, startOfDay } from "date-fns";
 import { addDaysLocal, formatMinutes, relativeDayLabel, toLocalDate } from "./dates";
 import { bestName, nameKey } from "./fuzzy";
-import type { LocalDate, Priority, Recurrence, Schedule, Waiting } from "./types";
+import type { LocalDate, Priority, Recurrence, Reminder, Schedule, Task, Waiting } from "./types";
 
 export type ChipKind = "date" | "priority" | "tag" | "list" | "repeat" | "deadline" | "duration" | "someday" | "waiting";
 /** `value` is the normalised token (the tag name), for chips whose text is spoken words. */
@@ -433,6 +433,34 @@ export function withDefaults(
     ...(p.durationMin ? { durationMin: p.durationMin } : {}),
     ...(p.waiting ? { waiting: p.waiting } : {}),
   };
+}
+
+/**
+ * What typing tokens over an existing task's title changes (FEAT-07): the parsed title and only the fields a token set.
+ * `tagIds` and `listId` resolve the spoken names; a `~list` that doesn't exist is ignored. A subtask keeps its parent's list.
+ */
+export function tokenPatch(
+  p: ParsedTask,
+  task: { tags: readonly string[]; parentId: string | null },
+  resolve: { tagIds: (names: string[]) => string[]; listId: (name: string) => string | undefined },
+): Partial<Task> {
+  const listId = !task.parentId && p.listName ? resolve.listId(p.listName) : undefined;
+  return {
+    title: p.title,
+    ...(p.schedule.kind !== "none" ? { schedule: p.schedule } : {}),
+    ...(p.rule ? { recurrence: { rule: p.rule, exdates: [] } } : {}),
+    ...(p.priority !== null ? { priority: p.priority } : {}),
+    ...(p.tags.length ? { tags: [...new Set([...task.tags, ...resolve.tagIds(p.tags)])] } : {}),
+    ...(listId ? { listId } : {}),
+    ...(p.deadline ? { deadline: p.deadline } : {}),
+    ...(p.durationMin ? { durationMin: p.durationMin } : {}),
+    ...(p.waiting ? { waiting: p.waiting } : {}),
+  };
+}
+
+/** The default reminder (D338) for a new timed task that has none of its own; day tasks and untimed ones get nothing. */
+export function defaultReminders(schedule: Schedule, minutes: number | null): Reminder[] {
+  return schedule.kind === "timed" && minutes !== null ? [{ kind: "before", minutes }] : [];
 }
 
 /** Chip text for the planning tokens (D267), shared by both quick adds; null for other kinds. */

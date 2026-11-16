@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Ban, CalendarCheck, CalendarDays, Check, ChevronRight, Copy, FastForward, Flag, GripVertical, Hash, Hourglass, ImagePlus, Pin, Plus, Send, Timer, Trash2, X } from "lucide-react";
 import { skipMissedWithUndo } from "./taskMenu";
 import { ListGlyph } from "../../components/ui/AppIcon";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, IconButton } from "../../components/ui/Dialog";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
@@ -26,6 +26,9 @@ import { DeadlineEditor, DurationEditor, WaitingEditor } from "./PlanningEditors
 import { ScheduleEditor } from "./ScheduleEditor";
 import { durationMinutes, formatMinutes, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { deadlinePassed } from "../../domain/taskViews";
+import { blockedBy } from "../../domain/waiting";
+import { parseQuickAdd, tokenPatch, type ParsedTask } from "../../domain/quickAdd";
+import { listByName, listNames } from "../../stores/quickAddSubmit";
 import { useDerived } from "./selectors";
 
 /** Closing blurs first, so a draft in the title, notes or a checklist item commits on its onBlur instead of being lost (UI-06). */
@@ -129,7 +132,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
           <div className="pt-1.5">
             <TaskCheckbox status={t.status} priority={t.priority} onToggle={() => toggleDone(t.id, key)} label="Complete" />
           </div>
-          <TitleInput task={t} />
+          <TitleInput task={t} occurrenceKey={key} />
         </div>
 
         {/* Properties (D198): chips under the title, each opening its editor; they wrap instead of clipping. */}
@@ -227,6 +230,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
         </div>
 
         <Description task={t} />
+        <Blocking task={t} />
         <Subtasks task={t} />
         <Checklist task={t} />
         <ActivityLog task={t} />
@@ -265,12 +269,28 @@ function Prop({ label, text, value, quiet, children }: { label: string; text: st
   );
 }
 
-function TitleInput({ task }: { task: Task }) {
+/** The title field. Typing tokens over a task's title offers to apply them (FEAT-07); the typed title is saved as is first, so nothing is lost. */
+function TitleInput({ task, occurrenceKey }: { task: Task; occurrenceKey: string | null }) {
   const [v, setV] = useState(task.title);
+  const [offer, setOffer] = useState<ParsedTask | null>(null);
+  const smartParse = useSettings((s) => s.settings.smartParse);
   useEffect(() => setV(task.title), [task.title]);
-  const commit = () => v.trim() && v !== task.title && updateTask(task.id, { title: v.trim() });
+  const commit = () => {
+    const title = v.trim();
+    if (!title || title === task.title) return;
+    updateTask(task.id, { title });
+    const p = smartParse ? parseQuickAdd(title, new Date(), true, listNames()) : null;
+    setOffer(p && p.chips.length ? p : null);
+  };
+  const apply = () => {
+    if (!offer) return;
+    const patch = tokenPatch(offer, task, { tagIds: ensureTags, listId: (n) => listByName(n)?.id });
+    setOffer(null);
+    void editTask(task.id, patch, occurrenceKey);
+  };
   return (
-    <textarea
+    <div className="min-w-0 flex-1">
+      <textarea
       aria-label="Title"
       value={v}
       rows={1}
@@ -282,8 +302,19 @@ function TitleInput({ task }: { task: Task }) {
           e.currentTarget.blur();
         }
       }}
-      className={`field-sizing-content min-h-8 flex-1 resize-none bg-transparent font-[family-name:var(--font-head)] text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] outline-none focus-visible:outline-none ${task.status !== "open" ? "text-muted line-through" : ""}`}
-    />
+      className={`field-sizing-content min-h-8 w-full resize-none bg-transparent font-[family-name:var(--font-head)] text-[length:var(--fs-xl)] font-semibold leading-[var(--lh-xl)] outline-none focus-visible:outline-none ${task.status !== "open" ? "text-muted line-through" : ""}`}
+      />
+      {offer && (
+        <div role="group" aria-label="Apply tokens from the title" className="mt-1 flex flex-wrap items-center gap-1.5 text-[length:var(--fs-sm)]">
+          <button type="button" onClick={apply} className="chip bg-accent-soft">
+            Apply: {offer.chips.map((c) => c.text).join(", ")}
+          </button>
+          <button type="button" onClick={() => setOffer(null)} className="chip text-muted">
+            Keep as text
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -418,6 +449,30 @@ function Description({ task }: { task: Task }) {
         </button>
       )}
     </div>
+  );
+}
+
+/** Open tasks waiting on this one (FEAT-21); finishing it frees them. */
+function Blocking({ task }: { task: Task }) {
+  const tasks = useData((s) => s.tasks);
+  const waiters = useMemo(() => blockedBy(task.id, tasks), [task.id, tasks]);
+  if (!waiters.length) return null;
+  return (
+    <section>
+      <h3 className="t-label mb-1 mt-3 pl-0.5 text-muted">
+        Blocking <span className="tabular-nums">{waiters.length}</span>
+      </h3>
+      <ul className="space-y-0.5">
+        {waiters.map((w) => (
+          <li key={w.id}>
+            <button type="button" onClick={() => openTask(w.id)} className="flex h-[var(--row-compact)] w-full items-center gap-2 rounded-control px-2 text-left text-[length:var(--fs-sm)] hover:bg-surface-2">
+              <Hourglass size={14} strokeWidth={1.75} className="shrink-0 text-muted" />
+              <span className="truncate">{w.title}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

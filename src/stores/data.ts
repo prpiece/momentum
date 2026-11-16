@@ -292,7 +292,9 @@ export function setStatus(id: string, status: TaskStatus, occurrenceKey?: string
     if (!key) return;
     const { series, single } = detachOccurrence(t, key, uid(), now());
     const done: Task = { ...single, status, completedAt: now() };
-    const seriesNext = effective(series) ? series : { ...series, deletedAt: now() };
+    // The finished copy keeps what was ticked; the series starts its next occurrence with an unticked checklist (FEAT-13).
+    const fresh = { ...series, checklist: series.checklist.map((i) => ({ ...i, done: false })) };
+    const seriesNext = effective(series) ? fresh : { ...series, deletedAt: now() };
     commit([seriesNext, done]);
     log(done.id, kind);
     return;

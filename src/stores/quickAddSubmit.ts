@@ -1,9 +1,9 @@
 import { relativeDayLabel, toLocalDate, todayLocal } from "../domain/dates";
 import { nameKey } from "../domain/fuzzy";
-import { parseQuickAdd, withDefaults, type InputOrigin } from "../domain/quickAdd";
+import { defaultReminders, parseQuickAdd, withDefaults, type InputOrigin } from "../domain/quickAdd";
 import type { Task } from "../domain/types";
 import { addTask, ensureTags, useData, type NewTask } from "./data";
-import { trackDone } from "./settings";
+import { trackDone, useSettings } from "./settings";
 import { toast } from "./toast";
 
 /** Opens a task's details from the "Added to …" toast. Each app registers its own (desktop: stores/ui). */
@@ -31,13 +31,18 @@ export function createFromText(
   const p = parseQuickAdd(text, new Date(), parsing, listNames(), origin);
   const lists = useData.getState().lists;
   // A subtask lives in its parent's list, so a `~List` token is ignored there.
-  const listId = defaults.parentId ? defaults.listId : (p.listName && listByName(p.listName)?.id) || defaults.listId;
-  const resolved = withDefaults(p, { schedule: defaults.schedule, priority: defaults.priority });
+  // Settings → New tasks (D338): a default list, priority and reminder, under any token or view context.
+  const nd = useSettings.getState().settings.taskDefaults;
+  const defaultList = nd.listId && lists[nd.listId] && !lists[nd.listId].archived ? nd.listId : undefined;
+  const listId = defaults.parentId ? defaults.listId : (p.listName && listByName(p.listName)?.id) || defaults.listId || defaultList;
+  const resolved = withDefaults(p, { schedule: defaults.schedule, priority: defaults.priority ?? (nd.priority || undefined) });
+  const reminders = defaults.reminders?.length ? [] : defaultReminders(resolved.schedule ?? { kind: "none" }, nd.reminderMin);
   const t = addTask({
     ...defaults,
     title: p.title,
     ...(listId ? { listId } : {}),
     ...resolved,
+    ...(reminders.length ? { reminders } : {}),
     // The defaults' tags are ids already; the parsed ones are names.
     tags: [...new Set([...(defaults.tags ?? []), ...ensureTags(resolved.tags)])],
   }, position);

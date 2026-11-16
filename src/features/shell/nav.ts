@@ -1,6 +1,8 @@
 import {
   AlarmClock,
   Archive,
+  BookOpen,
+  ClipboardCheck,
   Hourglass,
   House,
   CalendarDays,
@@ -35,11 +37,13 @@ export const MODULE_NAV: NavDef<Exclude<ModuleView, "settings" | "home">>[] = [
   { id: "focus", label: "Focus", icon: AlarmClock },
   { id: "progress", label: "Progress", icon: ChartColumn },
   { id: "friends", label: "Friends", icon: Users },
+  { id: "review", label: "Review", icon: ClipboardCheck },
+  { id: "logbook", label: "Logbook", icon: BookOpen },
   { id: "trash", label: "Trash", icon: Trash2 },
 ];
 
 /** Rarely opened destinations the sidebar folds under "More" (they stay in the palette and on Home). */
-export const SIDEBAR_MORE: readonly ViewId[] = ["someday", "waiting", "progress", "trash"];
+export const SIDEBAR_MORE: readonly ViewId[] = ["someday", "waiting", "progress", "review", "logbook", "trash"];
 
 export const SETTINGS_NAV: NavDef<"settings"> = { id: "settings", label: "Settings", icon: Settings };
 

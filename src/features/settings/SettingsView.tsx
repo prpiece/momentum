@@ -1,5 +1,5 @@
 import { formatTime } from "../../domain/dates";
-import { Bell, ChevronLeft, ChevronRight, CircleUser, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Plug, Search, Settings2, Wrench } from "lucide-react";
+import { Trash2, Bell, ChevronLeft, ChevronRight, CircleUser, Database, Info, LifeBuoy, type LucideIcon, Mic, Palette, Plug, Search, Settings2, Wrench } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { PageHead } from "../../components/ui/PageHead";
 import { Switch } from "../../components/ui/Switch";
@@ -22,9 +22,9 @@ import { HELP_SECTION_ID } from "../help/featureIcons";
 import { BackgroundSection, pruneBackgrounds } from "./BackgroundSection";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENTS, type AccentId } from "../../domain/color";
-import { SCALE_MAX, SCALE_MIN, SCALE_STEP, type Settings, type ViewId } from "../../domain/types";
+import { PRIORITIES, PRIORITY_LABEL, SCALE_MAX, SCALE_MIN, SCALE_STEP, type Priority, type Settings, type ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
-import { hydrate } from "../../stores/data";
+import { hydrate, useData } from "../../stores/data";
 import { hydrateFocus, saveSessions } from "../../stores/focus";
 import { hydrateHabits, saveHabitData } from "../../stores/habits";
 import { openSettingsPage, useSettingsPage } from "../../stores/settings";
@@ -127,6 +127,7 @@ const GROUPS = [["settings-account", "settings-connections"], ["settings-general
 const INDEX: [string, string][] = [
   ["settings-general", "Start view"], ["settings-general", "Week starts on"], ["settings-general", "Time format"], ["settings-general", "Smart parsing in quick add"],
   ["settings-general", "Closing the window"], ["settings-general", "Launch at login"], ["settings-general", "Global quick add"], ["settings-general", "Mini window"], ["settings-general", "Tags"],
+  ["settings-general", "New task list"], ["settings-general", "New task priority"], ["settings-general", "New timed task reminder"], ["settings-general", "Templates"],
   ["settings-appearance", "Theme"], ["settings-appearance", "Accent"], ["settings-appearance", "Layout"], ["settings-appearance", "Task list background"], ["settings-appearance", "Sidebar position"], ["settings-appearance", "Animations"],
   ["settings-appearance", "Density"], ["settings-appearance", "Scale"],
   ["settings-notifications", "Notifications"], ["settings-notifications", "Task reminders"], ["settings-notifications", "When things start"], ["settings-notifications", "Habit reminders"],
@@ -170,6 +171,7 @@ const discardAll = () => (discardDraft(), void pruneBackgrounds());
 
 export function SettingsView() {
   const { draft: s, update, dirty } = useSettingsDraft();
+  const lists = useData((st) => st.lists);
   const set = <K extends keyof Settings>(key: K) => (value: Settings[K]) => update({ [key]: value });
 
   const page = useSettingsPage((st) => st.page);
@@ -288,6 +290,43 @@ export function SettingsView() {
         <Row label="Completed tasks">
           <Toggle checked={s.showCompleted} onChange={(v) => update({ showCompleted: v })} text="Show completed tasks" />
         </Row>
+        <Row label="New task list">
+          <select aria-label="Default list for new tasks" value={s.taskDefaults.listId ?? ""} onChange={(e) => update({ taskDefaults: { ...s.taskDefaults, listId: e.target.value || null } })} className="input w-auto">
+            <option value="">Inbox</option>
+            {Object.values(lists).filter((l) => !l.archived && l.id !== "inbox").sort((a, b) => a.sortOrder - b.sortOrder).map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </Row>
+        <Row label="New task priority">
+          <select aria-label="Default priority for new tasks" value={s.taskDefaults.priority} onChange={(e) => update({ taskDefaults: { ...s.taskDefaults, priority: Number(e.target.value) as Priority } })} className="input w-auto">
+            {[...PRIORITIES].reverse().map((p) => (
+              <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
+            ))}
+          </select>
+        </Row>
+        <Row label="New timed task reminder">
+          <select aria-label="Default reminder for new timed tasks" value={s.taskDefaults.reminderMin ?? ""} onChange={(e) => update({ taskDefaults: { ...s.taskDefaults, reminderMin: e.target.value === "" ? null : Number(e.target.value) } })} className="input w-auto">
+            <option value="">None</option>
+            {[0, 5, 10, 15, 30, 60, 120, 1440].map((m) => (
+              <option key={m} value={m}>{m === 0 ? "At start" : m >= 1440 ? "1 day before" : m >= 60 ? `${m / 60} h before` : `${m} min before`}</option>
+            ))}
+          </select>
+        </Row>
+        {s.templates.length > 0 && (
+          <Row label="Templates">
+            <ul className="space-y-1">
+              {s.templates.map((t) => (
+                <li key={t.id} className="flex items-center gap-2">
+                  <span className="truncate">{t.name}</span>
+                  <button type="button" aria-label={`Delete template ${t.name}`} onClick={() => update({ templates: s.templates.filter((x) => x.id !== t.id) })} className="btn btn-ghost btn-sm icon-btn text-muted hover:text-danger">
+                    <Trash2 size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Row>
+        )}
         <Row label="Closing the window">
           <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text={`Keep running in the ${trayName}`} />
         </Row>

@@ -1,4 +1,5 @@
-import { AlarmClock, Archive, Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, FastForward, Flag, FolderInput, PanelRightOpen, Pin, PinOff, Send, Sun, Sunrise, Trash2 } from "lucide-react";
+import { AlarmClock, Archive, Ban, CalendarArrowUp, CalendarX2, CheckCircle2, Circle, Copy, FastForward, Flag, FolderInput, LayoutTemplate, PanelRightOpen, Pin, PinOff, Send, Sun, Sunrise, Trash2 } from "lucide-react";
+import { saveAsTemplate } from "../../stores/templates";
 import { openSnooze } from "./SnoozeDialog";
 import { addDaysLocal, moveToDate, todayLocal } from "../../domain/dates";
 import { missedKeys, scheduleForKey } from "../../domain/recurrence";
@@ -85,6 +86,7 @@ export function taskMenu(id: string, key: string | null): MenuEntry[] {
           { label: t.pinned ? "Unpin" : "Pin to top", icon: t.pinned ? <PinOff size={14} /> : <Pin size={14} />, run: () => void editTask(id, { pinned: !t.pinned }) },
           ...(t.status === "open" && missedKeys(t, today).length ? [{ label: "Skip to today", icon: <FastForward size={14} />, run: () => skipMissedWithUndo(id) }] : []),
           { label: "Send to friend…", icon: <Send size={14} />, run: () => openSend(id) },
+          { label: "Save as template", icon: <LayoutTemplate size={14} />, run: () => void saveAsTemplate(id) },
           { label: "Duplicate", icon: <Copy size={14} />, run: () => withUndo("Duplicated", () => duplicateTask(id)) },
           { label: t.status === "wont_do" ? "Reopen" : "Won't do", icon: <Ban size={14} />, run: () => setWontDo(id, key) },
         ]),

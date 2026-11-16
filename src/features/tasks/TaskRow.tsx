@@ -5,6 +5,7 @@ import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { formatMinutes, formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
 import { deadlinePassed } from "../../domain/taskViews";
+import { blockingCount } from "../../domain/waiting";
 import type { TreeRow } from "../../domain/taskViews";
 import { DropLine, dropSide, SORT_TRANSITION } from "../../lib/dnd";
 import { reducedMotion, withTransition } from "../../lib/motion";
@@ -37,6 +38,9 @@ export const TaskRow = memo(function TaskRow(props: {
   const collapsed = useUi((s) => !!s.collapsed[t.id]);
   const list = useData((s) => (props.showList ? s.lists[t.listId] : undefined));
   const tags = useData((s) => s.tags);
+  // "Blocked by X" (FEAT-21): the title of the open task this one waits on.
+  const blocker = useData((s) => (vm.blocked && t.waiting?.kind === "task" ? s.tasks[t.waiting.taskId]?.title : undefined));
+  const blocking = useData((s) => blockingCount(t.id, s.tasks));
   const timeFormat = useSettings((s) => s.settings.timeFormat);
 
   const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver, index, activeIndex, active } = useSortable({
@@ -121,9 +125,14 @@ export const TaskRow = memo(function TaskRow(props: {
         {t.description && <FileText size={16} strokeWidth={1.75} className="shrink-0" aria-label="Has notes" />}
         {t.recurrence && <Repeat size={16} strokeWidth={1.75} className="shrink-0" aria-label="Repeats" />}
         {t.waiting && (
-          <span className="inline-flex shrink-0 items-center gap-[3px]" title={t.waiting.kind === "person" ? `Waiting for ${t.waiting.who}` : "Waiting on another task"}>
+          <span className="inline-flex shrink-0 items-center gap-[3px]" title={t.waiting.kind === "person" ? `Waiting for ${t.waiting.who}` : blocker ? `Blocked by ${blocker}` : "Waiting on another task"}>
             <Hourglass size={14} strokeWidth={1.75} />
-            {t.waiting.kind === "person" ? t.waiting.who : null}
+            {t.waiting.kind === "person" ? t.waiting.who : blocker ? <span className="max-w-32 truncate">blocked by {blocker}</span> : null}
+          </span>
+        )}
+        {blocking > 0 && (
+          <span className="shrink-0 tabular-nums" aria-label={`Blocking ${blocking} ${blocking === 1 ? "task" : "tasks"}`} title={`Blocking ${blocking} ${blocking === 1 ? "task" : "tasks"}`}>
+            blocking {blocking}
           </span>
         )}
         {t.schedule.kind !== "timed" && t.durationMin ? <span className="shrink-0 tabular-nums" aria-label={`Takes ${formatMinutes(t.durationMin)}`}>{formatMinutes(t.durationMin)}</span> : null}

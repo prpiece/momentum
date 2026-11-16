@@ -10,7 +10,7 @@ export type Instant = string;
 export const SMART_LISTS = ["inbox", "today", "upcoming", "someday", "waiting"] as const;
 export type SmartListId = (typeof SMART_LISTS)[number];
 
-export const MODULE_VIEWS = ["home", "calendar", "habits", "focus", "progress", "friends", "trash", "settings"] as const;
+export const MODULE_VIEWS = ["home", "calendar", "habits", "focus", "progress", "friends", "trash", "review", "logbook", "settings"] as const;
 export type ModuleView = (typeof MODULE_VIEWS)[number];
 
 /** Every top-level screen. */
@@ -94,6 +94,34 @@ export type Task = {
 };
 
 export const MAX_SUBTASK_DEPTH = 5;
+
+/**
+ * A saved task tree (D337). Lives in settings, not a table, so it syncs with them. Dates are day offsets from the
+ * template root's date, so inserting it on another day keeps the spacing; tags are names, not ids.
+ */
+export type TemplateNode = {
+  title: string;
+  description: string;
+  priority: Priority;
+  tags: string[];
+  /** Checklist item titles; they start unchecked. */
+  checklist: string[];
+  durationMin: number | null;
+  /** `time` (HH:mm) makes it a timed task of `durationMin` minutes; null is all-day. */
+  when: { offset: number; time: string | null } | null;
+  reminders: Reminder[];
+  children: TemplateNode[];
+};
+export type TaskTemplate = { id: string; name: string; root: TemplateNode };
+
+/** Defaults for tasks made from quick add (D338). Tokens and the view's own context win. */
+export type TaskDefaults = {
+  /** Minutes before a timed task starts; null is no default reminder. */
+  reminderMin: number | null;
+  /** Where a task with no `~list` and no list context lands; null is Inbox. */
+  listId: string | null;
+  priority: Priority;
+};
 
 export const LIST_LAYOUTS = ["list", "kanban", "timeline"] as const;
 export type ListLayout = (typeof LIST_LAYOUTS)[number];
@@ -305,6 +333,9 @@ export type Settings = {
   oneThing: { on: boolean; energy: Energy };
   /** Today's and Upcoming's own Manual order (D331): task ids in display order, per view. Ids not listed follow, in their usual order. */
   manualOrder: Record<string, string[]>;
+  /** Saved task trees (D337). */
+  templates: TaskTemplate[];
+  taskDefaults: TaskDefaults;
 };
 
 export const ENERGIES = ["normal", "low"] as const;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blockerOpen, followUpDue, isWaiting, parseWaiting, waitLoops } from "./waiting";
+import { blockedBy, blockerOpen, blockingCount, followUpDue, isWaiting, parseWaiting, waitLoops } from "./waiting";
 import type { Waiting } from "./types";
 
 describe("parseWaiting", () => {
@@ -39,5 +39,15 @@ describe("coming back", () => {
     expect(blockerOpen(w, {})).toBe(false);
     expect(isWaiting(w, true, "2026-10-29")).toBe(true);
     expect(isWaiting(w, false, "2026-10-29")).toBe(false);
+  });
+});
+
+describe("FEAT-21 blocking", () => {
+  const t = (id: string, taskId: string | null, status = "open", deletedAt: string | null = null) => ({ id, waiting: taskId ? { kind: "task" as const, taskId } : null, status: status as "open", deletedAt });
+  const tasks = { a: t("a", null), b: t("b", "a"), c: t("c", "a", "done"), d: t("d", "a", "open", "x") };
+  it("lists and counts only open, live tasks waiting on it", () => {
+    expect(blockedBy("a", tasks).map((x) => x.id)).toEqual(["b"]);
+    expect(blockingCount("a", tasks)).toBe(1);
+    expect(blockingCount("b", tasks)).toBe(0);
   });
 });

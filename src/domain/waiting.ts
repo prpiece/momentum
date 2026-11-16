@@ -33,6 +33,22 @@ export function waitLoops(taskId: string, w: Waiting | null, tasks: Readonly<Rec
 export const blockerOpen = (w: Waiting | null, tasks: Readonly<Record<string, Pick<Task, "status" | "deletedAt">>>) =>
   w?.kind === "task" && tasks[w.taskId]?.status === "open" && !tasks[w.taskId]?.deletedAt;
 
+/** Open tasks waiting on `taskId` (FEAT-21): what finishing it unblocks. */
+export const blockedBy = <T extends Pick<Task, "id" | "waiting" | "status" | "deletedAt">>(taskId: string, tasks: Readonly<Record<string, T>>): T[] =>
+  Object.values(tasks).filter((t) => t.waiting?.kind === "task" && t.waiting.taskId === taskId && t.status === "open" && !t.deletedAt);
+
+const counts = new WeakMap<object, Map<string, number>>();
+/** How many open tasks wait on each task id, computed once per tasks object so every row can ask. */
+export function blockingCount(taskId: string, tasks: Readonly<Record<string, Pick<Task, "waiting" | "status" | "deletedAt">>>): number {
+  let m = counts.get(tasks);
+  if (!m) {
+    m = new Map();
+    for (const t of Object.values(tasks)) if (t.waiting?.kind === "task" && t.status === "open" && !t.deletedAt) m.set(t.waiting.taskId, (m.get(t.waiting.taskId) ?? 0) + 1);
+    counts.set(tasks, m);
+  }
+  return m.get(taskId) ?? 0;
+}
+
 /**
  * Still waiting: a person before the follow-up date, or a task while `blocked` (its blocker is open,
  * computed by `derive`). Once it comes back the task returns to its normal views, wait still shown.

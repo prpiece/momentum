@@ -43,6 +43,8 @@ type UiStore = {
   contextMenu: { x: number; y: number; items: MenuEntry[]; from?: HTMLElement } | null;
   /** Guided tour reopened from Settings (first run is driven by settings.onboarded). */
   tourOpen: boolean;
+  /** The guided Plan my day / Shut down dialog (FEAT-03). */
+  planning: "plan" | "shutdown" | null;
   /** Filter-bar query per task view (session-only). */
   filters: Partial<Record<ViewId, string>>;
 };
@@ -63,6 +65,7 @@ export const useUi = create<UiStore>(() => ({
   calSpan: null,
   contextMenu: null,
   tourOpen: false,
+  planning: null,
   filters: {},
 }));
 const set = useUi.setState;
@@ -102,6 +105,7 @@ export const closeDrawer = () => useUi.getState().drawer && withTransition(() =>
 export const setSelection = (selection: string[]) => set({ selection });
 export const setPalette = (paletteOpen: boolean) => set({ paletteOpen });
 export const setShortcuts = (shortcutsOpen: boolean) => set({ shortcutsOpen });
+export const openPlanning = (planning: UiStore["planning"]) => set({ planning, paletteOpen: false });
 export const setImport = (importOpen: boolean) => set({ importOpen });
 export const setExternalImport = (externalImport: UiStore["externalImport"]) => set({ externalImport });
 export const setCalAnchor = (calAnchor: string) => set({ calAnchor });

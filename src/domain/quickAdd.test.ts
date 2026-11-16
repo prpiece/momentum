@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { durationMinutes, fromLocalDate, wallKey } from "./dates";
-import { parseQuickAdd, withDefaults, withoutToken, withToken } from "./quickAdd";
+import { defaultReminders, parseQuickAdd, tokenPatch, withDefaults, withoutToken, withToken } from "./quickAdd";
 
 // Sunday 25 Oct 2026, 10:00 local (TZ=America/New_York).
 const NOW = new Date(2026, 9, 25, 10, 0);
@@ -396,5 +396,22 @@ describe("v1.2.4 quick-add findings", () => {
 
   it("QA-18: a trailing 'due' is dropped with the date", () => {
     expect(parseQuickAdd("report due friday", FRI(10))).toMatchObject({ title: "report", schedule: { kind: "day", date: "2026-11-13" } });
+  });
+});
+
+describe("FEAT-07 tokenPatch / FEAT-19 defaultReminders", () => {
+  const resolve = { tagIds: (n: string[]) => n.map((x) => `id-${x}`), listId: (n: string) => (n === "Work" ? "w" : undefined) };
+  it("patches only what the tokens set, stripping them from the title", () => {
+    const p = parseQuickAdd("Call Sam tomorrow !high #phone ~Work", NOW, true, ["Work"]);
+    expect(tokenPatch(p, { tags: ["old"], parentId: null }, resolve)).toEqual({
+      title: "Call Sam", schedule: { kind: "day", date: "2026-10-26" }, priority: 3, tags: ["old", "id-phone"], listId: "w",
+    });
+    expect(tokenPatch(parseQuickAdd("plain title", NOW), { tags: [], parentId: null }, resolve)).toEqual({ title: "plain title" });
+    expect(tokenPatch(p, { tags: [], parentId: "x" }, resolve)).not.toHaveProperty("listId");
+  });
+  it("default reminder only for timed tasks", () => {
+    expect(defaultReminders({ kind: "timed", start: "a", end: "b" }, 10)).toEqual([{ kind: "before", minutes: 10 }]);
+    expect(defaultReminders({ kind: "day", date: "2026-10-26" }, 10)).toEqual([]);
+    expect(defaultReminders({ kind: "timed", start: "a", end: "b" }, null)).toEqual([]);
   });
 });

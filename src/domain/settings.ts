@@ -1,6 +1,7 @@
 import { isHex, parseAccent, parseQuadrantColor } from "./color";
 import { FEATURES, type GettingStarted } from "./features";
 import { DAY_END_MAX } from "./dates";
+import { parseTemplates } from "./templates";
 import {
   ENERGIES,
   BAR_POSITIONS,
@@ -102,6 +103,8 @@ export const DEFAULT_SETTINGS: Settings = {
   dayEndHour: 0,
   oneThing: { on: false, energy: "normal" },
   manualOrder: {},
+  templates: [],
+  taskDefaults: { reminderMin: null, listId: null, priority: 0 },
 };
 
 /** A view's options before the user changes any. Today and Upcoming hide finished tasks; lists show them in a Completed group. */
@@ -152,6 +155,15 @@ function parseViewOptions(raw: unknown): Settings["viewOptions"] {
     };
   }
   return out;
+}
+
+function parseTaskDefaults(raw: unknown): Settings["taskDefaults"] {
+  const r = isRecord(raw) ? raw : {};
+  return {
+    reminderMin: typeof r.reminderMin === "number" && Number.isInteger(r.reminderMin) && r.reminderMin >= 0 && r.reminderMin <= 10080 ? r.reminderMin : null,
+    listId: typeof r.listId === "string" && r.listId ? r.listId : null,
+    priority: oneOf(PRIORITIES, r.priority) ? r.priority : 0,
+  };
 }
 
 function parseManualOrder(raw: unknown): Settings["manualOrder"] {
@@ -360,6 +372,8 @@ export function parseSettings(raw: unknown): Settings {
       ? { on: r.oneThing.on === true, energy: oneOf(ENERGIES, r.oneThing.energy) ? r.oneThing.energy : "normal" }
       : d.oneThing,
     manualOrder: parseManualOrder(r.manualOrder),
+    templates: parseTemplates(r.templates),
+    taskDefaults: parseTaskDefaults(r.taskDefaults),
   };
 }
 
@@ -367,7 +381,7 @@ export function parseSettings(raw: unknown): Settings {
 export const USER_SETTING_KEYS = [
   "theme", "accent", "taskOpen", "defaultView", "weekStart", "timeFormat", "smartParse", "showCompleted", "viewOptions",
   "savedFilters", "calendar", "matrix", "matrixColors", "pomodoro", "streakReminder", "sounds", "onboarded", "gettingStarted",
-  "dayEndHour", "manualOrder",
+  "dayEndHour", "manualOrder", "templates", "taskDefaults",
 ] as const satisfies readonly (keyof Settings)[];
 
 /** Settings that stay on this device: hardware, window and OS integration, and the local background image. */

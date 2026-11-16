@@ -12,6 +12,7 @@ import { useFocus } from "../../stores/focus";
 import { useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
 import { Heatmap } from "./Heatmap";
+import { TimeCard } from "./TimeCard";
 
 /** Extra trend charts (focus time) contributed by other features. */
 type Section = { id: string; render: () => ReactNode };
@@ -113,6 +114,10 @@ export function ProgressView() {
             </ul>
           </Card>
         )}
+
+        <div className="min-[720px]:col-span-4">
+          <TimeCard />
+        </div>
 
         {sections.map((s) => (
           <div key={s.id} className="min-[720px]:col-span-4">

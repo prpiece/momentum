@@ -413,3 +413,12 @@ describe("undoableStructure (DATA-15)", () => {
     expect(useData.getState().lists[l.id].folderId).toBe(f.id);
   });
 });
+
+describe("recurring checklists (FEAT-13)", () => {
+  it("finished occurrence keeps its ticks, the series starts unticked", () => {
+    const s = addTask({ title: "Clean", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=WEEKLY", exdates: [] }, checklist: [{ id: "a", title: "Dust", done: true }] });
+    setStatus(s.id, "done");
+    expect(useData.getState().tasks[s.id].checklist[0].done).toBe(false);
+    expect(live().find((t) => t.status === "done")?.checklist[0].done).toBe(true);
+  });
+});
