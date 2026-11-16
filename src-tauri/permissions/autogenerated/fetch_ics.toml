@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fetch-ics"
+description = "Enables the fetch_ics command without any pre-configured scope."
+commands.allow = ["fetch_ics"]
+
+[[permission]]
+identifier = "deny-fetch-ics"
+description = "Denies the fetch_ics command without any pre-configured scope."
+commands.deny = ["fetch_ics"]

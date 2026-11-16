@@ -1,5 +1,5 @@
 import { ListGlyph } from "../../components/ui/AppIcon";
-import { CornerDownLeft, Hash, Search, ListFilter, CheckCircle2, Circle } from "lucide-react";
+import { CornerDownLeft, Hash, Search, ListFilter, CheckCircle2, Circle, LayoutTemplate, CalendarDays } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Dialog } from "../../components/ui/Dialog";
 import { Keys } from "../../components/ui/Keys";
@@ -7,8 +7,10 @@ import { matchScore } from "../../domain/taskViews";
 import { FEATURES, type PaletteId } from "../../domain/features";
 import type { ViewId } from "../../domain/types";
 import { useData } from "../../stores/data";
+import { createFromTemplate } from "../../stores/templates";
 import { openSettingsPage, trackDone, useSettings } from "../../stores/settings";
-import { go, openTask, setImport, setPalette, setShortcuts, useUi } from "../../stores/ui";
+import { go, openEvent, openPlanning, openTask, setImport, setPalette, setShortcuts, useUi } from "../../stores/ui";
+import { snippet } from "../../domain/searchExtra";
 import { ListDialog } from "../tasks/ListDialog";
 import { openTour } from "./Tour";
 import { focusQuickAdd } from "../tasks/QuickAdd";
@@ -40,11 +42,14 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
   const [cursor, setCursor] = useState(0);
   const derived = useDerived();
   const lists = useData((s) => s.lists);
+  const events = useData((s) => s.events);
   const tags = useData((s) => s.tags);
   const savedFilters = useSettings((s) => s.settings.savedFilters);
   const update = useSettings((s) => s.update);
   const collapsed = useSettings((s) => s.settings.sidebarCollapsed);
   const showCompleted = useSettings((s) => s.settings.showCompleted);
+  const templates = useSettings((s) => s.settings.templates);
+  const view = useUi((s) => s.view);
   const close = () => setPalette(false);
   useEffect(() => trackDone("palette:opened"), []);
 
@@ -64,6 +69,10 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       "go-progress": navTo("progress"),
       "go-friends": navTo("friends"),
       "go-trash": navTo("trash"),
+      "go-review": navTo("review"),
+      "go-logbook": navTo("logbook"),
+      "plan-day": () => openPlanning("plan"),
+      "shut-down": () => openPlanning("shutdown"),
       "go-settings": navTo("settings"),
       "matrix-mode": () => (close(), showInCurrentView({ mode: "matrix" })),
       "show-completed": () => (update({ showCompleted: !showCompleted }), close()),
@@ -74,6 +83,8 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       tour: () => (close(), openTour()),
       help: () => (openSettingsPage(HELP_SECTION_ID), navTo("settings")()),
       shortcuts: () => (close(), setShortcuts(true)),
+      print: () => (close(), setTimeout(() => window.print(), 100)),
+      "from-template": () => (setQ("from template "), setCursor(0)),
     };
     // Every static command comes from the feature registry (D167), so each has help text.
     const commands: Omit<Item, "score">[] = FEATURES.flatMap((f) =>
@@ -93,6 +104,18 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
     }));
     const tagItems = Object.values(tags).map((t) => ({ id: `tag-${t.id}`, group: "Tags", label: `#${t.name}`, icon: <Hash size={16} />, run: navTo(`tag:${t.id}`) }));
     const filterItems = savedFilters.map((f) => ({ id: `filter-${f.id}`, group: "Lists", label: f.name, hint: f.query, icon: <ListFilter size={16} />, run: navTo(`filter:${f.id}`) }));
+    // New from template (D337): into the list being viewed, otherwise Inbox.
+    const templateItems = templates.map((t) => ({
+      id: `tpl-${t.id}`,
+      group: "Templates",
+      label: `New from template: ${t.name}`,
+      icon: <LayoutTemplate size={16} />,
+      run: () => {
+        close();
+        const id = createFromTemplate(t.id, view.startsWith("list:") ? view.slice(5) : "inbox");
+        if (id) openTask(id);
+      },
+    }));
     const query = q.trim();
     if (!query) return commands.slice(0, 8).map((c) => ({ ...c, score: 0 }));
     const taskItems = derived.vms.map((vm) => ({
@@ -102,25 +125,36 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       hint: (vm.task.parentId && derived.byId.get(vm.task.parentId)?.task.title) || lists[vm.task.listId]?.name,
       icon: vm.task.status === "open" ? <Circle size={16} /> : <CheckCircle2 size={16} className="text-success" />,
       run: () => (close(), openTask(vm.task.id, vm.key)),
-      text: `${vm.task.title} ${vm.task.description}`,
+      text: vm.task.description,
       done: vm.task.status !== "open",
     }));
     const scored: Item[] = [];
-    for (const c of [...commands, ...listItems, ...filterItems, ...tagItems, ...sources.flatMap((s) => s(query))]) {
+    for (const c of [...commands, ...templateItems, ...listItems, ...filterItems, ...tagItems, ...sources.flatMap((s) => s(query))]) {
       const score = matchScore(c.label, query);
       if (score !== null) scored.push({ ...c, score });
     }
     for (const { text, done, ...t } of taskItems) {
-      // Title hits beat description hits; finished tasks rank below open ones.
-      const base = matchScore(t.label, query) ?? (matchScore(text, query) !== null ? 10 : null);
-      if (base !== null) scored.push({ ...t, score: base + (done ? 1 : 0) });
+      // Title hits beat note hits (which show the matching line); finished tasks rank below open ones.
+      const title = matchScore(t.label, query);
+      const note = title === null && matchScore(text, query) !== null ? 10 : null;
+      const base = title ?? note;
+      if (base !== null) scored.push({ ...t, hint: note !== null ? (snippet(text, query) ?? t.hint) : t.hint, score: base + (done ? 1 : 0) });
     }
-    const order = ["Commands", "Lists", "Tags", "Habits", "Tasks"];
+    // Events (FEAT-22; habits come from their own source): by name; an event's notes count like a task's.
+    for (const e of Object.values(events)) {
+      if (e.deletedAt) continue;
+      const title = matchScore(e.title, query);
+      const note = title === null && matchScore(e.notes, query) !== null ? 10 : null;
+      const base = title ?? note;
+      const date = e.schedule.kind === "day" ? e.schedule.date : e.schedule.kind === "timed" ? e.schedule.start.slice(0, 10) : "";
+      if (base !== null) scored.push({ id: `event-${e.id}`, group: "Events", label: e.title, hint: note !== null ? (snippet(e.notes, query) ?? date) : date, icon: <CalendarDays size={16} />, run: () => (close(), openEvent(e.id)), score: base });
+    }
+    const order = ["Commands", "Templates", "Lists", "Tags", "Habits", "Events", "Tasks"];
     return scored
       .sort((a, b) => a.score - b.score || order.indexOf(a.group) - order.indexOf(b.group))
       .slice(0, 40)
       .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
-  }, [q, derived, lists, tags, savedFilters, update, collapsed, showCompleted, onNewList]);
+  }, [q, derived, lists, tags, events, savedFilters, update, collapsed, showCompleted, onNewList, templates, view]);
 
   const pick = (i: number) => items[i]?.run();
   // Keep the highlighted result visible while arrowing through a long list (UI-05).
@@ -141,7 +175,7 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
             if (e.key === "ArrowUp") (e.preventDefault(), setCursor((c) => Math.max(c - 1, 0)));
             if (e.key === "Enter" && !e.nativeEvent.isComposing) pick(cursor);
           }}
-          placeholder="Search tasks, lists, tags, or type a command…"
+          placeholder="Search tasks, habits, events, or type a command…"
           aria-label="Search"
           role="combobox"
           aria-expanded="true"

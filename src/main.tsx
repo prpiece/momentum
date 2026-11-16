@@ -96,6 +96,8 @@ if (popup === "mini") {
       void import("./features/friends/boot").then((b) => b.startFriends());
       return s.startSync();
     });
+  // Daily automatic backups, when turned on in Settings → Data (FEAT-06).
+  if (isTauri) void import("./db/backup").then((b) => b.startAutoBackup());
   // Old unreferenced note images are cleaned up in the background (D78).
   void import("./lib/appFiles").then((f) => f.sweepAttachments(Object.values(data.useData.getState().tasks).map((t) => t.description))).catch(console.error);
   go(useSettings.getState().settings.defaultView);

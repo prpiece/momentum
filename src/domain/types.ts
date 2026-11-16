@@ -234,6 +234,10 @@ export type Background = { kind: "none" } | { kind: "color"; hex: string } | { k
 export const DIM_MAX = 80;
 export const DIM_DEFAULT = 40;
 export const TIME_FORMATS = ["12h", "24h"] as const;
+/** Date order (FEAT-12): follow the OS locale, or day/month, month/day, year-first. */
+export const DATE_FORMATS = ["system", "dmy", "mdy", "iso"] as const;
+/** High contrast (FEAT-15): "system" follows the OS (prefers-contrast: more). */
+export const CONTRASTS = ["system", "normal", "high"] as const;
 /** date-fns weekStartsOn: Sunday, Monday, Saturday. */
 export const WEEK_STARTS = [0, 1, 6] as const;
 export type WeekStart = (typeof WEEK_STARTS)[number];
@@ -292,6 +296,8 @@ export type Settings = {
   defaultView: ViewId;
   weekStart: WeekStart;
   timeFormat: (typeof TIME_FORMATS)[number];
+  dateFormat: (typeof DATE_FORMATS)[number];
+  contrast: (typeof CONTRASTS)[number];
   /** Natural-language parsing in quick add. */
   smartParse: boolean;
   /** Task views list finished tasks too (D213). The calendar has its own `calendar.showCompleted`. */

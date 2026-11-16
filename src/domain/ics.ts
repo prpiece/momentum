@@ -5,7 +5,7 @@
 import ICAL from "ical.js";
 import { atLocalTime, daysBetween, durationMinutes, fromWall, hhmm, isZone, timed, wallIn, wallKey } from "./dates";
 import { isValidRule } from "./recurrence";
-import type { CalendarEvent, Schedule } from "./types";
+import type { CalendarEvent, Schedule, Task } from "./types";
 
 type ICALTime = InstanceType<typeof ICAL.Time>;
 
@@ -160,3 +160,58 @@ export function parseIcs(text: string, color: string, now = new Date().toISOStri
   return { events: [...byId.values()], skipped };
 }
 
+
+// ---- Export (FEAT-05): a one-way .ics of dated tasks and own events, for other calendar apps ----
+
+const icsText = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n|\r/g, "\\n");
+
+/** RFC 5545 §3.1: lines over 75 octets continue on the next line after a space; never splits a UTF-8 character. */
+export function foldIcsLine(line: string): string {
+  const enc = new TextEncoder();
+  const parts: string[] = [];
+  let cur = "";
+  let bytes = 0;
+  for (const ch of line) {
+    const n = enc.encode(ch).length;
+    if (bytes + n > (parts.length ? 74 : 75)) {
+      parts.push(cur);
+      cur = "";
+      bytes = 0;
+    }
+    cur += ch;
+    bytes += n;
+  }
+  parts.push(cur);
+  return parts.join("\r\n ");
+}
+
+const utcStamp = (d: Date) => d.toISOString().slice(0, 19).replace(/[-:]/g, "") + "Z";
+const dateStamp = (date: string, plusDays = 0) => {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + plusDays)).toISOString().slice(0, 10).replace(/-/g, "");
+};
+
+type Exportable = { id: string; title: string; notes: string; schedule: Schedule; spanDays: number; rule: string | null };
+
+function vevent(x: Exportable, stamp: string): string[] | null {
+  const s = x.schedule;
+  if (s.kind !== "day" && s.kind !== "timed") return null;
+  const when =
+    s.kind === "day"
+      ? [`DTSTART;VALUE=DATE:${dateStamp(s.date)}`, `DTEND;VALUE=DATE:${dateStamp(s.date, Math.max(1, x.spanDays))}`]
+      : [`DTSTART:${utcStamp(new Date(s.start))}`, `DTEND:${utcStamp(new Date(s.end))}`];
+  // ponytail: a repeat is exported as its RRULE only; skipped occurrences (exdates) and DST drift of timed repeats aren't carried.
+  const rrule = x.rule && (x.rule.split("\n").find((l) => /^RRULE:/i.test(l))?.slice(6) ?? (/^FREQ=/i.test(x.rule) ? x.rule : null));
+  return ["BEGIN:VEVENT", `UID:${x.id}@momentum`, `DTSTAMP:${stamp}`, ...when, `SUMMARY:${icsText(x.title)}`, ...(x.notes ? [`DESCRIPTION:${icsText(x.notes)}`] : []), ...(rrule ? [`RRULE:${rrule}`] : []), "END:VEVENT"];
+}
+
+/** Open tasks with a day or time, and own (non-imported) events, as an RFC 5545 calendar: UTC for timed, floating DATEs for all-day. */
+export function toIcs(tasks: Task[], events: CalendarEvent[], now = new Date()): string {
+  const stamp = utcStamp(now);
+  const items: Exportable[] = [
+    ...tasks.filter((t) => !t.deletedAt && t.status === "open").map((t) => ({ id: t.id, title: t.title, notes: t.description, schedule: t.schedule, spanDays: 1, rule: t.recurrence?.rule ?? null })),
+    ...events.filter((e) => !e.deletedAt && e.source === "local").map((e) => ({ id: e.id, title: e.title, notes: e.notes, schedule: e.schedule, spanDays: e.spanDays, rule: e.recurrence?.rule ?? null })),
+  ];
+  const body = items.flatMap((x) => vevent(x, stamp) ?? []);
+  return [...["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Momentum//Planner//EN", "CALSCALE:GREGORIAN"], ...body, "END:VCALENDAR"].map(foldIcsLine).join("\r\n") + "\r\n";
+}

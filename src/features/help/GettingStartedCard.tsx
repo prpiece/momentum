@@ -5,6 +5,7 @@ import { type Feature, gettingStartedItems } from "../../domain/features";
 import { useAppVersion } from "../../lib/updater";
 import { useSettings } from "../../stores/settings";
 import { FEATURE_ICON } from "./featureIcons";
+import { SampleDataButton } from "./SampleDataButton";
 
 function Item({ f, done }: { f: Feature; done?: boolean }) {
   const Icon = FEATURE_ICON[f.icon];
@@ -74,14 +75,18 @@ export function GettingStartedCard() {
           <Item key={f.id} f={f} done={gs.done.includes(f.id)} />
         ))}
       </ul>
-      <button
-        type="button"
-        aria-expanded={moreOpen}
-        onClick={() => setMoreOpen((o) => !o)}
-        className="btn btn-ghost btn-sm mt-1 -ml-2"
-      >
-        <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform duration-[var(--dur)] ${moreOpen ? "" : "-rotate-90"}`} /> More to try
-      </button>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen((o) => !o)}
+          className="btn btn-ghost btn-sm -ml-2"
+        >
+          <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform duration-[var(--dur)] ${moreOpen ? "" : "-rotate-90"}`} /> More to try
+        </button>
+        <div className="flex-1" />
+        <SampleDataButton className="btn btn-ghost btn-sm" />
+      </div>
       <Collapse open={moreOpen}>
         <ul className="grid gap-x-6 pt-1 sm:grid-cols-2">
           {items.more.map((f) => (

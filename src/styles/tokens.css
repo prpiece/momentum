@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./components.css";
+@import "./print.css";
 
 /* Tailwind utilities map onto the runtime variables below, e.g. bg-raised, text-fg-2, rounded-card.
    The values are the v1.0 design tokens (docs/design/momentum-tokens.css, PLAN D198). */
@@ -238,6 +239,37 @@
 }
 /* Inside a raised layer in dark (palette, menus), step hover/chip fills up one level: */
 [data-theme="dark"] .layer-raised { --surface-2: #2E3037; --border: #3B3E46; --border-strong: #4A4D56; --accent-soft: #363950; }
+
+/* ---------- High contrast (FEAT-15): html[data-contrast="high"], from Settings or the OS (prefers-contrast: more). ----------
+   One extra theme per mode, whatever the accent: text 7:1 (AAA), marks and borders 3:1+. src/styles/tokens.test.ts checks it. */
+:root[data-contrast="high"][data-theme="light"] {
+  --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #EDEDED; --raised: #FFFFFF;
+  --border: #595959; --border-strong: #000000; --control-border: #000000;
+  --fg: #000000; --fg-2: #1A1A1A; --muted: #3D3D3D;
+  --accent: #0000CC; --accent-hover: #00009A; --accent-press: #000080; --accent-soft: #DCE3FF; --accent-fg: #FFFFFF; --accent-text: #0000CC;
+  --danger: #A30000; --danger-hover: #8A0000; --danger-press: #740000; --danger-soft: #FBE3E3; --danger-fg: #FFFFFF;
+  --success: #00531F; --success-soft: #DDF3E4;
+  --prio-high: #A30000; --prio-high-tint: #FBE3E3; --prio-med: #7A4500; --prio-low: #0A3F99;
+  --q-do: #A30000; --q-schedule: #0A3F99; --q-delegate: #7A4500; --q-drop: #3D3D3D;
+  --streak: #7A4500; --on-strong: #FFFFFF;
+}
+:root[data-contrast="high"][data-theme="dark"] {
+  --bg: #000000; --surface: #000000; --surface-2: #1E1E1E; --raised: #0D0D0D;
+  --border: #A0A0A0; --border-strong: #FFFFFF; --control-border: #FFFFFF;
+  --fg: #FFFFFF; --fg-2: #F0F0F0; --muted: #D0D0D0;
+  --accent: #A5C4FF; --accent-hover: #BDD3FF; --accent-press: #8FB3F5; --accent-soft: #26304D; --accent-fg: #000000; --accent-text: #A5C4FF;
+  --danger: #FF8A7A; --danger-hover: #FFA092; --danger-press: #E87868; --danger-soft: #3D1F1B; --danger-fg: #000000;
+  --success: #6EE79A; --success-soft: #16301F;
+  --prio-high: #FF8A7A; --prio-high-tint: #3D1F1B; --prio-med: #FFC05C; --prio-low: #9CC2FF;
+  --q-do: #FF8A7A; --q-schedule: #9CC2FF; --q-delegate: #FFC05C; --q-drop: #D0D0D0;
+  --streak: #FFC05C; --on-strong: #000000;
+}
+/* Windows contrast themes: system colours win, so keep a visible focus ring and checkbox outline. */
+@media (forced-colors: active) {
+  :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+  .check { border-color: ButtonText; }
+  .check[aria-checked="true"] { background: Highlight; border-color: Highlight; forced-color-adjust: none; }
+}
 
 /* ---------- Accent presets: light (ids match ACCENTS in src/domain/color.ts) ---------- */
 [data-accent="ocean"]    { --accent:#2563D9; --accent-hover:#2159C3; --accent-press:#1E4FAE; --accent-soft:#ECF0F7; --accent-fg:#FFFFFF; --accent-text:#2563D9; }

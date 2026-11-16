@@ -22,6 +22,10 @@ export const PALETTE_IDS = [
   "go-progress",
   "go-friends",
   "go-trash",
+  "go-review",
+  "go-logbook",
+  "plan-day",
+  "shut-down",
   "go-settings",
   "matrix-mode",
   "show-completed",
@@ -32,6 +36,8 @@ export const PALETTE_IDS = [
   "tour",
   "help",
   "shortcuts",
+  "from-template",
+  "print",
 ] as const;
 export type PaletteId = (typeof PALETTE_IDS)[number];
 
@@ -93,7 +99,11 @@ export const FEATURES: Feature[] = [
     commands: [token("tomorrow 5pm", "Date and time"), token("every mon  weekly for 5 weeks  daily x5  until dec 1", "Repeat, with a count or end"), token("eod  eow  eom", "End of today, this working week (Friday), this month"), token("!high  !2", "Priority"), token("#tag", "Tag"), token("~List", "List")] },
   { id: "bulk-import", title: "Paste many tasks at once", howTo: "Paste a list of lines and each one becomes a task.", icon: "paste", group: "Capture", since: OLD, core: false,
     commands: [palette("import", "Import tasks…")] },
-  { id: "external-import", title: "Import from Todoist or TickTick", howTo: "Settings → Data → Import from Todoist or TickTick (or Import tasks…). Pick the export file, check the preview, import; one Undo takes it all back.", icon: "file", group: "Capture", since: "1.3.0", core: false, commands: [] },
+  { id: "external-import", title: "Import from another task app", howTo: "Settings → Data → Import from another app (or Import tasks…). Pick a Todoist, TickTick, Google Tasks (Takeout Tasks.json) or Apple Reminders / Outlook (.ics) export, check the preview, import; one Undo takes it all back.", icon: "file", group: "Capture", since: "1.3.0", core: false, commands: [] },
+  { id: "data-export", title: "Export tasks and calendar", howTo: "Settings → Data → Export tasks (.json), or Export calendar (.ics) for your dated tasks and events in another calendar app.", icon: "file", group: "Capture", since: "1.3.0", core: false, commands: [] },
+  { id: "auto-backup", title: "Back up automatically", howTo: "Settings → Data → Back up automatically every day keeps the newest few zips in the backups folder; Back up now makes one at once.", icon: "file", group: "Capture", since: "1.3.0", core: false, commands: [] },
+  { id: "print", title: "Print or save as PDF", howTo: "Open a list or Today, then run Print from the command palette and choose a printer or Save as PDF.", icon: "file", group: "Views", since: "1.3.0", core: false, commands: [palette("print", "Print this view")] },
+  { id: "attachment-preview", title: "Preview PDFs and text files", howTo: "Open a PDF or .txt attached to a task to read it inside Momentum.", icon: "file", group: "Tasks", since: "1.3.0", core: false, commands: [] },
   { id: "csv-export", title: "Export tasks to a spreadsheet", howTo: "Settings → Data → Export tasks (.csv) saves every task with its list, date, repeat and tags, to open in Excel or Sheets.", icon: "file", group: "Capture", since: "1.3.0", core: false, commands: [] },
   { id: "custom-repeat", title: "Custom repeats with an end", howTo: "Date → Repeat → Custom…: every few days, weeks, months or years; monthly on the 2nd Tuesday or last Friday; and end never, on a date or after a number of times.", icon: "calendar", group: "Tasks", since: "1.3.0", core: false, commands: [] },
   { id: "skip-missed", title: "Skip missed repeats", howTo: "A repeating task with past occurrences you never did shows Skip to today in its right-click menu and details; they're all skipped at once, and Undo brings them back.", icon: "calendar", group: "Tasks", since: "1.3.0", core: false, commands: [] },
@@ -113,6 +123,12 @@ export const FEATURES: Feature[] = [
     commands: [palette("show-completed", "Toggle completed tasks")] },
   { id: "lists", title: "Organise with lists and folders", howTo: "Make a list for each part of your life and group lists into folders.", icon: "list", group: "Tasks", since: OLD, core: false,
     commands: [palette("new-list", "New list")] },
+  { id: "templates", title: "Task templates", howTo: "Right-click a task → Save as template (its subtasks, checklist, tags and dates come along). Then New from template in the palette makes a fresh copy, with dates counted from today. Delete templates in Settings → General.", icon: "list", group: "Tasks", since: "1.2.4", core: false,
+    commands: [palette("from-template", "New from template")] },
+  { id: "edit-with-tokens", title: "Edit a task by typing", howTo: "Type a date, !priority, #tag, ~list or repeat into a task's title in its details. An Apply chip appears; Apply sets them and removes them from the title, Keep as text leaves it.", icon: "token", group: "Tasks", since: "1.2.4", core: false, commands: [] },
+  { id: "recurring-checklist", title: "Repeating checklists start fresh", howTo: "A repeating task's checklist is unticked again for each occurrence; the finished one keeps what you ticked.", icon: "check", group: "Tasks", since: "1.2.4", core: false, commands: [] },
+  { id: "new-task-defaults", title: "Defaults for new tasks", howTo: "Settings → General → New tasks: a default list, priority, and a reminder for tasks with a start time. They apply to tasks added from quick add; anything you type wins.", icon: "plus", group: "Capture", since: "1.2.4", core: false, commands: [] },
+  { id: "blocking", title: "See what blocks what", howTo: "A task waiting on another shows “blocked by …” on its row; the task it waits on shows “blocking N” and lists them under Blocking in its details.", icon: "hourglass", group: "Tasks", since: "1.2.4", core: false, commands: [] },
 
   // ---- Planning (v1.3, D267)
   { id: "planning-tokens", title: "Deadlines, durations, someday and waiting", howTo: "Add these to the task text in any add box: a deadline apart from the planned date, how long it takes, Someday, or who you're waiting for and when to follow up.", icon: "token", group: "Capture", since: "1.3.0", core: false,
@@ -122,6 +138,9 @@ export const FEATURES: Feature[] = [
   { id: "someday-waiting", title: "Someday and Waiting", howTo: "Someday holds tasks with no date yet. Waiting holds tasks waiting for someone or another task; they come back on the follow-up date or when that task is done.", icon: "hourglass", group: "Views", since: "1.3.0", core: false, commands: [] },
   { id: "one-thing", title: "One thing at a time", howTo: "Turn on One thing in Today's toolbar to see only the next task, with Done and Not now. Low energy shows only tasks of 15 minutes or less.", icon: "target", group: "Views", since: "1.3.0", core: false, commands: [] },
   { id: "snooze", title: "Snooze a task to a time", howTo: "Right-click a task → Snooze… and pick a day and time; it moves there and reminds you when it starts.", icon: "timer", group: "Tasks", since: "1.3.0", core: false, commands: [] },
+  { id: "date-format", title: "Choose how dates read", howTo: "Settings → General → Date format: match the system, day first (31/12), month first (12/31) or year first. It sets how dates are shown and how quick add reads “3/4”.", icon: "calendar", group: "Tasks", since: "1.2.4", core: false, commands: [] },
+  { id: "high-contrast", title: "High contrast", howTo: "Settings → Appearance → High contrast: black-on-white or white-on-black with strong borders (System follows your OS setting). Text size is the Scale slider.", icon: "palette", group: "Views", since: "1.2.4", core: false, commands: [] },
+  { id: "sample-data", title: "Try with sample data", howTo: "Getting started (or Settings → General → Sample data) adds a “Sample data” folder with two lists to explore; Remove sample data deletes exactly that folder.", icon: "list", group: "Capture", since: "1.2.4", core: false, commands: [] },
   { id: "day-end", title: "Late nights count as the same day", howTo: "Settings → General → Day ends at: before that hour, Today, overdue and habits still count as the day before.", icon: "sun", group: "Keyboard", since: "1.3.0", core: false, commands: [] },
 
   // ---- Views
@@ -155,6 +174,14 @@ export const FEATURES: Feature[] = [
 
   { id: "trash", title: "Get a deleted task back", howTo: "Deleted tasks wait in Trash for 30 days. Open Trash to Restore one, or Delete forever.", icon: "undo", group: "Tasks", since: "1.2.1", core: false,
     commands: [palette("go-trash", "Go to Trash")] },
+  { id: "plan-day", title: "Plan your day and shut down", howTo: "Plan my day walks you through yesterday's leftovers (Keep, Tomorrow, Someday, Drop), picks today's tasks and shows the time planned. Shut down shows what you finished and sweeps the rest. Both start from Home or the palette.", icon: "sun", group: "Tasks", since: "1.3.0", core: false,
+    commands: [palette("plan-day", "Plan my day"), palette("shut-down", "Shut down for the day"), keys("K / T / S / D", "In the flow: keep, tomorrow, someday, drop")] },
+  { id: "weekly-review", title: "Review your week", howTo: "Review lists what is overdue, follow-ups that are due, old Inbox items, Someday, last week's done count and next week, with a quick action on each task.", icon: "check", group: "Views", since: "1.3.0", core: false,
+    commands: [palette("go-review", "Go to Weekly review")] },
+  { id: "logbook", title: "Look back at finished tasks", howTo: "Logbook lists everything you finished, by day, newest first. Search it to find a task you did long ago.", icon: "list", group: "Views", since: "1.3.0", core: false,
+    commands: [palette("go-logbook", "Go to Logbook")] },
+  { id: "time-report", title: "See where your focus time went", howTo: "Progress shows focus time by list and tag for the last 30 days, and how long finished tasks took compared with their estimate.", icon: "chart", group: "Progress", since: "1.3.0", core: false, commands: [] },
+  { id: "search-more", title: "Search habits, events and notes", howTo: "The palette also finds habits and calendar events, and shows the matching line when a word is only in a task's notes.", icon: "search", group: "Capture", since: "1.3.0", core: false, commands: [] },
 
   // ---- Progress
   { id: "progress", title: "See your progress", howTo: "What you finished and how long you focused, by day and week, plus an activity heatmap.", icon: "chart", group: "Progress", since: OLD, core: false,

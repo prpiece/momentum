@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-agent-cli-path"
+description = "Enables the agent_cli_path command without any pre-configured scope."
+commands.allow = ["agent_cli_path"]
+
+[[permission]]
+identifier = "deny-agent-cli-path"
+description = "Denies the agent_cli_path command without any pre-configured scope."
+commands.deny = ["agent_cli_path"]

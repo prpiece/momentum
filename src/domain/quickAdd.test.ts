@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { durationMinutes, fromLocalDate, wallKey } from "./dates";
+import { durationMinutes, fromLocalDate, setDateOrder, wallKey } from "./dates";
 import { defaultReminders, parseQuickAdd, tokenPatch, withDefaults, withoutToken, withToken } from "./quickAdd";
 
 // Sunday 25 Oct 2026, 10:00 local (TZ=America/New_York).
@@ -413,5 +413,24 @@ describe("FEAT-07 tokenPatch / FEAT-19 defaultReminders", () => {
     expect(defaultReminders({ kind: "timed", start: "a", end: "b" }, 10)).toEqual([{ kind: "before", minutes: 10 }]);
     expect(defaultReminders({ kind: "day", date: "2026-10-26" }, 10)).toEqual([]);
     expect(defaultReminders({ kind: "timed", start: "a", end: "b" }, null)).toEqual([]);
+  });
+});
+
+describe("FEAT-12 numeric dates follow the date order", () => {
+  const date = (text: string) => {
+    const s = parseQuickAdd(text, NOW).schedule;
+    return s.kind === "day" ? s.date : null;
+  };
+  it("reads 3/4 as March 4 by default and 3 April with day first", () => {
+    try {
+      setDateOrder("mdy");
+      expect(date("dentist 3/4")).toBe("2027-03-04");
+      setDateOrder("dmy");
+      expect(date("dentist 3/4")).toBe("2027-04-03");
+      expect(date("dentist tomorrow")).toBe("2026-10-26");
+      expect(parseQuickAdd("dentist 3/4", NOW).title).toBe("dentist");
+    } finally {
+      setDateOrder("mdy");
+    }
   });
 });

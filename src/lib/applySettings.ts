@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { quadrantHex } from "../domain/color";
+import { setDateOrder } from "../domain/dates";
 import { parseSettings } from "../domain/settings";
 import type { Settings } from "../domain/types";
 import { useSettings } from "../stores/settings";
@@ -7,10 +8,13 @@ import { useSettings } from "../stores/settings";
 const QUADRANT_PROPS = ["--q-do", "--q-schedule", "--q-delegate", "--q-drop"] as const;
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "timeFormat" | "smartParse" | "matrixColors">;
+export type Appearance = Pick<Settings, "theme" | "accent" | "density" | "motion" | "timeFormat" | "dateFormat" | "contrast" | "smartParse" | "matrixColors">;
+const contrastQuery = window.matchMedia("(prefers-contrast: more)");
 
 export function apply(s: Appearance) {
   const root = document.documentElement;
+  setDateOrder(s.dateFormat, navigator.language); // popups parse and label dates too
+  root.dataset.contrast = s.contrast === "high" || (s.contrast === "system" && contrastQuery.matches) ? "high" : "normal";
   const theme = s.theme === "system" ? (darkQuery.matches ? "dark" : "light") : s.theme;
   root.dataset.theme = theme;
   // A picked quadrant colour replaces the theme default with that preset's colour for this theme (D85, D198).
@@ -42,15 +46,17 @@ export function useApplySettings() {
   useEffect(() => {
     apply(settings);
     try {
-      const { theme, accent, density, motion, timeFormat, smartParse, matrixColors } = settings;
-      localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ theme, accent, density, motion, timeFormat, smartParse, matrixColors }));
+      const { theme, accent, density, motion, timeFormat, dateFormat, contrast, smartParse, matrixColors } = settings;
+      localStorage.setItem(APPEARANCE_KEY, JSON.stringify({ theme, accent, density, motion, timeFormat, dateFormat, contrast, smartParse, matrixColors }));
     } catch {
       // Storage unavailable: popups fall back to default appearance.
     }
     const onChange = () => apply(settings);
     if (settings.theme === "system") darkQuery.addEventListener("change", onChange);
+    if (settings.contrast === "system") contrastQuery.addEventListener("change", onChange);
     return () => {
       darkQuery.removeEventListener("change", onChange);
+      contrastQuery.removeEventListener("change", onChange);
     };
   }, [settings]);
 }

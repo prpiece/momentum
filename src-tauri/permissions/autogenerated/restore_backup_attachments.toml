@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-restore-backup-attachments"
+description = "Enables the restore_backup_attachments command without any pre-configured scope."
+commands.allow = ["restore_backup_attachments"]
+
+[[permission]]
+identifier = "deny-restore-backup-attachments"
+description = "Denies the restore_backup_attachments command without any pre-configured scope."
+commands.deny = ["restore_backup_attachments"]

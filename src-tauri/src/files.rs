@@ -56,7 +56,8 @@ pub async fn pick_path(app: AppHandle, picked: State<'_, Picked>, save: bool, na
 pub const MAX_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
 /// Note images (D78) and the app background image (D222). Backups carry both.
 const FOLDERS: [&str; 2] = ["attachments", "backgrounds"];
-const EXTS: [&str; 5] = ["png", "jpg", "jpeg", "gif", "webp"];
+// pdf and txt are file attachments (FEAT-25): previewed in the app, kept on this device only (not synced).
+const EXTS: [&str; 7] = ["png", "jpg", "jpeg", "gif", "webp", "pdf", "txt"];
 
 /// `kind` is a folder name; `name` is `<id>.<ext>` with a plain id and an image extension.
 fn image_path(app: &AppHandle, kind: &str, name: &str) -> Result<PathBuf, String> {
@@ -98,7 +99,7 @@ pub fn image_dir(app: AppHandle, kind: String) -> Result<String, String> {
     Ok(dir(&app, &kind)?.to_string_lossy().into_owned())
 }
 
-const IMAGE_SRC_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif"];
+const IMAGE_SRC_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "pdf", "txt"];
 
 /// Copy a file the user picked (dialog) into the folder as `name`.
 #[tauri::command]
@@ -225,6 +226,36 @@ pub fn write_backup_zip(app: AppHandle, picked: State<Picked>, path: String, jso
     zip_backup(zip_path(&path)?, &json, &[("attachments", &att), ("backgrounds", &bg)]).map_err(|e| e.to_string())
 }
 
+/// Scheduled backup (FEAT-06): a zip named `momentum-auto-<stamp>.zip` in the app's `backups` folder, then the oldest
+/// automatic ones beyond `keep` are deleted. Needs no picked path: the folder is fixed and the name is validated.
+#[tauri::command]
+pub fn write_auto_backup(app: AppHandle, name: String, json: String, keep: usize) -> Result<String, String> {
+    let stamp_ok = name.len() <= 40 && name.chars().all(|c| c.is_ascii_digit() || c == '-');
+    if !stamp_ok {
+        return Err("bad backup name".into());
+    }
+    let backups = app.path().app_config_dir().map_err(|e| e.to_string())?.join("backups");
+    fs::create_dir_all(&backups).map_err(|e| e.to_string())?;
+    let (att, bg) = (dir(&app, "attachments")?, dir(&app, "backgrounds")?);
+    let file = backups.join(format!("momentum-auto-{name}.zip"));
+    zip_backup(&file, &json, &[("attachments", &att), ("backgrounds", &bg)]).map_err(|e| e.to_string())?;
+    let mut autos: Vec<_> = fs::read_dir(&backups)
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .filter(|e| {
+            let n = e.file_name().to_string_lossy().into_owned();
+            n.starts_with("momentum-auto-") && n.ends_with(".zip")
+        })
+        .map(|e| e.path())
+        .collect();
+    autos.sort(); // the stamp sorts oldest first
+    let excess = autos.len().saturating_sub(keep.clamp(1, 60));
+    for old in &autos[..excess] {
+        let _ = fs::remove_file(old);
+    }
+    Ok(file.to_string_lossy().into_owned())
+}
+
 /// The backup's JSON text; nothing is restored until the user confirms.
 #[tauri::command]
 pub fn read_backup_zip(app: AppHandle, picked: State<Picked>, path: String) -> Result<String, String> {
@@ -252,7 +283,7 @@ mod tests {
         fs::create_dir_all(&src).unwrap();
         fs::create_dir_all(&dst).unwrap();
         fs::write(src.join("a1.png"), b"png-bytes").unwrap();
-        fs::write(src.join("notes.txt"), b"skip me").unwrap();
+        fs::write(src.join("notes.exe"), b"skip me").unwrap();
         let zip_file = base.join("b.zip");
         zip_backup(&zip_file, "{\"x\":1}", &[("attachments", &src)]).unwrap();
         // Add a hostile entry by hand: it must not be restored.
@@ -264,7 +295,7 @@ mod tests {
         assert_eq!(unzip_json(&zip_file).unwrap(), "{\"x\":1}");
         assert_eq!(unzip_images(&zip_file, "attachments", &dst).unwrap(), 1);
         assert_eq!(fs::read(dst.join("a1.png")).unwrap(), b"png-bytes");
-        assert!(!dst.join("notes.txt").exists() && !base.join("evil.png").exists());
+        assert!(!dst.join("notes.exe").exists() && !base.join("evil.png").exists());
         fs::remove_dir_all(base).unwrap();
     }
 

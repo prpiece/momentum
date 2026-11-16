@@ -3,12 +3,12 @@ import { isTauri } from "../../db/client";
 import { parseExternalImport } from "../../domain/importExternal";
 import { setExternalImport, setImport, toast } from "../../stores/ui";
 
-/** Pick a Todoist or TickTick export, parse it and open the preview. Desktop only (it reads a file from disk). */
+/** Pick an export from Todoist, TickTick, Google Tasks or Apple Reminders (.ics), parse it and open the preview. Desktop only (it reads a file from disk). */
 export async function startExternalImport() {
   setImport(false);
-  if (!isTauri) return toast("Importing from Todoist or TickTick works in the desktop app.");
+  if (!isTauri) return toast("Importing from another app works in the desktop app.");
   try {
-    const path = await pickFile(["csv", "json"], "Todoist or TickTick export");
+    const path = await pickFile(["csv", "json", "ics"], "Task export (Todoist, TickTick, Google Tasks, Reminders)");
     if (!path) return;
     const name = (path.split(/[\\/]/).pop() ?? "").replace(/\.[^.]*$/, "");
     const r = parseExternalImport(await readTextFile(path), name);

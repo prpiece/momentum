@@ -1,6 +1,6 @@
-import { casual } from "chrono-node/en";
+import { type Chrono, GB, casual } from "chrono-node/en";
 import { add as addDur, addDays, addMinutes, endOfMonth, startOfDay } from "date-fns";
-import { addDaysLocal, formatMinutes, relativeDayLabel, toLocalDate } from "./dates";
+import { addDaysLocal, dateOrder, formatMinutes, relativeDayLabel, toLocalDate } from "./dates";
 import { bestName, nameKey } from "./fuzzy";
 import type { LocalDate, Priority, Recurrence, Reminder, Schedule, Task, Waiting } from "./types";
 
@@ -66,8 +66,7 @@ export const TOKEN_CHARS = String.raw`\p{L}\p{N}\p{M}_\-/`;
 const TOKEN_WORD = String.raw`([${TOKEN_CHARS}]+(?:\.[${TOKEN_CHARS}]+)*)(?![${TOKEN_CHARS}'’+])`;
 
 /** Chrono with a bare hour 1-7 read as the afternoon ("at 5", "9 to 5"), as people mean it (QA-02, QA-03). */
-const chrono = casual.clone();
-chrono.refiners.unshift({
+const afternoon = (chrono: Chrono) => void chrono.refiners.unshift({
   refine: (_ctx, results) => {
     for (const r of results) {
       if (/\b(?:in|within|ago|later|from|hours?|mins?|minutes?)\b/i.test(r.text)) continue; // relative, not a clock time
@@ -87,6 +86,10 @@ chrono.refiners.unshift({
     return results;
   },
 });
+const chronoMdy = casual.clone();
+const chronoDmy = GB.clone(); // "3/4" is 3 April (FEAT-12)
+afternoon(chronoMdy);
+afternoon(chronoDmy);
 const CHRONO_OPTS = { forwardDate: true };
 /** Words that are ordinary language as often as dates: only a date when introduced by one of these (QA-08). */
 const AMBIGUOUS_DAY = /^(?:sat|sun|mon|wed|mar|may|march|now)$/i;
@@ -98,6 +101,7 @@ const DATE_INTRO = /\b(?:on|next|this|last|by|every|until|till|from|before|after
  * `strict` drops lone ambiguous words and stems of possessives/compounds ("tomorrow's", "tomorrow-ish").
  */
 function parseDates(text: string, now: Date, strict = true) {
+  const chrono = dateOrder() === "dmy" ? chronoDmy : chronoMdy;
   const midnight = new Map(chrono.parse(text, startOfDay(now), CHRONO_OPTS).map((r) => [r.index, r]));
   return chrono
     .parse(text, now, CHRONO_OPTS)

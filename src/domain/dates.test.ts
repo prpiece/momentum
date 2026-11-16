@@ -7,6 +7,9 @@ import {
   taskMinutes,
   todayLocal,
   atLocalTime,
+  dateOrder,
+  setDateOrder,
+  systemDateOrder,
   daysBetween,
   durationMinutes,
   isInstant,
@@ -105,5 +108,31 @@ describe("end of day (D267)", () => {
     expect([formatMinutes(250), formatMinutes(45), formatMinutes(120)]).toEqual(["4h 10m", "45m", "2h"]);
     expect([formatMinutes(119.6), formatMinutes(59.6), formatMinutes(0)]).toEqual(["2h", "1h", "0m"]);
     expect(taskMinutes({ schedule: { kind: "none" }, durationMin: 20 })).toBe(20);
+  });
+});
+
+describe("date order (FEAT-12)", () => {
+  it("reads the order from a locale", () => {
+    expect(systemDateOrder("en-US")).toBe("mdy");
+    expect(systemDateOrder("en-GB")).toBe("dmy");
+    expect(systemDateOrder("de-DE")).toBe("dmy");
+    expect(systemDateOrder("sv-SE")).toBe("iso");
+  });
+
+  it("changes how a far date is labelled", () => {
+    try {
+      setDateOrder("mdy");
+      expect(relativeDayLabel("2026-12-03", "2026-10-25")).toBe("Dec 3");
+      setDateOrder("dmy");
+      expect(relativeDayLabel("2026-12-03", "2026-10-25")).toBe("3 Dec");
+      expect(relativeDayLabel("2027-12-03", "2026-10-25")).toBe("3 Dec 2027");
+      setDateOrder("iso");
+      expect(relativeDayLabel("2026-12-03", "2026-10-25")).toBe("12-03");
+      expect(relativeDayLabel("2027-12-03", "2026-10-25")).toBe("2027-12-03");
+      setDateOrder("system", "en-GB");
+      expect(dateOrder()).toBe("dmy");
+    } finally {
+      setDateOrder("mdy");
+    }
   });
 });

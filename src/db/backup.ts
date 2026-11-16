@@ -16,14 +16,66 @@ async function invoke<T>(cmd: string, args: Record<string, unknown>): Promise<T>
 
 const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
 
+async function backupJson(): Promise<string> {
+  const tables =Object.fromEntries(await Promise.all(BACKUP_TABLES.map(async (t) => [t, await select<Row>(`SELECT * FROM ${t}`)] as const)));
+  const file = { app: "Momentum", format: BACKUP_FORMAT, schemaVersion: LATEST_SCHEMA, exportedAt: new Date().toISOString(), tables } satisfies Omit<BackupFile, "tables"> & { tables: Record<string, Row[]> };
+  return JSON.stringify(file, null, 1);
+}
+
 /** Export every table as JSON, zipped with the note attachments, to a file the user picks. Returns the path, or null if cancelled. */
 export async function exportBackup(): Promise<string | null> {
-  const tables = Object.fromEntries(await Promise.all(BACKUP_TABLES.map(async (t) => [t, await select<Row>(`SELECT * FROM ${t}`)] as const)));
-  const file = { app: "Momentum", format: BACKUP_FORMAT, schemaVersion: LATEST_SCHEMA, exportedAt: new Date().toISOString(), tables } satisfies Omit<BackupFile, "tables"> & { tables: Record<string, Row[]> };
+  const json = await backupJson();
   const path = await invoke<string | null>("pick_path", { save: true, name: "Momentum backup", extensions: ["zip"], defaultName: `momentum-backup-${stamp().slice(0, 10)}.zip` });
   if (!path) return null;
-  await invoke("write_backup_zip", { path, json: JSON.stringify(file, null, 1) });
+  await invoke("write_backup_zip", { path, json });
   return path;
+}
+
+// ---- Automatic backups (FEAT-06): a daily zip in the app's backups folder, newest `keep` kept ----
+// ponytail: folder is fixed (file commands only trust dialog-picked paths for this session, so a saved custom
+// folder can't be re-authorized after a restart); no encryption or cloud copy yet.
+export type AutoBackup = { on: boolean; keep: number; last: string | null };
+const AUTO_KEY = "momentum.autoBackup";
+const AUTO_DEFAULT: AutoBackup = { on: false, keep: 7, last: null };
+
+export function autoBackupSettings(): AutoBackup {
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(AUTO_KEY) ?? "null");
+    if (typeof v !== "object" || v === null) return AUTO_DEFAULT;
+    const o = v as Partial<Record<keyof AutoBackup, unknown>>;
+    const keep = typeof o.keep === "number" && o.keep >= 1 && o.keep <= 60 ? Math.floor(o.keep) : AUTO_DEFAULT.keep;
+    return { on: o.on === true, keep, last: typeof o.last === "string" ? o.last : null };
+  } catch {
+    return AUTO_DEFAULT;
+  }
+}
+export function saveAutoBackupSettings(a: AutoBackup): void {
+  try {
+    localStorage.setItem(AUTO_KEY, JSON.stringify(a));
+  } catch {
+    /* private mode: the setting just doesn't stick */
+  }
+}
+
+/** Write one automatic backup now; returns its path. */
+export async function backupNow(): Promise<string> {
+  const a = autoBackupSettings();
+  const path = await invoke<string>("write_auto_backup", { name: stamp(), json: await backupJson(), keep: a.keep });
+  saveAutoBackupSettings({ ...a, last: new Date().toISOString() });
+  return path;
+}
+
+/** The day's backup is due when it is on and none was made in the last 20 hours. */
+export const autoBackupDue = (a: AutoBackup, now = Date.now()) => a.on && (!a.last || now - Date.parse(a.last) > 20 * 3_600_000);
+
+/** Call once after startup: backs up if due, then re-checks hourly. Failures are logged, never thrown. */
+export function startAutoBackup(): void {
+  if (!isTauri) return;
+  const tick = () => {
+    if (autoBackupDue(autoBackupSettings())) backupNow().catch((err) => console.warn("Automatic backup failed", err));
+  };
+  setTimeout(tick, 30_000);
+  setInterval(tick, 3_600_000);
 }
 
 const isZip = (path: string) => path.toLowerCase().endsWith(".zip");

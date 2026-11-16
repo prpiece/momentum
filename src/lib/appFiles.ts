@@ -78,3 +78,9 @@ export function fetchAttachment(name: string): Promise<boolean> {
   }
   return p;
 }
+
+/** `<uuid>.pdf` / `<uuid>.txt` for a file attachment (FEAT-25); null for any other type. Images use `newImageName`. */
+export function newFileAttachmentName(source: string): string | null {
+  const ext = source.split(".").pop()?.toLowerCase() ?? "";
+  return ext === "pdf" || ext === "txt" ? `${crypto.randomUUID()}.${ext}` : null;
+}

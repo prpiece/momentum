@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-write-auto-backup"
+description = "Enables the write_auto_backup command without any pre-configured scope."
+commands.allow = ["write_auto_backup"]
+
+[[permission]]
+identifier = "deny-write-auto-backup"
+description = "Denies the write_auto_backup command without any pre-configured scope."
+commands.deny = ["write_auto_backup"]

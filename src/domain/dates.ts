@@ -125,7 +125,33 @@ export function formatTime(d: Date, fmt: "12h" | "24h"): string {
   return format(d, d.getMinutes() === 0 ? "h a" : "h:mm a");
 }
 
-/** Short human label for a date relative to today: Today, Tomorrow, Mon, Oct 3, Oct 3 2027. */
+/** Date order (FEAT-12): how a numeric date reads and which way quick add takes "3/4". */
+export type DateOrder = "dmy" | "mdy" | "iso";
+
+/** The order a locale writes dates in; year-first locales (ja, sv, hu…) read as iso. */
+export function systemDateOrder(locale?: string): DateOrder {
+  try {
+    const parts = new Intl.DateTimeFormat(locale, { year: "numeric", month: "numeric", day: "numeric" }).formatToParts(new Date(2000, 10, 25));
+    const first = parts.find((p) => p.type === "year" || p.type === "month" || p.type === "day")?.type;
+    return first === "year" ? "iso" : first === "day" ? "dmy" : "mdy";
+  } catch {
+    return "mdy";
+  }
+}
+
+let order: DateOrder = "mdy";
+/** Set once from Settings → Date format (`system` resolves against the OS locale). ponytail: module state like `dayEndHour`; pass nothing, read `dateOrder()`. */
+export const setDateOrder = (f: "system" | DateOrder, locale?: string) => void (order = f === "system" ? systemDateOrder(locale) : f);
+export const dateOrder = (): DateOrder => order;
+
+/** "Oct 3" / "3 Oct" / "10-03" (with the year when `withYear`) in the chosen order. */
+function shortDate(d: Date, withYear: boolean): string {
+  if (order === "iso") return format(d, withYear ? "yyyy-MM-dd" : "MM-dd");
+  if (order === "dmy") return format(d, withYear ? "d MMM yyyy" : "d MMM");
+  return format(d, withYear ? "MMM d, yyyy" : "MMM d");
+}
+
+/** Short human label for a date relative to today: Today, Tomorrow, Mon, Oct 3, Oct 3 2027 (day first with DD/MM, numeric with ISO). */
 export function relativeDayLabel(date: LocalDate, today: LocalDate): string {
   const diff = daysBetween(today, date);
   if (diff === 0) return "Today";
@@ -133,7 +159,7 @@ export function relativeDayLabel(date: LocalDate, today: LocalDate): string {
   if (diff === -1) return "Yesterday";
   const d = fromLocalDate(date);
   if (diff > 1 && diff < 7) return format(d, "EEE");
-  return format(d, d.getFullYear() === fromLocalDate(today).getFullYear() ? "MMM d" : "MMM d, yyyy");
+  return shortDate(d, d.getFullYear() !== fromLocalDate(today).getFullYear());
 }
 
 /** Same schedule on another day: keeps a timed task's wall-clock time and duration. */

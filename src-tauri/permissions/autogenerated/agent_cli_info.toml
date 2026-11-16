@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-agent-cli-info"
+description = "Enables the agent_cli_info command without any pre-configured scope."
+commands.allow = ["agent_cli_info"]
+
+[[permission]]
+identifier = "deny-agent-cli-info"
+description = "Denies the agent_cli_info command without any pre-configured scope."
+commands.deny = ["agent_cli_info"]

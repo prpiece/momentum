@@ -32,7 +32,7 @@ describe("parseSettings", () => {
   it("round-trips every non-default setting through save and load", () => {
     const s: Settings = {
       theme: "dark", accent: "teal", density: "compact", motion: "on", scale: 1.25, layout: "bar", barPosition: "bottom", barStyle: "floating", background: { kind: "image", file: "a1-b2.webp", dim: 55, blur: false }, sidebarSide: "right", taskOpen: "center",
-      sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", smartParse: false, showCompleted: false,
+      sidebarCollapsed: true, defaultView: "inbox", weekStart: 0, timeFormat: "12h", dateFormat: "dmy", contrast: "high", smartParse: false, showCompleted: false,
       viewOptions: { inbox: { groupBy: "priority", sortBy: "date", mode: "timeline" } }, savedFilters: [{ id: "f", name: "Work", query: "#work" }],
       calendar: { view: "month", colorBy: "priority", showCompleted: false, showHabits: true, showFocus: true, density: "compact", arrangeOpen: false },
       matrix: { importantPriorities: [3], urgentDays: 5 }, matrixColors: ["teal", null, null, "ocean"], closeToTray: false, launchAtStartup: true, cliOnPath: true, checkUpdates: false,

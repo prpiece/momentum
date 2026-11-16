@@ -214,7 +214,7 @@ export function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => 
 
         <div className="flex flex-wrap items-center gap-2 text-sm">
           Group
-          <select value={groupId ?? ""} onChange={(e) => setGroupId(e.target.value || null)} className={field}>
+          <select aria-label="Group" value={groupId ?? ""} onChange={(e) => setGroupId(e.target.value || null)} className={field}>
             <option value="">None</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>

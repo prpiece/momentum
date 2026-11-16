@@ -1,0 +1,48 @@
+/* Print / Save as PDF of the current view (FEAT-23): the palette's "Print" runs window.print(). Chrome is hidden, scroll areas
+   are unrolled, and colours switch to dark-on-white whatever the theme. */
+@media print {
+  html:root[data-theme] {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #f4f4f5;
+    --raised: #fff;
+    --fg: #000;
+    --fg-2: #222;
+    --muted: #444;
+    --border: #bbb;
+    --border-strong: #888;
+  }
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  aside,
+  nav,
+  [role="dialog"],
+  [role="toolbar"],
+  [data-no-print],
+  button,
+  .toast {
+    display: none !important;
+  }
+  main,
+  main * {
+    overflow: visible !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  main {
+    position: static !important;
+    height: auto !important;
+    border: 0 !important;
+  }
+  main :is(li, tr, article, .card) {
+    break-inside: avoid;
+  }
+}

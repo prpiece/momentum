@@ -1,10 +1,12 @@
-import { CalendarPlus, Download, FileSpreadsheet, ListPlus, Upload } from "lucide-react";
+import { CalendarPlus, Download, FileJson, FileSpreadsheet, ListPlus, Upload } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "../../components/Logo";
 import { isTauri } from "../../db/client";
-import { exportBackup, importIcs, pickFile, readBackup, restoreBackup } from "../../db/backup";
+import { autoBackupSettings, backupNow, exportBackup, importIcs, pickFile, readBackup, restoreBackup, saveAutoBackupSettings } from "../../db/backup";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { tasksToCsv } from "../../domain/csv";
+import { tasksToJson } from "../../domain/export";
+import { toIcs } from "../../domain/ics";
 import { useData } from "../../stores/data";
 import { dataDirLabel } from "../../lib/platform";
 import { useAppVersion } from "../../lib/updater";
@@ -35,14 +37,39 @@ export function DataSection() {
     if (path) toast(`Backup saved to ${path}`);
   });
 
+  /** Ask for a file name, then write `contents()`; returns the path or null when cancelled. */
+  const saveText = async (ext: string, base: string, contents: () => string) => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const path = await invoke<string | null>("pick_path", { save: true, name: ext.toUpperCase(), extensions: [ext], defaultName: `${base}-${new Date().toISOString().slice(0, 10)}.${ext}` });
+    if (path) await invoke("write_text_file", { path, contents: contents() });
+    return path;
+  };
+
   const csvIt = run(async () => {
     const { lists, tags, tasks } = useData.getState();
-    const { invoke } = await import("@tauri-apps/api/core");
-    const path = await invoke<string | null>("pick_path", { save: true, name: "CSV", extensions: ["csv"], defaultName: `momentum-tasks-${new Date().toISOString().slice(0, 10)}.csv` });
-    if (!path) return;
     const all = Object.values(tasks);
-    await invoke("write_text_file", { path, contents: tasksToCsv(all, (id) => lists[id]?.name ?? "", (id) => tags[id]?.name ?? id) });
-    toast(`Exported ${all.filter((t) => !t.deletedAt).length} tasks to ${path}`);
+    const path = await saveText("csv", "momentum-tasks", () => tasksToCsv(all, (id) => lists[id]?.name ?? "", (id) => tags[id]?.name ?? id));
+    if (path) toast(`Exported ${all.filter((t) => !t.deletedAt).length} tasks to ${path}`);
+  });
+
+  const jsonIt = run(async () => {
+    const { lists, tags, tasks, events } = useData.getState();
+    const path = await saveText("json", "momentum-tasks", () => tasksToJson(Object.values(tasks), Object.values(lists), (id) => tags[id]?.name ?? id, Object.values(events)));
+    if (path) toast(`Exported tasks and lists to ${path}`);
+  });
+
+  const icsOut = run(async () => {
+    const { tasks, events } = useData.getState();
+    const path = await saveText("ics", "momentum-calendar", () => toIcs(Object.values(tasks), Object.values(events)));
+    if (path) toast(`Exported dated tasks and your events to ${path}`);
+  });
+
+  const [auto, setAuto] = useState(autoBackupSettings);
+  const changeAuto = (next: typeof auto) => (saveAutoBackupSettings(next), setAuto(next));
+  const backupIt = run(async () => {
+    const path = await backupNow();
+    setAuto(autoBackupSettings());
+    toast(`Backup saved to ${path}`);
   });
 
   const importIt = run(async () => {
@@ -74,6 +101,12 @@ export function DataSection() {
         <button type="button" disabled={!isTauri || busy} onClick={csvIt} className={btn}>
           <FileSpreadsheet size={15} /> Export tasks (.csv)
         </button>
+        <button type="button" disabled={!isTauri || busy} onClick={jsonIt} className={btn}>
+          <FileJson size={15} /> Export tasks (.json)
+        </button>
+        <button type="button" disabled={!isTauri || busy} onClick={icsOut} className={btn}>
+          <CalendarPlus size={15} /> Export calendar (.ics)
+        </button>
         <button type="button" disabled={!isTauri || busy} onClick={importIt} className={btn}>
           <Upload size={15} /> Restore from backup
         </button>
@@ -81,8 +114,22 @@ export function DataSection() {
           <CalendarPlus size={15} /> Import calendar (.ics)
         </button>
         <button type="button" disabled={!isTauri || busy} onClick={() => void startExternalImport()} className={btn}>
-          <ListPlus size={15} /> Import from Todoist or TickTick
+          <ListPlus size={15} /> Import from another app
         </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" disabled={!isTauri} checked={auto.on} onChange={(e) => changeAuto({ ...auto, on: e.target.checked })} />
+          Back up automatically every day
+        </label>
+        <label className="flex items-center gap-2 text-fg-2">
+          Keep
+          <input type="number" min={1} max={60} disabled={!isTauri} value={auto.keep} onChange={(e) => changeAuto({ ...auto, keep: Math.min(60, Math.max(1, Math.floor(Number(e.target.value)) || 1)) })} className="input w-16 tabular-nums" aria-label="Automatic backups to keep" />
+        </label>
+        <button type="button" disabled={!isTauri || busy} onClick={backupIt} className={btn}>
+          Back up now
+        </button>
+        <span className="text-xs text-muted tabular-nums">{auto.last ? `Last backup ${new Date(auto.last).toLocaleString()}` : "No automatic backup yet"}</span>
       </div>
       <p className="text-xs text-muted">
         Everything lives on this computer in <span className="tabular-nums">{dataDirLabel}</span>. The database is copied to its <span className="tabular-nums">backups</span> folder automatically before every upgrade.

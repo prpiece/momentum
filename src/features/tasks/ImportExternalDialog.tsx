@@ -3,11 +3,11 @@ import type { ImportPlan } from "../../domain/importPlan";
 import { applyImportPlan } from "../../stores/importPlan";
 import { setExternalImport, useUi } from "../../stores/ui";
 
-const SOURCE = { todoist: "Todoist", ticktick: "TickTick" } as const;
+const SOURCE = { todoist: "Todoist", ticktick: "TickTick", google: "Google Tasks", reminders: "Reminders" } as const;
 const SHOWN_SKIPS = 5;
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** Preview of a Todoist or TickTick export, then one undoable import. Mounted once in App. */
+/** Preview of an export from another task app, then one undoable import. Mounted once in App. */
 export function ImportExternalDialog() {
   const pending = useUi((s) => s.externalImport);
   if (!pending) return null;

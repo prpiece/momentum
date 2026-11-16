@@ -22,7 +22,8 @@ import { HELP_SECTION_ID } from "../help/featureIcons";
 import { BackgroundSection, pruneBackgrounds } from "./BackgroundSection";
 import { LayoutPicker } from "./LayoutPicker";
 import { ACCENTS, type AccentId } from "../../domain/color";
-import { PRIORITIES, PRIORITY_LABEL, SCALE_MAX, SCALE_MIN, SCALE_STEP, type Priority, type Settings, type ViewId } from "../../domain/types";
+import { SampleDataButton } from "../help/SampleDataButton";
+import { DATE_FORMATS, PRIORITIES, PRIORITY_LABEL, SCALE_MAX, SCALE_MIN, SCALE_STEP, type Priority, type Settings, type ViewId } from "../../domain/types";
 import { saveWorkspace } from "../../db/repo";
 import { hydrate, useData } from "../../stores/data";
 import { hydrateFocus, saveSessions } from "../../stores/focus";
@@ -125,10 +126,10 @@ const GROUPS = [["settings-account", "settings-connections"], ["settings-general
 
 /** Searchable settings: [page, label as shown on that page]. The label is found in the page text to scroll to it. */
 const INDEX: [string, string][] = [
-  ["settings-general", "Start view"], ["settings-general", "Week starts on"], ["settings-general", "Time format"], ["settings-general", "Smart parsing in quick add"],
+  ["settings-general", "Start view"], ["settings-general", "Week starts on"], ["settings-general", "Time format"], ["settings-general", "Date format"], ["settings-general", "Sample data"], ["settings-general", "Smart parsing in quick add"],
   ["settings-general", "Closing the window"], ["settings-general", "Launch at login"], ["settings-general", "Global quick add"], ["settings-general", "Mini window"], ["settings-general", "Tags"],
   ["settings-general", "New task list"], ["settings-general", "New task priority"], ["settings-general", "New timed task reminder"], ["settings-general", "Templates"],
-  ["settings-appearance", "Theme"], ["settings-appearance", "Accent"], ["settings-appearance", "Layout"], ["settings-appearance", "Task list background"], ["settings-appearance", "Sidebar position"], ["settings-appearance", "Animations"],
+  ["settings-appearance", "Theme"], ["settings-appearance", "High contrast"], ["settings-appearance", "Accent"], ["settings-appearance", "Layout"], ["settings-appearance", "Task list background"], ["settings-appearance", "Sidebar position"], ["settings-appearance", "Animations"],
   ["settings-appearance", "Density"], ["settings-appearance", "Scale"],
   ["settings-notifications", "Notifications"], ["settings-notifications", "Task reminders"], ["settings-notifications", "When things start"], ["settings-notifications", "Habit reminders"],
   ["settings-notifications", "Daily summary"], ["settings-notifications", "Streak at risk"], ["settings-notifications", "Start focus at time blocks"], ["settings-notifications", "Focus timer"], ["settings-notifications", "Style"], ["settings-notifications", "Popup position"], ["settings-notifications", "Chime"],
@@ -230,6 +231,7 @@ export function SettingsView() {
       <Card>
         <Row label="Open to">
           <select
+            aria-label="Open to"
             value={s.defaultView}
             onChange={(e) => {
               const v = DEFAULT_VIEWS.find((d) => d.id === e.target.value);
@@ -284,6 +286,23 @@ export function SettingsView() {
             ]}
           />
         </Row>
+        <Row label="Date format">
+          <select
+            aria-label="Date format"
+            title="Also how quick add reads 3/4"
+            value={s.dateFormat}
+            onChange={(e) => {
+              const v = DATE_FORMATS.find((f) => f === e.target.value);
+              if (v) update({ dateFormat: v });
+            }}
+            className="input w-auto"
+          >
+            <option value="system">Match system</option>
+            <option value="dmy">31/12/2026 (day first)</option>
+            <option value="mdy">12/31/2026 (month first)</option>
+            <option value="iso">2026-12-31 (year first)</option>
+          </select>
+        </Row>
         <Row label="Smart parsing in quick add">
           <Toggle checked={s.smartParse} onChange={(v) => update({ smartParse: v })} text="Detect dates, !priority, #tags, ~lists" />
         </Row>
@@ -327,6 +346,9 @@ export function SettingsView() {
             </ul>
           </Row>
         )}
+        <Row label="Sample data">
+          <SampleDataButton />
+        </Row>
         <Row label="Closing the window">
           <Toggle checked={s.closeToTray} onChange={(v) => update({ closeToTray: v })} text={`Keep running in the ${trayName}`} />
         </Row>
@@ -357,6 +379,19 @@ export function SettingsView() {
               { value: "light", label: "Light" },
               { value: "dark", label: "Dark" },
               { value: "system", label: "System" },
+            ]}
+          />
+        </Row>
+        <Row label="High contrast">
+          <Segmented
+            name="contrast"
+            label="High contrast"
+            value={s.contrast}
+            onChange={set("contrast")}
+            options={[
+              { value: "system", label: "System" },
+              { value: "normal", label: "Off" },
+              { value: "high", label: "On" },
             ]}
           />
         </Row>

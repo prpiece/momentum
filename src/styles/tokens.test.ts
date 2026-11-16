@@ -40,6 +40,25 @@ describe.each([
   });
 });
 
+// High contrast (FEAT-15): text is AAA (7:1), marks and borders at least 3:1, buttons AA, on every surface.
+describe.each([
+  ["light", { ...light, ...block(':root[data-contrast="high"][data-theme="light"]') }],
+  ["dark", { ...dark, ...block(':root[data-contrast="high"][data-theme="dark"]') }],
+])("high contrast %s tokens", (_name, t) => {
+  it.each(["fg", "fg-2", "muted", "danger", "success", "accent-text"])("%s text is AAA (7:1) on every surface", (fg) => {
+    for (const bg of SURFACES) expect(contrast(t[fg], t[bg]), `${fg} on ${bg}`).toBeGreaterThanOrEqual(7);
+  });
+
+  it.each(["prio-high", "prio-med", "prio-low", "q-do", "q-schedule", "q-delegate", "q-drop", "control-border", "streak", "border"])("%s is >= 3:1 on surfaces", (p) => {
+    for (const bg of SURFACES) expect(contrast(t[p], t[bg]), `${p} on ${bg}`).toBeGreaterThanOrEqual(3);
+  });
+
+  it("button text is AAA on accent and danger", () => {
+    expect(contrast(t["accent-fg"], t.accent)).toBeGreaterThanOrEqual(7);
+    expect(contrast(t["danger-fg"], t.danger)).toBeGreaterThanOrEqual(7);
+  });
+});
+
 describe.each(ACCENTS.slice(1))("accent preset $id", (a) => {
   const l = block(`[data-accent="${a.id}"]`);
   const d = block(`[data-theme="dark"][data-accent="${a.id}"]`);

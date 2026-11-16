@@ -66,6 +66,7 @@
     "allow-list-images",
     "allow-delete-image",
     "allow-write-backup-zip",
+    "allow-write-auto-backup",
     "allow-read-backup-zip",
     "allow-restore-backup-attachments",
     "allow-fetch-ics",

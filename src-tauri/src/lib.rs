@@ -391,6 +391,7 @@ pub fn run() {
             files::list_images,
             files::delete_image,
             files::write_backup_zip,
+            files::write_auto_backup,
             files::read_backup_zip,
             files::restore_backup_attachments,
             net::fetch_ics,
