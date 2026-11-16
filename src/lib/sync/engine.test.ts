@@ -159,3 +159,49 @@ describe("H14: expired JWT", () => {
     expect(isExpiredJwt(null)).toBe(false);
   });
 });
+
+describe("SYNC-01: a purge, told apart from a trash", () => {
+  it("sends a purge marker on delete, clears it on create, and other devices hard-delete on it", async () => {
+    const { db } = fresh();
+    db.prepare("UPDATE sync_state SET value = '1' WHERE key = 'record'").run();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES ('t1', 'X', 'inbox', 'open', 0, 0, ?, ?)").run(at, at);
+    db.prepare("DELETE FROM tasks WHERE id = 't1'").run();
+    db.prepare("INSERT INTO calendar_subscriptions (id, name, url, created_at) VALUES ('s1', 'S', 'https://x', ?)").run(at);
+    db.prepare("DELETE FROM calendar_subscriptions WHERE id = 's1'").run();
+    const sent = (db.prepare("SELECT tbl, fields FROM sync_outbox ORDER BY seq").all() as { tbl: string; fields: string }[]).map((r) => [r.tbl, JSON.parse(r.fields)]);
+    expect(sent[0][1]).toMatchObject({ id: "t1", _purged: null });
+    expect(sent[1][1]).toEqual({ deleted_at: expect.any(String), _purged: 1 });
+    expect(sent[3][1]).toEqual({ deleted_at: expect.any(String), _purged: 1 });
+
+    // Another device: the server merged the purge over the full record.
+    const other = fresh();
+    other.db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES ('t1', 'X', 'inbox', 'open', 0, 0, ?, ?)").run(at, at);
+    const merged = { id: "t1", title: "X", list_id: "inbox", status: "open", priority: 0, sort_order: 0, created_at: at, updated_at: at, deleted_at: at, _purged: 1 };
+    const ops = planApply([{ tbl: "tasks", id: "t1", version: 9, data: merged }], new Map(), cols(other.db));
+    expect(ops.map((o) => o.kind)).toEqual(["delete"]);
+    await applyAll(other.d, ops);
+    expect(other.db.prepare("SELECT count(*) AS n FROM tasks").get()).toEqual({ n: 0 });
+  });
+});
+
+describe("SYNC-08: set-like JSON columns", () => {
+  it("send what an update added and removed, so the server can merge two devices' edits", async () => {
+    const { db } = fresh();
+    db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at, exdates, tags) VALUES ('t1', 'X', 'inbox', 'open', 0, 0, ?, ?, '[\"2026-11-03\"]', '[\"a\",\"b\"]')").run(at, at);
+    db.prepare("INSERT INTO calendar_events (id, title, start_at, end_at, created_at, updated_at) VALUES ('e1', 'E', ?, ?, ?, ?)").run(at, at, at, at);
+    db.prepare("UPDATE sync_state SET value = '1' WHERE key = 'record'").run();
+    db.prepare("UPDATE tasks SET exdates = '[\"2026-11-03\",\"2026-11-05\"]', tags = '[\"b\"]' WHERE id = 't1'").run();
+    db.prepare("UPDATE tasks SET title = 'Y' WHERE id = 't1'").run();
+    db.prepare("UPDATE calendar_events SET exdates = '[\"2026-11-07\"]' WHERE id = 'e1'").run();
+    // A corrupt value must not make the edit fail.
+    db.prepare("UPDATE tasks SET tags = 'not json' WHERE id = 't1'").run();
+    const sent = (db.prepare("SELECT fields FROM sync_outbox ORDER BY seq").all() as { fields: string }[]).map((r) => JSON.parse(r.fields));
+    expect(sent[0]).toEqual({
+      exdates: '["2026-11-03","2026-11-05"]', _add_exdates: ["2026-11-05"], _del_exdates: [],
+      tags: '["b"]', _add_tags: [], _del_tags: ["a"],
+    });
+    expect(sent[1]).toEqual({ title: "Y" });
+    expect(sent[2]).toMatchObject({ _add_exdates: ["2026-11-07"], _del_exdates: [] });
+    expect(sent[3]).toMatchObject({ tags: "not json", _add_tags: [], _del_tags: ["b"] });
+  });
+});

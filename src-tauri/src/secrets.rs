@@ -1,7 +1,8 @@
-//! The account's refresh token in the OS keychain (v1.1 spec, "Token storage").
+//! The account's refresh token in the OS keychain (v1.1 spec, "Token storage"), and the sync device id,
+//! kept outside the database file so a copied database is detected (SYNC-06).
 //! Only named keys are allowed, so the webview can't use this as a general keychain reader.
 
-const KEYS: &[&str] = &["refresh_token"];
+const KEYS: &[&str] = &["refresh_token", "device_id"];
 
 /// The service is the app identifier, so a dev or sync-test run (other identifier) never touches the installed app's token.
 fn entry(app: &tauri::AppHandle, key: &str) -> Result<keyring::Entry, String> {

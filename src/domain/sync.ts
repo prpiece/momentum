@@ -88,9 +88,10 @@ export function planApply(remote: RemoteRow[], pending: Map<string, Set<string>>
     }
     const cols = new Set(columns[r.tbl]);
     // Tasks, events and subscriptions keep `deleted_at` locally (the Trash, D121): a trashed record is a
-    // soft delete to apply as is. A bare tombstone (only the key and `deleted_at`) is a hard delete.
+    // soft delete to apply as is. A purge (`_purged`, D333) or a bare tombstone (only the key and
+    // `deleted_at`, from older apps and the server's own tombstones) is a hard delete.
     const key: readonly string[] = SYNC_TABLES[r.tbl];
-    const bare = Object.keys(r.data).every((f) => f === "deleted_at" || key.includes(f));
+    const bare = r.data._purged === 1 || r.data._purged === true || Object.keys(r.data).every((f) => f === "deleted_at" || key.includes(f));
     if (r.data.deleted_at != null && (bare || !cols.has("deleted_at"))) {
       deletes.push({ kind: "delete", tbl: r.tbl, id: r.id, key: keyFromId(r.tbl, r.id) });
       continue;

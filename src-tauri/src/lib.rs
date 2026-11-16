@@ -85,6 +85,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0010_planning_subscriptions.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 11,
+            description: "sync: purge marker, set deltas for exdates and tags",
+            sql: include_str!("../migrations/0011_sync_purge_sets.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

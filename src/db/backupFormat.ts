@@ -15,7 +15,7 @@ import { parseSubscription, type CalendarSubscription } from "../domain/subscrip
 
 export const BACKUP_FORMAT = 1;
 /** The newest migration number; stamped on exports. migrations.test.ts fails when a new migration isn't reflected here. */
-export const LATEST_SCHEMA = 10;
+export const LATEST_SCHEMA = 11;
 
 /** Parents before children: the order rows must be inserted in. */
 export const BACKUP_TABLES = [

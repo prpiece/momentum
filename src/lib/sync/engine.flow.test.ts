@@ -216,3 +216,60 @@ describe("SYNC-09/15: Realtime wake-ups", () => {
     await stopSync();
   });
 });
+
+describe("SYNC-06: the device id kept outside the database file", () => {
+  it("takes a new id when the database's id isn't the one this machine keeps, and keeps a matching one", async () => {
+    signedIn();
+    let kept: string | null = "elsewhere"; // the file was copied from another machine
+    engine.setDeviceStore({ get: async () => kept, set: async (id) => void (kept = id) });
+    db.prepare("INSERT INTO lists (id, name, sort_order) VALUES ('l1', 'Copy', 1)").run();
+    const devices: unknown[] = [];
+    sb.rpc = async (name, args) => (name === "sync_push" ? (devices.push(args.p_device), { data: { last_seq: maxSeq(args), refused: [] }, error: null }) : { data: [], error: null });
+    await engine.syncNow();
+    expect(devices[0]).not.toBe("d1");
+    expect(st("device_id")).toBe(devices[0]);
+    expect(kept).toBe(devices[0]);
+
+    // Same machine, next launch: the ids match, so it stays.
+    engine.setDeviceStore({ get: async () => kept, set: async (id) => void (kept = id) });
+    db.prepare("INSERT INTO lists (id, name, sort_order) VALUES ('l2', 'More', 2)").run();
+    await engine.syncNow();
+    expect(devices[1]).toBe(devices[0]);
+    engine.setDeviceStore(null);
+  });
+});
+
+describe("SYNC-17: a row that failed to apply", () => {
+  it("is applied again on later pulls, once what it needs arrives, and reported once", async () => {
+    signedIn();
+    const server: { tbl: string; id: string; version: number; data: Record<string, unknown> }[] = [
+      { tbl: "habit_checkins", id: "h1|2026-11-01", version: 1, data: { habit_id: "h1", date: "2026-11-01", value: 2, deleted_at: null } },
+    ];
+    sb.rpc = async (name, args) =>
+      name === "sync_push"
+        ? { data: { last_seq: maxSeq(args), refused: [] }, error: null }
+        : { data: server.filter((r) => r.version > Number(args.p_cursor)), error: null };
+    await engine.syncNow();
+    expect(count("SELECT count(*) AS n FROM habit_checkins")).toBe(0);
+    await engine.syncNow(); // still missing: kept, not reported again
+    expect(engine.useSync.getState().issues.filter((i) => i.id === "h1|2026-11-01")).toHaveLength(1);
+    server.push({ tbl: "habits", id: "h1", version: 2, data: { id: "h1", name: "Run", start_date: "2026-11-01", created_at: at, deleted_at: null } });
+    await engine.syncNow();
+    expect(db.prepare("SELECT value FROM habit_checkins").all()).toEqual([{ value: 2 }]);
+    expect(JSON.parse(st("retry") ?? "[]")).toEqual([]);
+  });
+});
+
+describe("SYNC-18: sync health", () => {
+  it("counts the changes still waiting and remembers the last push", async () => {
+    signedIn();
+    db.prepare("INSERT INTO lists (id, name, sort_order) VALUES ('l1', 'A', 1)").run();
+    sb.rpc = async (name) => (name === "sync_push" ? { data: null, error: new Error("down") } : { data: [], error: null });
+    await engine.syncNow();
+    expect(engine.useSync.getState().health).toMatchObject({ pending: 1, oldest: expect.any(String) });
+    sb.rpc = async (name, args) => (name === "sync_push" ? { data: { last_seq: maxSeq(args), refused: [] }, error: null } : { data: [], error: null });
+    await engine.syncNow();
+    expect(engine.useSync.getState().health).toMatchObject({ pending: 0, oldest: null, pushedAt: expect.any(String) });
+    expect(st("pushed_at")).toBe(engine.useSync.getState().health.pushedAt);
+  });
+});

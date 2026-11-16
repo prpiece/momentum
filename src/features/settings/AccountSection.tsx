@@ -94,6 +94,7 @@ function SignIn() {
 function SignedIn({ account }: { account: string }) {
   const status = useSync((s) => s.status);
   const issues = useSync((s) => s.issues);
+  const health = useSync((s) => s.health);
   const [email, setEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -193,6 +194,13 @@ function SignedIn({ account }: { account: string }) {
           Sync now
         </button>
       </div>
+      {(health.pending > 0 || health.pushedAt) && (
+        <p className="text-[length:var(--fs-sm)] text-fg-2 tabular-nums">
+          {health.pending > 0 &&
+            `${health.pending} ${health.pending === 1 ? "change" : "changes"} waiting to sync${health.oldest ? `, the oldest from ${new Date(health.oldest).toLocaleString()}` : ""}. `}
+          {health.pushedAt && `Last sent ${new Date(health.pushedAt).toLocaleString()}.`}
+        </p>
+      )}
 
       {devices.length > 0 && (
         <div>

@@ -77,6 +77,11 @@ if (popup === "mini") {
   if (isTauri)
     void import("./lib/sync/engine").then((s) => {
       s.setSnapshot((reason) => import("./db/backup").then((b) => b.snapshotDatabase(reason)));
+      // The device id also lives in the keychain, so a copied database is caught (SYNC-06, D335).
+      s.setDeviceStore({
+        get: () => import("@tauri-apps/api/core").then((c) => c.invoke<string | null>("secret_get", { key: "device_id" })),
+        set: (id) => import("@tauri-apps/api/core").then((c) => c.invoke("secret_set", { key: "device_id", value: id })),
+      });
       const ua = navigator.userAgent;
       s.setSyncHost({
         platform: /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : null,

@@ -17,7 +17,7 @@ import { toast } from "../../stores/toast";
 import { restoreSession, supabase, syncConfigured } from "./supabase";
 
 /** The local schema this client speaks (latest migration); the server refuses older clients (spec, "Version skew"). */
-export const CLIENT_SCHEMA = 10;
+export const CLIENT_SCHEMA = 11;
 const PAGE = 1000;
 
 export type SyncStatus =
@@ -29,7 +29,24 @@ export type SyncStatus =
   | { kind: "updateRequired" };
 export type SyncIssue = { at: string; tbl: string; id: string; reason: string };
 
-export const useSync = create<{ status: SyncStatus; account: string | null; issues: SyncIssue[] }>(() => ({ status: { kind: "off" }, account: null, issues: [] }));
+/** Changes waiting in the outbox (and since when), and when a push last reached the server (SYNC-18). */
+export type SyncHealth = { pending: number; oldest: string | null; pushedAt: string | null };
+
+export const useSync = create<{ status: SyncStatus; account: string | null; issues: SyncIssue[]; health: SyncHealth }>(() => ({
+  status: { kind: "off" },
+  account: null,
+  issues: [],
+  health: { pending: 0, oldest: null, pushedAt: null },
+}));
+
+async function refreshHealth() {
+  try {
+    const [o] = await select<{ n: number; oldest: string | null }>("SELECT count(*) AS n, min(created_at) AS oldest FROM sync_outbox");
+    useSync.setState({ health: { pending: o?.n ?? 0, oldest: o?.oldest ?? null, pushedAt: await state("pushed_at") } });
+  } catch (err) {
+    console.error("Couldn't read the sync queue", err);
+  }
+}
 
 // ---------- local sync state ----------
 
@@ -47,12 +64,33 @@ const setState = (d: Driver, key: string, value: string) =>
 export const setLocalState = (key: string, value: string) =>
   write(["INSERT INTO sync_state (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [key, value]]);
 
-/** This device's id in the account's device list. */
+/**
+ * Where this machine keeps its device id outside the database file (desktop: the OS keychain), so a database
+ * copied to another machine is always caught: its id isn't the one kept here (SYNC-06, D335). Each app plugs in its own.
+ */
+export type DeviceStore = { get(): Promise<string | null>; set(id: string): Promise<unknown> };
+let deviceStore: DeviceStore | null = null;
+/** The id already checked against the store this launch. */
+let verified: string | null = null;
+export const setDeviceStore = (s: DeviceStore | null) => {
+  deviceStore = s;
+  verified = null;
+};
+
+/** This device's id in the account's device list: the database's, while it matches the one this machine keeps. */
 export async function deviceId(): Promise<string> {
   const have = await state("device_id");
-  if (have) return have;
+  if (have && (have === verified || !deviceStore)) return have;
+  // An unreadable store trusts the file (the seq check in push still catches a restore).
+  if (have && (await deviceStore!.get().catch(() => have)) === have) return (verified = have);
+  return newDeviceId();
+}
+
+async function newDeviceId(): Promise<string> {
   const id = crypto.randomUUID();
   await transact((d) => setState(d, "device_id", id));
+  await deviceStore?.set(id).catch((e) => console.error("Couldn't keep the device id", e));
+  verified = id;
   return id;
 }
 
@@ -92,7 +130,7 @@ async function push(device: string): Promise<"ok" | "updateRequired"> {
     if (!rows.length) return "ok";
     // The highest seq this database ever made. The server can only be ahead of it when this file is a copy or a
     // restored backup that shares its device id with the original (SYNC-06).
-    // ponytail: misses a copy that has since made more seqs than the original; an id kept outside the DB file covers that.
+    // A copy that has since made more seqs than the original is caught by the id kept outside the file (deviceId).
     const [made] = await select<{ seq: number }>("SELECT seq FROM sqlite_sequence WHERE name = 'sync_outbox'");
     for (const batch of pushBatches(rows)) {
       const patches = batch.map((r) => ({ seq: r.seq, tbl: r.tbl, id: r.row_id, fields: JSON.parse(r.fields) as unknown }));
@@ -103,13 +141,15 @@ async function push(device: string): Promise<"ok" | "updateRequired"> {
       if ("error" in res) return "updateRequired";
       if (res.last_seq > (made?.seq ?? 0)) {
         // The server skipped these patches as seen before: push them again as a new device (field merges replay safely).
-        device = crypto.randomUUID();
-        await transact((d) => setState(d, "device_id", device));
+        device = await newDeviceId();
         named = false;
         continue pages;
       }
-      await transact((d) => d.execute("DELETE FROM sync_outbox WHERE seq <= $1", [res.last_seq]));
       const at = new Date().toISOString();
+      await transact(async (d) => {
+        await d.execute("DELETE FROM sync_outbox WHERE seq <= $1", [res.last_seq]);
+        await setState(d, "pushed_at", at);
+      });
       await addIssues(res.refused.map((x) => ({ at, tbl: String(x.tbl), id: String(x.id), reason: x.reason })));
     }
     if (rows.length < 5000) return "ok";
@@ -259,7 +299,9 @@ export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings"
         const had: unknown = JSON.parse(t.tags);
         const tags = JSON.stringify([...new Set((Array.isArray(had) ? had : []).map((x) => (x === loser ? winner : x)))]);
         await d.execute("UPDATE tasks SET tags = $1 WHERE id = $2", [tags, t.id]);
-        await d.execute("INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('tasks', $1, json_object('tags', $2), $3)", [t.id, tags, now]);
+        // With the set delta, so the server merges it into tag edits made elsewhere (SYNC-08).
+        const delta = JSON.stringify({ tags, _add_tags: [winner], _del_tags: [loser] });
+        await d.execute("INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('tasks', $1, $2, $3)", [t.id, delta, now]);
       }
       if (loser === mine.id) {
         await d.execute("DELETE FROM tags WHERE id = $1", [mine.id]);
@@ -288,7 +330,16 @@ async function pull(): Promise<RemoteRow[]> {
     if (last) cursor = last.version;
     if ((data as unknown[]).length < PAGE) break;
   }
-  if (!remote.length) return [];
+  // Rows that failed to apply before go in again, oldest version first, so anything newer still wins (SYNC-17).
+  let retry: RemoteRow[] = [];
+  try {
+    retry = parseRemote(JSON.parse((await state("retry")) ?? "[]")) ?? [];
+  } catch {
+    /* a bad list only loses the retries */
+  }
+  if (!remote.length && !retry.length) return [];
+  const retried = new Set(retry.map((r) => `${r.tbl}|${r.id}`));
+  const incoming = [...retry, ...remote];
 
   const at = new Date().toISOString();
   // A settings change still waiting on its debounce goes into the outbox first, so it wins like any pending edit.
@@ -297,7 +348,7 @@ async function pull(): Promise<RemoteRow[]> {
     // Signed out while this pull was on the wire: the old account's rows must not land (SYNC-04).
     if (session !== started) return null;
     const outbox = await d.select<OutboxRow[]>("SELECT seq, tbl, row_id, fields FROM sync_outbox");
-    const ops = planApply(remote, pendingFields(outbox), await columnsOf(d));
+    const ops = planApply(incoming, pendingFields(outbox), await columnsOf(d));
     const issues: SyncIssue[] = [];
     let settings: Record<string, unknown> | null = null;
     // The triggers must not send other devices' changes back to the server.
@@ -314,6 +365,11 @@ async function pull(): Promise<RemoteRow[]> {
     } finally {
       await setState(d, "record", "1");
     }
+    // Keep what failed, with its data, to apply again on the next pull; report each row once.
+    // ponytail: capped at 500 rows, and a row that never applies is retried for good; add an age limit if that bites.
+    const failed = new Set(issues.map((i) => `${i.tbl}|${i.id}`));
+    const keep = incoming.filter((r) => failed.has(`${r.tbl}|${r.id}`)).slice(-500);
+    await setState(d, "retry", JSON.stringify(keep));
     // ponytail: a whole re-pull when an awaited list or parent arrives; rare. Re-request by id if it gets costly.
     if (await settleAwaiting(d)) {
       cursor = 0;
@@ -321,7 +377,7 @@ async function pull(): Promise<RemoteRow[]> {
     }
     await setState(d, "cursor", String(cursor));
     await setState(d, "cursor_schema", String(CLIENT_SCHEMA));
-    return { settings, issues };
+    return { settings, issues: issues.filter((i) => !retried.has(`${i.tbl}|${i.id}`)) };
   });
   if (!applied) return [];
   const { settings, issues } = applied;
@@ -352,6 +408,7 @@ export function syncNow(): Promise<void> {
     do {
       again = false;
       await runOnce();
+      await refreshHealth();
     } while (again);
   })().finally(() => (running = null));
   return running;
@@ -511,7 +568,7 @@ export async function queueLocalRows(d: Driver, skip: readonly RemoteRow[], at: 
   const cols = await columnsOf(d);
   for (const t of Object.keys(SYNC_TABLES) as SyncTable[]) {
     const pairs = cols[t].flatMap((c) => [`'${t === "habit_checkins" && c === "value" ? "_delta" : c}'`, c]);
-    if (!cols[t].includes("deleted_at")) pairs.push("'deleted_at'", "NULL");
+    pairs.push(...(cols[t].includes("deleted_at") ? ["'_purged'", "NULL"] : ["'deleted_at'", "NULL"])); // as the insert triggers
     const rowId = t === "habit_checkins" ? "habit_id || '|' || date" : SYNC_TABLES[t][0];
     const have = JSON.stringify(skip.filter((r) => r.tbl === t).map((r) => r.id));
     const res = await d.execute(
@@ -534,7 +591,7 @@ export async function enableSync(account: string, mode: "fresh" | "resume"): Pro
     await snapshotDatabase("before-sign-in");
     await transact(async (d) => {
       await d.execute("DELETE FROM sync_outbox");
-      await d.execute("DELETE FROM sync_state WHERE key IN ('cursor', 'former_account')");
+      await d.execute("DELETE FROM sync_state WHERE key IN ('cursor', 'former_account', 'retry')");
     });
     // Pull first: the server's rows land here, and only what it lacks gets queued.
     const theirs = await pull();
@@ -589,7 +646,7 @@ export async function wipeLocal() {
   await transact(async (d) => {
     await setState(d, "record", "0");
     await d.execute("DELETE FROM sync_outbox");
-    await d.execute("DELETE FROM sync_state WHERE key IN ('account', 'cursor', 'former_account')");
+    await d.execute("DELETE FROM sync_state WHERE key IN ('account', 'cursor', 'former_account', 'retry')");
     for (const t of (Object.keys(SYNC_TABLES) as SyncTable[]).reverse()) await d.execute(`DELETE FROM ${t}`);
     await d.execute("INSERT INTO lists (id, name, sort_order) VALUES ('inbox', 'Inbox', -1)");
   });

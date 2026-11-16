@@ -28,6 +28,10 @@ const ON = "(SELECT value FROM sync_state WHERE key = 'record') = '1'";
 const key = (t, row) => SYNCED[t].replace(/\b(id|habit_id|date|key)\b/g, `${row}.$1`);
 /** Check-in values travel as increments so two devices' check-ins add up (D225). */
 const field = (t, c) => (t === "habit_checkins" && c === "value" ? "_delta" : c);
+/** JSON-array columns that merge as sets: updates also send `_add_<c>`/`_del_<c>`, which the server merges (SYNC-08). */
+export const SETS = ["exdates", "tags"];
+const arr = (v) => `(CASE WHEN json_valid(${v}) THEN ${v} ELSE '[]' END)`;
+const diff = (a, b) => `(SELECT json_group_array(value) FROM json_each(${arr(a)}) WHERE value NOT IN (SELECT value FROM json_each(${arr(b)})))`;
 
 export function columns(db, t) {
   return db.prepare(`PRAGMA table_info(${t})`).all().map((r) => r.name);
@@ -38,22 +42,36 @@ export function triggers(db) {
   for (const t of Object.keys(SYNCED)) {
     const cols = columns(db, t);
     const all = cols.flatMap((c) => [`'${field(t, c)}'`, `NEW.${c}`]);
-    if (!cols.includes("deleted_at")) all.push("'deleted_at'", "NULL");
+    // Tables with a local Trash: a hard delete says so (`_purged`), and a create clears it (SYNC-01).
+    const trash = cols.includes("deleted_at");
+    all.push(...(trash ? ["'_purged'", "NULL"] : ["'deleted_at'", "NULL"]));
+    const sets = SETS.filter((c) => cols.includes(c));
     const changed = cols
-      .map((c) =>
+      .flatMap((c) =>
         t === "habit_checkins" && c === "value"
-          ? `SELECT '_delta' AS k, NEW.value - OLD.value AS v WHERE OLD.value IS NOT NEW.value`
-          : `SELECT '${c}' AS k, NEW.${c} AS v WHERE OLD.${c} IS NOT NEW.${c}`,
+          ? [`SELECT '_delta' AS k, NEW.value - OLD.value AS v WHERE OLD.value IS NOT NEW.value`]
+          : [
+              `SELECT '${c}' AS k, NEW.${c} AS v WHERE OLD.${c} IS NOT NEW.${c}`,
+              ...(sets.includes(c)
+                ? [
+                    `SELECT '_add_${c}' AS k, ${diff(`NEW.${c}`, `OLD.${c}`)} AS v WHERE OLD.${c} IS NOT NEW.${c}`,
+                    `SELECT '_del_${c}' AS k, ${diff(`OLD.${c}`, `NEW.${c}`)} AS v WHERE OLD.${c} IS NOT NEW.${c}`,
+                  ]
+                : []),
+            ],
       )
       .join("\n      UNION ALL ");
+    // The set deltas go out as JSON arrays, not strings.
+    const v = sets.length ? "CASE WHEN substr(k, 1, 5) IN ('_add_', '_del_') THEN json(v) ELSE v END" : "v";
+    const tomb = trash ? `json_object('deleted_at', ${NOW}, '_purged', 1)` : `json_object('deleted_at', ${NOW})`;
     out.push(
       `CREATE TRIGGER sync_ins_${t} AFTER INSERT ON ${t} WHEN ${ON} BEGIN\n` +
         `  INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('${t}', ${key(t, "NEW")}, json_object(${all.join(", ")}), ${NOW});\nEND;`,
       `CREATE TRIGGER sync_upd_${t} AFTER UPDATE ON ${t} WHEN ${ON} BEGIN\n` +
         `  INSERT INTO sync_outbox (tbl, row_id, fields, created_at)\n` +
-        `  SELECT '${t}', ${key(t, "NEW")}, f, ${NOW} FROM (SELECT json_group_object(k, v) AS f FROM (\n      ${changed})) WHERE f <> '{}';\nEND;`,
+        `  SELECT '${t}', ${key(t, "NEW")}, f, ${NOW} FROM (SELECT json_group_object(k, ${v}) AS f FROM (\n      ${changed})) WHERE f <> '{}';\nEND;`,
       `CREATE TRIGGER sync_del_${t} AFTER DELETE ON ${t} WHEN ${ON} BEGIN\n` +
-        `  INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('${t}', ${key(t, "OLD")}, json_object('deleted_at', ${NOW}), ${NOW});\nEND;`,
+        `  INSERT INTO sync_outbox (tbl, row_id, fields, created_at) VALUES ('${t}', ${key(t, "OLD")}, ${tomb}, ${NOW});\nEND;`,
     );
   }
   return out.join("\n\n");
