@@ -7,7 +7,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { PageHead } from "../../components/ui/PageHead";
 import { ToolbarActions } from "../../components/ui/Toolbar";
 import { addDaysLocal, fromLocalDate, todayLocal } from "../../domain/dates";
-import { currentStreak, frequencyLabel, isBuild, isDoneOn, isDueToday, isScheduled, type Habit } from "../../domain/habits";
+import { currentStreak, frequencyLabel, isBuild, isDoneOn, isDueToday, isPausedOn, isScheduled, type Habit } from "../../domain/habits";
 import { DropLine, dropSide, onDrop, SORT_TRANSITION } from "../../lib/dnd";
 import { removeGroup, reorderHabit, updateHabit, useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
@@ -222,7 +222,7 @@ function HabitRow(props: { habit: Habit; date: string; week: string[]; selected:
       </div>
       <NoteButton habit={h} date={props.date} />
       <div onPointerDown={(e) => e.stopPropagation()}>
-        {scheduled ? <CheckinButton habit={h} date={props.date} /> : <span className="grid size-10 place-items-center text-[length:var(--fs-xs)] text-muted">Rest</span>}
+        {scheduled ? <CheckinButton habit={h} date={props.date} /> : <span className="grid size-10 place-items-center text-[length:var(--fs-xs)] text-muted">{isPausedOn(h, props.date) ? "Paused" : "Rest"}</span>}
       </div>
       <button type="button" aria-label={`${h.name} options`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.stopPropagation(), openMenuAt(e.currentTarget, habitMenu(h, props.date, props.onEdit)))} className="btn btn-ghost btn-sm icon-btn text-muted opacity-40 focus:opacity-100 group-hover:opacity-100">
         <MoreHorizontal size={16} strokeWidth={1.75} />

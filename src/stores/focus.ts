@@ -5,6 +5,7 @@ import { parseSession, sessionRow } from "../db/miscRows";
 import * as timer from "../domain/focus";
 import type { FocusMode, FocusSession, TimerState } from "../domain/focus";
 import type { TaskVM } from "../domain/taskViews";
+import { formatMinutes } from "../domain/dates";
 import { uid } from "./data";
 import { trackDone, useSettings } from "./settings";
 import { toast } from "./toast";
@@ -24,6 +25,13 @@ const TIMER_KEY = "focus_timer";
 const BEAT_MS = 30_000;
 const AWAY_MS = 2 * 60_000;
 let lastTick = 0;
+
+/** Adds `gapMs` back to the paused timer that started at `sessionStart` and resumes it; a no-op if that timer is gone. */
+export function keepAwayTime(sessionStart: number, gapMs: number) {
+  const t = get().timer;
+  if (!isActive(t) || t.sessionStart !== sessionStart) return;
+  set({ timer: timer.resume({ ...t, accumulatedMs: t.accumulatedMs + gapMs }, Date.now()) });
+}
 let lastBeat = 0;
 const isActive = (t: TimerState): t is timer.Active => t.status === "running" || t.status === "paused";
 
@@ -116,7 +124,9 @@ export function tickFocus() {
   // No tick for minutes = the machine slept or the window was frozen: stop counting at the last tick (HAB-05).
   if (t.status === "running" && prev && now - prev > AWAY_MS) {
     set({ timer: timer.pause(t, prev) });
-    toast("Focus paused while you were away", { label: "Resume", run: resumeFocus });
+    // The away time is dropped unless "Keep" is pressed in time (HAB-21); the timer stays paused either way.
+    const gap = now - prev;
+    toast(`Away for ${formatMinutes(Math.round(gap / 60_000))}. Keep that time?`, { label: "Keep", run: () => keepAwayTime(t.sessionStart, gap) }, 20_000);
     return;
   }
   if (isActive(t) && Date.now() - lastBeat >= BEAT_MS) persistTimer(t);
@@ -159,4 +169,11 @@ export function deleteSession(id: string) {
     return { sessions };
   });
   void write(["DELETE FROM focus_sessions WHERE id = $1", [id]]);
+}
+
+/** Adds a session after the fact (HAB-25). False when the start, length or end isn't valid. */
+export function addManualSession(taskId: string | null, startMs: number, minutes: number): boolean {
+  const s = timer.manualSession(taskId, startMs, minutes, Date.now(), uid());
+  record(s);
+  return !!s;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { atLocalTime, setDayEndHour } from "./dates";
-import { focusPerDay, sessionDay, completedPerDay, completedPerWeek, dayStreaks, heatLevel, niceScale } from "./stats";
+import { focusPerDay, secondsOn, sessionDay, sessionParts, completedPerDay, completedPerWeek, dayStreaks, heatLevel, niceScale } from "./stats";
 import type { Task } from "./types";
 
 const TODAY = "2026-10-25";
@@ -107,5 +107,29 @@ describe("focus sessions by day", () => {
     const [b] = focusPerDay([{ startAt, seconds: 90 }, { startAt, seconds: 90 }], "2026-10-25", 1);
     expect(b.value).toBe(3);
     expect(focusPerDay([{ startAt, seconds: 90 }], "2026-10-25", 1)[0].value).toBe(1.5);
+  });
+});
+
+describe("HAB-25: sessions crossing midnight", () => {
+  const at = (d: string, t: string) => atLocalTime(d, t).toISOString();
+  it("splits in proportion to the time on each side", () => {
+    const s = { startAt: at("2026-10-24", "23:00"), endAt: at("2026-10-25", "01:00"), seconds: 7200 };
+    expect(sessionParts(s).map((p) => [p.day, p.seconds])).toEqual([["2026-10-24", 3600], ["2026-10-25", 3600]]);
+    expect(focusPerDay([s], "2026-10-25", 2).map((b) => b.value)).toEqual([60, 60]);
+    expect(secondsOn([s], "2026-10-25")).toBe(3600);
+  });
+  it("leaves a same-day session whole and spreads over three days", () => {
+    expect(sessionParts({ startAt: at("2026-10-25", "10:00"), endAt: at("2026-10-25", "11:00"), seconds: 3000 })).toEqual([{ day: "2026-10-25", seconds: 3000 }]);
+    const long = { startAt: at("2026-10-23", "12:00"), endAt: at("2026-10-26", "12:00"), seconds: 72 * 3600 };
+    expect(sessionParts(long).map((p) => p.seconds / 3600)).toEqual([12, 24, 24, 12]);
+  });
+  it("follows the End-of-day hour", () => {
+    setDayEndHour(3);
+    try {
+      const s = { startAt: at("2026-10-26", "02:00"), endAt: at("2026-10-26", "04:00"), seconds: 7200 };
+      expect(sessionParts(s).map((p) => [p.day, p.seconds])).toEqual([["2026-10-25", 3600], ["2026-10-26", 3600]]);
+    } finally {
+      setDayEndHour(0);
+    }
   });
 });

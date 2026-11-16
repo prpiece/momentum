@@ -20,6 +20,14 @@ describe("habit rows", () => {
 
   it("round-trips", () => expect(parseHabit(habitToRow(h))).toEqual(h));
 
+  it("HAB-23: pauses round-trip inside the frequency JSON; bad ones are dropped", () => {
+    const paused: Habit = { ...h, pauses: [{ from: "2026-10-01", to: "2026-10-03" }, { from: "2026-10-20", to: null }] };
+    expect(parseHabit(habitToRow(paused))).toEqual(paused);
+    expect(JSON.parse(String(habitToRow(h).frequency))).toEqual({ kind: "weekdays", days: [1, 3, 5] });
+    const bad = { ...habitToRow(h), frequency: JSON.stringify({ kind: "daily", pauses: [{ from: "x" }, { from: "2026-10-05", to: "2026-10-01" }, { from: "2026-10-02", to: 5 }, 7] }) };
+    expect(parseHabit(bad)?.pauses).toBeUndefined();
+  });
+
   it("maps the stored var(--h-*) colours to their hex (H16)", () => {
     expect(parseHabit({ ...habitToRow(h), color: "var(--h-violet)" })?.color).toBe("#7a45c8");
     expect(parseHabit({ ...habitToRow(h), color: "var(--h-nope)" })?.color).toBe("#5b5bd6");

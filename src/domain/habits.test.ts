@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal } from "./dates";
-import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDoneOn, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal, periodValue } from "./habits";
+import { daysSinceSlip, isPausedOn, resumedOn, withPause, bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDoneOn, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal, periodValue } from "./habits";
 
 // 2026-10-25 is a Sunday. Weeks start Monday (weekStart = 1).
 const TODAY = "2026-10-25";
@@ -187,5 +187,50 @@ describe("v1.2.4 fixes", () => {
     const pw = habit({ kind: "perWeek", count: 2 });
     expect(isDoneOn(pw, new Map([["2026-10-20", 1], ["2026-10-21", 1]]), TODAY, WS)).toBe(true);
     expect(isDoneOn(pw, new Map([["2026-10-20", 1]]), TODAY, WS)).toBe(false);
+  });
+});
+
+describe("HAB-23: paused habits", () => {
+  const paused = (from: string, to: string | null, f: HabitFrequency = { kind: "daily" }): Habit => ({ ...habit(f), pauses: [{ from, to }] });
+  it("a paused day isn't scheduled or due, and doesn't break the streak", () => {
+    const h = paused(addDaysLocal(TODAY, -3), addDaysLocal(TODAY, -2)); // two missed days
+    expect(isPausedOn(h, addDaysLocal(TODAY, -2))).toBe(true);
+    expect(isScheduled(h, addDaysLocal(TODAY, -3))).toBe(false);
+    expect(currentStreak(h, done(0, 1, 4, 5), TODAY, WS).count).toBe(4);
+    expect(currentStreak({ ...h, pauses: [] }, done(0, 1, 4, 5), TODAY, WS).count).toBe(2);
+    expect(bestStreak(h, done(0, 1, 4, 5), TODAY, WS).count).toBe(4);
+  });
+  it("an open pause isn't due today and skips quit days from completion", () => {
+    const h = paused(addDaysLocal(TODAY, -1), null);
+    expect(isDueToday(h, new Map(), TODAY, WS)).toBe(false);
+    expect(completionRate(h, done(3), addDaysLocal(TODAY, -3), TODAY, TODAY, WS)).toBe(0.5); // days -3 done, -2 missed; -1 and today paused
+  });
+  it("a per-week target shrinks to the unpaused days, and a fully paused week is met", () => {
+    const week = habit({ kind: "perWeek", count: 5 }); // week of Mon 2026-10-19
+    const h = { ...week, pauses: [{ from: "2026-10-22", to: "2026-10-25" }] }; // Mon-Wed left
+    expect(isDoneOn(h, new Map([["2026-10-19", 1], ["2026-10-20", 1], ["2026-10-21", 1]]), "2026-10-25", WS)).toBe(true);
+    expect(isDoneOn(h, new Map([["2026-10-19", 1]]), "2026-10-25", WS)).toBe(false);
+    expect(isDoneOn({ ...week, pauses: [{ from: "2026-10-19", to: "2026-10-25" }] }, new Map(), "2026-10-25", WS)).toBe(true);
+  });
+  it("resume closes the pause the day before; a pause not yet started is dropped", () => {
+    expect(resumedOn([{ from: "2026-10-20", to: null }], "2026-10-25")).toEqual([{ from: "2026-10-20", to: "2026-10-24" }]);
+    expect(resumedOn([{ from: "2026-10-25", to: "2026-10-27" }, { from: "2026-10-01", to: "2026-10-03" }], "2026-10-25")).toEqual([{ from: "2026-10-01", to: "2026-10-03" }]);
+    expect(withPause(undefined, "2026-10-25", "2026-10-25")).toEqual([{ from: "2026-10-25", to: "2026-10-25" }]);
+  });
+});
+
+describe("HAB-24: days since last slip", () => {
+  const quit = { ...habit({ kind: "daily" }, { kind: "quit" }), startDate: "2026-10-15" };
+  it("counts from the last slip, ignoring earlier ones", () => {
+    expect(daysSinceSlip(quit, new Map([["2026-10-18", 2], ["2026-10-22", 1]]), TODAY)).toEqual({ days: 3, slipped: true });
+  });
+  it("counts from the start when never slipped, 0 on the start day", () => {
+    expect(daysSinceSlip(quit, new Map(), TODAY)).toEqual({ days: 10, slipped: false });
+    expect(daysSinceSlip(quit, new Map(), "2026-10-15")?.days).toBe(0);
+  });
+  it("a limit habit slips only over the cap; build habits have none", () => {
+    const limit = { ...habit({ kind: "daily" }, { kind: "limit", cap: 5, unit: "min" }), startDate: "2026-10-15" };
+    expect(daysSinceSlip(limit, new Map([["2026-10-24", 5], ["2026-10-20", 6]]), TODAY)).toEqual({ days: 5, slipped: true });
+    expect(daysSinceSlip(habit({ kind: "daily" }), new Map(), TODAY)).toBeNull();
   });
 });

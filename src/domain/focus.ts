@@ -86,6 +86,14 @@ function sessionOf(s: Active, now: number, c: PomodoroConfig, id: string): Focus
   return { id, taskId: s.taskId, mode: s.mode, startAt: new Date(s.sessionStart).toISOString(), endAt: new Date(now - (raw - ms)).toISOString(), seconds: Math.round(ms / 1000) };
 }
 
+/** A session added by hand: `minutes` (1 to 24 h) from `startMs`. Null when the numbers don't make a session or it would end in the future. */
+export function manualSession(taskId: string | null, startMs: number, minutes: number, now: number, id: string): FocusSession | null {
+  if (!Number.isFinite(startMs) || !Number.isFinite(minutes)) return null;
+  const m = Math.round(minutes);
+  if (m < 1 || m > 1440 || startMs + m * 60_000 > now) return null;
+  return { id, taskId, mode: "stopwatch", startAt: new Date(startMs).toISOString(), endAt: new Date(startMs + m * 60_000).toISOString(), seconds: m * 60 };
+}
+
 /**
  * What the timer is on: a top-level task and optionally some of its subtasks. Focus time is always
  * credited to `taskId` (a session records one task); `subIds` only says which steps to show and check off.

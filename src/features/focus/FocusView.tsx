@@ -6,7 +6,7 @@ import { NumField } from "../../components/ui/NumField";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { formatMinutes, fromLocalDate, todayLocal } from "../../domain/dates";
 import { DEFAULT_POMODORO, elapsedMs, formatClock, NO_PICK, phaseMs, remainingMs, type FocusMode, type FocusPick, type Phase } from "../../domain/focus";
-import { focusPerDay, perWeek, sessionDay } from "../../domain/stats";
+import { focusPerDay, perWeek, secondsOn, sessionParts } from "../../domain/stats";
 import { useData } from "../../stores/data";
 import { deleteSession, pauseFocus, resumeFocus, setFocusTask, skipPhase, startFocus, stopFocus, useFocus } from "../../stores/focus";
 import { useSettings } from "../../stores/settings";
@@ -14,6 +14,7 @@ import { addProgressSection } from "../progress/ProgressView";
 import { toggleDone } from "../tasks/actions";
 import { useDerived } from "../tasks/selectors";
 import { FocusTogether } from "../friends/FocusTogether";
+import { AddSession } from "./AddSession";
 import { TaskPicker } from "./TaskPicker";
 
 export function focusPhaseLabel(next: Phase | "done"): string {
@@ -85,9 +86,9 @@ export function FocusView() {
   const clock = t.status === "done" ? `${Math.round(t.focusMs / 60_000)}m` : t.status === "idle" ? (mode === "pomodoro" ? formatClock(cfg.focusMin * 60_000) : "00:00") : formatClock(remaining ?? elapsed);
   const today = todayLocal();
   const todays = Object.values(sessions)
-    .filter((s) => sessionDay(s.startAt) === today)
+    .filter((s) => sessionParts(s).some((p) => p.day === today))
     .sort((a, b) => b.startAt.localeCompare(a.startAt));
-  const todayMin = Math.round(todays.reduce((n, s) => n + s.seconds, 0) / 60);
+  const todayMin = Math.round(secondsOn(todays, today) / 60);
   const boundPick: FocusPick = t.status === "idle" ? pick : t.status === "done" ? { taskId: t.taskId, subIds: [] } : { taskId: t.taskId, subIds: t.subIds };
 
   return (
@@ -216,6 +217,7 @@ export function FocusView() {
           </div>
         </div>
         <FocusTogether />
+        <AddSession />
         <ul className="-mx-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
           {todays.map((s) => (
             <li key={s.id} className="group flex min-h-10 items-center gap-2.5 rounded-control px-1 text-[length:var(--fs-sm)] hover:bg-surface-2">

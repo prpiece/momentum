@@ -77,3 +77,21 @@ it("HAB-05: a stopwatch doesn't count the time the machine slept", async () => {
   f.stopFocus();
   expect(Object.values(f.useFocus.getState().sessions)[0]?.seconds).toBe(10 * 60);
 });
+
+it("HAB-21: after an away pause, Keep adds the gap back and resumes; ignoring it drops it", async () => {
+  const f = await import("./focus");
+  const { setToast } = await import("./toast");
+  let keep: (() => void) | undefined;
+  setToast((_m, a) => void (keep = a?.run));
+  f.startFocus("stopwatch", "A");
+  vi.setSystemTime(t0 + 10 * min);
+  f.tickFocus();
+  vi.setSystemTime(t0 + 130 * min); // 2 h away
+  f.tickFocus();
+  expect(f.useFocus.getState().timer.status).toBe("paused");
+  keep?.();
+  expect(f.useFocus.getState().timer.status).toBe("running");
+  vi.setSystemTime(t0 + 135 * min);
+  f.stopFocus();
+  expect(Object.values(f.useFocus.getState().sessions)[0]?.seconds).toBe(135 * 60);
+});

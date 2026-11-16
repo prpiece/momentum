@@ -1,13 +1,14 @@
 import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from "date-fns";
-import { ChevronLeft, ChevronRight, Flame, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame, Pause, Pencil, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { viewDays } from "../../domain/calendar";
 import { accentForeground } from "../../domain/color";
 import { addDaysLocal, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
-import { bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isBuild, isDone, isScheduled, targetOf, unitOf, type CheckinMap, type Habit } from "../../domain/habits";
+import { bestStreak, completionRate, currentStreak, daysSinceSlip, frequencyLabel, goalLabel, isBuild, isDone, isPausedOn, isScheduled, targetOf, unitOf, type CheckinMap, type Habit } from "../../domain/habits";
 import type { WeekStart } from "../../domain/types";
 import { useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
+import { CheckinButton } from "./CheckinButton";
 import { MoodFace } from "./NoteButton";
 import { IconTile } from "../../components/ui/AppIcon";
 
@@ -38,6 +39,8 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
   const cur = currentStreak(habit, values, today, ws);
   const best = bestStreak(habit, values, today, ws);
   const rate30 = completionRate(habit, values, addDaysLocal(today, -29), today, today, ws);
+  const since = daysSinceSlip(habit, values, today);
+  const [editDay, setEditDay] = useState<string | null>(null);
   const total = [...values.values()].filter((v) => v > 0).length;
   const notes = useMemo(
     () =>
@@ -57,6 +60,11 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
           <p className="text-xs text-muted">
             {frequencyLabel(habit.frequency)}
             {goalLabel(habit.goal) && ` · ${goalLabel(habit.goal)}`}
+            {isPausedOn(habit, today) && (
+              <span className="ml-2 inline-flex items-center gap-1">
+                <Pause size={12} strokeWidth={1.75} aria-hidden /> Paused
+              </span>
+            )}
           </p>
         </div>
         <button type="button" onClick={onEdit} aria-label="Edit habit" className="btn btn-ghost icon-btn text-muted">
@@ -65,14 +73,24 @@ export function HabitDetail({ habit, onEdit }: { habit: Habit; onEdit: () => voi
       </header>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+        {since && <Stat label={since.slipped ? "Since last slip" : "No slips yet"} value={since.days} unit={`day${since.days === 1 ? "" : "s"}`} />}
         <Stat icon={<Flame size={15} className="text-streak" />} label="Current streak" value={cur.count} unit={`${cur.unit}${cur.count === 1 ? "" : "s"}`} />
         <Stat label="Best streak" value={best.count} unit={`${best.unit}${best.count === 1 ? "" : "s"}`} />
         <Stat label="Last 30 days" value={rate30 === null ? "–" : Math.round(rate30 * 100)} unit={rate30 === null ? "" : "%"} />
         <Stat label={habit.goal.kind === "quit" ? "Slips" : habit.goal.kind === "limit" ? "Days logged" : "Check-ins"} value={total} unit="total" />
       </div>
 
-      <MonthGrid habit={habit} values={values} ws={ws} />
-      <YearHeatmap habit={habit} values={values} ws={ws} />
+      <MonthGrid habit={habit} values={values} ws={ws} onPick={setEditDay} picked={editDay} />
+      <YearHeatmap habit={habit} values={values} ws={ws} onPick={setEditDay} picked={editDay} />
+      {editDay && (
+        <div className="card flex items-center gap-3 p-3">
+          <span className="min-w-0 flex-1 truncate text-sm">{cellTitle(habit, editDay, values.get(editDay))}</span>
+          <CheckinButton habit={habit} date={editDay} size={32} />
+          <button type="button" aria-label="Close day editor" onClick={() => setEditDay(null)} className="btn btn-ghost btn-sm icon-btn text-muted">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {notes.length > 0 && (
         <section>
@@ -107,7 +125,10 @@ function Stat({ icon, label, value, unit }: { icon?: React.ReactNode; label: str
   );
 }
 
-function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws: WeekStart }) {
+type DayPick = { onPick: (d: string) => void; picked: string | null };
+
+// Past days only (HAB-22): click one to check in or fix its value.
+function MonthGrid({ habit, values, ws, onPick, picked }: { habit: Habit; values: CheckinMap; ws: WeekStart } & DayPick) {
   const [month, setMonth] = useState(() => toLocalDate(startOfMonth(fromLocalDate(todayLocal()))));
   const days = viewDays("month", month, ws);
   const m = fromLocalDate(month).getMonth();
@@ -138,14 +159,18 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
           const fill = d > today ? "transparent" : cellFill(habit, v, isScheduled(habit, d));
           const ink = fill === habit.color ? accentForeground(habit.color) : fill === "var(--danger)" ? "var(--danger-fg)" : "var(--fg-2)";
           return (
-            <div
+            <button
               key={d}
+              type="button"
+              disabled={d > today}
+              onClick={() => onPick(d)}
               title={cellTitle(habit, d, v)}
-              className={`grid aspect-square place-items-center rounded-control tabular-nums text-xs ${inMonth ? "" : "opacity-30"} ${d === today ? "ring-2 ring-accent-text" : ""}`}
+              aria-label={cellTitle(habit, d, v)}
+              className={`grid aspect-square place-items-center rounded-control tabular-nums text-xs ${inMonth ? "" : "opacity-30"} ${d === today || d === picked ? "ring-2 ring-accent-text" : ""} ${d > today ? "cursor-default" : ""}`}
               style={{ background: fill, color: ink }}
             >
               {format(fromLocalDate(d), "d")}
-            </div>
+            </button>
           );
         })}
       </div>
@@ -158,7 +183,7 @@ function MonthGrid({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws
 const CELL = 11;
 const GAP = 3;
 
-function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; ws: WeekStart }) {
+function YearHeatmap({ habit, values, ws, onPick, picked }: { habit: Habit; values: CheckinMap; ws: WeekStart } & DayPick) {
   const today = todayLocal();
   const [width, setWidth] = useState(0);
   const ref = useCallback((el: HTMLElement | null) => {
@@ -184,7 +209,7 @@ function YearHeatmap({ habit, values, ws }: { habit: Habit; values: CheckinMap; 
               if (d > today) return <span key={d} style={{ height: CELL }} />;
               const v = values.get(d);
               const fill = d < habit.startDate ? "var(--surface-2)" : cellFill(habit, v, isScheduled(habit, d));
-              return <span key={d} title={cellTitle(habit, d, v)} className="rounded-xs" style={{ height: CELL, background: fill === "transparent" ? "var(--surface-2)" : fill }} />;
+              return <button key={d} type="button" onClick={() => onPick(d)} title={cellTitle(habit, d, v)} aria-label={cellTitle(habit, d, v)} className={`rounded-xs ${d === picked ? "ring-2 ring-accent-text" : ""}`} style={{ height: CELL, background: fill === "transparent" ? "var(--surface-2)" : fill }} />;
             })}
           </div>
         ))}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advance, elapsedMs, formatClock, pause, dueAutoFocus, pickLabel, rangeBetween, remainingMs, resume, start, stop, withRange, DEFAULT_POMODORO as C } from "./focus";
+import { manualSession, advance, elapsedMs, formatClock, pause, dueAutoFocus, pickLabel, rangeBetween, remainingMs, resume, start, stop, withRange, DEFAULT_POMODORO as C } from "./focus";
 import type { TaskVM } from "./taskViews";
 
 describe("focus timer", () => {
@@ -112,5 +112,16 @@ describe("dueAutoFocus", () => {
     expect(dueAutoFocus([vm("a", "2026-10-25T14:00:00.000Z", "2026-10-25T15:00:00.000Z", "done")], now, null)).toBeNull();
     expect(dueAutoFocus([{ ...block, schedule: { kind: "day", date: "2026-10-25" } }], now, null)).toBeNull();
     expect(dueAutoFocus([block], now, dueAutoFocus([block], now, null)?.key ?? null)).toBeNull();
+  });
+});
+
+describe("manualSession (HAB-25)", () => {
+  const now = Date.parse("2026-10-25T12:00:00Z");
+  it("builds a session from start and minutes", () => {
+    const s = manualSession("t", now - 3_600_000, 45, now, "id");
+    expect(s).toMatchObject({ id: "id", taskId: "t", seconds: 2700, endAt: new Date(now - 3_600_000 + 2_700_000).toISOString() });
+  });
+  it("rejects zero, huge, NaN and future-ending sessions", () => {
+    for (const [st, m] of [[now - 1e6, 0], [now - 1e9, 1441], [NaN, 5], [now - 1e6, NaN], [now - 60_000, 30]] as const) expect(manualSession(null, st, m, now, "x")).toBeNull();
   });
 });

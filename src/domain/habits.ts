@@ -31,6 +31,9 @@ export type GoalPeriod = (typeof GOAL_PERIODS)[number];
 /** A weekly-total goal: any day's check-ins add up toward the week's target. */
 export const isWeeklyTotal = (h: Pick<Habit, "goal">) => (h.goal.kind === "count" || h.goal.kind === "amount") && h.goal.period === "week";
 
+/** A stretch of days (both ends included; `to` null = until resumed) when the habit isn't expected: sickness, travel (HAB-23). */
+export type HabitPause = { from: LocalDate; to: LocalDate | null };
+
 export type Habit = {
   id: string;
   name: string;
@@ -45,6 +48,8 @@ export type Habit = {
   archived: boolean;
   /** Days before this never count against streaks or completion rate. */
   startDate: LocalDate;
+  /** Paused days are unscheduled: not due, and they neither break nor extend a streak. */
+  pauses?: HabitPause[];
   createdAt: Instant;
 };
 
@@ -81,9 +86,18 @@ export function goalLabel(g: HabitGoal): string {
 
 const weekStartOf = (d: LocalDate, ws: WeekStart) => toLocalDate(startOfWeek(fromLocalDate(d), { weekStartsOn: ws }));
 
+export const isPausedOn = (h: Pick<Habit, "pauses">, date: LocalDate): boolean => !!h.pauses?.some((p) => date >= p.from && (p.to === null || date <= p.to));
+
+/** Pause from `from` (to `to`, or until resumed). */
+export const withPause = (pauses: readonly HabitPause[] | undefined, from: LocalDate, to: LocalDate | null): HabitPause[] => [...(pauses ?? []), { from, to }];
+
+/** Ends every pause that covers `date` or lies after it on the day before `date`; pauses that never started are dropped. */
+export const resumedOn = (pauses: readonly HabitPause[] | undefined, date: LocalDate): HabitPause[] =>
+  (pauses ?? []).map((p) => (p.to === null || p.to >= date ? { from: p.from, to: addDaysLocal(date, -1) } : p)).filter((p) => p.to === null || p.to >= p.from);
+
 /** Whether the habit expects a check-in on `date` (per-week habits accept any day). */
-export function isScheduled(h: Pick<Habit, "frequency" | "startDate">, date: LocalDate): boolean {
-  if (date < h.startDate) return false;
+export function isScheduled(h: Pick<Habit, "frequency" | "startDate" | "pauses">, date: LocalDate): boolean {
+  if (date < h.startDate || isPausedOn(h, date)) return false;
   const f = h.frequency;
   if (f.kind === "weekdays") return f.days.includes(fromLocalDate(date).getDay());
   return true;
@@ -94,7 +108,7 @@ function weekDoneCount(h: Habit, checkins: CheckinMap, weekStart: LocalDate, tod
   let n = 0;
   for (let i = 0; i < 7; i++) {
     const d = addDaysLocal(weekStart, i);
-    if (d < h.startDate || d > today || (d === today && !isBuild(h))) continue;
+    if (d < h.startDate || d > today || (d === today && !isBuild(h)) || isPausedOn(h, d)) continue;
     if (isDone(h, checkins.get(d))) n++;
   }
   return n;
@@ -112,8 +126,13 @@ export function weekTotal(checkins: CheckinMap, weekStart: LocalDate): number {
 /** Habits judged by the week: per-week frequencies and weekly-total goals. */
 const byWeek = (h: Habit) => h.frequency.kind === "perWeek" || isWeeklyTotal(h);
 // A per-week target can't exceed the days the habit existed that week (the partial first week, HAB-08).
-const weekMet = (h: Habit, checkins: CheckinMap, w: LocalDate, today: LocalDate) =>
-  isWeeklyTotal(h) ? weekTotal(checkins, w) >= targetOf(h) : weekDoneCount(h, checkins, w, today) >= Math.min(weeklyTarget(h), Math.max(1, 7 - Math.max(0, daysBetween(w, h.startDate))));
+// A fully paused week is met (HAB-23). ponytail: that adds 1 to a week streak where a day streak would skip it; fine until it confuses someone.
+function weekMet(h: Habit, checkins: CheckinMap, w: LocalDate, today: LocalDate): boolean {
+  let avail = 0;
+  for (let i = 0; i < 7; i++) if (addDaysLocal(w, i) >= h.startDate && !isPausedOn(h, addDaysLocal(w, i))) avail++;
+  if (avail === 0 && h.pauses?.length) return true;
+  return isWeeklyTotal(h) ? weekTotal(checkins, w) >= targetOf(h) : weekDoneCount(h, checkins, w, today) >= Math.min(weeklyTarget(h), Math.max(1, avail));
+}
 
 /** Whether `date` counts as done: the week's total for weekly goals, the week's target for per-week habits, else the day's value. */
 export const isDoneOn = (h: Habit, checkins: CheckinMap, date: LocalDate, ws: WeekStart) =>
@@ -218,6 +237,17 @@ export function completionRate(h: Habit, checkins: CheckinMap, from: LocalDate, 
     if (ok) done++;
   }
   return total ? done / total : null;
+}
+
+/**
+ * Limit and quit habits: whole days since the last day over the line (HAB-24), or since the start when there was none.
+ * Null for build habits. Unlike the streak it doesn't count the start day as a day won.
+ */
+export function daysSinceSlip(h: Habit, checkins: CheckinMap, today: LocalDate): { days: number; slipped: boolean } | null {
+  if (isBuild(h)) return null;
+  let last: LocalDate | null = null;
+  for (const [d, v] of checkins) if (d <= today && !isDone(h, v) && (!last || d > last)) last = d;
+  return last ? { days: daysBetween(last, today), slipped: true } : { days: Math.max(0, daysBetween(h.startDate, today)), slipped: false };
 }
 
 export function frequencyLabel(f: HabitFrequency): string {

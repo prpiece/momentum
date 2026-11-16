@@ -1,7 +1,7 @@
 import { format } from "date-fns";
-import { Archive, ArchiveRestore, Check, Minus, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Check, Minus, Pause, Pencil, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { fromLocalDate, todayLocal } from "../../domain/dates";
-import { isDone, type Habit } from "../../domain/habits";
+import { isDone, isPausedOn, resumedOn, withPause, type Habit } from "../../domain/habits";
 import type { LocalDate } from "../../domain/types";
 import { checkinOf, removeHabit, setCheckin, tapCheckin, updateHabit } from "../../stores/habits";
 import { confirm, type MenuEntry } from "../../stores/ui";
@@ -31,8 +31,18 @@ export function habitMenu(h: Habit, date: LocalDate, onEdit?: () => void): MenuE
               ]
             : []),
         ];
+  const today = todayLocal();
+  const pauses: MenuEntry[] = h.archived
+    ? []
+    : isPausedOn(h, today) || (date !== today && isPausedOn(h, date))
+      ? [{ label: "Resume habit", icon: <Play size={14} />, run: () => updateHabit(h.id, { pauses: resumedOn(h.pauses, isPausedOn(h, today) ? today : date) }) }]
+      : [
+          { label: `Skip ${day}`, icon: <Pause size={14} />, run: () => updateHabit(h.id, { pauses: withPause(h.pauses, date, date) }) },
+          { label: "Pause until I resume", icon: <Pause size={14} />, run: () => updateHabit(h.id, { pauses: withPause(h.pauses, today, null) }) },
+        ];
   return [
     ...(h.archived ? [] : [...checkins, "sep" as const]),
+    ...(pauses.length ? [...pauses, "sep" as const] : []),
     ...(onEdit ? [{ label: "Edit habit…", icon: <Pencil size={14} />, run: onEdit }] : []),
     h.archived
       ? { label: "Unarchive", icon: <ArchiveRestore size={14} />, run: () => updateHabit(h.id, { archived: false }) }

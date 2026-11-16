@@ -1,6 +1,6 @@
 /* Habit row <-> domain mapping, validated at the DB boundary (pure; unit-tested). */
 import { isInstant, isLocalDate, todayLocal } from "../domain/dates";
-import { isBuild, type Habit, type HabitCheckin, type HabitFrequency, type HabitGoal, type HabitGroup, type Mood } from "../domain/habits";
+import { isBuild, type Habit, type HabitPause, type HabitCheckin, type HabitFrequency, type HabitGoal, type HabitGroup, type Mood } from "../domain/habits";
 import { isRecord } from "../domain/settings";
 import type { Row } from "./rows";
 
@@ -40,6 +40,19 @@ export function parseFrequency(v: unknown): HabitFrequency {
   return { kind: "daily" };
 }
 
+/**
+ * Pauses (HAB-23) ride in the frequency JSON, so there is no column to migrate or sync separately.
+ * Bad entries are dropped; a `to` before `from` is dropped too.
+ */
+export function parsePauses(v: unknown): HabitPause[] {
+  if (!isRecord(v) || !Array.isArray(v.pauses)) return [];
+  return v.pauses.flatMap((p): HabitPause[] => {
+    if (!isRecord(p) || !isLocalDate(p.from)) return [];
+    const to = p.to === null || p.to === undefined ? null : isLocalDate(p.to) ? p.to : undefined;
+    return to === undefined || (to !== null && to < p.from) ? [] : [{ from: p.from, to }];
+  });
+}
+
 /** The habit palette's light-theme hexes (`--h-*` in tokens.css); older rows stored `var(--h-*)`. */
 export const HABIT_HEX: Record<string, string> = { blue: "#3470c2", violet: "#7a45c8", coral: "#c8432b", amber: "#a86400", teal: "#0b7a75" };
 
@@ -54,7 +67,9 @@ export function parseHabit(r: Row): Habit | null {
   if (typeof r.id !== "string" || typeof r.name !== "string") return null;
   const reminders = json(r.reminders);
   const goal = parseGoal(json(r.goal));
-  const frequency = parseFrequency(json(r.frequency));
+  const freq = json(r.frequency);
+  const frequency = parseFrequency(freq);
+  const pauses = parsePauses(freq);
   return {
     id: r.id,
     name: r.name,
@@ -68,6 +83,7 @@ export function parseHabit(r: Row): Habit | null {
     sortOrder: typeof r.sort_order === "number" ? r.sort_order : 0,
     archived: r.archived === 1,
     startDate: isLocalDate(r.start_date) ? r.start_date : todayLocal(),
+    ...(pauses.length ? { pauses } : {}),
     createdAt: isInstant(r.created_at) ? r.created_at : new Date().toISOString(),
   };
 }
@@ -78,7 +94,7 @@ export const habitToRow = (h: Habit): Row => ({
   icon: h.icon,
   color: h.color,
   goal: JSON.stringify(h.goal),
-  frequency: JSON.stringify(h.frequency),
+  frequency: JSON.stringify(h.pauses?.length ? { ...h.frequency, pauses: h.pauses } : h.frequency),
   reminders: JSON.stringify(h.reminders),
   group_id: h.groupId,
   sort_order: h.sortOrder,

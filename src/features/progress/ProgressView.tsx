@@ -6,7 +6,7 @@ import { PageHead } from "../../components/ui/PageHead";
 import { Segmented } from "../../components/ui/Segmented";
 import { addDaysLocal, formatMinutes, fromLocalDate, toLocalDate, todayLocal } from "../../domain/dates";
 import { completionRate } from "../../domain/habits";
-import { completedPerDay, completedPerWeek, sessionDay, type Bucket } from "../../domain/stats";
+import { completedPerDay, completedPerWeek, sessionParts, type Bucket } from "../../domain/stats";
 import { useData } from "../../stores/data";
 import { useFocus } from "../../stores/focus";
 import { useHabits, valuesOf } from "../../stores/habits";
@@ -38,7 +38,7 @@ export function ProgressView() {
   const weeks = useMemo(() => completedPerWeek(all, today, 12, ws), [all, today, ws]);
   const weekStart = toLocalDate(startOfWeek(fromLocalDate(today), { weekStartsOn: ws }));
   const focusMinutes = useMemo(
-    () => Object.values(sessions).reduce((n, s) => (sessionDay(s.startAt) >= weekStart ? n + s.seconds / 60 : n), 0),
+    () => Object.values(sessions).reduce((n, s) => sessionParts(s).reduce((m, p) => (p.day >= weekStart ? m + p.seconds / 60 : m), n), 0),
     [sessions, weekStart],
   );
   const habitList = useMemo(() => Object.values(habits).filter((h) => !h.archived), [habits]);

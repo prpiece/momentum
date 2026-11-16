@@ -1,5 +1,5 @@
 import { startOfWeek } from "date-fns";
-import { addDaysLocal, fromLocalDate, toLocalDate, todayLocal } from "./dates";
+import { addDaysLocal, atLocalTime, fromLocalDate, getDayEndHour, toLocalDate, todayLocal } from "./dates";
 import type { LocalDate, Task, WeekStart } from "./types";
 
 export type Bucket = { start: LocalDate; label: string; value: number };
@@ -9,10 +9,41 @@ const localDay = (iso: string) => todayLocal(new Date(iso));
 /** The day a focus session counts on: same End-of-day rule as completed tasks (HAB-03). */
 export const sessionDay = localDay;
 
+/**
+ * A session's seconds per day. One that crosses the day boundary (midnight, or the End-of-day hour) is split
+ * in proportion to the time on each side, since pauses leave no timestamps (HAB-25).
+ */
+export function sessionParts(s: { startAt: string; endAt?: string; seconds: number }): { day: LocalDate; seconds: number }[] {
+  const start = Date.parse(s.startAt);
+  const end = s.endAt ? Date.parse(s.endAt) : NaN;
+  const first = localDay(s.startAt);
+  if (!(end > start)) return [{ day: first, seconds: s.seconds }];
+  const hh = `${String(getDayEndHour()).padStart(2, "0")}:00`;
+  const parts: { day: LocalDate; seconds: number }[] = [];
+  let day = first;
+  let from = start;
+  for (;;) {
+    const edge = atLocalTime(addDaysLocal(day, 1), hh).getTime();
+    if (edge >= end) break;
+    parts.push({ day, seconds: (s.seconds * (edge - from)) / (end - start) });
+    day = addDaysLocal(day, 1);
+    from = edge;
+  }
+  parts.push({ day, seconds: (s.seconds * (end - from)) / (end - start) });
+  return parts;
+}
+
+/** Seconds of focus credited to `day`. */
+export const secondsOn = (sessions: Iterable<{ startAt: string; endAt?: string; seconds: number }>, day: LocalDate): number => {
+  let n = 0;
+  for (const s of sessions) for (const p of sessionParts(s)) if (p.day === day) n += p.seconds;
+  return n;
+};
+
 /** Focus minutes per day for the `n` days ending `today`; unrounded, so totals round once at the end (HAB-16). */
-export function focusPerDay(sessions: Iterable<{ startAt: string; seconds: number }>, today: LocalDate, n: number): Bucket[] {
+export function focusPerDay(sessions: Iterable<{ startAt: string; endAt?: string; seconds: number }>, today: LocalDate, n: number): Bucket[] {
   const by = new Map<LocalDate, number>();
-  for (const s of sessions) by.set(localDay(s.startAt), (by.get(localDay(s.startAt)) ?? 0) + s.seconds / 60);
+  for (const s of sessions) for (const p of sessionParts(s)) by.set(p.day, (by.get(p.day) ?? 0) + p.seconds / 60);
   return Array.from({ length: n }, (_, i) => {
     const d = addDaysLocal(today, i - n + 1);
     return { start: d, label: d, value: by.get(d) ?? 0 };
