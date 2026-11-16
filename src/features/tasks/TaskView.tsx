@@ -10,7 +10,7 @@ import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../comp
 import { formatMinutes, todayLocal } from "../../domain/dates";
 import type { GroupBy, ListLayout, SortBy } from "../../domain/types";
 import { isEmptyFilter, matchesFilter, parseFilter } from "../../domain/filter";
-import { hiddenAsOld, plannedMinutes, toVM } from "../../domain/taskViews";
+import { doneWindowDays, hiddenAsOld, plannedMinutes, toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
 import { useSocial } from "../../stores/social";
 import { canEdit } from "../../domain/shareAccess";
@@ -77,7 +77,8 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   };
   // A view whose own filter picks a status (a saved "done" filter), or a typed `done`, ignores the toggle.
   const showDone = settings.showCompleted || !spec.splitCompleted || adhoc.status !== null;
-  const hideAfter = adhoc.status !== null ? 0 : settings.hideDoneAfterDays;
+  // A typed status filter (`done`) searches all of history; otherwise each view keeps its own window.
+  const hideAfter = adhoc.status !== null ? null : doneWindowDays(spec.id);
   const menu = useMenu();
 
   const source = spec.list ? derived.vms : derived.active;

@@ -87,9 +87,12 @@ export const plannedMinutes = (vms: readonly TaskVM[]) =>
   vms.reduce((sum, vm) => sum + (vm.task.status === "open" ? (taskMinutes({ schedule: vm.schedule, durationMin: vm.task.durationMin }) ?? 0) : 0), 0);
 
 /** The deadline has passed (red chip). */
-/** FEAT-17: a finished task older than `days` days (0 = never hide) drops out of list views; it stays in the Logbook and stats. */
-export const hiddenAsOld = (t: Pick<Task, "status" | "completedAt">, today: LocalDate, days: number): boolean =>
-  days > 0 && t.status !== "open" && !!t.completedAt && todayLocal(new Date(t.completedAt)) < addDaysLocal(today, -days);
+/** How many days back a view shows finished tasks: Today only today's, Upcoming the past week, lists three months. The Logbook has the rest. */
+export const doneWindowDays = (view: string): number => (view === "today" ? 0 : view === "upcoming" ? 7 : 90);
+
+/** FEAT-17: a task finished more than `days` days ago (null = never hide) drops out of a view; it stays in the Logbook and stats. */
+export const hiddenAsOld = (t: Pick<Task, "status" | "completedAt">, today: LocalDate, days: number | null): boolean =>
+  days !== null && t.status !== "open" && !!t.completedAt && todayLocal(new Date(t.completedAt)) < addDaysLocal(today, -days);
 
 export const deadlinePassed = (t: Pick<Task, "deadline" | "status">, today: LocalDate) => t.status === "open" && t.deadline !== null && t.deadline < today;
 

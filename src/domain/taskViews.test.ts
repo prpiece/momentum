@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal, atLocalTime, setDayEndHour, timed } from "./dates";
-import { derive, hiddenAsOld, flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, plannedMinutes, sortVMs, toVM, type TaskVM } from "./taskViews";
+import { derive, doneWindowDays, hiddenAsOld, flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, plannedMinutes, sortVMs, toVM, type TaskVM } from "./taskViews";
 import type { Schedule, SmartListId, Task, TaskList } from "./types";
 
 const TODAY = "2026-10-25";
@@ -295,7 +295,17 @@ describe("hiddenAsOld (FEAT-17)", () => {
   it("hides finished tasks older than N days only", () => {
     expect(hiddenAsOld(done("2026-10-01T15:00:00Z"), TODAY, 7)).toBe(true);
     expect(hiddenAsOld(done("2026-10-20T15:00:00Z"), TODAY, 7)).toBe(false);
-    expect(hiddenAsOld(done("2026-10-01T15:00:00Z"), TODAY, 0)).toBe(false);
+    expect(hiddenAsOld(done("2026-10-01T15:00:00Z"), TODAY, null)).toBe(false);
     expect(hiddenAsOld(mk(), TODAY, 7)).toBe(false);
+  });
+  it("Today keeps only what was finished today; Upcoming the past week; lists three months", () => {
+    const today = done(`${TODAY}T15:00:00Z`);
+    const yesterday = done(`${addDaysLocal(TODAY, -1)}T15:00:00Z`);
+    expect(hiddenAsOld(today, TODAY, doneWindowDays("today"))).toBe(false);
+    expect(hiddenAsOld(yesterday, TODAY, doneWindowDays("today"))).toBe(true);
+    expect(hiddenAsOld(done(`${addDaysLocal(TODAY, -7)}T15:00:00Z`), TODAY, doneWindowDays("upcoming"))).toBe(false);
+    expect(hiddenAsOld(done(`${addDaysLocal(TODAY, -8)}T15:00:00Z`), TODAY, doneWindowDays("upcoming"))).toBe(true);
+    expect(hiddenAsOld(done(`${addDaysLocal(TODAY, -90)}T15:00:00Z`), TODAY, doneWindowDays("list:abc"))).toBe(false);
+    expect(hiddenAsOld(done(`${addDaysLocal(TODAY, -91)}T15:00:00Z`), TODAY, doneWindowDays("list:abc"))).toBe(true);
   });
 });

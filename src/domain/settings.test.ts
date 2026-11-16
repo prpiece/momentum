@@ -40,7 +40,7 @@ describe("parseSettings", () => {
       streakReminder: { on: false, time: "20:15" }, autoFocus: true,
       sounds: { enabled: false, volume: 0.3, picks: { focusEnd: "marimba", longBreak: "fanfare" } },
       onboarded: true, gettingStarted: { dismissed: true, done: ["habits", "tokens"], seenVersion: "1.0.0" }, quickAddShortcut: "CommandOrControl+N", miniShortcut: "Alt+F9", voiceShortcut: "Alt+Space", voiceMic: "USB Mic", pomodoro: { focusMin: 50, shortMin: 10, longMin: 30, longEvery: 3, cycles: { kind: "finite", count: 6 } },
-      dayEndHour: 3, hideDoneAfterDays: 30, oneThing: { on: true, energy: "low" }, templates: [], taskDefaults: { reminderMin: 10, listId: "x", priority: 2 }, manualOrder: { today: ["a", "b"] },
+      dayEndHour: 3, oneThing: { on: true, energy: "low" }, templates: [], taskDefaults: { reminderMin: 10, listId: "x", priority: 2 }, manualOrder: { today: ["a", "b"] },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
