@@ -174,6 +174,36 @@ describe("recurrence info, archived lists, structured add (AGENT-15/17/19)", () 
     expect(u.task).toMatchObject({ start: "09:00", durationMin: 45, planned: "2026-12-01" });
     expect(Object.values(useData.getState().tasks).find((x) => x.id === r.task.id)?.pinned).toBe(true);
   });
+  it("updates repeat, reminders and checklist, and refuses what doesn't fit", () => {
+    const t = call("add", { text: "water plants", date: "2026-12-01" }).task;
+    const get = () => useData.getState().tasks[t.id];
+    expect(() => run("update", { id: t.id, repeat: "FREQ=NOPE" })).toThrow(/RRULE/);
+    expect(() => run("update", { id: t.id, reminders: [{ minutes: 10 }] })).toThrow(/time block/);
+    run("update", { id: t.id, repeat: "FREQ=WEEKLY;BYDAY=MO", reminders: [{ daysBefore: 1, time: "09:00" }], checklist: ["fill can", "water"] });
+    expect(get().recurrence).toEqual({ rule: "FREQ=WEEKLY;BYDAY=MO", exdates: [] });
+    expect(get().reminders).toEqual([{ kind: "dayOf", daysBefore: 1, time: "09:00" }]);
+    expect(get().checklist.map((i) => i.title)).toEqual(["fill can", "water"]);
+    expect(() => run("update", { id: t.id, repeat: "none" })).toThrow(/scope/);
+    run("update", { id: t.id, repeat: "none", scope: "all", checklist: [] });
+    expect(get().recurrence).toBeNull();
+    expect(get().checklist).toEqual([]);
+    const u = call("add", { text: "undated" }).task;
+    expect(() => run("update", { id: u.id, repeat: "FREQ=DAILY" })).toThrow(/planned day/);
+  });
+  it("moves a task under a parent with the loop and depth checks", () => {
+    const a = call("add", { text: "A" }).task;
+    const b = call("add", { text: "B", parentId: a.id }).task;
+    const c = call("add", { text: "C" }).task;
+    expect(() => run("update", { id: a.id, parentId: b.id })).toThrow(/loop/);
+    run("update", { id: c.id, parentId: a.id });
+    expect(useData.getState().tasks[c.id].parentId).toBe(a.id);
+    run("update", { id: c.id, parentId: "none" });
+    expect(useData.getState().tasks[c.id].parentId).toBeNull();
+    let id = call("add", { text: "level 1" }).task.id;
+    for (let i = 2; i <= MAX_SUBTASK_DEPTH; i++) id = call("add", { text: `level ${i}`, parentId: id }).task.id;
+    expect(() => run("update", { id: c.id, parentId: id })).toThrow(/deeper/);
+    expect(useData.getState().tasks[c.id].parentId).toBeNull();
+  });
   it("hides tasks of archived lists from list and search unless asked", () => {
     const l = addList("Old");
     const t = call("add", { text: "old thing", list: "Old" }).task;

@@ -12,7 +12,7 @@ import { currentStreak, goalLabel, isBuild, isDone, isDueToday, isWeeklyTotal, p
 import { effective } from "../domain/recurrence";
 import { derive, inSmartList, matchScore, sortVMs, type TaskVM } from "../domain/taskViews";
 import { INBOX_ID, MAX_SUBTASK_DEPTH, SMART_LISTS, type LocalDate, type SmartListId, type Task, type WeekStart } from "../domain/types";
-import { deleteOccurrence, deleteTasks, depthOf, editOccurrence, ensureTags, restoreTasks, setStatus, updateTask, useData } from "../stores/data";
+import { deleteOccurrence, deleteTasks, depthOf, editOccurrence, ensureTags, restoreTasks, setParent, setStatus, uid, updateTask, useData } from "../stores/data";
 import type { Habit } from "../domain/habits";
 import { useFocus } from "../stores/focus";
 import { setCheckin, useHabits, valuesOf } from "../stores/habits";
@@ -142,18 +142,43 @@ function patchOf(vm: TaskVM, p: TaskPatch): Partial<Task> {
     else patch.durationMin = p.durationMin;
   }
   if (schedule !== current) patch.schedule = schedule;
+  const kind = (patch.schedule ?? current).kind;
+  if (p.repeat) {
+    if (kind !== "day" && kind !== "timed") throw new AgentError("A repeating task needs a planned day: give date (and time) too.");
+    patch.recurrence = { rule: p.repeat, exdates: [] };
+  } else if (p.repeat === null) patch.recurrence = null;
+  if (p.reminders !== undefined) {
+    // A reminder must fit the task: minutes before a time block, or a time on some day before a day task.
+    const bad = p.reminders.find((r) => (r.kind === "before" ? kind !== "timed" : kind !== "day"));
+    if (bad) throw new AgentError(bad.kind === "before" ? "{minutes} reminders need a time block: give time too." : "{daysBefore, time} reminders need a planned day without a time.");
+    patch.reminders = p.reminders;
+  }
+  if (p.checklist !== undefined) {
+    const old = new Map(vm.task.checklist.map((i) => [i.title, i.done]));
+    patch.checklist = p.checklist.map((title) => ({ id: uid(), title, done: old.get(title) ?? false }));
+  }
   return patch;
 }
 
 function update(r: Extract<AgentRequest, { op: "update" }>) {
   const vm = find(r.id);
   const patch = patchOf(vm, r.patch);
-  const before = taskIds();
   const key = vm.task.recurrence ? effective(vm.task)?.key : null;
+  if (key && r.scope === "this" && patch.recurrence !== undefined) throw new AgentError('Changing how a task repeats needs scope "all" (or "following").');
+  // Moving first: if the store refuses (loop, too deep), nothing else has changed. The store also puts it in the parent's list.
+  if (r.patch.parentId !== undefined) moveUnder(vm.task, r.patch.parentId, patch);
+  const before = taskIds();
   // A recurring task changes only this occurrence unless the caller says following or all.
   if (key) editOccurrence(vm.task.id, key, r.scope, patch);
   else updateTask(vm.task.id, patch);
   return get(newTaskId(before) ?? vm.task.id);
+}
+
+function moveUnder(task: Task, parentId: string | null, patch: Partial<Task>) {
+  const parent = parentId === null ? null : find(parentId).task;
+  if (parent?.id === task.parentId || (!parent && !task.parentId)) return;
+  if (!setParent(task.id, parent?.id ?? null)) throw new AgentError(`Can't move “${task.title}” under “${parent?.title}”: that would be a loop, or nest deeper than ${MAX_SUBTASK_DEPTH} levels.`);
+  if (parent) delete patch.listId; // a subtask stays in its parent's list
 }
 
 const taskIds = () => new Set(Object.keys(useData.getState().tasks));

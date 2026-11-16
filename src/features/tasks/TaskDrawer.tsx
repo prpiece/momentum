@@ -1,20 +1,23 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { format } from "date-fns";
-import { Ban, CalendarCheck, CalendarDays, Check, ChevronRight, Copy, FastForward, Flag, GripVertical, Hash, Hourglass, ImagePlus, Pin, Plus, Send, Timer, Trash2, X } from "lucide-react";
+import { Ban, CalendarCheck, CalendarDays, Check, ChevronRight, Copy, FastForward, Flag, GripVertical, Hash, Hourglass, ImagePlus, Paperclip, Pin, Plus, Send, Timer, Trash2, X } from "lucide-react";
 import { skipMissedWithUndo } from "./taskMenu";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, IconButton } from "../../components/ui/Dialog";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
+import { pickFile } from "../../db/backup";
 import { isTauri } from "../../db/client";
 import { loadActivity } from "../../db/repo";
 import { DropLine, dropSide, SORT_TRANSITION } from "../../lib/dnd";
-import { importImage, MAX_IMAGE_BYTES, newImageName, writeImage } from "../../lib/appFiles";
+import { importImage, MAX_IMAGE_BYTES, newFileAttachmentName, newImageName, writeImage } from "../../lib/appFiles";
 import { missedKeys, scheduleForKey, summarizeSchedule } from "../../domain/recurrence";
 import { MAX_SUBTASK_DEPTH, PRIORITIES, PRIORITY_LABEL, PRIORITY_VAR, type Activity, type Task } from "../../domain/types";
 import { depthOf, duplicateTask, ensureTags, reorderTask, uid, updateTask, useData } from "../../stores/data";
+import { useFocus } from "../../stores/focus";
+import { actualMinutes, actualVsEstimate } from "../../domain/timeReport";
 import { useSettings } from "../../stores/settings";
 import { closeDrawer, openTask, toast, useUi } from "../../stores/ui";
 import { openSend } from "../friends/friendsUi";
@@ -189,6 +192,7 @@ function DrawerBody({ task: t, occurrenceKey }: { task: Task; occurrenceKey: str
               </div>
             )}
           </Prop>
+          <ActualTime taskId={t.id} estimate={durationMinutes(shown) ?? t.durationMin} />
           <Prop
             label="Waiting for"
             text={t.waiting ? waitingText(t, tasksById) : "None"}
@@ -358,15 +362,21 @@ function TagEditor({ task, tags }: { task: Task; tags: Record<string, { id: stri
   );
 }
 
+/** "Actual 45m vs estimate 30m" from the task's focus sessions (FEAT-11); nothing until it has some. */
+function ActualTime({ taskId, estimate }: { taskId: string; estimate: number | null }) {
+  const sessions = useFocus((s) => s.sessions);
+  const text = useMemo(() => actualVsEstimate(actualMinutes(Object.values(sessions), taskId), estimate), [sessions, taskId, estimate]);
+  return text && <span className="px-1 text-[length:var(--fs-sm)] tabular-nums text-muted">{text}</span>;
+}
+
 function Description({ task }: { task: Task }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(task.description);
   useEffect(() => setV(task.description), [task.description]);
   const ref = useRef<HTMLTextAreaElement>(null);
-  const insert = (name: string) => {
+  const insert = (name: string, md = `![](attachment:${name})`) => {
     const el = ref.current;
     if (!el) return;
-    const md = `![](attachment:${name})`;
     const at = el.selectionStart;
     setV(el.value.slice(0, at) + md + el.value.slice(el.selectionEnd));
     requestAnimationFrame(() => el.setSelectionRange(at + md.length, at + md.length));
@@ -397,6 +407,20 @@ function Description({ task }: { task: Task }) {
       if (!name) return toast("That isn't a PNG, JPG, GIF or WebP image.");
       await importImage("attachments", name, path);
       insert(name);
+    } catch (err) {
+      fail(err);
+    }
+  };
+  const attachFile = async () => {
+    if (!isTauri) return toast("Files work in the desktop app.");
+    try {
+      const path = await pickFile(["pdf", "txt"], "PDF or text file");
+      if (!path) return;
+      const name = newFileAttachmentName(path);
+      if (!name) return toast("Only PDF and text files can be attached here.");
+      await importImage("attachments", name, path);
+      const label = (path.split(/[\\/]/).pop() ?? "file").replace(/[[\]]/g, "");
+      insert(name, `[${label}](attachment:${name})`);
     } catch (err) {
       fail(err);
     }
@@ -444,9 +468,14 @@ function Description({ task }: { task: Task }) {
       />
       {editing && (
         // mouseDown is prevented so the textarea keeps focus (a blur would save and leave edit mode).
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void pickImage()} className="btn btn-ghost btn-sm ml-[22px] mt-1 self-start">
-          <ImagePlus size={16} strokeWidth={1.75} /> Add image
-        </button>
+        <div className="ml-[22px] mt-1 flex gap-1">
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void pickImage()} className="btn btn-ghost btn-sm">
+            <ImagePlus size={16} strokeWidth={1.75} /> Add image
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => void attachFile()} className="btn btn-ghost btn-sm">
+            <Paperclip size={16} strokeWidth={1.75} /> Attach file
+          </button>
+        </div>
       )}
     </div>
   );

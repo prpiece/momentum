@@ -16,6 +16,9 @@ import { openTour } from "./Tour";
 import { focusQuickAdd } from "../tasks/QuickAdd";
 import { useDerived } from "../tasks/selectors";
 import { FEATURE_ICON, HELP_SECTION_ID } from "../help/featureIcons";
+import { parsePopView } from "../../domain/popout";
+import { setUndoHistory } from "../../stores/undo";
+import { UndoHistory } from "../undo/UndoHistory";
 import { showInCurrentView } from "../tasks/viewOptions";
 
 type Item = { id: string; group: string; label: string; hint?: string; icon: ReactNode; run: () => void; score: number };
@@ -28,9 +31,9 @@ export const addPaletteSource = (s: Source) => sources.push(s);
 export function CommandPalette() {
   const open = useUi((s) => s.paletteOpen);
   const [newList, setNewList] = useState(false);
-  if (!open && !newList) return null;
   return (
     <>
+      <UndoHistory />
       {open && <PaletteBody onNewList={() => (setPalette(false), setNewList(true))} />}
       {newList && <ListDialog onClose={() => setNewList(false)} />}
     </>
@@ -83,6 +86,12 @@ function PaletteBody({ onNewList }: { onNewList: () => void }) {
       tour: () => (close(), openTour()),
       help: () => (openSettingsPage(HELP_SECTION_ID), navTo("settings")()),
       shortcuts: () => (close(), setShortcuts(true)),
+      "undo-history": () => (close(), setUndoHistory(true)),
+      "pop-out": () => {
+        close();
+        const v = parsePopView(view);
+        void import("@tauri-apps/api/core").then((c) => c.invoke("open_pop_window", { view: v ?? "today" })).catch(console.error);
+      },
       print: () => (close(), setTimeout(() => window.print(), 100)),
       "from-template": () => (setQ("from template "), setCursor(0)),
     };

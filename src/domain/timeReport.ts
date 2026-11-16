@@ -1,4 +1,4 @@
-import { taskMinutes, todayLocal } from "./dates";
+import { formatMinutes, taskMinutes, todayLocal } from "./dates";
 import { sessionParts } from "./stats";
 import type { LocalDate, Task } from "./types";
 
@@ -66,3 +66,7 @@ export const actualMinutes = (sessions: Iterable<Session>, taskId: string): numb
   for (const s of sessions) if (s.taskId === taskId) n += s.seconds / 60;
   return n > 0 ? n : null;
 };
+
+/** Drawer line: "Actual 45m vs estimate 30m" (or "Actual 45m" with no estimate); null when no focus time is on the task. */
+export const actualVsEstimate = (actual: number | null, estimate: number | null): string | null =>
+  actual === null ? null : `Actual ${formatMinutes(actual)}${estimate ? ` vs estimate ${formatMinutes(estimate)}` : ""}`;

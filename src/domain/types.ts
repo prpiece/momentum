@@ -302,6 +302,8 @@ export type Settings = {
   smartParse: boolean;
   /** Task views list finished tasks too (D213). The calendar has its own `calendar.showCompleted`. */
   showCompleted: boolean;
+  /** Task views hide tasks finished more than this many days ago; 0 keeps them (FEAT-17). The Logbook and stats still count them. */
+  hideDoneAfterDays: number;
   viewOptions: Record<string, ViewOptions>;
   savedFilters: SavedFilter[];
   calendar: CalendarSettings;

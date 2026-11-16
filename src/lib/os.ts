@@ -14,6 +14,7 @@ import type { NotifySettings } from "../domain/types";
 import { isBuild, isDone, targetOf } from "../domain/habits";
 import { checkinOf, setCheckin, useHabits } from "../stores/habits";
 import { buildSnapshot, parseMiniAction } from "../domain/mini";
+import { buildPopState, parsePopView, trayTooltip } from "../domain/popout";
 import { toggleDone } from "../features/tasks/actions";
 import { derive } from "../domain/taskViews";
 import { autoStartFocus, pauseFocus, resumeFocus, setPhaseEndHandler, skipPhase, startFocus, stopFocus, tickFocus, useFocus } from "../stores/focus";
@@ -365,6 +366,13 @@ export async function initOs() {
       publishMini();
     }, 250);
   };
+  let popTimer: ReturnType<typeof setTimeout> | undefined;
+  const publishPopsSoon = () => {
+    popTimer ??= setTimeout(() => {
+      popTimer = undefined;
+      publishPops();
+    }, 250);
+  };
   await listen("mini:hello", publishMini);
   await listen<unknown>("mini:action", (e) => {
     const a = parseMiniAction(e.payload);
@@ -387,10 +395,30 @@ export async function initOs() {
     else if (a.op === "resume") resumeFocus();
     else if (useFocus.getState().timer.status === "running" || useFocus.getState().timer.status === "paused") skipPhase();
   });
+  // --- pop-out windows (FEAT-27) and the tray tooltip (FEAT-18) ---------------
+  const popViews = new Set<string>();
+  const publishPops = () => {
+    const { tasks, lists } = useData.getState();
+    const d = derive(tasks, lists);
+    const today = todayLocal();
+    for (const view of popViews) {
+      const title = view.startsWith("list:") ? (lists[view.slice(5)]?.name ?? "List") : view[0].toUpperCase() + view.slice(1);
+      void emit("pop:state", buildPopState(view, title, d.roots, today));
+    }
+    const left = buildPopState("today", "", d.roots, today, Infinity).tasks;
+    void TrayIcon.getById("momentum").then((t) => t?.setTooltip(trayTooltip(left.length, left[0]?.title ?? null)));
+  };
+  await listen<unknown>("pop:hello", (e) => {
+    const v = parsePopView((e.payload as { view?: unknown } | null)?.view);
+    if (v) (popViews.add(v), publishPops());
+  });
   useData.subscribe(publishMiniSoon);
+  useData.subscribe(publishPopsSoon);
   useFocus.subscribe(publishMiniSoon);
   setInterval(publishMini, 60_000); // midnight rolls Today over without any store change
   publishMini();
+  publishPops();
+  setInterval(publishPops, 60_000);
   // --- app icon --------------------------------------------------------------
   // The taskbar and tray icons take the accent color (D55).
   const syncIcon = async (accent: AccentId) => {

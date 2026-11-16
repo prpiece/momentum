@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal, atLocalTime, setDayEndHour, timed } from "./dates";
-import { derive, flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, plannedMinutes, sortVMs, toVM, type TaskVM } from "./taskViews";
+import { derive, hiddenAsOld, flattenTree, groupVMs, topLevelIn, inSmartList, inSmartScope, isOverdue, matchScore, plannedMinutes, sortVMs, toVM, type TaskVM } from "./taskViews";
 import type { Schedule, SmartListId, Task, TaskList } from "./types";
 
 const TODAY = "2026-10-25";
@@ -287,5 +287,15 @@ describe("sortVMs with a saved manual order (D331)", () => {
   it("ignores the saved order for other sorts", () => {
     const [a, b] = [mk({ priority: 1 }), mk({ priority: 3 })].map((t) => toVM(t)!);
     expect(sortVMs([a, b], "priority", [a.task.id, b.task.id]).map((v) => v.task.id)).toEqual([b.task.id, a.task.id]);
+  });
+});
+
+describe("hiddenAsOld (FEAT-17)", () => {
+  const done = (iso: string) => mk({ status: "done", completedAt: iso });
+  it("hides finished tasks older than N days only", () => {
+    expect(hiddenAsOld(done("2026-10-01T15:00:00Z"), TODAY, 7)).toBe(true);
+    expect(hiddenAsOld(done("2026-10-20T15:00:00Z"), TODAY, 7)).toBe(false);
+    expect(hiddenAsOld(done("2026-10-01T15:00:00Z"), TODAY, 0)).toBe(false);
+    expect(hiddenAsOld(mk(), TODAY, 7)).toBe(false);
   });
 });

@@ -87,6 +87,10 @@ export const plannedMinutes = (vms: readonly TaskVM[]) =>
   vms.reduce((sum, vm) => sum + (vm.task.status === "open" ? (taskMinutes({ schedule: vm.schedule, durationMin: vm.task.durationMin }) ?? 0) : 0), 0);
 
 /** The deadline has passed (red chip). */
+/** FEAT-17: a finished task older than `days` days (0 = never hide) drops out of list views; it stays in the Logbook and stats. */
+export const hiddenAsOld = (t: Pick<Task, "status" | "completedAt">, today: LocalDate, days: number): boolean =>
+  days > 0 && t.status !== "open" && !!t.completedAt && todayLocal(new Date(t.completedAt)) < addDaysLocal(today, -days);
+
 export const deadlinePassed = (t: Pick<Task, "deadline" | "status">, today: LocalDate) => t.status === "open" && t.deadline !== null && t.deadline < today;
 
 /** A timed block is overdue once it has ended before today, so one running past midnight isn't (HAB-12). */

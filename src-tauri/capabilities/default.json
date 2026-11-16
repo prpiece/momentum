@@ -55,6 +55,7 @@
     "allow-secret-set",
     "allow-secret-delete",
     "allow-toggle-mini",
+    "allow-open-pop-window",
     "allow-write-text-file",
     "allow-write-png",
     "allow-read-text-file",

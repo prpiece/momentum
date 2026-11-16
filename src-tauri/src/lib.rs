@@ -291,6 +291,26 @@ fn toggle_mini(app: AppHandle) {
     }
 }
 
+/// Opens a list in its own read-only window (FEAT-27). The view id is checked: it ends up in a URL.
+#[tauri::command]
+async fn open_pop_window(app: AppHandle, view: String) -> Result<(), String> {
+    if view.is_empty() || !view.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ':' | '_' | '-')) {
+        return Err("invalid view".into());
+    }
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+    let label = format!("pop-{}", NEXT.fetch_add(1, Ordering::Relaxed));
+    tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::App(format!("index.html?window=pop&view={view}").into()))
+        .title("Momentum")
+        .inner_size(340.0, 520.0)
+        .min_inner_size(260.0, 300.0)
+        .decorations(false)
+        .always_on_top(true)
+        .disable_drag_drop_handler()
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Momentum", true, None::<&str>)?;
     let quick = MenuItem::with_id(app, "quick", "Quick add…", true, None::<&str>)?;
@@ -311,7 +331,8 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
-                show_main(tray.app_handle());
+                // Click toggles the quick view (Today, timer, matrix); "Open Momentum" stays in the menu (FEAT-18).
+                toggle_mini(tray.app_handle().clone());
             }
         });
     if let Some(icon) = app.default_window_icon() {
@@ -380,6 +401,7 @@ pub fn run() {
             secrets::secret_set,
             secrets::secret_delete,
             toggle_mini,
+            open_pop_window,
             write_text_file,
             write_png,
             read_text_file,
@@ -409,6 +431,10 @@ pub fn run() {
         .on_window_event(|window, event| {
             // A popup closed by Alt+F4 or Cmd+W would be destroyed and could never be shown again.
             if window.label() != "main" {
+                // Pop-out windows are created on demand, so closing one really closes it.
+                if window.label().starts_with("pop-") {
+                    return;
+                }
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();

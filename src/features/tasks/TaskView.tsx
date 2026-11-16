@@ -10,7 +10,7 @@ import { MenuItem, MenuLabel, MenuSeparator, Popover, useMenu } from "../../comp
 import { formatMinutes, todayLocal } from "../../domain/dates";
 import type { GroupBy, ListLayout, SortBy } from "../../domain/types";
 import { isEmptyFilter, matchesFilter, parseFilter } from "../../domain/filter";
-import { plannedMinutes, toVM } from "../../domain/taskViews";
+import { hiddenAsOld, plannedMinutes, toVM } from "../../domain/taskViews";
 import { updateList, useData } from "../../stores/data";
 import { useSocial } from "../../stores/social";
 import { canEdit } from "../../domain/shareAccess";
@@ -77,12 +77,13 @@ export function TaskView({ spec }: { spec: TaskViewSpec }) {
   };
   // A view whose own filter picks a status (a saved "done" filter), or a typed `done`, ignores the toggle.
   const showDone = settings.showCompleted || !spec.splitCompleted || adhoc.status !== null;
+  const hideAfter = adhoc.status !== null ? 0 : settings.hideDoneAfterDays;
   const menu = useMenu();
 
   const source = spec.list ? derived.vms : derived.active;
   const vms = useMemo(
-    () => source.filter((v) => (showDone || v.task.status === "open") && spec.filter(v, today) && (isEmptyFilter(adhoc) || matchesFilter(v, adhoc, { today, lists, tags }))),
-    [source, spec, today, adhoc, lists, tags, showDone],
+    () => source.filter((v) => (showDone || v.task.status === "open") && !hiddenAsOld(v.task, today, hideAfter) && spec.filter(v, today) && (isEmptyFilter(adhoc) || matchesFilter(v, adhoc, { today, lists, tags }))),
+    [source, spec, today, adhoc, lists, tags, showDone, hideAfter],
   );
   const openCount = vms.filter((v) => v.task.status === "open").length;
   const planned = spec.id === "today" ? plannedMinutes(vms) : 0;

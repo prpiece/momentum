@@ -5,7 +5,8 @@
   "windows": [
     "quickadd",
     "reminder",
-    "mini"
+    "mini",
+    "pop-*"
   ],
   "permissions": [
     "core:default",

@@ -309,6 +309,14 @@ export function SettingsView() {
         <Row label="Completed tasks">
           <Toggle checked={s.showCompleted} onChange={(v) => update({ showCompleted: v })} text="Show completed tasks" />
         </Row>
+        <Row label="Hide completed after">
+          <select aria-label="Hide completed tasks after" title="Only task lists; the Logbook, search and Progress still show everything" value={s.hideDoneAfterDays} onChange={(e) => update({ hideDoneAfterDays: Number(e.target.value) })} className="input w-auto">
+            <option value={0}>Never</option>
+            {[7, 30, 90, 365].map((n) => (
+              <option key={n} value={n}>{n} days</option>
+            ))}
+          </select>
+        </Row>
         <Row label="New task list">
           <select aria-label="Default list for new tasks" value={s.taskDefaults.listId ?? ""} onChange={(e) => update({ taskDefaults: { ...s.taskDefaults, listId: e.target.value || null } })} className="input w-auto">
             <option value="">Inbox</option>

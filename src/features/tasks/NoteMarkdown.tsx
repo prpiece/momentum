@@ -1,9 +1,10 @@
 import { Copy, Maximize2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { fetchAttachment, imageUrl } from "../../lib/appFiles";
 import { toast } from "../../stores/ui";
+import { AttachmentPreview } from "./AttachmentPreview";
 import { ImageLightbox } from "./ImageLightbox";
 
 const PREFIX = "attachment:";
@@ -53,6 +54,19 @@ function NoteImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+/** `[name](attachment:file.pdf)`: a button that opens the in-app preview (FEAT-25). Stops clicks so the note doesn't switch to editing. */
+function NoteFile({ href, children }: { href: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <button type="button" onClick={() => setOpen(true)} className="text-accent-text underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent">
+        {children}
+      </button>
+      {open && <AttachmentPreview name={href.slice(PREFIX.length)} onClose={() => setOpen(false)} />}
+    </span>
+  );
+}
+
 /** Clipboard images must be PNG, so other formats are redrawn first (D99). */
 async function copyImage(url: string) {
   try {
@@ -77,7 +91,7 @@ export function NoteMarkdown({ children }: { children: string }) {
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       urlTransform={(u) => (u.startsWith(PREFIX) ? u : defaultUrlTransform(u))}
-      components={{ img: ({ src, alt }) => (typeof src === "string" && src.startsWith(PREFIX) ? <NoteImage src={src} alt={alt ?? ""} /> : <span className="text-muted">{alt || "Image"}</span>) }}
+      components={{ a: ({ href, children }) => (href?.startsWith(PREFIX) ? <NoteFile href={href}>{children}</NoteFile> : <a href={href}>{children}</a>), img: ({ src, alt }) => (typeof src === "string" && src.startsWith(PREFIX) ? <NoteImage src={src} alt={alt ?? ""} /> : <span className="text-muted">{alt || "Image"}</span>) }}
     >
       {children}
     </ReactMarkdown>

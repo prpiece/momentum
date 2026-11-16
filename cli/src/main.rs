@@ -30,7 +30,9 @@ Usage: momentum <command> [options]
   update <id> [--title T] [--notes N] [--date YYYY-MM-DD|someday|none] [--deadline YYYY-MM-DD|none]
               [--duration 15|1h30m|none] [--priority none|low|medium|high] [--list L] [--tags a,b]
               [--scope this|following|all]   (recurring tasks: this occurrence by default)
-              [--time HH:mm] [--pin|--unpin]
+              [--time HH:mm] [--pin|--unpin] [--repeat FREQ=WEEKLY;BYDAY=MO|none]   (repeat: --scope all or following)
+              [--remind 10,60|1d@09:00|none] (minutes before a time block, or N days before at a time)
+              [--checklist \"a,b\"|none] [--parent ID|none] (move under a task, or back to top level)
   done <id>                   complete a task
   reopen <id>
   delete <full-id> [--with-subtasks] [--scope this|following|all]
@@ -283,7 +285,7 @@ struct Parsed {
     json: bool,
 }
 
-const VALUE_FLAGS: &[&str] = &["list", "parent", "title", "notes", "date", "deadline", "duration", "priority", "tags", "limit", "scope", "status", "delta", "value", "from", "to", "time"];
+const VALUE_FLAGS: &[&str] = &["list", "parent", "title", "notes", "date", "deadline", "duration", "priority", "tags", "limit", "scope", "status", "delta", "value", "from", "to", "time", "repeat", "remind", "checklist"];
 /// Flags that take no value.
 const SWITCHES: &[&str] = &["with-subtasks", "archived", "pin", "unpin"];
 
@@ -327,6 +329,22 @@ fn parse_args(args: Vec<String>) -> R<Parsed> {
 }
 
 /// `15`, `15m`, `1h`, `1h30m`, `none`.
+/// `a, b` as items; "none" and empty give no items.
+fn list_items(s: &str) -> Vec<&str> {
+    if s.trim() == "none" {
+        return Vec::new();
+    }
+    s.split(',').map(str::trim).filter(|x| !x.is_empty()).collect()
+}
+
+/// `15` is 15 minutes before a time block; `1d@09:00` is a day before a day task, at 09:00.
+fn reminder(s: &str) -> Option<Value> {
+    if let Some((d, time)) = s.split_once("d@") {
+        return Some(json!({ "daysBefore": d.parse::<u64>().ok()?, "time": time }));
+    }
+    Some(json!({ "minutes": s.parse::<u64>().ok()? }))
+}
+
 fn minutes(s: &str) -> Option<Value> {
     if s == "none" {
         return Some(Value::Null);
@@ -462,10 +480,17 @@ fn to_op(p: &Parsed) -> R<(&'static str, Value)> {
         "update" => {
             let mut m = Map::new();
             m.insert("id".into(), json!(one_id(p)?));
-            for (flag, key) in [("title", "title"), ("notes", "description"), ("date", "date"), ("deadline", "deadline"), ("priority", "priority"), ("list", "list"), ("time", "time")] {
+            for (flag, key) in [("title", "title"), ("notes", "description"), ("date", "date"), ("deadline", "deadline"), ("priority", "priority"), ("list", "list"), ("time", "time"), ("repeat", "repeat"), ("parent", "parentId")] {
                 if let Some(v) = p.flags.get(flag) {
                     m.insert(key.into(), v.clone());
                 }
+            }
+            if let Some(v) = p.flags.get("checklist") {
+                m.insert("checklist".into(), json!(list_items(v.as_str().unwrap_or(""))));
+            }
+            if let Some(v) = p.flags.get("remind") {
+                let rs: Option<Vec<Value>> = list_items(v.as_str().unwrap_or("")).iter().map(|r| reminder(r)).collect();
+                m.insert("reminders".into(), json!(rs.ok_or_else(|| Fail::Usage("--remind looks like 10,60 (minutes before), 1d@09:00 (a day before, at a time) or none".into()))?));
             }
             if p.flags.contains_key("pin") || p.flags.contains_key("unpin") {
                 m.insert("pinned".into(), json!(p.flags.contains_key("pin") && !p.flags.contains_key("unpin")));
@@ -667,9 +692,16 @@ fn tools() -> Value {
         "time": { "type": "string", "description": "HH:mm: makes it a time block on its planned day (today if none)." },
         "pinned": { "type": "boolean" }
     });
+    let update_only = json!({
+        "repeat": { "type": "string", "description": "Repeat rule, an RRULE body such as \"FREQ=WEEKLY;BYDAY=MO,WE\" (daily or slower), or \"none\". Needs a planned day. On a repeating task also give scope \"all\" or \"following\"." },
+        "reminders": { "type": "array", "items": { "type": "object", "properties": { "minutes": { "type": "integer", "description": "Minutes before a time block starts." }, "daysBefore": { "type": "integer", "description": "For a day task: days before it." }, "time": { "type": "string", "description": "HH:mm, with daysBefore." } } }, "description": "Replaces the reminders; [] clears them. Use {minutes} on a time block, {daysBefore, time} on a day task." },
+        "checklist": { "type": "array", "items": { "type": "string" }, "description": "Replaces the checklist by item titles; [] clears it. Items whose title is kept stay ticked." },
+        "parentId": { "type": "string", "description": "Move under this task (id), or \"none\" for top level. Refused if it would loop or nest too deep." }
+    });
     let id = json!({ "id": { "type": "string", "description": "Task id from list_tasks (4+ leading characters are enough)." } });
     let mut update_props = task_fields.as_object().cloned().unwrap_or_default();
     update_props.extend(id.as_object().cloned().unwrap_or_default());
+    update_props.extend(update_only.as_object().cloned().unwrap_or_default());
     update_props.insert("scope".into(), json!({ "type": "string", "enum": ["this", "following", "all"], "description": "Recurring tasks only: which occurrences change. Default this (just the current one)." }));
     json!([
         { "name": "list_tasks", "description": "List open tasks in a view: today, inbox, upcoming, someday, waiting, a list name, or a filter such as \"#work !high overdue\". Defaults to today.",
@@ -962,6 +994,11 @@ mod tests {
         let (_, args) = to_op(&parsed(&["add", "dentist", "--time", "14:30", "--duration", "45", "--tags", "a,b", "--priority", "high"])).ok().unwrap();
         assert_eq!(args, json!({ "text": "dentist", "time": "14:30", "priority": "high", "durationMin": 45, "tags": ["a", "b"] }));
         assert_eq!(to_op(&parsed(&["search", "x", "--archived"])).ok().unwrap(), ("search", json!({ "text": "x", "includeArchived": true })));
+        let (_, args) = to_op(&parsed(&["update", "ab12", "--repeat", "FREQ=DAILY", "--scope", "all", "--remind", "10,1d@09:00", "--checklist", "a, b", "--parent", "cd34"])).ok().unwrap();
+        assert_eq!(args, json!({ "id": "ab12", "repeat": "FREQ=DAILY", "scope": "all", "parentId": "cd34", "checklist": ["a", "b"], "reminders": [{ "minutes": 10 }, { "daysBefore": 1, "time": "09:00" }] }));
+        assert!(to_op(&parsed(&["update", "ab12", "--remind", "soon"])).is_err());
+        let (_, args) = to_op(&parsed(&["update", "ab12", "--checklist", "none"])).ok().unwrap();
+        assert_eq!(args, json!({ "id": "ab12", "checklist": [] }));
         let (_, args) = to_op(&parsed(&["update", "ab12", "--pin"])).ok().unwrap();
         assert_eq!(args, json!({ "id": "ab12", "pinned": true }));
         assert!(["check_in_habit", "list_events", "focus_status"].iter().all(|n| tool_op(n).is_some()));

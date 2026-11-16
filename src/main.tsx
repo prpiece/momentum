@@ -27,6 +27,9 @@ const popup = new URLSearchParams(location.search).get("window");
 if (popup === "mini") {
   const { MiniWindow } = await import("./windows/MiniWindow");
   root.render(<React.StrictMode><MiniWindow /></React.StrictMode>);
+} else if (popup === "pop") {
+  const { PopWindow } = await import("./windows/PopWindow");
+  root.render(<React.StrictMode><PopWindow /></React.StrictMode>);
 } else if (popup === "quickadd" || popup === "reminder") {
   // Small helper windows: no database, no stores; they talk to the main window via events.
   const { QuickAddWindow } = await import("./windows/QuickAddWindow");

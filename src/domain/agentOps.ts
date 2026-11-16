@@ -4,8 +4,8 @@
  * The localhost API is a system boundary, so every argument is validated here and unknown fields are refused.
  */
 import { durationMinutes, hhmm, isLocalDate, moveToDate, scheduleDate } from "./dates";
-import { describeRule } from "./recurrence";
-import { PRIORITY_LABEL, type LocalDate, type Priority, type Schedule, type Tag, type Task, type TaskList } from "./types";
+import { describeRule, isValidRule } from "./recurrence";
+import { PRIORITY_LABEL, type LocalDate, type Priority, type Reminder, type Schedule, type Tag, type Task, type TaskList } from "./types";
 
 export class AgentError extends Error {}
 
@@ -73,6 +73,14 @@ export type TaskPatch = {
   /** `HH:mm`: makes the task a time block on its planned day (today when it has none). */
   time?: string;
   pinned?: boolean;
+  /** An RRULE body (`FREQ=WEEKLY;BYDAY=MO`), checked with `isValidRule`; null stops repeating. Needs a planned day. */
+  repeat?: string | null;
+  /** Replaces the reminders. */
+  reminders?: Reminder[];
+  /** Replaces the checklist by item titles; an item whose title is kept stays ticked. */
+  checklist?: string[];
+  /** Move under this task (id or prefix), or null for top level. Update only. */
+  parentId?: string | null;
 };
 export type HabitCheckin = { habit: string; date: LocalDate | null; delta: number | null; value: number | null };
 export type AgentRequest =
@@ -165,10 +173,33 @@ function planned(v: unknown): Planned {
   throw new AgentError('date must be YYYY-MM-DD, "someday" or "none".');
 }
 
+const MAX_CHECKLIST = 100;
+const MAX_REMINDERS = 10;
+
+/** `[{minutes: 10}]` (before a timed task starts) and `[{daysBefore: 1, time: "09:00"}]` (a day task, at a time N days before). */
+function remindersOf(v: unknown): Reminder[] {
+  const bad = () => new AgentError('reminders must be a list of {minutes} (before a time block) or {daysBefore, time: "HH:mm"} (before a day task), at most 10; [] clears them.');
+  if (!Array.isArray(v) || v.length > MAX_REMINDERS) throw bad();
+  return v.map((r): Reminder => {
+    if (typeof r !== "object" || r === null || Array.isArray(r)) throw bad();
+    const o = r as Args;
+    const whole = (x: unknown, max: number) => typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= max;
+    if (Object.keys(o).length === 1 && whole(o.minutes, 60 * 24 * 30)) return { kind: "before", minutes: o.minutes as number };
+    if (Object.keys(o).length === 2 && whole(o.daysBefore, 365) && typeof o.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(o.time)) return { kind: "dayOf", daysBefore: o.daysBefore as number, time: o.time };
+    throw bad();
+  });
+}
+
 /** Validates an update's fields. Anything outside the allow-list is refused rather than ignored. */
 export function parsePatch(args: Args): TaskPatch {
-  only(args, ["id", "scope", "title", "description", "priority", "list", "date", "time", "deadline", "durationMin", "tags", "pinned"]);
+  only(args, ["id", "scope", "title", "description", "priority", "list", "date", "time", "deadline", "durationMin", "tags", "pinned", "repeat", "reminders", "checklist", "parentId"]);
   const p = patchFields(args);
+  if ("parentId" in args) {
+    const v = args.parentId;
+    if (v === null || v === "" || v === "none") p.parentId = null;
+    else if (typeof v === "string") p.parentId = v.trim().toLowerCase();
+    else throw new AgentError('parentId must be a task id or "none".');
+  }
   if (Object.keys(p).length === 0) throw new AgentError("Nothing to update: give at least one field.");
   return p;
 }
@@ -182,6 +213,18 @@ function patchFields(args: Args): TaskPatch {
     p.time = v;
   }
   if ("pinned" in args) p.pinned = flag(args, "pinned");
+  if ("repeat" in args) {
+    const v = args.repeat;
+    if (v === null || v === "" || v === "none") p.repeat = null;
+    else if (typeof v === "string" && isValidRule(v.trim().replace(/^RRULE:/i, ""))) p.repeat = v.trim().replace(/^RRULE:/i, "");
+    else throw new AgentError('repeat must be an RRULE such as "FREQ=WEEKLY;BYDAY=MO,WE" (daily or slower), or "none".');
+  }
+  if ("reminders" in args) p.reminders = remindersOf(args.reminders);
+  if ("checklist" in args) {
+    const v = args.checklist;
+    if (!Array.isArray(v) || v.length > MAX_CHECKLIST || v.some((x) => typeof x !== "string" || !oneLine(x).trim())) throw new AgentError(`checklist must be a list of at most ${MAX_CHECKLIST} non-empty item titles.`);
+    p.checklist = v.map((x: string) => capped(oneLine(x).trim(), MAX_TITLE, "checklist item"));
+  }
   if ("title" in args) p.title = capped(oneLine(str(args, "title", true)).trim(), MAX_TITLE, "title");
   if ("description" in args) p.description = capped(str(args, "description") ?? "", MAX_NOTES, "description");
   if ("priority" in args) {

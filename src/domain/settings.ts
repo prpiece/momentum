@@ -60,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   contrast: "system",
   smartParse: true,
   showCompleted: true,
+  hideDoneAfterDays: 0,
   viewOptions: {},
   savedFilters: [],
   calendar: {
@@ -353,6 +354,7 @@ export function parseSettings(raw: unknown): Settings {
     contrast: oneOf(CONTRASTS, r.contrast) ? r.contrast : d.contrast,
     smartParse: typeof r.smartParse === "boolean" ? r.smartParse : d.smartParse,
     showCompleted: typeof r.showCompleted === "boolean" ? r.showCompleted : d.showCompleted,
+    hideDoneAfterDays: typeof r.hideDoneAfterDays === "number" && Number.isInteger(r.hideDoneAfterDays) && r.hideDoneAfterDays >= 0 && r.hideDoneAfterDays <= 3650 ? r.hideDoneAfterDays : d.hideDoneAfterDays,
     viewOptions: carryRetiredStartView(r.defaultView, parseViewOptions(r.viewOptions)),
     savedFilters: parseSavedFilters(r.savedFilters),
     calendar: parseCalendar(r.calendar),
@@ -385,7 +387,7 @@ export function parseSettings(raw: unknown): Settings {
 
 /** Settings that follow the account to every device (v1.1 spec, "What syncs"). */
 export const USER_SETTING_KEYS = [
-  "theme", "accent", "taskOpen", "defaultView", "weekStart", "timeFormat", "dateFormat", "contrast", "smartParse", "showCompleted", "viewOptions",
+  "theme", "accent", "taskOpen", "defaultView", "weekStart", "timeFormat", "dateFormat", "contrast", "smartParse", "showCompleted", "hideDoneAfterDays", "viewOptions",
   "savedFilters", "calendar", "matrix", "matrixColors", "pomodoro", "streakReminder", "sounds", "onboarded", "gettingStarted",
   "dayEndHour", "manualOrder", "templates", "taskDefaults",
 ] as const satisfies readonly (keyof Settings)[];

@@ -38,6 +38,8 @@ export const PALETTE_IDS = [
   "shortcuts",
   "from-template",
   "print",
+  "undo-history",
+  "pop-out",
 ] as const;
 export type PaletteId = (typeof PALETTE_IDS)[number];
 
@@ -164,7 +166,9 @@ export const FEATURES: Feature[] = [
     commands: [palette("go-habits", "Go to Habits"), keys("G H", "Habits")] },
   { id: "focus", title: "Focus with a timer", howTo: "Start a Pomodoro, optionally on a task or some of its subtasks, and finish a session.", icon: "timer", group: "Habits & focus", since: OLD, core: true, done: "focus:completed",
     commands: [palette("go-focus", "Go to Focus"), keys("G F", "Focus")] },
-  { id: "mini-window", title: "Keep the timer on top", howTo: "The mini window shows your next tasks, the timer and the matrix while you work elsewhere.", icon: "window", group: "Habits & focus", since: OLD, core: false,
+  { id: "undo-history", title: "See what just changed", howTo: "Run Undo history from the command palette to list recent changes with who made them, and undo back to any of them. The list is cleared when you quit.", icon: "undo", group: "Tasks", since: "1.3.0", core: false, commands: [palette("undo-history", "Undo history")] },
+  { id: "pop-out", title: "Pop a list out into its own window", howTo: "Run Open in new window from the command palette on Today, Upcoming, Inbox or a list. The window is read-only: tick a task to complete it, click one to open it in Momentum.", icon: "window", group: "Views", since: "1.3.0", core: false, commands: [palette("pop-out", "Open this list in a new window")] },
+  { id: "mini-window", title: "Keep the timer on top", howTo: "The mini window shows your next tasks, the timer and the matrix while you work elsewhere. Clicking the tray icon shows or hides it, and the tray tooltip says how many tasks are left today and which is next.", icon: "window", group: "Habits & focus", since: OLD, core: false,
     commands: [keys("Ctrl Alt M", "Show or hide the mini window (changeable in Settings)")] },
   { id: "streak-reminder", title: "Save a streak before it breaks", howTo: "At 18:00 (change it in Settings → Notifications) you get one reminder for habits with a running streak that you haven't done yet. Weekly habits are reminded on the week's last day.", icon: "target", group: "Habits & focus", since: "1.1.2", core: false, commands: [] },
   { id: "habit-backfill", title: "Fix a past day of a habit", howTo: "Open a habit and click any past day in the month grid or the year heatmap to check in or change its value. Future days stay closed.", icon: "target", group: "Habits & focus", since: "1.3.0", core: false, commands: [] },
