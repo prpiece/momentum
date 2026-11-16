@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Pin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { parsePopState, type PopState } from "../domain/popout";
 import { apply, readAppearance } from "../lib/applySettings";
@@ -11,6 +11,7 @@ const view = new URLSearchParams(location.search).get("view") ?? "today";
  */
 export function PopWindow() {
   const [state, setState] = useState<PopState | null>(null);
+  const [onTop, setOnTop] = useState(false);
   useEffect(() => {
     const a = readAppearance();
     if (a) apply(a);
@@ -30,11 +31,20 @@ export function PopWindow() {
     })();
     return () => off.forEach((f) => f());
   }, []);
+  // FEAT-28: pinned on top, the window works as a desktop widget.
+  const pin = async () => {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().setAlwaysOnTop(!onTop);
+    setOnTop(!onTop);
+  };
   const send = async (action: object) => (await import("@tauri-apps/api/event")).emit("mini:action", action);
   return (
     <div className="flex h-full flex-col bg-surface">
       <header data-tauri-drag-region className="flex h-10 shrink-0 select-none items-center border-b border-border px-3 text-[length:var(--fs-sm)] font-medium">
-        {state?.title ?? "Momentum"}
+        <span data-tauri-drag-region className="min-w-0 flex-1 truncate">{state?.title ?? "Momentum"}</span>
+        <button type="button" aria-pressed={onTop} title={onTop ? "Stop keeping on top" : "Keep on top"} aria-label="Keep on top" className={`btn btn-ghost icon-btn ${onTop ? "text-accent-text" : "text-muted"}`} onClick={() => void pin()}>
+          <Pin size={14} />
+        </button>
       </header>
       <div className="min-h-0 flex-1 overflow-auto px-2 py-2">
         {!state ? (

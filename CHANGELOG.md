@@ -5,6 +5,23 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.3.0
+
+- **Two-way Google Calendar and Outlook sync.** Connect them in Settings → Connections → Calendars and pick which calendars show. Edits go both ways, on desktop and phone.
+- **Home.** One page with today's tasks, what's next on your calendar, your habits and focus time. Choose what the app opens to in Settings → General.
+- **Plan your day, shut down, review your week.** Plan my day walks through yesterday's leftovers and picks today's tasks; Shut down sweeps the rest; Review lists what's overdue, due follow-ups and old Inbox items.
+- **Reorder Today and Upcoming.** Drag a task, or press Alt Up / Alt Down, and the order sticks.
+- **Task templates.** Right-click a task → Save as template, then New from template copies it with its subtasks and dates counted from today.
+- **Custom repeats.** Every few days, weeks, months or years, the 2nd Tuesday or last Friday, ending on a date or after a number of times. Missed repeats can be skipped to today in one go, and a repeating checklist starts unticked each time.
+- **See what blocks what.** Tasks waiting on another show "blocked by …", and the task they wait on shows how many it's blocking.
+- **Edit a task by typing.** Type a date, !priority, #tag or ~list into a task's title in its details and Apply it.
+- **Habits.** Fix a past day from the month grid or heatmap, skip a day, or pause a habit without breaking the streak.
+- **Focus.** Add a past session by hand, and Progress shows where your focus time went by list and tag, and how long tasks took against their estimate.
+- **Logbook and Undo history.** Look back at everything you finished, and undo back to any recent change.
+- **Search finds more.** Habits, calendar events, and words that are only in a task's notes.
+- **Backups and exports.** Automatic daily backups (optionally encrypted, optionally to your account), task export as .json or .csv, calendar export as .ics, and Print or Save as PDF for any list.
+- **Smaller things.** Defaults for new tasks, a date format setting, High contrast, sample data to try things out, PDF and text attachments that open inside Momentum, and lists that pop out into their own window.
+
 ## v1.2.3
 
 - **Friend requests arrive instantly.** A request, an accepted friend or a share invite now shows up on the other person's screen within seconds, and opening Friends always shows the latest.

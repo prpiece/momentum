@@ -136,6 +136,13 @@ jobs:
       # --ignore-scripts: dependency install scripts never run here, and the signing key is not in this step's env.
       - run: npm ci --ignore-scripts
 
+      # RUST-13: everything that runs third-party code (vite, build scripts, the CLI build) runs here,
+      # without the signing key. The signing step below only bundles: cargo finds the build up to date
+      # and tauri.bundle-only.conf.json drops beforeBuildCommand, so the frontend isn't rebuilt.
+      - name: Compile (no signing key)
+        shell: bash
+        run: npx tauri build --no-bundle ${{ matrix.args }}
+
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -144,7 +151,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.release.outputs.id }}
-          args: ${{ matrix.args }}
+          args: --config src-tauri/tauri.bundle-only.conf.json ${{ matrix.args }}
 
   # Parallel jobs merge latest.json one after another; a simultaneous finish could drop a platform.
   # ponytail: detect it instead of serialising the builds; re-run the failed job if this ever trips.
