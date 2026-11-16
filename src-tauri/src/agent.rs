@@ -15,10 +15,10 @@ use std::{
     net::{IpAddr, TcpListener, TcpStream},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         mpsc, Mutex,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -27,6 +27,10 @@ const MAX_BODY: usize = 1024 * 1024;
 const MAX_HEAD: usize = 16 * 1024;
 const REPLY_TIMEOUT: Duration = Duration::from_secs(10);
 const IO_TIMEOUT: Duration = Duration::from_secs(5);
+/// The whole request, head and body, must arrive within this: a trickling client can't hold a thread (AGENT-13).
+const REQUEST_DEADLINE: Duration = Duration::from_secs(10);
+/// Connections served at once; more are refused with 503.
+const MAX_CONNECTIONS: usize = 8;
 
 #[derive(Default)]
 pub struct Agent {
@@ -34,6 +38,9 @@ pub struct Agent {
     /// The main window has registered its listener; before that, requests would vanish.
     ready: AtomicBool,
     seq: AtomicU64,
+    open: AtomicUsize,
+    /// Why `start` failed, handed to the main window once it is listening so it can say so (AGENT-07).
+    start_error: Mutex<Option<String>>,
 }
 
 /// A request that passed parsing, before authorization.
@@ -47,8 +54,21 @@ struct Req {
 
 type Fail = (u16, &'static str);
 
-/// Reads one HTTP/1.1 request. Anything malformed, chunked or oversized is refused with a status.
-fn parse_request(r: &mut impl Read) -> Result<Req, Fail> {
+/// The request line and headers, with whatever of the body arrived in the same reads.
+#[derive(Debug)]
+struct Head {
+    req: Req,
+    len: usize,
+    early: Vec<u8>,
+}
+
+/// Called before every read: refuses once the whole request has taken too long, and shortens the socket's
+/// read timeout to what is left.
+type Tick<'a> = &'a mut dyn FnMut() -> Result<(), Fail>;
+
+/// Reads the request line and headers, nothing of the body beyond what came with them. Anything
+/// malformed, chunked or oversized is refused with a status. Authorization happens before the body is read.
+fn read_head(r: &mut impl Read, tick: Tick) -> Result<Head, Fail> {
     let mut buf = Vec::new();
     let mut chunk = [0u8; 4096];
     let head_end = loop {
@@ -58,6 +78,7 @@ fn parse_request(r: &mut impl Read) -> Result<Req, Fail> {
         if buf.len() > MAX_HEAD {
             return Err((431, "headers too large"));
         }
+        tick()?;
         match r.read(&mut chunk) {
             Ok(0) | Err(_) => return Err((400, "incomplete request")),
             Ok(n) => buf.extend_from_slice(&chunk[..n]),
@@ -85,15 +106,23 @@ fn parse_request(r: &mut impl Read) -> Result<Req, Fail> {
     if len > MAX_BODY {
         return Err((413, "body too large"));
     }
-    let mut body = buf[head_end + 4..].to_vec();
+    let early = buf[head_end + 4..].to_vec();
+    Ok(Head { req: Req { method: method.into(), path: path.into(), headers, body: Vec::new() }, len, early })
+}
+
+/// The rest of the body announced by `Content-Length`.
+fn read_body(r: &mut impl Read, len: usize, early: Vec<u8>, tick: Tick) -> Result<Vec<u8>, Fail> {
+    let mut body = early;
+    let mut chunk = [0u8; 4096];
     while body.len() < len {
+        tick()?;
         match r.read(&mut chunk) {
             Ok(0) | Err(_) => return Err((400, "incomplete body")),
             Ok(n) => body.extend_from_slice(&chunk[..n]),
         }
     }
     body.truncate(len);
-    Ok(Req { method: method.into(), path: path.into(), headers, body })
+    Ok(body)
 }
 
 /// Equal without leaking, through timing, how much of a wrong token matched.
@@ -134,6 +163,7 @@ fn respond(s: &mut TcpStream, status: u16, body: &str) {
         403 => "Forbidden",
         404 => "Not Found",
         405 => "Method Not Allowed",
+        408 => "Request Timeout",
         413 => "Payload Too Large",
         422 => "Unprocessable Entity",
         503 => "Service Unavailable",
@@ -148,13 +178,23 @@ fn error_body(msg: &str) -> String {
 }
 
 fn handle(mut s: TcpStream, app: &AppHandle, port: u16, token: &str) {
-    let _ = s.set_read_timeout(Some(IO_TIMEOUT));
     let _ = s.set_write_timeout(Some(IO_TIMEOUT));
     let Ok(peer) = s.peer_addr() else { return };
-    let (status, body) = match parse_request(&mut s).and_then(|req| {
-        let op = authorize(&req, peer.ip(), port, token)?.to_string();
-        Ok((op, req.body))
-    }) {
+    let start = Instant::now();
+    let sock = s.try_clone();
+    let mut tick = || -> Result<(), Fail> {
+        let left = REQUEST_DEADLINE.checked_sub(start.elapsed()).filter(|d| !d.is_zero()).ok_or((408, "request took too long"))?;
+        if let Ok(c) = &sock {
+            let _ = c.set_read_timeout(Some(left.min(IO_TIMEOUT)));
+        }
+        Ok(())
+    };
+    let outcome = read_head(&mut s, &mut tick).and_then(|head| {
+        // Who is asking is settled before any body is read.
+        let op = authorize(&head.req, peer.ip(), port, token)?.to_string();
+        Ok((op, read_body(&mut s, head.len, head.early, &mut tick)?))
+    });
+    let (status, body) = match outcome {
         Err((code, msg)) => (code, error_body(msg)),
         Ok((op, body)) => forward(app, &op, &body),
     };
@@ -222,8 +262,20 @@ pub fn agent_reply(window: tauri::Window, state: State<Agent>, id: String, resul
 
 /// The main window is listening; start forwarding.
 #[tauri::command]
-pub fn agent_ready(state: State<Agent>) {
+pub fn agent_ready(state: State<Agent>) -> Option<String> {
     state.ready.store(true, Ordering::SeqCst);
+    state.start_error.lock().unwrap().take()
+}
+
+/// The main window's page started loading (first load, reload or crash recovery): its listener is gone
+/// until it registers again, so requests get "starting" (which clients retry) instead of timing out (AGENT-08).
+pub fn page_loading(app: &AppHandle) {
+    app.state::<Agent>().ready.store(false, Ordering::SeqCst);
+}
+
+/// Remembers why `start` failed so the main window can tell the user once it is up.
+pub fn note_start_error(app: &AppHandle, msg: String) {
+    *app.state::<Agent>().start_error.lock().unwrap() = Some(msg);
 }
 
 fn random_token() -> std::io::Result<String> {
@@ -285,7 +337,16 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     std::thread::spawn(move || {
         for conn in listener.incoming().flatten() {
             let (app, token) = (app.clone(), token.clone());
-            std::thread::spawn(move || handle(conn, &app, port, &token));
+            if app.state::<Agent>().open.fetch_add(1, Ordering::SeqCst) >= MAX_CONNECTIONS {
+                app.state::<Agent>().open.fetch_sub(1, Ordering::SeqCst);
+                let mut conn = conn;
+                respond(&mut conn, 503, &error_body("too many connections"));
+                continue;
+            }
+            std::thread::spawn(move || {
+                handle(conn, &app, port, &token);
+                app.state::<Agent>().open.fetch_sub(1, Ordering::SeqCst);
+            });
         }
     });
     Ok(())
@@ -490,7 +551,11 @@ mod tests {
     const TOKEN: &str = "abc123";
 
     fn req(text: &str) -> Result<Req, Fail> {
-        parse_request(&mut text.as_bytes())
+        let mut r = text.as_bytes();
+        let mut ok = || Ok(());
+        let mut head = read_head(&mut r, &mut ok)?;
+        head.req.body = read_body(&mut r, head.len, head.early, &mut ok)?;
+        Ok(head.req)
     }
     fn good(extra: &str) -> Req {
         req(&format!("POST /v1/list HTTP/1.1\r\nHost: 127.0.0.1:5000\r\nAuthorization: Bearer {TOKEN}\r\nContent-Length: 2\r\n{extra}\r\n{{}}")).unwrap()
@@ -529,6 +594,20 @@ mod tests {
         assert_eq!(authorize(&get, LOCAL, 5000, TOKEN).unwrap_err().0, 405);
         let odd = req(&format!("POST /v1/../etc HTTP/1.1\r\nHost: localhost:5000\r\nAuthorization: Bearer {TOKEN}\r\n\r\n")).unwrap();
         assert_eq!(authorize(&odd, LOCAL, 5000, TOKEN).unwrap_err().0, 404);
+    }
+
+    #[test]
+    fn the_head_is_read_without_the_body_and_a_stalled_request_is_cut_off() {
+        // Authorization needs only the head: a big or slow body is never read for a caller who fails it.
+        let mut text = "POST /v1/list HTTP/1.1\r\nHost: 127.0.0.1:5000\r\nContent-Length: 900000\r\n\r\nabc".as_bytes();
+        let mut ok = || Ok(());
+        let head = read_head(&mut text, &mut ok).unwrap();
+        assert_eq!((head.len, head.early.as_slice(), head.req.body.len()), (900000, b"abc".as_slice(), 0));
+        assert_eq!(authorize(&head.req, LOCAL, 5000, TOKEN).unwrap_err().0, 401);
+        // A deadline that has passed stops the next read.
+        let mut expired = || -> Result<(), Fail> { Err((408, "request took too long")) };
+        assert_eq!(read_head(&mut "POST /v1/x HTTP/1.1\r\n".as_bytes(), &mut expired).unwrap_err().0, 408);
+        assert_eq!(read_body(&mut "abc".as_bytes(), 10, Vec::new(), &mut expired).unwrap_err().0, 408);
     }
 
     #[test]

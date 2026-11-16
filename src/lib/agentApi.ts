@@ -3,17 +3,22 @@
  * authenticated request as an `agent:request` event; this runs it through the same store actions as the
  * UI (never SQL) and answers with `agent_reply`. Main window only: it is the one writer (D33).
  */
-import { AgentError, agentTask, applyPlanned, parseRequest, type AgentRequest, type AgentTask } from "../domain/agentOps";
-import { timed, todayLocal } from "../domain/dates";
+import { AgentError, agentTask, applyPlanned, parseRequest, type AgentRequest, type AgentTask, type TaskPatch } from "../domain/agentOps";
+import { addDaysLocal, atLocalTime, daysBetween, durationMinutes, hhmm, scheduleDate, timed, todayLocal } from "../domain/dates";
+import { calendarItems } from "../domain/calendar";
+import { elapsedMs } from "../domain/focus";
 import { matchesFilter, nameKey, parseFilter } from "../domain/filter";
 import { currentStreak, goalLabel, isBuild, isDone, isDueToday, isWeeklyTotal, periodValue, targetOf } from "../domain/habits";
 import { effective } from "../domain/recurrence";
 import { derive, inSmartList, matchScore, sortVMs, type TaskVM } from "../domain/taskViews";
-import { INBOX_ID, MAX_SUBTASK_DEPTH, SMART_LISTS, type SmartListId, type Task } from "../domain/types";
+import { INBOX_ID, MAX_SUBTASK_DEPTH, SMART_LISTS, type LocalDate, type SmartListId, type Task, type WeekStart } from "../domain/types";
 import { deleteOccurrence, deleteTasks, depthOf, editOccurrence, ensureTags, restoreTasks, setStatus, updateTask, useData } from "../stores/data";
-import { useHabits, valuesOf } from "../stores/habits";
+import type { Habit } from "../domain/habits";
+import { useFocus } from "../stores/focus";
+import { setCheckin, useHabits, valuesOf } from "../stores/habits";
 import { createFromText, listByName } from "../stores/quickAddSubmit";
 import { useSettings } from "../stores/settings";
+import { toast } from "../stores/toast";
 
 const today = () => todayLocal();
 
@@ -49,28 +54,29 @@ const sortedList = (vms: TaskVM[], limit: number) => {
   return { total: sorted.length, vms: sorted.slice(0, limit) };
 };
 
-function list(view_: string, limit: number) {
+function list(view_: string, limit: number, includeArchived: boolean) {
   const { d, lists, shape } = view();
+  const pool = includeArchived ? d.vms : d.active;
   const key = view_.toLowerCase();
   let vms: TaskVM[];
-  if ((SMART_LISTS as readonly string[]).includes(key)) vms = d.active.filter((v) => inSmartList(key as SmartListId, v, today()));
+  if ((SMART_LISTS as readonly string[]).includes(key)) vms = pool.filter((v) => inSmartList(key as SmartListId, v, today()));
   else {
     const named = Object.values(lists).find((l) => nameKey(l.name) === nameKey(view_));
-    if (named) vms = d.active.filter((v) => v.task.status === "open" && v.task.listId === named.id);
+    if (named) vms = pool.filter((v) => v.task.status === "open" && v.task.listId === named.id);
     else {
       // Anything else is a filter in quick-add grammar: `#tag !high ~list overdue`.
       const f = parseFilter(view_, new Date(), Object.values(lists).map((l) => l.name), useSettings.getState().settings.weekStart);
       const ctx = { today: today(), lists, tags: useData.getState().tags };
-      vms = d.active.filter((v) => matchesFilter(v, f, ctx) && (f.status !== null || v.task.status === "open"));
+      vms = pool.filter((v) => matchesFilter(v, f, ctx) && (f.status !== null || v.task.status === "open"));
     }
   }
   const { total, vms: page } = sortedList(vms, limit);
   return { view: view_, total, tasks: page.map(shape) };
 }
 
-function search(text: string, limit: number, status: "open" | "done" | "all") {
+function search(text: string, limit: number, status: "open" | "done" | "all", includeArchived: boolean) {
   const { d, shape } = view();
-  const scored = d.active.flatMap((v) => {
+  const scored = (includeArchived ? d.vms : d.active).flatMap((v) => {
     if (status !== "all" && (status === "open") !== (v.task.status === "open")) return [];
     const s = matchScore(v.task.title, text) ?? (matchScore(v.task.description, text) === null ? null : 9);
     return s === null ? [] : [{ v, s }];
@@ -96,38 +102,52 @@ function add(r: Extract<AgentRequest, { op: "add" }>) {
   const t = createFromText(r.text, defaults, true, () => false, "typed", (name, to) => notes.push(`No list named “${name}”; added to ${to}.`));
   if (!t) throw new AgentError("Nothing to add.");
   // Read it back with a fresh view: a tag created by this add isn't in the one from before it.
+  if (r.fields) {
+    const made = view().d.byId.get(t.id);
+    if (made) updateTask(t.id, patchOf(made, r.fields));
+  }
   const { d, shape } = view();
   const vm = d.byId.get(t.id);
   if (!vm) throw new AgentError("The task was added but could not be read back.");
   return { task: shape(vm), ...(notes.length ? { note: notes.join(" ") } : {}) };
 }
 
-function update(r: Extract<AgentRequest, { op: "update" }>) {
-  const vm = find(r.id);
+/** The store patch for an agent's field changes to `vm`. A series is edited through its current occurrence, not its anchor (AGENT-02). */
+function patchOf(vm: TaskVM, p: TaskPatch): Partial<Task> {
   const { lists } = view();
-  const p = r.patch;
   const patch: Partial<Task> = {};
   if (p.title !== undefined) patch.title = p.title;
   if (p.description !== undefined) patch.description = p.description;
   if (p.priority !== undefined) patch.priority = p.priority;
   if (p.deadline !== undefined) patch.deadline = p.deadline;
+  if (p.pinned !== undefined) patch.pinned = p.pinned;
   if (p.list !== undefined) {
     const l = Object.values(lists).find((x) => nameKey(x.name) === nameKey(p.list ?? ""));
     if (!l) throw new AgentError(`No list named “${p.list}”. Lists: ${Object.values(lists).map((x) => x.name).join(", ")}.`);
     patch.listId = l.id;
   }
   if (p.tags !== undefined) patch.tags = ensureTags(p.tags);
-  // A series is edited through its current occurrence, not its anchor (AGENT-02).
   const current = vm.task.recurrence ? vm.schedule : vm.task.schedule;
   let schedule = current;
   if (p.planned !== undefined) schedule = applyPlanned(schedule, p.planned);
-  if (p.durationMin !== undefined) {
+  if (p.time !== undefined) {
+    // A time needs a day: the planned one, else today. Keeps the block's length, else the estimate, else an hour.
+    const day = scheduleDate(schedule) ?? today();
+    const minutes = p.durationMin ?? (schedule.kind === "timed" ? durationMinutes(schedule) : vm.task.durationMin) ?? 60;
+    schedule = timed(atLocalTime(day, p.time), minutes);
+  } else if (p.durationMin !== undefined) {
     // A time block's length is its end minus its start; otherwise it is an estimate.
     if (schedule.kind === "timed" && p.durationMin !== null) schedule = timed(new Date(schedule.start), p.durationMin);
     else if (schedule.kind === "timed") throw new AgentError("A time block's length can't be cleared; move the task off its time first.");
     else patch.durationMin = p.durationMin;
   }
   if (schedule !== current) patch.schedule = schedule;
+  return patch;
+}
+
+function update(r: Extract<AgentRequest, { op: "update" }>) {
+  const vm = find(r.id);
+  const patch = patchOf(vm, r.patch);
   const before = taskIds();
   const key = vm.task.recurrence ? effective(vm.task)?.key : null;
   // A recurring task changes only this occurrence unless the caller says following or all.
@@ -218,33 +238,78 @@ function restore(id: string) {
   return get(t.id);
 }
 
+function habitRow(h: Habit, date: LocalDate, ws: WeekStart) {
+  const values = valuesOf(useHabits.getState().checkins[h.id]);
+  // A weekly goal is measured over the week, not just today.
+  const value = periodValue(h, values, date, ws);
+  const streak = currentStreak(h, values, date, ws);
+  return {
+    id: h.id, name: h.name, kind: h.goal.kind, goal: goalLabel(h.goal), dueToday: isDueToday(h, values, date, ws),
+    period: isWeeklyTotal(h) ? "week" : "day", value, target: targetOf(h), done: isBuild(h) ? isDone(h, value) : null, streak: `${streak.count} ${streak.unit}${streak.count === 1 ? "" : "s"}`,
+  };
+}
+
 function habits() {
-  const { habits: hs, checkins } = useHabits.getState();
   const ws = useSettings.getState().settings.weekStart;
   const date = today();
-  const rows = Object.values(hs)
+  const rows = Object.values(useHabits.getState().habits)
     .filter((h) => !h.archived)
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((h) => {
-      const values = valuesOf(checkins[h.id]);
-      // A weekly goal is measured over the week, not just today.
-      const value = periodValue(h, values, date, ws);
-      const streak = currentStreak(h, values, date, ws);
-      return {
-        id: h.id, name: h.name, kind: h.goal.kind, goal: goalLabel(h.goal), dueToday: isDueToday(h, values, date, ws),
-        period: isWeeklyTotal(h) ? "week" : "day", value, target: targetOf(h), done: isBuild(h) ? isDone(h, value) : null, streak: `${streak.count} ${streak.unit}${streak.count === 1 ? "" : "s"}`,
-      };
-    });
+    .map((h) => habitRow(h, date, ws));
   return { date, habits: rows };
 }
+
+/** Adds to (or, with a negative delta, undoes) a habit's check-in for a day; `value` sets it outright. */
+function checkin(r: Extract<AgentRequest, { op: "checkin" }>) {
+  const all = Object.values(useHabits.getState().habits).filter((h) => !h.archived);
+  const key = r.habit.toLowerCase();
+  const hits = all.filter((h) => h.id === key || h.name.toLowerCase() === key);
+  const found = hits.length ? hits : key.length >= 4 ? all.filter((h) => h.id.startsWith(key)) : [];
+  if (found.length !== 1) throw new AgentError(found.length ? `Several habits match ${r.habit}; use the id.` : `No habit “${r.habit}”. Habits: ${all.map((h) => h.name).join(", ") || "none"}.`);
+  const h = found[0];
+  const date = r.date ?? today();
+  if (date > today()) throw new AgentError("Can't check in a future day.");
+  const before = valuesOf(useHabits.getState().checkins[h.id]).get(date) ?? 0;
+  const next = r.value ?? before + (r.delta ?? 1);
+  setCheckin(h.id, date, { value: h.goal.kind === "once" ? Math.min(1, Math.max(0, next)) : Math.max(0, next) });
+  return { date, habit: habitRow(h, date, useSettings.getState().settings.weekStart), checkin: valuesOf(useHabits.getState().checkins[h.id]).get(date) ?? 0 };
+}
+
+/** Calendar events (not tasks) from a day to a day, default the next week. */
+function events(r: Extract<AgentRequest, { op: "events" }>) {
+  const from = r.from ?? today();
+  const to = r.to ?? addDaysLocal(from, 6);
+  if (daysBetween(from, to) > 366) throw new AgentError("Ask for at most a year of events at a time.");
+  const items = calendarItems({ tasks: [], events: Object.values(useData.getState().events), colorOf: () => "", showCompleted: false }, from, to)
+    .filter((i) => i.source === "event")
+    .sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0));
+  const rows = items.slice(0, r.limit).map((i) => ({
+    id: i.id, title: i.title, date: i.startDate, endDate: i.endDate, allDay: i.allDay,
+    start: i.start ? hhmm(i.start) : null, end: i.end ? hhmm(i.end) : null, repeats: i.recurring, readOnly: i.readOnly,
+  }));
+  return { from, to, total: items.length, events: rows };
+}
+
+function focus() {
+  const t = useFocus.getState().timer;
+  if (t.status === "idle" || t.status === "done") return { status: t.status, task: null };
+  const task = t.taskId ? useData.getState().tasks[t.taskId] : undefined;
+  return { status: t.status, mode: t.mode, phase: t.phase, round: t.round, task: task ? { id: task.id, title: task.title } : null, elapsedMin: Math.floor(elapsedMs(t, Date.now()) / 60000) };
+}
+
+/** Counts every change to the data an agent can see, so a client can tell the app changed between two of its calls (AGENT-21). */
+let revision = 0;
+useData.subscribe(() => void revision++);
+useHabits.subscribe(() => void revision++);
+export const agentRevision = () => revision;
 
 /** Runs one request. Throws `AgentError` for anything the caller got wrong. */
 export function runAgentRequest(op: unknown, args: unknown): unknown {
   if (!useData.getState().ready) throw new AgentError("Momentum is still loading; try again in a moment.");
   const r = parseRequest(op, args);
   switch (r.op) {
-    case "list": return list(r.view, r.limit);
-    case "search": return search(r.text, r.limit, r.status);
+    case "list": return list(r.view, r.limit, r.includeArchived);
+    case "search": return search(r.text, r.limit, r.status, r.includeArchived);
     case "lists": return lists();
     case "tags": return tags();
     case "get": return get(r.id);
@@ -256,6 +321,9 @@ export function runAgentRequest(op: unknown, args: unknown): unknown {
     case "complete": return finish(r.id, "done");
     case "reopen": return finish(r.id, "open");
     case "habits": return habits();
+    case "checkin": return checkin(r);
+    case "events": return events(r);
+    case "focus": return focus();
   }
 }
 
@@ -267,9 +335,9 @@ export async function initAgentApi() {
   const [{ listen }, { invoke }] = await Promise.all([import("@tauri-apps/api/event"), import("@tauri-apps/api/core")]);
   unlisten?.(); // a second init (dev hot reload) must not answer every request twice
   unlisten = await listen<Request>("agent:request", (e) => {
-    let reply: { ok: true; data: unknown } | { ok: false; error: string };
+    let reply: { ok: true; data: unknown; revision: number } | { ok: false; error: string };
     try {
-      reply = { ok: true, data: runAgentRequest(e.payload.op, e.payload.args) };
+      reply = { ok: true, data: runAgentRequest(e.payload.op, e.payload.args), revision };
     } catch (err) {
       if (!(err instanceof AgentError)) console.error("Agent request failed", err);
       reply = { ok: false, error: err instanceof AgentError ? err.message : "Something went wrong inside Momentum." };
@@ -277,6 +345,8 @@ export async function initAgentApi() {
     void invoke("agent_reply", { id: e.payload.id, result: JSON.stringify(reply) });
   });
   // Until now requests are answered "starting" instead of waiting for a listener that isn't there.
-  await invoke("agent_ready");
+  // The server's own start-up failure (it can't say so before the window exists) shows once here (AGENT-07).
+  const failed = await invoke<string | null>("agent_ready");
+  if (failed) toast(`The AI agent API couldn't start, so the momentum command won't reach this app: ${failed}`);
 }
 

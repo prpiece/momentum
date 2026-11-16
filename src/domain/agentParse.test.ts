@@ -28,3 +28,22 @@ describe("agent op parsing (v1.2.1)", () => {
     expect(parseRequest("trash", undefined)).toEqual({ op: "trash", limit: 50 });
   });
 });
+
+describe("structured add, includeArchived, checkin, events (AGENT-15/19/20)", () => {
+  it("takes structured fields on add and refuses bad ones", () => {
+    expect(parseRequest("add", { text: "x", date: "2026-12-01", time: "09:05", durationMin: 30, priority: "low", tags: ["a"], deadline: "none" })).toMatchObject({ fields: { planned: { kind: "day", date: "2026-12-01" }, time: "09:05", durationMin: 30, priority: 1, tags: ["a"], deadline: null } });
+    expect(parseRequest("add", { text: "x" })).toMatchObject({ fields: null });
+    expect(() => parseRequest("add", { text: "x", time: "25:00" })).toThrow(/HH:mm/);
+    expect(() => parseRequest("add", { text: "x", pinned: true })).toThrow(/Unknown field/);
+    expect(parseRequest("update", { id: "a", time: "08:00", pinned: false })).toMatchObject({ patch: { time: "08:00", pinned: false } });
+  });
+  it("parses includeArchived, checkin and events", () => {
+    expect(parseRequest("list", { includeArchived: true })).toMatchObject({ includeArchived: true });
+    expect(() => parseRequest("search", { text: "a", includeArchived: "yes" })).toThrow(/true or false/);
+    expect(parseRequest("checkin", { habit: " Read ", delta: -1 })).toEqual({ op: "checkin", habit: "Read", date: null, delta: -1, value: null });
+    expect(() => parseRequest("checkin", { habit: "a", delta: 1, value: 2 })).toThrow(/not both/);
+    expect(() => parseRequest("checkin", { habit: "a", value: -1 })).toThrow(/negative/);
+    expect(() => parseRequest("events", { from: "2026-12-05", to: "2026-12-01" })).toThrow(/before/);
+    expect(parseRequest("events", {})).toEqual({ op: "events", from: null, to: null, limit: 50 });
+  });
+});

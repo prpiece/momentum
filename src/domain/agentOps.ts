@@ -28,6 +28,12 @@ export type AgentTask = {
   parentId: string | null;
   /** "Every week", "Daily"...: a repeating task shows its current occurrence, so deleting it needs a scope. */
   repeats: string | null;
+  /** True for a repeating series (shown as its current occurrence) and for an occurrence detached from one. */
+  isOccurrence: boolean;
+  /** The id of the series this belongs to: its own id for the series, the parent series for a detached occurrence. */
+  seriesId: string | null;
+  /** The task's list is archived: it is left out of list_tasks and search_tasks unless includeArchived is set. */
+  archived: boolean;
 };
 
 export function agentTask(t: Task, schedule: Schedule, ctx: { lists: Record<string, TaskList>; tags: Record<string, Tag>; subtasks: number }): AgentTask {
@@ -46,6 +52,9 @@ export function agentTask(t: Task, schedule: Schedule, ctx: { lists: Record<stri
     subtasks: ctx.subtasks,
     parentId: t.parentId,
     repeats: t.recurrence ? describeRule(t.recurrence.rule) : null,
+    isOccurrence: !!t.recurrence || !!t.recurrenceParentId,
+    seriesId: t.recurrence ? t.id : t.recurrenceParentId,
+    archived: ctx.lists[t.listId]?.archived ?? false,
   };
 }
 
@@ -61,18 +70,24 @@ export type TaskPatch = {
   deadline?: LocalDate | null;
   durationMin?: number | null;
   tags?: string[];
+  /** `HH:mm`: makes the task a time block on its planned day (today when it has none). */
+  time?: string;
+  pinned?: boolean;
 };
+export type HabitCheckin = { habit: string; date: LocalDate | null; delta: number | null; value: number | null };
 export type AgentRequest =
-  | { op: "list"; view: string; limit: number }
-  | { op: "search"; text: string; limit: number; status: "open" | "done" | "all" }
+  | { op: "list"; view: string; limit: number; includeArchived: boolean }
+  | { op: "search"; text: string; limit: number; status: "open" | "done" | "all"; includeArchived: boolean }
   | { op: "get"; id: string }
-  | { op: "add"; text: string; list: string | null; parentId: string | null }
+  | { op: "add"; text: string; list: string | null; parentId: string | null; fields: TaskPatch | null }
   | { op: "update"; id: string; patch: TaskPatch; scope: AgentScope }
   | { op: "delete"; id: string; withSubtasks: boolean; scope: AgentScope }
   | { op: "restore"; id: string }
   | { op: "trash"; limit: number }
   | { op: "complete" | "reopen"; id: string }
-  | { op: "habits" }
+  | { op: "checkin" } & HabitCheckin
+  | { op: "events"; from: LocalDate | null; to: LocalDate | null; limit: number }
+  | { op: "habits" | "focus" }
   | { op: "lists" | "tags" };
 
 const DEFAULT_LIMIT = 50;
@@ -130,6 +145,19 @@ function statusOf(args: Args): "open" | "done" | "all" {
   return v;
 }
 
+function flag(args: Args, k: string): boolean {
+  const v = args[k] ?? false;
+  if (typeof v !== "boolean") throw new AgentError(`${k} must be true or false.`);
+  return v;
+}
+
+function dayOf(args: Args, k: string): LocalDate | null {
+  const v = args[k];
+  if (v === undefined || v === null || v === "") return null;
+  if (!isLocalDate(v)) throw new AgentError(`${k} must be YYYY-MM-DD.`);
+  return v;
+}
+
 function planned(v: unknown): Planned {
   if (v === "none" || v === null || v === "") return { kind: "none" };
   if (v === "someday") return { kind: "someday" };
@@ -139,8 +167,21 @@ function planned(v: unknown): Planned {
 
 /** Validates an update's fields. Anything outside the allow-list is refused rather than ignored. */
 export function parsePatch(args: Args): TaskPatch {
-  only(args, ["id", "scope", "title", "description", "priority", "list", "date", "deadline", "durationMin", "tags"]);
+  only(args, ["id", "scope", "title", "description", "priority", "list", "date", "time", "deadline", "durationMin", "tags", "pinned"]);
+  const p = patchFields(args);
+  if (Object.keys(p).length === 0) throw new AgentError("Nothing to update: give at least one field.");
+  return p;
+}
+
+/** The task fields shared by add and update. */
+function patchFields(args: Args): TaskPatch {
   const p: TaskPatch = {};
+  if ("time" in args) {
+    const v = args.time;
+    if (typeof v !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) throw new AgentError("time must be HH:mm (24-hour).");
+    p.time = v;
+  }
+  if ("pinned" in args) p.pinned = flag(args, "pinned");
   if ("title" in args) p.title = capped(oneLine(str(args, "title", true)).trim(), MAX_TITLE, "title");
   if ("description" in args) p.description = capped(str(args, "description") ?? "", MAX_NOTES, "description");
   if ("priority" in args) {
@@ -170,7 +211,6 @@ export function parsePatch(args: Args): TaskPatch {
     // "work" and "Work" are one tag.
     p.tags = names.filter((n, i) => names.findIndex((m) => m.toLowerCase() === n.toLowerCase()) === i);
   }
-  if (Object.keys(p).length === 0) throw new AgentError("Nothing to update: give at least one field.");
   return p;
 }
 
@@ -179,22 +219,25 @@ export function parseRequest(op: unknown, raw: unknown): AgentRequest {
   const args = (raw ?? {}) as Args;
   switch (op) {
     case "list":
-      only(args, ["view", "limit"]);
-      return { op, view: str(args, "view")?.trim() || "today", limit: limitOf(args) };
+      only(args, ["view", "limit", "includeArchived"]);
+      return { op, view: str(args, "view")?.trim() || "today", limit: limitOf(args), includeArchived: flag(args, "includeArchived") };
     case "search":
-      only(args, ["text", "limit", "status"]);
-      return { op, text: str(args, "text", true).trim(), limit: limitOf(args), status: statusOf(args) };
+      only(args, ["text", "limit", "status", "includeArchived"]);
+      return { op, text: str(args, "text", true).trim(), limit: limitOf(args), status: statusOf(args), includeArchived: flag(args, "includeArchived") };
     case "get":
     case "complete":
     case "reopen":
       only(args, ["id"]);
       return { op, id: idOf(args) };
     case "add": {
-      only(args, ["text", "list", "parentId"]);
+      only(args, ["text", "list", "parentId", "date", "time", "deadline", "durationMin", "priority", "tags"]);
       const list = str(args, "list")?.trim() || null;
       const parentId = str(args, "parentId")?.trim().toLowerCase() || null;
       if (list && parentId) throw new AgentError("Give list or parentId, not both: a subtask is in its parent's list.");
-      return { op, text: capped(oneLine(str(args, "text", true)).trim(), MAX_TEXT, "text"), list, parentId };
+      // Structured fields win over what the parser picks out of the text, so an agent need not rely on the grammar.
+      const fields = patchFields(args);
+      delete fields.list; // add has its own list handling
+      return { op, text: capped(oneLine(str(args, "text", true)).trim(), MAX_TEXT, "text"), list, parentId, fields: Object.keys(fields).length ? fields : null };
     }
     case "update": {
       const scope = scopeOf(args);
@@ -212,7 +255,27 @@ export function parseRequest(op: unknown, raw: unknown): AgentRequest {
     case "trash":
       only(args, ["limit"]);
       return { op, limit: limitOf(args) };
+    case "checkin": {
+      only(args, ["habit", "date", "delta", "value"]);
+      const int = (k: string) => {
+        const v = args[k];
+        if (v === undefined || v === null) return null;
+        if (typeof v !== "number" || !Number.isInteger(v) || Math.abs(v) > 100000) throw new AgentError(`${k} must be a whole number.`);
+        return v;
+      };
+      const [delta, value] = [int("delta"), int("value")];
+      if (delta !== null && value !== null) throw new AgentError("Give delta or value, not both.");
+      if (value !== null && value < 0) throw new AgentError("value can't be negative.");
+      return { op, habit: str(args, "habit", true).trim(), date: dayOf(args, "date"), delta, value };
+    }
+    case "events": {
+      only(args, ["from", "to", "limit"]);
+      const [from, to] = [dayOf(args, "from"), dayOf(args, "to")];
+      if (from && to && to < from) throw new AgentError("to is before from.");
+      return { op, from, to, limit: limitOf(args) };
+    }
     case "habits":
+    case "focus":
     case "lists":
     case "tags":
       only(args, []);

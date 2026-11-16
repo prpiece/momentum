@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { todayLocal } from "../domain/dates";
 import { MAX_SUBTASK_DEPTH } from "../domain/types";
-import { addTask, replaceAll, useData } from "../stores/data";
+import { addList, addTask, replaceAll, updateList, useData } from "../stores/data";
 import { replaceHabits, setCheckin } from "../stores/habits";
 import { runAgentRequest as run } from "./agentApi";
 
@@ -154,5 +154,61 @@ describe("habits", () => {
     setCheckin("h1", today, { value: 2 });
     const h = (run("habits", {}) as { habits: { value: number; period: string }[] }).habits[0];
     expect(h).toMatchObject({ value: 2, period: "week" });
+  });
+});
+
+describe("recurrence info, archived lists, structured add (AGENT-15/17/19)", () => {
+  it("says whether a task is an occurrence and of which series", () => {
+    const t = addTask({ title: "Weekly", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=WEEKLY;COUNT=5", exdates: [] } });
+    expect(call("get", { id: t.id }).task).toMatchObject({ isOccurrence: true, seriesId: t.id });
+    const plain = call("add", { text: "plain" }).task;
+    expect(plain).toMatchObject({ isOccurrence: false, seriesId: null, archived: false });
+    run("complete", { id: t.id });
+    const done = Object.values(useData.getState().tasks).find((x) => x.recurrenceParentId === t.id);
+    expect(call("get", { id: done?.id }).task).toMatchObject({ isOccurrence: true, seriesId: t.id });
+  });
+  it("adds with structured fields and a time block, and updates the time and pin", () => {
+    const r = call("add", { text: "dentist", date: "2026-12-01", time: "14:30", durationMin: 45, priority: "high", tags: ["health"], deadline: "2026-12-02" });
+    expect(r.task).toMatchObject({ planned: "2026-12-01", start: "14:30", durationMin: 45, priority: "high", tags: ["health"], deadline: "2026-12-02" });
+    const u = call("update", { id: r.task.id, time: "09:00", pinned: true });
+    expect(u.task).toMatchObject({ start: "09:00", durationMin: 45, planned: "2026-12-01" });
+    expect(Object.values(useData.getState().tasks).find((x) => x.id === r.task.id)?.pinned).toBe(true);
+  });
+  it("hides tasks of archived lists from list and search unless asked", () => {
+    const l = addList("Old");
+    const t = call("add", { text: "old thing", list: "Old" }).task;
+    expect((run("search", { text: "old thing" }) as { total: number }).total).toBe(1);
+    updateList(l.id, { archived: true });
+    expect((run("search", { text: "old thing" }) as { total: number }).total).toBe(0);
+    expect((run("list", { view: "Old" }) as { total: number }).total).toBe(0);
+    const all = run("search", { text: "old thing", includeArchived: true }) as { tasks: { id: string; archived: boolean }[] };
+    expect(all.tasks[0]).toMatchObject({ id: t.id, archived: true });
+    expect((run("list", { view: "Old", includeArchived: true }) as { total: number }).total).toBe(1);
+  });
+});
+
+describe("habit check-ins, events, focus, revision (AGENT-20/21)", () => {
+  const habit = (id: string, goal: unknown) => ({ id, name: id === "h1" ? "Read" : "Water", icon: "", color: "", goal, frequency: { kind: "daily" }, reminders: [], groupId: null, sortOrder: 0, archived: false, startDate: "2020-01-01", createdAt: "2020-01-01T00:00:00.000Z" }) as never;
+  it("checks in, counts and undoes", () => {
+    replaceHabits({ habits: [habit("h1", { kind: "once" }), habit("h2", { kind: "count", target: 3, unit: "glasses", period: "day" })], groups: [], checkins: [] });
+    expect(run("checkin", { habit: "read" })).toMatchObject({ checkin: 1, habit: { done: true } });
+    expect(run("checkin", { habit: "Read", delta: -1 })).toMatchObject({ checkin: 0, habit: { done: false } });
+    run("checkin", { habit: "water", delta: 2 });
+    expect(run("checkin", { habit: "water" })).toMatchObject({ checkin: 3, habit: { done: true } });
+    expect(run("checkin", { habit: "water", value: 0 })).toMatchObject({ checkin: 0 });
+    expect(() => run("checkin", { habit: "nope" })).toThrow(/No habit/);
+    expect(() => run("checkin", { habit: "read", date: "2999-01-01" })).toThrow(/future/);
+  });
+  it("lists calendar events and reports an idle timer", () => {
+    replaceAll({ tasks: [], events: [{ id: "e1", title: "Standup", notes: "", schedule: { kind: "day", date: "2026-12-03" }, spanDays: 1, color: null, recurrence: null, recurrenceParentId: null, source: "local", subscriptionId: null, countdown: null, pinned: false, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null } as never], lists: [], folders: [], sections: [], tags: [] });
+    expect(run("events", { from: "2026-12-01", to: "2026-12-07" })).toMatchObject({ total: 1, events: [{ title: "Standup", date: "2026-12-03", allDay: true }] });
+    expect(run("events", { from: "2026-12-04", to: "2026-12-07" })).toMatchObject({ total: 0 });
+    expect(run("focus", {})).toMatchObject({ status: "idle" });
+  });
+  it("counts changes so a client can see the data moved", async () => {
+    const { agentRevision } = await import("./agentApi");
+    const before = agentRevision();
+    call("add", { text: "x" });
+    expect(agentRevision()).toBeGreaterThan(before);
   });
 });

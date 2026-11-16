@@ -15,7 +15,7 @@ describe("agentTask", () => {
     const tags = { g1: { id: "g1", name: "family", color: null } };
     expect(agentTask(base, base.schedule, { lists, tags, subtasks: 2 })).toEqual({
       id: "t1", title: "Call mom", notes: "about Sunday", list: "Inbox", status: "open", priority: "high", planned: "2026-10-30", start: null,
-      deadline: "2026-11-02", durationMin: 15, tags: ["family"], subtasks: 2, parentId: null, repeats: null,
+      deadline: "2026-11-02", durationMin: 15, tags: ["family"], subtasks: 2, parentId: null, repeats: null, isOccurrence: false, seriesId: null, archived: false,
     });
     expect(agentTask({ ...base, recurrence: { rule: "FREQ=WEEKLY", exdates: [] } }, base.schedule, { lists, tags, subtasks: 0 }).repeats).toBe("Every week");
   });
@@ -29,8 +29,8 @@ describe("agentTask", () => {
 
 describe("parseRequest", () => {
   it("applies defaults and clamps the limit", () => {
-    expect(parseRequest("list", undefined)).toEqual({ op: "list", view: "today", limit: 50 });
-    expect(parseRequest("list", { view: "Work", limit: 9999 })).toEqual({ op: "list", view: "Work", limit: 200 });
+    expect(parseRequest("list", undefined)).toEqual({ op: "list", view: "today", limit: 50, includeArchived: false });
+    expect(parseRequest("list", { view: "Work", limit: 9999 })).toEqual({ op: "list", view: "Work", limit: 200, includeArchived: false });
   });
   it("refuses unknown fields and unknown operations", () => {
     expect(() => parseRequest("get", { id: "a", sql: "x" })).toThrow(/Unknown field: sql/);
@@ -41,7 +41,7 @@ describe("parseRequest", () => {
   it("requires an id and text", () => {
     expect(() => parseRequest("complete", {})).toThrow(/id is required/);
     expect(() => parseRequest("add", { text: "  " })).toThrow(/non-empty/);
-    expect(parseRequest("add", { text: "call mom by fri 15m", list: " Work " })).toEqual({ op: "add", text: "call mom by fri 15m", list: "Work", parentId: null });
+    expect(parseRequest("add", { text: "call mom by fri 15m", list: " Work " })).toEqual({ op: "add", text: "call mom by fri 15m", list: "Work", parentId: null, fields: null });
   });
   it("validates a patch field by field", () => {
     const patch = parseRequest("update", { id: "a", title: " New ", priority: "High", date: "2026-11-01", deadline: "none", durationMin: 30, tags: ["#a", "b"], list: "Work" });
@@ -67,7 +67,7 @@ describe("parseRequest hardening and new ops (AGENT-04/16/18)", () => {
   it("lists lists and tags; search takes a status", () => {
     expect(parseRequest("lists", {})).toEqual({ op: "lists" });
     expect(parseRequest("tags", undefined)).toEqual({ op: "tags" });
-    expect(parseRequest("search", { text: "x" })).toEqual({ op: "search", text: "x", limit: 50, status: "all" });
+    expect(parseRequest("search", { text: "x" })).toEqual({ op: "search", text: "x", limit: 50, status: "all", includeArchived: false });
     expect(parseRequest("search", { text: "x", status: "done" })).toMatchObject({ status: "done" });
     expect(() => parseRequest("search", { text: "x", status: "bogus" })).toThrow(/status/);
   });
