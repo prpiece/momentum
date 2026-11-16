@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { addDaysLocal, moveToDate, todayLocal } from "../domain/dates";
 import { GO } from "../domain/features";
+import { rangeBetween } from "../domain/focus";
 import { clampScale } from "../domain/settings";
 import type { Priority } from "../domain/types";
 import { dialogOpen } from "./openDialogs";
+import { useTouchSelect } from "../features/shell/touchSelect";
 import { focusFilter } from "../features/tasks/FilterBar";
 import { bulkEdit, deleteTasks, toggleDone } from "../features/tasks/actions";
 import { focusQuickAdd } from "../features/tasks/QuickAdd";
@@ -31,7 +33,11 @@ const typing = (e: KeyboardEvent) => {
 const G_WINDOW_MS = 1200;
 let gPressedAt = 0;
 
-const rows = () => [...document.querySelectorAll<HTMLElement>("main [role=option][data-task-id]")];
+// Matched on the data attribute, not the ARIA role, so the list can use whichever role is valid (UI-13).
+const rows = () => [...document.querySelectorAll<HTMLElement>("main [data-task-id]")];
+const rowIds = () => rows().map((r) => r.dataset.taskId ?? "");
+/** Where Shift+Arrow started extending the selection. */
+let anchor: string | undefined;
 const focusedTask = () => (document.activeElement instanceof HTMLElement ? document.activeElement.dataset.taskId : undefined);
 
 function moveFocus(delta: number) {
@@ -75,6 +81,7 @@ function taskKey(e: KeyboardEvent, ids: string[]): boolean {
 
 /** App-wide keys. The "?" sheet (features/shell/Dialogs.tsx SHORTCUTS) documents them. */
 export function useGlobalShortcuts() {
+  useTouchSelect();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
@@ -97,6 +104,11 @@ export function useGlobalShortcuts() {
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault();
         return void undoLast();
+      }
+      // Select every row in the view (UI-07).
+      if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "a" && rows().length) {
+        e.preventDefault();
+        return setSelection(rowIds());
       }
       if (mod || e.altKey) return;
       const ui = useUi.getState();
@@ -136,6 +148,15 @@ export function useGlobalShortcuts() {
       if (e.key === "[") {
         const s = useSettings.getState();
         return s.update({ sidebarCollapsed: !s.settings.sidebarCollapsed });
+      }
+      // Shift+Arrow extends the selection from where it started (UI-07).
+      if (e.shiftKey && (e.key === "ArrowDown" || e.key === "ArrowUp") && rows().length) {
+        e.preventDefault();
+        if (!anchor || !ui.selection.includes(anchor)) anchor = focusedTask();
+        moveFocus(e.key === "ArrowDown" ? 1 : -1);
+        const to = focusedTask();
+        if (anchor && to) setSelection(rangeBetween(rowIds(), anchor, to));
+        return;
       }
       if (e.key === "ArrowDown" || key === "j" || e.key === "ArrowUp" || key === "k") {
         if (!rows().length) return;

@@ -8,18 +8,39 @@ import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
 import { onDrop } from "../../lib/dnd";
-import { addSection, mayEdit, moveSection, removeSection, updateSection, updateTask, useData } from "../../stores/data";
+import { confirmShareMove } from "../friends/moveGuard";
+import { insertionIndex, placeAt } from "./kanbanDrop";
+import { addSection, mayEdit, moveSection, moveTasks, removeSection, updateSection, updateTask, useData } from "../../stores/data";
 import { withUndo } from "../../stores/undo";
 import { confirm, openContextMenu, openTask, useUi } from "../../stores/ui";
 import { toggleDone } from "./actions";
 import { InlineAdd } from "./InlineAdd";
 import { taskMenu } from "./taskMenu";
 
-onDrop("kanban-column", (drag, drop) => {
+onDrop("kanban-column", (drag, drop, e) => {
   if (drag.type !== "task") return;
   const sel = useUi.getState().selection;
-  const ids = sel.includes(drag.id) ? sel : [drag.id];
-  withUndo(ids.length === 1 ? "Moved task" : `Moved ${ids.length} tasks`, () => ids.forEach((id) => updateTask(id, { listId: drop.listId, sectionId: drop.sectionId })));
+  const picked = sel.includes(drag.id) ? sel : [drag.id];
+  const tasks = useData.getState().tasks;
+  // A subtask whose parent is also picked travels with it.
+  const ids = picked.filter((id) => {
+    for (let p = tasks[id]?.parentId, n = 0; p && n < 50; p = tasks[p]?.parentId, n++) if (picked.includes(p)) return false;
+    return true;
+  });
+  // Where it lands among the column's cards: by the dragged card's centre against theirs.
+  const col = document.querySelector(`[data-kanban-col="${drop.listId}:${drop.sectionId ?? "none"}"]`);
+  const r = e.active.rect.current.translated;
+  const others = [...(col?.querySelectorAll<HTMLElement>("[data-card-id]") ?? [])].filter((el) => !ids.includes(el.dataset.cardId ?? ""));
+  const index = r ? insertionIndex(others.map((el) => el.getBoundingClientRect().top + el.offsetHeight / 2), r.top + r.height / 2) : others.length;
+  const items = others.flatMap((el) => (tasks[el.dataset.cardId ?? ""] ? [tasks[el.dataset.cardId ?? ""]] : []));
+  const orders = placeAt(items, ids, index);
+    void confirmShareMove("list", drop.listId, ids.length > 1 ? "these tasks" : "this task", tasks[ids[0]]?.listId).then((ok) => {
+    if (!ok) return;
+    withUndo(ids.length === 1 ? "Moved task" : `Moved ${ids.length} tasks`, () => {
+      moveTasks(ids, drop.listId, drop.sectionId);
+      for (const [id, sortOrder] of orders) updateTask(id, { sortOrder });
+    });
+  });
 });
 
 onDrop("column", (drag, drop) => {
@@ -101,6 +122,7 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
       ref={setNodeRef}
       style={{ transform: sort.transform ? `translate3d(${sort.transform.x}px, 0, 0)` : undefined, transition: sort.transition }}
       aria-label={section?.name ?? "Unsectioned"}
+      data-kanban-col={`${list.id}:${section?.id ?? "none"}`}
       className={`flex max-h-full w-[280px] shrink-0 flex-col rounded-card border px-2 pb-2 ${
         sort.isDragging ? "z-10 bg-raised opacity-90 shadow-float ring-1 ring-accent " : ""
       }${
@@ -172,6 +194,7 @@ function Card({ vm }: { vm: TaskVM }) {
   return (
     <div
       ref={setNodeRef}
+      data-card-id={t.id}
       {...attributes}
       {...listeners}
       onClick={() => openTask(t.id, vm.key)}

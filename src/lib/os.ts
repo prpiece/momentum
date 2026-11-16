@@ -104,9 +104,7 @@ async function appIconPng(accent: string): Promise<Uint8Array> {
   const mix = (to: number, t: number) => `#${[1, 3, 5].map((i) => Math.round(parseInt(accent.slice(i, i + 2), 16) * (1 - t) + to * t).toString(16).padStart(2, "0")).join("")}`;
   const fg = accentForeground(accent);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 1024 1024">
-    <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${mix(255, 0.12)}"/><stop offset="1" stop-color="${mix(0, 0.25)}"/></linearGradient>
-    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.18"/><stop offset="0.55" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
-    <rect x="40" y="40" width="944" height="944" rx="220" fill="url(#bg)"/><rect x="40" y="40" width="944" height="944" rx="220" fill="url(#shine)"/>
+    <rect x="40" y="40" width="944" height="944" rx="220" fill="${mix(0, 0.12)}"/>
     <path d="M232 724 C 404 724 528 610 612 380" fill="none" stroke="${fg}" stroke-width="96" stroke-linecap="round"/>
     <path d="M478 400 L 624 296 L 682 470" fill="none" stroke="${fg}" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="776" cy="700" r="64" fill="${fg}" fill-opacity="0.78"/></svg>`;

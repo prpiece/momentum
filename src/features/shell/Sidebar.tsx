@@ -412,6 +412,13 @@ export function Sidebar() {
           )}
         </ul>
 
+        {/* The rail shows each list as its coloured glyph (tooltip, click, and drop target), folders flattened (UI-14). */}
+        {collapsed && activeLists.length > 0 && (
+          <ul className="mt-2 space-y-px border-t border-border pt-2" aria-label="Lists">
+            {activeLists.map((l) => listItem(l))}
+          </ul>
+        )}
+
         {!collapsed && (
           <>
             {savedFilters.length > 0 && (

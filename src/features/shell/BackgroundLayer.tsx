@@ -28,6 +28,7 @@ export function BackgroundLayer() {
           <img
             src={src}
             alt=""
+            // A blur the user chooses for their own wallpaper (Settings → Appearance); static, never on chrome. A documented exception to the no-blur rule (DES-10).
             className={`size-full object-cover ${bg.blur ? "scale-105 blur-[6px]" : ""}`}
             draggable={false}
             onError={() => toast("The background image couldn't be loaded. Choose it again in Settings → Appearance.")}

@@ -3,7 +3,7 @@ import { Dimensions, Keyboard, Modal, Platform, Pressable, ScrollView, StyleShee
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { create } from "zustand";
-import { FONTS, GUTTER, useColors } from "@/theme";
+import { FONTS, GUTTER, SHADOW_FLOAT, useColors } from "@/theme";
 import { Icon, Text, type IconName } from "./kit";
 
 /**
@@ -132,7 +132,7 @@ export function AskHost() {
 }
 
 const s = StyleSheet.create({
-  sheet: { borderTopLeftRadius: 14, borderTopRightRadius: 14, paddingTop: 4, elevation: 16, shadowColor: "#14120F", shadowOpacity: 0.14, shadowRadius: 32, shadowOffset: { width: 0, height: -8 } },
+  sheet: { borderTopLeftRadius: 14, borderTopRightRadius: 14, paddingTop: 4, ...SHADOW_FLOAT },
   grabber: { width: 36, height: 5, borderRadius: 3, alignSelf: "center", marginTop: 4, marginBottom: 8 },
   title: { paddingHorizontal: GUTTER, paddingTop: 4, paddingBottom: 8 },
   option: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 52, paddingHorizontal: GUTTER },

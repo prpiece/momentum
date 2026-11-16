@@ -4,7 +4,7 @@ import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { create } from "zustand";
 import type { ToastAction } from "@core/stores/toast";
-import { useColors } from "@/theme";
+import { SHADOW_FLOAT, useColors } from "@/theme";
 import { FOCUS_BAR, useFocusActive } from "./FocusBar";
 import { Text } from "./kit";
 
@@ -53,7 +53,7 @@ export function ToastHost() {
 
 const s = StyleSheet.create({
   wrap: { position: "absolute", left: 16, right: 16, alignItems: "center" },
-  toast: { flexDirection: "row", alignItems: "center", borderRadius: 10, paddingLeft: 16, paddingRight: 4, maxWidth: "100%", minHeight: 48, elevation: 8, shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  toast: { flexDirection: "row", alignItems: "center", borderRadius: 10, paddingLeft: 16, paddingRight: 4, maxWidth: "100%", minHeight: 48, ...SHADOW_FLOAT },
   text: { fontSize: 15, paddingVertical: 12, flexShrink: 1 },
   action: { paddingHorizontal: 12, minHeight: 44, justifyContent: "center" },
 });

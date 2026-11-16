@@ -82,3 +82,6 @@ export type Role = keyof typeof TYPE;
 /** Page edge gutter and the inset for cards (04 §2). */
 export const GUTTER = 20;
 export const INSET = 16;
+
+/** The one floating-layer shadow, the phone's take on the desktop `--shadow-float` (its 0 8 24 layer; RN's radius is half the CSS blur). */
+export const SHADOW_FLOAT = { elevation: 8, shadowColor: "#1F1D1A", shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } } as const;

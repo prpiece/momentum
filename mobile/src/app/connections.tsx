@@ -4,7 +4,7 @@ import { hhmm } from "@core/domain/dates";
 import { useSync } from "@core/lib/sync/engine";
 import * as api from "@core/lib/sync/social";
 import { toast } from "@core/stores/toast";
-import { FONTS, GUTTER, useColors } from "@/theme";
+import { GUTTER, useColors } from "@/theme";
 import { Button, Label, NavRow, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
 import { choose } from "@/ui/Sheet";
@@ -86,7 +86,7 @@ export default function Connections() {
     }
   };
   const left = code ? Math.max(0, code.until - now) : 0;
-  const mono = { fontFamily: FONTS.mono, color: c.fg } as const;
+  const mono = { color: c.fg } as const; // the UI font, selectable: the timer font is for the timer only (DES-11)
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
@@ -98,9 +98,9 @@ export default function Connections() {
               {code.value}
             </Text>
             <Text variant="meta" style={{ color: c.muted }}>{`Expires in ${clock(left)}. Send it from the chat you want to link:`}</Text>
-            <Text selectable style={mono}>{`Discord   /task link ${code.value}`}</Text>
-            <Text selectable style={mono}>{`Slack     /momentum link ${code.value}`}</Text>
-            <Text selectable style={mono}>{`Telegram  link ${code.value}`}</Text>
+            <Text selectable style={mono}>{`Discord: /task link ${code.value}`}</Text>
+            <Text selectable style={mono}>{`Slack: /momentum link ${code.value}`}</Text>
+            <Text selectable style={mono}>{`Telegram: link ${code.value}`}</Text>
           </>
         ) : (
           <Text variant="secondary" style={{ color: c.fg2 }}>

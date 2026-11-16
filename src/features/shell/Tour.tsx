@@ -267,19 +267,35 @@ export function Tour() {
   useEffect(() => {
     if (!open) return;
     if (step.view) go(step.view);
-    let frame = 0;
     let prev = "";
-    const tick = () => {
+    const run = () => {
       const b = measure(step.target);
       const key = JSON.stringify(b);
       if (key !== prev) {
         prev = key;
         setBox(b);
       }
-      frame = requestAnimationFrame(tick);
     };
-    tick();
-    return () => cancelAnimationFrame(frame);
+    // Re-measure on events, not every frame: window resize, any scroll, the target changing size,
+    // layout animations ending, and a few times while the new view mounts.
+    const ro = new ResizeObserver(run);
+    const watch = step.target && document.querySelector(step.target === "main" ? "main" : `[data-tour="${step.target}"]`);
+    if (watch) ro.observe(watch);
+    document.body && ro.observe(document.body);
+    const settle = [0, 60, 150, 300, 600, 1200].map((ms) => window.setTimeout(run, ms));
+    window.addEventListener("resize", run);
+    window.addEventListener("scroll", run, true);
+    window.addEventListener("transitionend", run, true);
+    window.addEventListener("animationend", run, true);
+    run();
+    return () => {
+      ro.disconnect();
+      settle.forEach(clearTimeout);
+      window.removeEventListener("resize", run);
+      window.removeEventListener("scroll", run, true);
+      window.removeEventListener("transitionend", run, true);
+      window.removeEventListener("animationend", run, true);
+    };
   }, [open, step]);
 
   useLayoutEffect(() => {

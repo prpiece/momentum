@@ -14,7 +14,7 @@ import { applySchedule, currentSchedule } from "@core/stores/schedule";
 import { useSettings } from "@core/stores/settings";
 import { useToday } from "@/ui/useToday";
 import { canEdit } from "@/social/roles";
-import { resolveColor, useColors, type Colors } from "@/theme";
+import { resolveColor, SHADOW_FLOAT, useColors, type Colors } from "@/theme";
 import { lift, snapTick, tick } from "@/ui/haptics";
 import { Empty, IconButton, Segmented, Text } from "@/ui/kit";
 import { useQuickAddContext } from "@/ui/QuickAdd";
@@ -327,7 +327,7 @@ const s = StyleSheet.create({
   line: { position: "absolute", left: 0, right: 0, borderTopWidth: StyleSheet.hairlineWidth },
   now: { position: "absolute", left: 0, right: 0, height: 2 },
   block: { position: "absolute", borderRadius: 4, paddingHorizontal: 4, paddingTop: 2, overflow: "hidden" },
-  lifted: { overflow: "visible", elevation: 8, shadowColor: "#14120F", shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  lifted: { overflow: "visible", ...SHADOW_FLOAT },
   handle: { position: "absolute", left: 0, right: 0, bottom: 0, height: 14 },
   weekdays: { flexDirection: "row", paddingHorizontal: 8, paddingBottom: 4 },
   month: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 8, paddingBottom: 8 },

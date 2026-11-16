@@ -5,7 +5,7 @@ import { elapsedMs, remainingMs } from "@core/domain/focus";
 import { useData } from "@core/stores/data";
 import { pauseFocus, resumeFocus, tickFocus, useFocus } from "@core/stores/focus";
 import { useSettings } from "@core/stores/settings";
-import { FONTS, useColors } from "@/theme";
+import { FONTS, SHADOW_FLOAT, useColors } from "@/theme";
 import { Icon, Text } from "./kit";
 
 export const clock = (ms: number) => {
@@ -53,7 +53,7 @@ export function FocusBar() {
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: "row", alignItems: "center", gap: 10, height: FOCUS_BAR, marginHorizontal: 8, marginBottom: 6, paddingLeft: 14, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, elevation: 6, shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 2 } },
+  bar: { flexDirection: "row", alignItems: "center", gap: 10, height: FOCUS_BAR, marginHorizontal: 8, marginBottom: 6, paddingLeft: 14, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, ...SHADOW_FLOAT },
   button: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
 });
 

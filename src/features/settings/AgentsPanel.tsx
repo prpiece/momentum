@@ -42,7 +42,7 @@ function Snippet({ name, where, text }: { name: string; where: string; text: str
           {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <pre className="overflow-x-auto rounded-control bg-surface-2 px-3 py-2 font-mono text-[length:var(--fs-xs)]">{text}</pre>
+      <pre className="overflow-x-auto rounded-control bg-surface-2 px-3 py-2 font-[inherit] text-[length:var(--fs-xs)]">{text}</pre>
     </div>
   );
 }
