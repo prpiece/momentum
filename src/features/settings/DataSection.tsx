@@ -37,11 +37,10 @@ export function DataSection() {
 
   const csvIt = run(async () => {
     const { lists, tags, tasks } = useData.getState();
-    const { save } = await import("@tauri-apps/plugin-dialog");
-    const path = await save({ defaultPath: `momentum-tasks-${new Date().toISOString().slice(0, 10)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }] });
+    const { invoke } = await import("@tauri-apps/api/core");
+    const path = await invoke<string | null>("pick_path", { save: true, name: "CSV", extensions: ["csv"], defaultName: `momentum-tasks-${new Date().toISOString().slice(0, 10)}.csv` });
     if (!path) return;
     const all = Object.values(tasks);
-    const { invoke } = await import("@tauri-apps/api/core");
     await invoke("write_text_file", { path, contents: tasksToCsv(all, (id) => lists[id]?.name ?? "", (id) => tags[id]?.name ?? id) });
     toast(`Exported ${all.filter((t) => !t.deletedAt).length} tasks to ${path}`);
   });

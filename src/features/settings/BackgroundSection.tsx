@@ -55,9 +55,9 @@ export function BackgroundSection() {
   };
   const pick = async () => {
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const path = await open({ multiple: false, directory: false, filters: [{ name: "Images", extensions: [...IMAGE_EXTS] }] });
-      if (typeof path !== "string") return;
+      const { invoke } = await import("@tauri-apps/api/core");
+      const path = await invoke<string | null>("pick_path", { save: false, name: "Images", extensions: [...IMAGE_EXTS] });
+      if (!path) return;
       const file = newImageName(path);
       if (!file) return toast("That isn't a PNG, JPG, GIF or WebP image.");
       await importImage("backgrounds", file, path);

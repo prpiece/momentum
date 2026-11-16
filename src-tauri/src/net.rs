@@ -1,5 +1,9 @@
 //! Fetching calendar subscription feeds (v1.3). The webview can't: CORS and the CSP block it.
-use std::time::Duration;
+use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs},
+    time::Duration,
+};
 
 const MAX_BYTES: usize = 10 * 1024 * 1024;
 
@@ -16,14 +20,52 @@ fn feed_url(url: &str) -> Result<String, String> {
     }
 }
 
+/// Link-local (cloud metadata is 169.254.169.254, fe80::/10) and unspecified addresses are refused (RUST-10).
+/// Loopback and private LAN stay allowed: local calendar servers are legitimate.
+fn blocked(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => v4.is_link_local() || v4.is_unspecified(),
+        IpAddr::V6(v6) => {
+            v6.is_unspecified() || (v6.segments()[0] & 0xffc0) == 0xfe80 || v6.to_ipv4_mapped().is_some_and(|v4: Ipv4Addr| blocked(IpAddr::V4(v4)))
+        }
+    }
+}
+
+/// Resolves host names and drops blocked addresses, so every connection (redirects included) is checked.
+struct Guard;
+
+impl Resolve for Guard {
+    fn resolve(&self, name: Name) -> Resolving {
+        let host = name.as_str().to_string();
+        Box::pin(async move {
+            let found = tauri::async_runtime::spawn_blocking(move || (host.as_str(), 0).to_socket_addrs().map(Iterator::collect::<Vec<SocketAddr>>))
+                .await??;
+            let ok: Vec<SocketAddr> = found.into_iter().filter(|a| !blocked(a.ip())).collect();
+            if ok.is_empty() {
+                return Err("that address is not allowed".into());
+            }
+            Ok(Box::new(ok.into_iter()) as Addrs)
+        })
+    }
+}
+
+/// IP-literal hosts skip the resolver, so they are checked on their own.
+fn literal_blocked(url: &reqwest::Url) -> bool {
+    url.host_str().and_then(|h| h.trim_matches(['[', ']']).parse::<IpAddr>().ok()).is_some_and(blocked)
+}
+
 #[tauri::command]
 pub async fn fetch_ics(url: String) -> Result<String, String> {
     let url = feed_url(&url)?;
+    if literal_blocked(&reqwest::Url::parse(&url).map_err(|e| e.to_string())?) {
+        return Err("That calendar address is not allowed".into());
+    }
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
+        .dns_resolver(std::sync::Arc::new(Guard))
         // No https -> http downgrade on redirect.
         .redirect(reqwest::redirect::Policy::custom(|a| {
-            if a.previous().len() >= 5 || (a.previous().last().is_some_and(|u| u.scheme() == "https") && a.url().scheme() != "https") {
+            if a.previous().len() >= 5 || literal_blocked(a.url()) || (a.previous().last().is_some_and(|u| u.scheme() == "https") && a.url().scheme() != "https") {
                 a.stop()
             } else {
                 a.follow()
@@ -47,7 +89,15 @@ pub async fn fetch_ics(url: String) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::feed_url;
+    use super::{blocked, feed_url};
+    use std::net::IpAddr;
+
+    #[test]
+    fn blocks_link_local_and_unspecified_only() {
+        let b = |s: &str| blocked(s.parse::<IpAddr>().unwrap());
+        assert!(b("169.254.169.254") && b("fe80::1") && b("0.0.0.0") && b("::") && b("::ffff:169.254.1.1"));
+        assert!(!b("127.0.0.1") && !b("::1") && !b("192.168.1.5") && !b("10.0.0.2") && !b("8.8.8.8"));
+    }
 
     #[test]
     fn schemes() {

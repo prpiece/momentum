@@ -20,19 +20,16 @@ const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
 export async function exportBackup(): Promise<string | null> {
   const tables = Object.fromEntries(await Promise.all(BACKUP_TABLES.map(async (t) => [t, await select<Row>(`SELECT * FROM ${t}`)] as const)));
   const file = { app: "Momentum", format: BACKUP_FORMAT, schemaVersion: LATEST_SCHEMA, exportedAt: new Date().toISOString(), tables } satisfies Omit<BackupFile, "tables"> & { tables: Record<string, Row[]> };
-  const { save } = await import("@tauri-apps/plugin-dialog");
-  const path = await save({ defaultPath: `momentum-backup-${stamp().slice(0, 10)}.zip`, filters: [{ name: "Momentum backup", extensions: ["zip"] }] });
+  const path = await invoke<string | null>("pick_path", { save: true, name: "Momentum backup", extensions: ["zip"], defaultName: `momentum-backup-${stamp().slice(0, 10)}.zip` });
   if (!path) return null;
-  await invoke("write_backup_zip", { path: isZip(path) ? path : `${path}.zip`, json: JSON.stringify(file, null, 1) });
+  await invoke("write_backup_zip", { path, json: JSON.stringify(file, null, 1) });
   return path;
 }
 
 const isZip = (path: string) => path.toLowerCase().endsWith(".zip");
 
 export async function pickFile(extensions: string[], name: string): Promise<string | null> {
-  const { open } = await import("@tauri-apps/plugin-dialog");
-  const path = await open({ multiple: false, directory: false, filters: [{ name, extensions }] });
-  return typeof path === "string" ? path : null;
+  return invoke<string | null>("pick_path", { save: false, name, extensions });
 }
 
 /** Read + validate a backup (.zip or .json) without touching the database (the UI confirms with the counts first). */

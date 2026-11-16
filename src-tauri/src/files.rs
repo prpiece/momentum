@@ -3,12 +3,55 @@
 //! write goes through these commands, which validate the folder, the name and the size.
 
 use std::{
+    collections::HashSet,
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
+    sync::Mutex,
     time::UNIX_EPOCH,
 };
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_dialog::DialogExt;
+
+/// Paths the user chose in a native dialog this session (RUST-09). The file commands that take a
+/// path from the webview only accept these, or paths inside the app's own config folder.
+#[derive(Default)]
+pub struct Picked(Mutex<HashSet<PathBuf>>);
+
+/// The path as a `Path` if the user picked it in a dialog this session or it is inside the app config dir.
+pub fn authorize<'a>(app: &AppHandle, picked: &Picked, path: &'a str) -> Result<&'a Path, String> {
+    let p = Path::new(path);
+    let plain = !p.components().any(|c| matches!(c, std::path::Component::ParentDir));
+    let own = app.path().app_config_dir().is_ok_and(|d| p.starts_with(d));
+    if (plain && own) || picked.0.lock().unwrap().contains(p) {
+        Ok(p)
+    } else {
+        Err("that file wasn't chosen in a file dialog".into())
+    }
+}
+
+/// Native open/save dialog. The returned path is remembered so the file commands accept it. A save
+/// path with no extension gets the first one of `extensions`.
+#[tauri::command]
+pub async fn pick_path(app: AppHandle, picked: State<'_, Picked>, save: bool, name: String, extensions: Vec<String>, default_name: Option<String>) -> Result<Option<String>, String> {
+    let exts: Vec<&str> = extensions.iter().map(String::as_str).collect();
+    let mut dialog = app.dialog().file().add_filter(name, &exts);
+    if let Some(n) = default_name {
+        dialog = dialog.set_file_name(n);
+    }
+    let chosen = tauri::async_runtime::spawn_blocking(move || if save { dialog.blocking_save_file() } else { dialog.blocking_pick_file() })
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(chosen) = chosen else { return Ok(None) };
+    let mut path = chosen.into_path().map_err(|e| e.to_string())?;
+    if save && path.extension().is_none() {
+        if let Some(e) = extensions.first() {
+            path.set_extension(e);
+        }
+    }
+    picked.0.lock().unwrap().insert(path.clone());
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
 
 pub const MAX_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
 /// Note images (D78) and the app background image (D222). Backups carry both.
@@ -59,7 +102,8 @@ const IMAGE_SRC_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "a
 
 /// Copy a file the user picked (dialog) into the folder as `name`.
 #[tauri::command]
-pub fn import_image(app: AppHandle, kind: String, name: String, src: String) -> Result<(), String> {
+pub fn import_image(app: AppHandle, picked: State<Picked>, kind: String, name: String, src: String) -> Result<(), String> {
+    authorize(&app, &picked, &src)?;
     let ext = Path::new(&src).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
     if !ext.is_some_and(|e| IMAGE_SRC_EXTS.contains(&e.as_str())) {
         return Err("that is not an image file".into());
@@ -175,19 +219,22 @@ fn unzip_images(zip_file: &Path, kind: &str, att_dir: &Path) -> AnyResult<u32> {
 }
 
 #[tauri::command]
-pub fn write_backup_zip(app: AppHandle, path: String, json: String) -> Result<(), String> {
+pub fn write_backup_zip(app: AppHandle, picked: State<Picked>, path: String, json: String) -> Result<(), String> {
+    authorize(&app, &picked, &path)?;
     let (att, bg) = (dir(&app, "attachments")?, dir(&app, "backgrounds")?);
     zip_backup(zip_path(&path)?, &json, &[("attachments", &att), ("backgrounds", &bg)]).map_err(|e| e.to_string())
 }
 
 /// The backup's JSON text; nothing is restored until the user confirms.
 #[tauri::command]
-pub fn read_backup_zip(path: String) -> Result<String, String> {
+pub fn read_backup_zip(app: AppHandle, picked: State<Picked>, path: String) -> Result<String, String> {
+    authorize(&app, &picked, &path)?;
     unzip_json(zip_path(&path)?).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn restore_backup_attachments(app: AppHandle, path: String) -> Result<u32, String> {
+pub fn restore_backup_attachments(app: AppHandle, picked: State<Picked>, path: String) -> Result<u32, String> {
+    authorize(&app, &picked, &path)?;
     let zip = zip_path(&path)?;
     let att = unzip_images(zip, "attachments", &dir(&app, "attachments")?).map_err(|e| e.to_string())?;
     Ok(att + unzip_images(zip, "backgrounds", &dir(&app, "backgrounds")?).map_err(|e| e.to_string())?)

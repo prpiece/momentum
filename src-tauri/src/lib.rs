@@ -171,8 +171,7 @@ fn quit_app(app: tauri::AppHandle) {
 
 /// Backup export, .ics import and Todoist/TickTick import: read or write a file the user picked in a
 /// native dialog. Limited to the extensions the app uses so the command can't touch arbitrary files.
-fn checked_path(path: &str) -> Result<&Path, String> {
-    let p = Path::new(path);
+fn checked_path(p: &Path) -> Result<&Path, String> {
     match p.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()) {
         Some(ext) if ext == "json" || ext == "ics" || ext == "csv" => Ok(p),
         _ => Err("only .json, .ics and .csv files are supported".into()),
@@ -180,8 +179,8 @@ fn checked_path(path: &str) -> Result<&Path, String> {
 }
 
 #[tauri::command]
-fn write_text_file(path: String, contents: String) -> Result<(), String> {
-    write_atomic(checked_path(&path)?, contents.as_bytes())
+fn write_text_file(app: AppHandle, picked: tauri::State<files::Picked>, path: String, contents: String) -> Result<(), String> {
+    write_atomic(checked_path(files::authorize(&app, &picked, &path)?)?, contents.as_bytes())
 }
 
 /// Writes next to the target and renames, so a failed write cannot destroy an earlier file (RUST-12).
@@ -212,7 +211,8 @@ fn check_png(path: &str, bytes: &[u8]) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn write_png(path: String, bytes: Vec<u8>) -> Result<(), String> {
+fn write_png(app: AppHandle, picked: tauri::State<files::Picked>, path: String, bytes: Vec<u8>) -> Result<(), String> {
+    files::authorize(&app, &picked, &path)?;
     check_png(&path, &bytes)?;
     write_atomic(Path::new(&path), &bytes)
 }
@@ -220,8 +220,8 @@ fn write_png(path: String, bytes: Vec<u8>) -> Result<(), String> {
 const MAX_TEXT_BYTES: u64 = 64 * 1024 * 1024;
 
 #[tauri::command]
-fn read_text_file(path: String) -> Result<String, String> {
-    let p = checked_path(&path)?;
+fn read_text_file(app: AppHandle, picked: tauri::State<files::Picked>, path: String) -> Result<String, String> {
+    let p = checked_path(files::authorize(&app, &picked, &path)?)?;
     if fs::metadata(p).map_err(|e| e.to_string())?.len() > MAX_TEXT_BYTES {
         return Err("that file is larger than 64 MB".into());
     }
@@ -361,7 +361,14 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .manage(CloseToTray(AtomicBool::new(true)))
         .manage(voice::Voice::default())
+        .manage(files::Picked::default())
         .manage(agent::Agent::default())
+        // A reload or crash recovery drops the main window's agent listener until it registers again (AGENT-08).
+        .on_page_load(|webview, payload| {
+            if webview.label() == "main" && matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+                agent::page_loading(webview.app_handle());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             set_close_to_tray,
             quit_app,
@@ -378,6 +385,7 @@ pub fn run() {
             read_text_file,
             backups_dir,
             files::image_dir,
+            files::pick_path,
             files::import_image,
             files::write_image,
             files::list_images,
@@ -427,6 +435,8 @@ pub fn run() {
             // Agents (D264): a failure here only turns the CLI off.
             if let Err(e) = agent::start(app.handle()) {
                 eprintln!("could not start the agent API: {e}");
+                // The window isn't up to hear an event yet; it asks in `agent_ready` and shows a toast.
+                agent::note_start_error(app.handle(), e.to_string());
             }
             // Without it images don't show, but the app still works.
             if let Err(e) = files::allow_asset_dirs(app.handle()) {

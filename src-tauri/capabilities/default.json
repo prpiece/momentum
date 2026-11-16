@@ -24,8 +24,6 @@
     "core:window:allow-set-position",
     "core:window:allow-destroy",
     "core:window:allow-close",
-    "dialog:allow-open",
-    "dialog:allow-save",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-internal-toggle-maximize",
@@ -46,6 +44,38 @@
           "url": "http://*"
         }
       ]
-    }
+    },
+    "allow-set-close-to-tray",
+    "allow-quit-app",
+    "allow-agent-reply",
+    "allow-agent-ready",
+    "allow-agent-cli-info",
+    "allow-agent-cli-path",
+    "allow-secret-get",
+    "allow-secret-set",
+    "allow-secret-delete",
+    "allow-toggle-mini",
+    "allow-write-text-file",
+    "allow-write-png",
+    "allow-read-text-file",
+    "allow-backups-dir",
+    "allow-image-dir",
+    "allow-pick-path",
+    "allow-import-image",
+    "allow-write-image",
+    "allow-list-images",
+    "allow-delete-image",
+    "allow-write-backup-zip",
+    "allow-read-backup-zip",
+    "allow-restore-backup-attachments",
+    "allow-fetch-ics",
+    "allow-voice-model-status",
+    "allow-voice-download",
+    "allow-voice-cancel-download",
+    "allow-voice-remove",
+    "allow-voice-start",
+    "allow-voice-input-devices",
+    "allow-voice-stop",
+    "allow-voice-cancel"
   ]
 }

@@ -359,9 +359,9 @@ function Description({ task }: { task: Task }) {
   const pickImage = async () => {
     if (!isTauri) return toast("Images work in the desktop app.");
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const path = await open({ multiple: false, directory: false, filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp"] }] });
-      if (typeof path !== "string") return;
+      const { invoke } = await import("@tauri-apps/api/core");
+      const path = await invoke<string | null>("pick_path", { save: false, name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp"] });
+      if (!path) return;
       const name = newImageName(path);
       if (!name) return toast("That isn't a PNG, JPG, GIF or WebP image.");
       await importImage("attachments", name, path);
