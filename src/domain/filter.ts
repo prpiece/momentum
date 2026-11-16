@@ -41,7 +41,8 @@ export function parseFilter(query: string, now: Date, listNames: readonly string
   // Keywords are blanked (not removed) so quick-add chip offsets still index into `query`.
   let rest = query;
   for (const m of query.matchAll(/\S+/g)) {
-    const apply = KEYWORDS[m[0].toLowerCase()];
+    const key = m[0].toLowerCase();
+    const apply = Object.prototype.hasOwnProperty.call(KEYWORDS, key) ? KEYWORDS[key] : undefined;
     if (!apply) continue;
     apply(f);
     const start = m.index ?? 0;

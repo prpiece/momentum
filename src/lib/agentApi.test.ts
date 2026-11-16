@@ -100,6 +100,49 @@ describe("delete, restore, trash", () => {
   });
 });
 
+describe("find explains a miss (AGENT-01/03)", () => {
+  it("says a trashed task is in the Trash", () => {
+    const t = addTask({ title: "Gone" });
+    run("delete", { id: t.id });
+    expect(() => run("get", { id: t.id })).toThrow(/in the Trash.*restore_task/);
+    expect(() => run("get", { id: t.id.slice(0, 6) })).toThrow(/in the Trash/);
+  });
+  it("says an exhausted series has no occurrences left", () => {
+    const t = addTask({ title: "Spent", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY;COUNT=1", exdates: ["2026-10-25"] } });
+    expect(() => run("get", { id: t.id })).toThrow(/no occurrences left/);
+  });
+  it("says so when nothing matches", () => {
+    expect(() => run("get", { id: "deadbeef" })).toThrow(/No task with id deadbeef/);
+  });
+});
+
+describe("delete on a recurring task (AGENT-04)", () => {
+  const series = () => addTask({ title: "Tuesdays", schedule: { kind: "day", date: "2026-10-25" }, recurrence: { rule: "FREQ=DAILY", exdates: [] } });
+  it("removes only the current occurrence by default, the series with scope all", () => {
+    const s = series();
+    const d = run("delete", { id: s.id }) as { deleted: { planned: string; repeats: string } };
+    expect(d.deleted.planned).toBe("2026-10-25");
+    expect(useData.getState().tasks[s.id].deletedAt).toBeNull();
+    expect(call("get", { id: s.id }).task.planned).toBe("2026-10-26");
+    run("delete", { id: s.id, scope: "all" });
+    expect(useData.getState().tasks[s.id].deletedAt).not.toBeNull();
+  });
+});
+
+describe("lookups (AGENT-18)", () => {
+  it("lists lists and tags, and search can filter by status", () => {
+    addTask({ title: "a #x" });
+    call("add", { text: "b #family" });
+    const tags = (run("tags", {}) as { tags: { name: string }[] }).tags.map((t) => t.name);
+    expect(tags).toContain("family");
+    expect((run("lists", {}) as { lists: { name: string }[] }).lists.map((l) => l.name)).toContain("Inbox");
+    const t = call("add", { text: "finish report" });
+    call("complete", { id: t.task.id });
+    expect((run("search", { text: "report", status: "open" }) as { total: number }).total).toBe(0);
+    expect((run("search", { text: "report", status: "done" }) as { total: number }).total).toBe(1);
+  });
+});
+
 describe("habits", () => {
   it("reports a weekly goal's week total, not just today", () => {
     const today = todayLocal();

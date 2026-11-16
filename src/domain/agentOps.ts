@@ -4,6 +4,7 @@
  * The localhost API is a system boundary, so every argument is validated here and unknown fields are refused.
  */
 import { durationMinutes, hhmm, isLocalDate, moveToDate, scheduleDate } from "./dates";
+import { describeRule } from "./recurrence";
 import { PRIORITY_LABEL, type LocalDate, type Priority, type Schedule, type Tag, type Task, type TaskList } from "./types";
 
 export class AgentError extends Error {}
@@ -25,6 +26,8 @@ export type AgentTask = {
   tags: string[];
   subtasks: number;
   parentId: string | null;
+  /** "Every week", "Daily"...: a repeating task shows its current occurrence, so deleting it needs a scope. */
+  repeats: string | null;
 };
 
 export function agentTask(t: Task, schedule: Schedule, ctx: { lists: Record<string, TaskList>; tags: Record<string, Tag>; subtasks: number }): AgentTask {
@@ -42,6 +45,7 @@ export function agentTask(t: Task, schedule: Schedule, ctx: { lists: Record<stri
     tags: t.tags.flatMap((id) => ctx.tags[id]?.name ?? []),
     subtasks: ctx.subtasks,
     parentId: t.parentId,
+    repeats: t.recurrence ? describeRule(t.recurrence.rule) : null,
   };
 }
 
@@ -60,21 +64,32 @@ export type TaskPatch = {
 };
 export type AgentRequest =
   | { op: "list"; view: string; limit: number }
-  | { op: "search"; text: string; limit: number }
+  | { op: "search"; text: string; limit: number; status: "open" | "done" | "all" }
   | { op: "get"; id: string }
   | { op: "add"; text: string; list: string | null; parentId: string | null }
   | { op: "update"; id: string; patch: TaskPatch; scope: AgentScope }
-  | { op: "delete"; id: string; withSubtasks: boolean }
+  | { op: "delete"; id: string; withSubtasks: boolean; scope: AgentScope }
   | { op: "restore"; id: string }
   | { op: "trash"; limit: number }
   | { op: "complete" | "reopen"; id: string }
-  | { op: "habits" };
+  | { op: "habits" }
+  | { op: "lists" | "tags" };
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const MAX_TITLE = 500;
+const MAX_TEXT = 1000;
+const MAX_NOTES = 50000;
 const PRIORITY_WORDS: Record<string, Priority> = { none: 0, low: 1, medium: 2, med: 2, high: 3 };
 
 type Args = Record<string, unknown>;
+
+/** Control characters become spaces: a title is one line. */
+const oneLine = (v: string) => v.replace(/[\u0000-\u001f\u007f]+/g, " ");
+function capped(v: string, max: number, what: string) {
+  if (v.length > max) throw new AgentError(`${what} is too long (${v.length} characters; the limit is ${max}).`);
+  return v;
+}
 
 function only(args: Args, allowed: string[]) {
   const extra = Object.keys(args).filter((k) => !allowed.includes(k));
@@ -93,11 +108,26 @@ function str(args: Args, k: string, required = false): string | null {
   return v;
 }
 
+/** Ids are lowercase UUIDs; agents sometimes shout them. */
+const idOf = (args: Args) => str(args, "id", true).trim().toLowerCase();
+
 function limitOf(args: Args): number {
   const v = args.limit;
   if (v === undefined || v === null) return DEFAULT_LIMIT;
   if (typeof v !== "number" || !Number.isInteger(v) || v < 1) throw new AgentError("limit must be a positive integer.");
   return Math.min(v, MAX_LIMIT);
+}
+
+function scopeOf(args: Args): AgentScope {
+  const scope = args.scope ?? "this";
+  if (scope !== "this" && scope !== "following" && scope !== "all") throw new AgentError('scope must be "this", "following" or "all".');
+  return scope;
+}
+
+function statusOf(args: Args): "open" | "done" | "all" {
+  const v = args.status ?? "all";
+  if (v !== "open" && v !== "done" && v !== "all") throw new AgentError('status must be "open", "done" or "all".');
+  return v;
 }
 
 function planned(v: unknown): Planned {
@@ -111,8 +141,8 @@ function planned(v: unknown): Planned {
 export function parsePatch(args: Args): TaskPatch {
   only(args, ["id", "scope", "title", "description", "priority", "list", "date", "deadline", "durationMin", "tags"]);
   const p: TaskPatch = {};
-  if ("title" in args) p.title = str(args, "title", true).trim();
-  if ("description" in args) p.description = str(args, "description") ?? "";
+  if ("title" in args) p.title = capped(oneLine(str(args, "title", true)).trim(), MAX_TITLE, "title");
+  if ("description" in args) p.description = capped(str(args, "description") ?? "", MAX_NOTES, "description");
   if ("priority" in args) {
     const v = args.priority;
     const n = typeof v === "string" ? (/^\d$/.test(v) ? Number(v) : PRIORITY_WORDS[v.toLowerCase()]) : v;
@@ -136,7 +166,7 @@ export function parsePatch(args: Args): TaskPatch {
   if ("tags" in args) {
     const v = args.tags;
     const names = Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x.trim().replace(/^#/, "") : "")) : [];
-    if (!Array.isArray(v) || names.some((n) => !n || /^#|\s/.test(n))) throw new AgentError("tags must be a list of single-word names.");
+    if (!Array.isArray(v) || names.some((n) => !n || /[#\s\u0000-\u001f\u200b-\u200f\u2060\ufeff]/.test(n))) throw new AgentError("tags must be a list of single-word names.");
     // "work" and "Work" are one tag.
     p.tags = names.filter((n, i) => names.findIndex((m) => m.toLowerCase() === n.toLowerCase()) === i);
   }
@@ -152,34 +182,39 @@ export function parseRequest(op: unknown, raw: unknown): AgentRequest {
       only(args, ["view", "limit"]);
       return { op, view: str(args, "view")?.trim() || "today", limit: limitOf(args) };
     case "search":
-      only(args, ["text", "limit"]);
-      return { op, text: str(args, "text", true).trim(), limit: limitOf(args) };
+      only(args, ["text", "limit", "status"]);
+      return { op, text: str(args, "text", true).trim(), limit: limitOf(args), status: statusOf(args) };
     case "get":
     case "complete":
     case "reopen":
       only(args, ["id"]);
-      return { op, id: str(args, "id", true).trim() };
-    case "add":
+      return { op, id: idOf(args) };
+    case "add": {
       only(args, ["text", "list", "parentId"]);
-      return { op, text: str(args, "text", true), list: str(args, "list")?.trim() || null, parentId: str(args, "parentId")?.trim() || null };
+      const list = str(args, "list")?.trim() || null;
+      const parentId = str(args, "parentId")?.trim().toLowerCase() || null;
+      if (list && parentId) throw new AgentError("Give list or parentId, not both: a subtask is in its parent's list.");
+      return { op, text: capped(oneLine(str(args, "text", true)).trim(), MAX_TEXT, "text"), list, parentId };
+    }
     case "update": {
-      const scope = args.scope ?? "this";
-      if (scope !== "this" && scope !== "following" && scope !== "all") throw new AgentError('scope must be "this", "following" or "all".');
-      return { op, id: str(args, "id", true).trim(), patch: parsePatch(args), scope };
+      const scope = scopeOf(args);
+      return { op, id: idOf(args), patch: parsePatch(args), scope };
     }
     case "delete": {
-      only(args, ["id", "withSubtasks"]);
+      only(args, ["id", "withSubtasks", "scope"]);
       const w = args.withSubtasks ?? false;
       if (typeof w !== "boolean") throw new AgentError("withSubtasks must be true or false.");
-      return { op, id: str(args, "id", true).trim(), withSubtasks: w };
+      return { op, id: idOf(args), withSubtasks: w, scope: scopeOf(args) };
     }
     case "restore":
       only(args, ["id"]);
-      return { op, id: str(args, "id", true).trim() };
+      return { op, id: idOf(args) };
     case "trash":
       only(args, ["limit"]);
       return { op, limit: limitOf(args) };
     case "habits":
+    case "lists":
+    case "tags":
       only(args, []);
       return { op };
     default:

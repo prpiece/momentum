@@ -19,7 +19,7 @@ describe("agent op parsing (v1.2.1)", () => {
     expect(() => parseRequest("update", { id: "a", scope: "all" })).toThrow(/Nothing to update/);
   });
   it("parses delete, restore and trash, with no bulk form", () => {
-    expect(parseRequest("delete", { id: "abc" })).toEqual({ op: "delete", id: "abc", withSubtasks: false });
+    expect(parseRequest("delete", { id: "abc" })).toEqual({ op: "delete", id: "abc", withSubtasks: false, scope: "this" });
     expect(parseRequest("delete", { id: "abc", withSubtasks: true })).toMatchObject({ withSubtasks: true });
     expect(() => parseRequest("delete", { id: "abc", withSubtasks: "yes" })).toThrow(/true or false/);
     expect(() => parseRequest("delete", { ids: ["a", "b"] })).toThrow(/Unknown field/);

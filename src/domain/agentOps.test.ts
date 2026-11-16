@@ -15,8 +15,9 @@ describe("agentTask", () => {
     const tags = { g1: { id: "g1", name: "family", color: null } };
     expect(agentTask(base, base.schedule, { lists, tags, subtasks: 2 })).toEqual({
       id: "t1", title: "Call mom", notes: "about Sunday", list: "Inbox", status: "open", priority: "high", planned: "2026-10-30", start: null,
-      deadline: "2026-11-02", durationMin: 15, tags: ["family"], subtasks: 2, parentId: null,
+      deadline: "2026-11-02", durationMin: 15, tags: ["family"], subtasks: 2, parentId: null, repeats: null,
     });
+    expect(agentTask({ ...base, recurrence: { rule: "FREQ=WEEKLY", exdates: [] } }, base.schedule, { lists, tags, subtasks: 0 }).repeats).toBe("Every week");
   });
   it("reports someday and time blocks", () => {
     const ctx = { lists: {}, tags: {}, subtasks: 0 };
@@ -40,7 +41,7 @@ describe("parseRequest", () => {
   it("requires an id and text", () => {
     expect(() => parseRequest("complete", {})).toThrow(/id is required/);
     expect(() => parseRequest("add", { text: "  " })).toThrow(/non-empty/);
-    expect(parseRequest("add", { text: "call mom by fri 15m", list: " Work ", parentId: "p" })).toEqual({ op: "add", text: "call mom by fri 15m", list: "Work", parentId: "p" });
+    expect(parseRequest("add", { text: "call mom by fri 15m", list: " Work " })).toEqual({ op: "add", text: "call mom by fri 15m", list: "Work", parentId: null });
   });
   it("validates a patch field by field", () => {
     const patch = parseRequest("update", { id: "a", title: " New ", priority: "High", date: "2026-11-01", deadline: "none", durationMin: 30, tags: ["#a", "b"], list: "Work" });
@@ -54,6 +55,35 @@ describe("parseRequest", () => {
     for (const bad of [{ date: "tomorrow" }, { date: "2026-02-30" }, { priority: "urgent" }, { priority: 7 }, { durationMin: 1.5 }, { durationMin: 5000 }, { deadline: "someday" }, { tags: ["two words"] }, { tags: "a" }, { status: "done" }, { completedAt: "x" }])
       expect(() => parseRequest("update", { id: "a", ...bad }), JSON.stringify(bad)).toThrow(AgentError);
     expect(() => parseRequest("update", { id: "a" })).toThrow(/Nothing to update/);
+  });
+});
+
+describe("parseRequest hardening and new ops (AGENT-04/16/18)", () => {
+  it("delete takes a scope, default this", () => {
+    expect(parseRequest("delete", { id: "a" })).toEqual({ op: "delete", id: "a", withSubtasks: false, scope: "this" });
+    expect(parseRequest("delete", { id: "a", scope: "all" })).toMatchObject({ scope: "all" });
+    expect(() => parseRequest("delete", { id: "a", scope: "some" })).toThrow(/scope/);
+  });
+  it("lists lists and tags; search takes a status", () => {
+    expect(parseRequest("lists", {})).toEqual({ op: "lists" });
+    expect(parseRequest("tags", undefined)).toEqual({ op: "tags" });
+    expect(parseRequest("search", { text: "x" })).toEqual({ op: "search", text: "x", limit: 50, status: "all" });
+    expect(parseRequest("search", { text: "x", status: "done" })).toMatchObject({ status: "done" });
+    expect(() => parseRequest("search", { text: "x", status: "bogus" })).toThrow(/status/);
+  });
+  it("ids are case-insensitive", () => {
+    expect(parseRequest("get", { id: "ABCD-1234" })).toEqual({ op: "get", id: "abcd-1234" });
+  });
+  it("caps and cleans text", () => {
+    expect(() => parseRequest("add", { text: "x".repeat(2000) })).toThrow(/too long/);
+    expect(() => parseRequest("update", { id: "a", title: "x".repeat(501) })).toThrow(/too long/);
+    expect(() => parseRequest("update", { id: "a", description: "x".repeat(50001) })).toThrow(/too long/);
+    expect((parseRequest("add", { text: "a\nb\u0000c" }) as { text: string }).text).toBe("a b c");
+    expect((parseRequest("update", { id: "a", title: "a\nb" }) as { patch: { title: string } }).patch.title).toBe("a b");
+  });
+  it("refuses odd tags and list with parentId", () => {
+    for (const t of ["x#y", "e​"]) expect(() => parseRequest("update", { id: "a", tags: [t] }), t).toThrow(/tags/);
+    expect(() => parseRequest("add", { text: "x", list: "Work", parentId: "p" })).toThrow(/list or parentId/);
   });
 });
 

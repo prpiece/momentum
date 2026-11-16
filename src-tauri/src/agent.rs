@@ -188,7 +188,7 @@ fn forward(app: &AppHandle, op: &str, body: &[u8]) -> (u16, String) {
     match rx.recv_timeout(REPLY_TIMEOUT) {
         Ok(reply) => {
             let ok = serde_json::from_str::<serde_json::Value>(&reply).ok().and_then(|v| v["ok"].as_bool()).unwrap_or(false);
-            (if ok { 200 } else { 422 }, reply)
+            (if ok { 200 } else { 422 }, stamped(&reply, std::process::id()))
         }
         Err(_) => {
             state.pending.lock().unwrap().remove(&id);
@@ -197,9 +197,24 @@ fn forward(app: &AppHandle, op: &str, body: &[u8]) -> (u16, String) {
     }
 }
 
+/// Adds `instance` (the app's pid) to a reply, so a client can tell the app restarted between two calls.
+fn stamped(reply: &str, pid: u32) -> String {
+    match serde_json::from_str::<serde_json::Value>(reply) {
+        Ok(serde_json::Value::Object(mut m)) => {
+            m.insert("instance".into(), pid.into());
+            serde_json::Value::Object(m).to_string()
+        }
+        _ => reply.to_string(),
+    }
+}
+
 /// The main window's answer to an `agent:request`.
 #[tauri::command]
-pub fn agent_reply(state: State<Agent>, id: String, result: String) {
+pub fn agent_reply(window: tauri::Window, state: State<Agent>, id: String, result: String) {
+    // Popups can't write (D33), so they can't answer for the main window either.
+    if window.label() != "main" {
+        return;
+    }
     if let Some(tx) = state.pending.lock().unwrap().remove(&id) {
         let _ = tx.send(result);
     }
@@ -229,8 +244,31 @@ fn write_private(path: &Path, text: &str) -> std::io::Result<()> {
     fs::write(path, text)
 }
 
+/// Writes the whole file or none of it: a reader never sees a half-written agent.json (AGENT-09).
+fn write_atomic(path: &Path, text: &str) -> std::io::Result<()> {
+    let tmp = path.with_extension("json.tmp");
+    write_private(&tmp, text)?;
+    fs::rename(&tmp, path)
+}
+
 fn file_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app.path().app_config_dir().map_err(|e| e.to_string())?.join(FILE))
+}
+
+/// Writes agent.json, once more if the first try fails. If it still fails the old file is removed (it
+/// names a dead process and port) and the reason goes to `agent-error.log` beside it: a release build has
+/// no console, and without the file the CLI can't find the app at all.
+fn publish(path: &Path, text: &str) -> std::io::Result<()> {
+    let mut result = write_atomic(path, text);
+    if result.is_err() {
+        std::thread::sleep(Duration::from_millis(150));
+        result = write_atomic(path, text);
+    }
+    if let Err(e) = &result {
+        let _ = fs::remove_file(path);
+        let _ = fs::write(path.with_file_name("agent-error.log"), format!("couldn't write {}: {e}\n", path.display()));
+    }
+    result
 }
 
 /// Binds the port, writes `agent.json` and serves in a background thread.
@@ -242,7 +280,7 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }
-    write_private(&path, &serde_json::json!({ "port": port, "token": token, "pid": std::process::id() }).to_string())?;
+    publish(&path, &serde_json::json!({ "port": port, "token": token, "pid": std::process::id() }).to_string())?;
     let app = app.clone();
     std::thread::spawn(move || {
         for conn in listener.incoming().flatten() {
@@ -365,6 +403,10 @@ fn parse_path_value(text: &str) -> Option<String> {
 /// The PATH to write, or `None` when nothing changes. Adding never produces a shorter PATH than
 /// the one read: that would drop entries, so it is an error instead of a write.
 fn next_path(current: &str, dir: &str, add: bool) -> Result<Option<String>, String> {
+    // reg.exe may have answered in a legacy codepage: the unreadable bytes became U+FFFD and writing them back would destroy those entries.
+    if current.contains('\u{FFFD}') {
+        return Err("your PATH has characters that couldn't be read safely, so it was left alone".into());
+    }
     let next = if add { path_with(current, dir) } else { path_without(current, dir) };
     if next == current {
         return Ok(None);
@@ -516,6 +558,39 @@ mod tests {
         assert_eq!(parse_path_value("    TEMP    REG_EXPAND_SZ    C:\\t\r\n    Pathext    REG_SZ    .EXE").as_deref(), None);
         assert_eq!(parse_path_value("    Path    REG_EXPAND_SZ    ").as_deref(), Some(""));
         assert_eq!(parse_path_value("ERROR: The system was unable to find the specified registry key or value."), None);
+    }
+
+    #[test]
+    fn replies_carry_the_instance_and_paths_with_unreadable_bytes_are_left_alone() {
+        let v: serde_json::Value = serde_json::from_str(&stamped(r#"{"ok":true,"data":1}"#, 42)).unwrap();
+        assert_eq!((v["ok"].as_bool(), v["instance"].as_u64()), (Some(true), Some(42)));
+        assert_eq!(stamped("not json", 42), "not json");
+        assert!(next_path("C:\\Jos\u{FFFD};C:\\a", r"C:\bin", true).is_err());
+        assert!(next_path("C:\\Jos\u{FFFD}", r"C:\bin", false).is_err());
+    }
+
+    #[test]
+    fn a_failed_publish_removes_the_stale_file_and_says_why() {
+        let d = std::env::temp_dir().join(format!("momentum-publish-test-{}", std::process::id()));
+        fs::create_dir_all(d.join("agent.json.tmp")).unwrap(); // the temp name is taken by a folder: every write fails
+        let f = d.join("agent.json");
+        fs::write(&f, "stale").unwrap();
+        assert!(publish(&f, "new").is_err());
+        assert!(!f.exists());
+        assert!(fs::read_to_string(d.join("agent-error.log")).unwrap().contains("couldn't write"));
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn agent_json_is_written_whole_and_replaced() {
+        let d = std::env::temp_dir().join(format!("momentum-agent-test-{}", std::process::id()));
+        fs::create_dir_all(&d).unwrap();
+        let f = d.join("agent.json");
+        write_atomic(&f, "one").unwrap();
+        write_atomic(&f, "two").unwrap();
+        assert_eq!(fs::read_to_string(&f).unwrap(), "two");
+        assert!(!d.join("agent.json.tmp").exists());
+        let _ = fs::remove_dir_all(&d);
     }
 
     #[test]

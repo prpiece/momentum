@@ -185,3 +185,8 @@ describe("v1.2.4 filter findings", () => {
     expect(parseFilter("~Home Stuff", NOW, ["Home Stuff"])).toMatchObject({ listName: "Home Stuff", text: "" });
   });
 });
+
+it("AGENT-05: prototype names are words, not keywords", () => {
+  expect(() => parseFilter("__proto__", new Date(2026, 10, 16))).not.toThrow();
+  expect(parseFilter("constructor", new Date(2026, 10, 16)).text).toContain("constructor");
+});
