@@ -2,11 +2,12 @@ import { CalendarPlus, Download, FileJson, FileSpreadsheet, ListPlus, Upload } f
 import { useState } from "react";
 import { Logo } from "../../components/Logo";
 import { isTauri } from "../../db/client";
-import { autoBackupSettings, backupNow, exportBackup, importIcs, pickFile, readBackup, restoreBackup, saveAutoBackupSettings } from "../../db/backup";
+import { autoBackupSettings, backupNow, chooseBackupFolder, exportBackup, hasBackupPassphrase, importIcs, listCloudBackups, parseBackupText, pickFile, readBackup, readCloudBackup, restoreBackup, restorePassphrase, saveAutoBackupSettings, setBackupPassphrase, useDefaultBackupFolder } from "../../db/backup";
 import { ACCENT_PRESETS } from "../../domain/color";
 import { tasksToCsv } from "../../domain/csv";
 import { tasksToJson } from "../../domain/export";
 import { toIcs } from "../../domain/ics";
+import { useSync } from "../../lib/sync/engine";
 import { useData } from "../../stores/data";
 import { dataDirLabel } from "../../lib/platform";
 import { useAppVersion } from "../../lib/updater";
@@ -72,16 +73,55 @@ export function DataSection() {
     toast(`Backup saved to ${path}`);
   });
 
-  const importIt = run(async () => {
-    const path = await pickFile(["zip", "json"], "Momentum backup");
-    if (!path) return;
-    const r = await readBackup(path);
+  const [pass, setPass] = useState("");
+  const [cloudList, setCloudList] = useState<string[] | null>(null);
+  const [cloudPick, setCloudPick] = useState("");
+  const signedIn = useSync((s) => s.account) !== null;
+
+  const folderIt = run(async () => {
+    const path = await chooseBackupFolder();
+    if (path) setAuto(autoBackupSettings());
+  });
+  const defaultFolderIt = run(async () => {
+    await useDefaultBackupFolder();
+    setAuto(autoBackupSettings());
+  });
+  const savePassIt = run(async () => {
+    await setBackupPassphrase(pass);
+    if (!pass) changeAuto({ ...autoBackupSettings(), encrypt: false });
+    setPass("");
+    toast(pass ? "Passphrase saved in this computer's keychain. Keep a copy: without it an encrypted backup can't be opened." : "Passphrase removed. New backups won't be encrypted.");
+  });
+  const toggleEncrypt = async (on: boolean) => {
+    if (on && !(await hasBackupPassphrase())) return toast("Type a passphrase and press Save passphrase first.");
+    changeAuto({ ...autoBackupSettings(), encrypt: on });
+  };
+
+  /** Confirm with the counts, then replace everything with the validated backup. */
+  const restoreFrom = async (r: Awaited<ReturnType<typeof parseBackupText>>, path: string, what: string) => {
     if (!r.ok) return toast(r.error);
     const d = r.data;
     const summary = `${d.tasks.length} tasks, ${d.lists.length - 1} lists, ${d.events.length} events, ${d.habits.length} habits${r.dropped ? ` (${r.dropped} unreadable rows skipped)` : ""}.`;
-    if (!(await confirm("Replace all data with this backup?", `${summary} Everything currently in Momentum is replaced. A copy of the current database is saved first.`, "Replace"))) return;
+    if (!(await confirm(`Replace all data with ${what}?`, `${summary} Everything currently in Momentum is replaced. A copy of the current database is saved first.`, "Replace"))) return;
     const snapshot = await restoreBackup(d, path);
     toast(`Backup restored. Previous data saved to ${snapshot}`);
+  };
+
+  const importIt = run(async () => {
+    const path = await pickFile(["zip", "json"], "Momentum backup");
+    if (!path) return;
+    await restoreFrom(await readBackup(path, await restorePassphrase(pass)), path, "this backup");
+  });
+
+  const cloudLoadIt = run(async () => {
+    const names = await listCloudBackups();
+    setCloudList(names);
+    setCloudPick(names[0] ?? "");
+    if (!names.length) toast("No cloud backups yet.");
+  });
+  const cloudRestoreIt = run(async () => {
+    if (!cloudPick) return;
+    await restoreFrom(await readCloudBackup(cloudPick, await restorePassphrase(pass)), "cloud.json", "this cloud backup");
   });
 
   const icsIt = run(async () => {
@@ -117,6 +157,9 @@ export function DataSection() {
           <ListPlus size={15} /> Import from another app
         </button>
       </div>
+      <p className="text-xs text-muted">
+        Import takes Todoist (CSV or JSON), TickTick (CSV), Google Tasks (Takeout JSON) and Reminders (.ics). Microsoft To Do and Things don&apos;t offer a file export we can read: select the tasks in the app, copy them, and use Import tasks to paste the list (indented lines become subtasks).
+      </p>
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <label className="flex items-center gap-2">
           <input type="checkbox" disabled={!isTauri} checked={auto.on} onChange={(e) => changeAuto({ ...auto, on: e.target.checked })} />
@@ -131,8 +174,58 @@ export function DataSection() {
         </button>
         <span className="text-xs text-muted tabular-nums">{auto.last ? `Last backup ${new Date(auto.last).toLocaleString()}` : "No automatic backup yet"}</span>
       </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span className="text-fg-2">
+          Backup folder: <span className="tabular-nums">{auto.folder ?? "the app's backups folder"}</span>
+        </span>
+        <button type="button" disabled={!isTauri || busy} onClick={folderIt} className={btn}>
+          Choose folder
+        </button>
+        {auto.folder && (
+          <button type="button" disabled={busy} onClick={defaultFolderIt} className={btn}>
+            Use default
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" disabled={!isTauri} checked={auto.encrypt} onChange={(e) => void toggleEncrypt(e.target.checked)} />
+          Encrypt backups
+        </label>
+        <input type="password" autoComplete="off" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Passphrase" className="input w-48" aria-label="Backup passphrase" />
+        <button type="button" disabled={!isTauri || busy || (!pass && !auto.encrypt)} onClick={savePassIt} className={btn}>
+          {pass ? "Save passphrase" : "Remove passphrase"}
+        </button>
+        <span className="text-xs text-muted">Also used when you restore an encrypted backup. Attached images in a .zip aren&apos;t encrypted.</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" disabled={!isTauri || !signedIn} checked={auto.cloud && signedIn} onChange={(e) => changeAuto({ ...auto, cloud: e.target.checked })} />
+          Also keep a copy in my account
+        </label>
+        {!signedIn && <span className="text-xs text-muted">Sign in to turn this on.</span>}
+        {signedIn && !cloudList && (
+          <button type="button" disabled={busy} onClick={cloudLoadIt} className={btn}>
+            Restore from cloud
+          </button>
+        )}
+        {signedIn && cloudList && cloudList.length > 0 && (
+          <>
+            <select className="input" value={cloudPick} onChange={(e) => setCloudPick(e.target.value)} aria-label="Cloud backup">
+              {cloudList.map((n) => (
+                <option key={n} value={n}>
+                  {n.replace(/^momentum-auto-|\.json$/g, "")}
+                </option>
+              ))}
+            </select>
+            <button type="button" disabled={busy} onClick={cloudRestoreIt} className={btn}>
+              Restore this one
+            </button>
+          </>
+        )}
+      </div>
       <p className="text-xs text-muted">
-        Everything lives on this computer in <span className="tabular-nums">{dataDirLabel}</span>. The database is copied to its <span className="tabular-nums">backups</span> folder automatically before every upgrade.
+        Your data lives on this computer in <span className="tabular-nums">{dataDirLabel}</span>, and syncs to your account when you sign in. The database is copied to its <span className="tabular-nums">backups</span> folder automatically before every upgrade.
       </p>
     </div>
   );

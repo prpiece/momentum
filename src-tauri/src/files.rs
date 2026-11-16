@@ -33,7 +33,15 @@ pub fn authorize<'a>(app: &AppHandle, picked: &Picked, path: &'a str) -> Result<
 /// Native open/save dialog. The returned path is remembered so the file commands accept it. A save
 /// path with no extension gets the first one of `extensions`.
 #[tauri::command]
-pub async fn pick_path(app: AppHandle, picked: State<'_, Picked>, save: bool, name: String, extensions: Vec<String>, default_name: Option<String>) -> Result<Option<String>, String> {
+pub async fn pick_path(app: AppHandle, picked: State<'_, Picked>, save: bool, name: String, extensions: Vec<String>, default_name: Option<String>, folder: Option<bool>) -> Result<Option<String>, String> {
+    if folder == Some(true) {
+        let dialog = app.dialog().file();
+        let chosen = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_folder()).await.map_err(|e| e.to_string())?;
+        let Some(chosen) = chosen else { return Ok(None) };
+        let path = chosen.into_path().map_err(|e| e.to_string())?;
+        picked.0.lock().unwrap().insert(path.clone());
+        return Ok(Some(path.to_string_lossy().into_owned()));
+    }
     let exts: Vec<&str> = extensions.iter().map(String::as_str).collect();
     let mut dialog = app.dialog().file().add_filter(name, &exts);
     if let Some(n) = default_name {
@@ -226,20 +234,37 @@ pub fn write_backup_zip(app: AppHandle, picked: State<Picked>, path: String, jso
     zip_backup(zip_path(&path)?, &json, &[("attachments", &att), ("backgrounds", &bg)]).map_err(|e| e.to_string())
 }
 
-/// Scheduled backup (FEAT-06): a zip named `momentum-auto-<stamp>.zip` in the app's `backups` folder, then the oldest
-/// automatic ones beyond `keep` are deleted. Needs no picked path: the folder is fixed and the name is validated.
+const BACKUP_FOLDER_FILE: &str = "backup_folder.txt";
+
+/// Where automatic backups go: the folder saved by `set_backup_folder` if it still exists, else the app's `backups` folder.
+fn backup_target(app: &AppHandle) -> Result<PathBuf, String> {
+    let cfg = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    let saved = fs::read_to_string(cfg.join(BACKUP_FOLDER_FILE)).ok().map(|t| PathBuf::from(t.trim())).filter(|p| p.is_dir());
+    let target = saved.unwrap_or_else(|| cfg.join("backups"));
+    fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+    Ok(target)
+}
+
+/// Remember the folder for automatic backups across restarts. Only a directory the user just chose in the
+/// folder dialog is accepted (that is the one place a path gets trusted persistently); `None` goes back to the default.
 #[tauri::command]
-pub fn write_auto_backup(app: AppHandle, name: String, json: String, keep: usize) -> Result<String, String> {
-    let stamp_ok = name.len() <= 40 && name.chars().all(|c| c.is_ascii_digit() || c == '-');
-    if !stamp_ok {
-        return Err("bad backup name".into());
+pub fn set_backup_folder(app: AppHandle, picked: State<Picked>, path: Option<String>) -> Result<(), String> {
+    let file = app.path().app_config_dir().map_err(|e| e.to_string())?.join(BACKUP_FOLDER_FILE);
+    let Some(path) = path else {
+        return match fs::remove_file(file) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
+            _ => Ok(()),
+        };
+    };
+    if !picked.0.lock().unwrap().contains(Path::new(&path)) || !Path::new(&path).is_dir() {
+        return Err("that folder wasn't chosen in a folder dialog".into());
     }
-    let backups = app.path().app_config_dir().map_err(|e| e.to_string())?.join("backups");
-    fs::create_dir_all(&backups).map_err(|e| e.to_string())?;
-    let (att, bg) = (dir(&app, "attachments")?, dir(&app, "backgrounds")?);
-    let file = backups.join(format!("momentum-auto-{name}.zip"));
-    zip_backup(&file, &json, &[("attachments", &att), ("backgrounds", &bg)]).map_err(|e| e.to_string())?;
-    let mut autos: Vec<_> = fs::read_dir(&backups)
+    fs::write(file, path).map_err(|e| e.to_string())
+}
+
+/// Deletes the oldest `momentum-auto-*.zip` in `dir` beyond `keep` (the stamp in the name sorts oldest first).
+fn prune_autos(dir: &Path, keep: usize) -> Result<(), String> {
+    let mut autos: Vec<_> = fs::read_dir(dir)
         .map_err(|e| e.to_string())?
         .flatten()
         .filter(|e| {
@@ -248,11 +273,28 @@ pub fn write_auto_backup(app: AppHandle, name: String, json: String, keep: usize
         })
         .map(|e| e.path())
         .collect();
-    autos.sort(); // the stamp sorts oldest first
+    autos.sort();
     let excess = autos.len().saturating_sub(keep.clamp(1, 60));
     for old in &autos[..excess] {
         let _ = fs::remove_file(old);
     }
+    Ok(())
+}
+
+/// Scheduled backup (FEAT-06): a zip named `momentum-auto-<stamp>.zip` in the chosen backup folder (default: the app's
+/// `backups` folder), then the oldest automatic ones beyond `keep` are deleted. The name is validated; the folder is not
+/// passed in, so the webview can't point this at an arbitrary path.
+#[tauri::command]
+pub fn write_auto_backup(app: AppHandle, name: String, json: String, keep: usize) -> Result<String, String> {
+    let stamp_ok = name.len() <= 40 && name.chars().all(|c| c.is_ascii_digit() || c == '-');
+    if !stamp_ok {
+        return Err("bad backup name".into());
+    }
+    let backups = backup_target(&app)?;
+    let (att, bg) = (dir(&app, "attachments")?, dir(&app, "backgrounds")?);
+    let file = backups.join(format!("momentum-auto-{name}.zip"));
+    zip_backup(&file, &json, &[("attachments", &att), ("backgrounds", &bg)]).map_err(|e| e.to_string())?;
+    prune_autos(&backups, keep)?;
     Ok(file.to_string_lossy().into_owned())
 }
 
@@ -273,7 +315,7 @@ pub fn restore_backup_attachments(app: AppHandle, picked: State<Picked>, path: S
 
 #[cfg(test)]
 mod tests {
-    use super::{unzip_images, unzip_json, valid_name, zip_backup};
+    use super::{prune_autos, unzip_images, unzip_json, valid_name, zip_backup};
     use std::{fs, io::Write};
 
     #[test]
@@ -297,6 +339,19 @@ mod tests {
         assert_eq!(fs::read(dst.join("a1.png")).unwrap(), b"png-bytes");
         assert!(!dst.join("notes.exe").exists() && !base.join("evil.png").exists());
         fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn prune_keeps_newest_automatic_zips_only() {
+        let d = std::env::temp_dir().join(format!("momentum-prune-test-{}", std::process::id()));
+        fs::create_dir_all(&d).unwrap();
+        for n in ["momentum-auto-2026-11-14.zip", "momentum-auto-2026-11-15.zip", "momentum-auto-2026-11-16.zip", "mine.zip"] {
+            fs::write(d.join(n), b"z").unwrap();
+        }
+        prune_autos(&d, 2).unwrap();
+        assert!(!d.join("momentum-auto-2026-11-14.zip").exists());
+        assert!(d.join("momentum-auto-2026-11-15.zip").exists() && d.join("momentum-auto-2026-11-16.zip").exists() && d.join("mine.zip").exists());
+        fs::remove_dir_all(d).unwrap();
     }
 
     #[test]

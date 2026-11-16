@@ -68,6 +68,7 @@
     "allow-delete-image",
     "allow-write-backup-zip",
     "allow-write-auto-backup",
+    "allow-set-backup-folder",
     "allow-read-backup-zip",
     "allow-restore-backup-attachments",
     "allow-fetch-ics",

@@ -2,7 +2,7 @@
 //! kept outside the database file so a copied database is detected (SYNC-06).
 //! Only named keys are allowed, so the webview can't use this as a general keychain reader.
 
-const KEYS: &[&str] = &["refresh_token", "device_id"];
+const KEYS: &[&str] = &["refresh_token", "device_id", "backup_passphrase"];
 
 /// The service is the app identifier, so a dev or sync-test run (other identifier) never touches the installed app's token.
 fn entry(app: &tauri::AppHandle, key: &str) -> Result<keyring::Entry, String> {

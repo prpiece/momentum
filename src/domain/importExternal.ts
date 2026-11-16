@@ -36,7 +36,7 @@ export function parseExternalImport(text: string, name = "Todoist"): ImportResul
       const plan = parseTodoist(head, name);
       return plan ? { ok: true, source: "todoist", plan } : { ok: false, error: "That Todoist file has no readable tasks." };
     }
-    return { ok: false, error: "This doesn't look like a Todoist (CSV or JSON), TickTick (CSV), Google Tasks (JSON) or Reminders (.ics) export." };
+    return { ok: false, error: "This doesn't look like a Todoist (CSV or JSON), TickTick (CSV), Google Tasks (JSON) or Reminders (.ics) export. Microsoft To Do and Things have no file export: copy their tasks and paste them into Import tasks instead." };
   } catch {
     return { ok: false, error: "That file couldn't be read as an export from Todoist, TickTick, Google Tasks or Reminders." };
   }

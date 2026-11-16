@@ -8,6 +8,10 @@ import type { Row } from "./rows";
 import { parseIcs } from "../domain/ics";
 import { saveEvents, saveSubscription, saveWorkspace } from "./repo";
 import { hydrateSubscriptions } from "../stores/subscriptions";
+import { supabase } from "../lib/sync/supabase";
+import { useSync } from "../lib/sync/engine";
+import { toast } from "../stores/ui";
+import { cloudExcess, decryptBackup, encryptBackup, isEncryptedBackup } from "./backupCrypto";
 
 async function invoke<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
   const { invoke: inv } = await import("@tauri-apps/api/core");
@@ -31,12 +35,13 @@ export async function exportBackup(): Promise<string | null> {
   return path;
 }
 
-// ---- Automatic backups (FEAT-06): a daily zip in the app's backups folder, newest `keep` kept ----
-// ponytail: folder is fixed (file commands only trust dialog-picked paths for this session, so a saved custom
-// folder can't be re-authorized after a restart); no encryption or cloud copy yet.
-export type AutoBackup = { on: boolean; keep: number; last: string | null };
+// ---- Automatic backups (FEAT-06): a daily zip in the backup folder, newest `keep` kept ----
+// `folder` is the display copy of the folder Rust trusts (set_backup_folder). `encrypt`: the passphrase lives in the OS
+// keychain (secret `backup_passphrase`) and the JSON in the zip is replaced by an encrypted envelope (backupCrypto.ts).
+// `cloud`: when signed in, the same JSON is also uploaded to the private `backups` bucket under `<account>/`.
+export type AutoBackup = { on: boolean; keep: number; last: string | null; folder: string | null; encrypt: boolean; cloud: boolean };
 const AUTO_KEY = "momentum.autoBackup";
-const AUTO_DEFAULT: AutoBackup = { on: false, keep: 7, last: null };
+const AUTO_DEFAULT: AutoBackup = { on: false, keep: 7, last: null, folder: null, encrypt: false, cloud: false };
 
 export function autoBackupSettings(): AutoBackup {
   try {
@@ -44,7 +49,7 @@ export function autoBackupSettings(): AutoBackup {
     if (typeof v !== "object" || v === null) return AUTO_DEFAULT;
     const o = v as Partial<Record<keyof AutoBackup, unknown>>;
     const keep = typeof o.keep === "number" && o.keep >= 1 && o.keep <= 60 ? Math.floor(o.keep) : AUTO_DEFAULT.keep;
-    return { on: o.on === true, keep, last: typeof o.last === "string" ? o.last : null };
+    return { on: o.on === true, keep, last: typeof o.last === "string" ? o.last : null, folder: typeof o.folder === "string" ? o.folder : null, encrypt: o.encrypt === true, cloud: o.cloud === true };
   } catch {
     return AUTO_DEFAULT;
   }
@@ -57,16 +62,70 @@ export function saveAutoBackupSettings(a: AutoBackup): void {
   }
 }
 
-/** Write one automatic backup now; returns its path. */
+/** Pick the folder automatic backups go to (a cloud-synced folder works) and make it stick across restarts; null = cancelled. */
+export async function chooseBackupFolder(): Promise<string | null> {
+  const path = await invoke<string | null>("pick_path", { save: false, name: "Folder", extensions: [], folder: true });
+  if (!path) return null;
+  await invoke("set_backup_folder", { path });
+  saveAutoBackupSettings({ ...autoBackupSettings(), folder: path });
+  return path;
+}
+export async function useDefaultBackupFolder(): Promise<void> {
+  await invoke("set_backup_folder", { path: null });
+  saveAutoBackupSettings({ ...autoBackupSettings(), folder: null });
+}
+
+const storedPassphrase = () => invoke<string | null>("secret_get", { key: "backup_passphrase" });
+/** Keep (or with "" forget) the passphrase for encrypted automatic backups. */
+export const setBackupPassphrase = (pass: string) => (pass ? invoke("secret_set", { key: "backup_passphrase", value: pass }) : invoke("secret_delete", { key: "backup_passphrase" }));
+export const hasBackupPassphrase = async () => !!(await storedPassphrase());
+/** The passphrase to try on an encrypted backup: what the user typed, else the saved one. */
+export const restorePassphrase = async (typed: string) => typed || (await storedPassphrase()) || undefined;
+
+const CLOUD = "backups";
+const cloudAccount = () => useSync.getState().account;
+const CLOUD_NAME = /^momentum-auto-[\d-]+\.json$/;
+
+/** Upload one backup's JSON (or encrypted envelope) and drop the oldest beyond `keep`. */
+async function uploadCloud(uid: string, name: string, payload: string, keep: number) {
+  const bucket = supabase.storage.from(CLOUD);
+  const up = await bucket.upload(`${uid}/momentum-auto-${name}.json`, new Blob([payload], { type: "application/json" }), { contentType: "application/json" });
+  if (up.error) throw new Error(up.error.message);
+  const list = await bucket.list(uid, { limit: 200 });
+  if (list.error) throw new Error(list.error.message);
+  const old = cloudExcess(list.data.map((f) => f.name), keep);
+  if (old.length) await bucket.remove(old.map((n) => `${uid}/${n}`));
+}
+
+/** The account's cloud copies, newest first (file names). Empty when signed out. */
+export async function listCloudBackups(): Promise<string[]> {
+  const uid = cloudAccount();
+  if (!uid) return [];
+  const r = await supabase.storage.from(CLOUD).list(uid, { limit: 200 });
+  if (r.error) throw new Error(r.error.message);
+  return r.data.map((f) => f.name).filter((n) => CLOUD_NAME.test(n)).sort().reverse();
+}
+
+/** Write one automatic backup now; returns its path. The cloud copy is best effort: its failure is a toast, not an error. */
 export async function backupNow(): Promise<string> {
   const a = autoBackupSettings();
-  const path = await invoke<string>("write_auto_backup", { name: stamp(), json: await backupJson(), keep: a.keep });
-  saveAutoBackupSettings({ ...a, last: new Date().toISOString() });
+  const json = await backupJson();
+  let payload = json;
+  if (a.encrypt) {
+    const pass = await storedPassphrase();
+    if (!pass) throw new Error("Encryption is on but no passphrase is saved. Set one first.");
+    payload = await encryptBackup(json, pass);
+  }
+  const name = stamp();
+  const path = await invoke<string>("write_auto_backup", { name, json: payload, keep: a.keep });
+  const uid = cloudAccount();
+  if (a.cloud && uid) await uploadCloud(uid, name, payload, a.keep).catch((err) => toast(`Cloud copy of the backup failed: ${err instanceof Error ? err.message : String(err)}`));
+  saveAutoBackupSettings({ ...autoBackupSettings(), last: new Date().toISOString() });
   return path;
 }
 
 /** The day's backup is due when it is on and none was made in the last 20 hours. */
-export const autoBackupDue = (a: AutoBackup, now = Date.now()) => a.on && (!a.last || now - Date.parse(a.last) > 20 * 3_600_000);
+export const autoBackupDue = (a: Pick<AutoBackup, "on" | "last">, now = Date.now()) => a.on && (!a.last || now - Date.parse(a.last) > 20 * 3_600_000);
 
 /** Call once after startup: backs up if due, then re-checks hourly. Failures are logged, never thrown. */
 export function startAutoBackup(): void {
@@ -84,14 +143,31 @@ export async function pickFile(extensions: string[], name: string): Promise<stri
   return invoke<string | null>("pick_path", { save: false, name, extensions });
 }
 
-/** Read + validate a backup (.zip or .json) without touching the database (the UI confirms with the counts first). */
-export async function readBackup(path: string) {
-  const text = await invoke<string>(isZip(path) ? "read_backup_zip" : "read_text_file", { path });
+/** Validate backup text, decrypting first when it is an encrypted envelope (`needsPassphrase`: ask the user and call again). */
+export async function parseBackupText(text: string, pass?: string) {
   try {
+    if (isEncryptedBackup(text)) {
+      if (!pass) return { ok: false as const, needsPassphrase: true as const, error: "This backup is encrypted. Enter its passphrase and try again." };
+      text = await decryptBackup(text, pass);
+    }
     return validateBackup(JSON.parse(text));
-  } catch {
-    return { ok: false as const, error: "The file isn't valid JSON." };
+  } catch (err) {
+    return { ok: false as const, error: err instanceof SyntaxError ? "The file isn't valid JSON." : err instanceof Error ? err.message : String(err) };
   }
+}
+
+/** Read + validate a backup (.zip or .json) without touching the database (the UI confirms with the counts first). */
+export async function readBackup(path: string, pass?: string) {
+  return parseBackupText(await invoke<string>(isZip(path) ? "read_backup_zip" : "read_text_file", { path }), pass);
+}
+
+/** Download a cloud copy and validate it like readBackup. Images are not in cloud copies; they sync separately. */
+export async function readCloudBackup(name: string, pass?: string) {
+  const uid = cloudAccount();
+  if (!uid) return { ok: false as const, error: "Sign in to restore a cloud backup." };
+  const r = await supabase.storage.from(CLOUD).download(`${uid}/${name}`);
+  if (r.error) return { ok: false as const, error: r.error.message };
+  return parseBackupText(await r.data.text(), pass);
 }
 
 /** Consistent snapshot of the live database (SQLite VACUUM INTO), e.g. before an import. */
