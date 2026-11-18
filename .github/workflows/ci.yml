@@ -58,6 +58,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # tauri-build needs the CLI sidecar (bundle.externalBin) to exist before src-tauri compiles.
+      - run: node scripts/build-cli.mjs
       - name: cargo test
         working-directory: src-tauri
         run: cargo test

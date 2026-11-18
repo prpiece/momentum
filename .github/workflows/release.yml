@@ -151,7 +151,8 @@ jobs:
       - name: Compile (no signing key)
         shell: bash
         run: |
-          node scripts/build-cli.mjs --release
+          # tauri sets TAURI_ENV_TARGET_TRIPLE for beforeBuildCommand; run by hand, the CLI needs the matrix target too.
+          TAURI_ENV_TARGET_TRIPLE=$(sed -n 's/.*--target \([^ ]*\).*/\1/p' <<<"${{ matrix.args }}") node scripts/build-cli.mjs --release
           npm run build
           npx tauri build --no-bundle --config src-tauri/tauri.bundle-only.conf.json ${{ matrix.args }}
 
