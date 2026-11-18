@@ -5,6 +5,17 @@ Each top-level bullet is one item. For a bigger release, give items a screenshot
 `  ![Alt text](whats-new/0.5.0/name.png)`, with the image in `public/whats-new/`. "What's new" then becomes a
 step-by-step tour. Screenshot lines are left out of the GitHub notes.
 
+## v1.3.1
+
+- **Quick add understands more.** "every other Monday", "every 1st and 15th" and "in 2 hours 15 min" now work as you'd expect.
+- **End of day is respected everywhere.** If your day ends after midnight, Today, overdue, the Matrix, reminders and the chat bot's habits all agree on what day it is.
+- **Calendar sync is steadier.** Google and Outlook no longer get duplicate events after a retry, far-future Outlook events stay linked, and occurrences you deleted in Google stay deleted.
+- **Sync keeps every change.** A habit check-in is never counted twice after restoring a backup, an edit made while a sync runs is kept, and tasks that ended up as each other's parent are untangled.
+- **Cloud backups are always encrypted.** Turning on backups to your account now needs Encrypt backups and a passphrase.
+- **Chat commands.** Type commands without the slash where your chat app has none, `delete 2` removes just that occurrence of a repeating task (`delete 2 series` removes them all), and errors say what went wrong.
+- **Safer.** Shared view-only lists can't be changed through quick add or the agent API, popup windows can't pose as the agent API, and links only ever open web pages in your browser.
+- **Smaller fixes.** Comments on shared tasks, dragging habits and lists, the task picker, triage keys, closing dialogs, note attachments and the phone's reminders.
+
 ## v1.3.0
 
 - **Two-way Google Calendar and Outlook sync.** Connect them in Settings → Connections → Calendars and pick which calendars show. Edits go both ways, on desktop and phone.
