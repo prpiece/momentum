@@ -72,3 +72,9 @@ The source is `docs/design/momentum-tokens.css`. The screen mocks are `docs/mock
 - **Visual rules (PLAN D172, D198):** no glass or blur (except the 6px blur on the Dialog scrim, D202, the 2–3px blur inside short entry animations, D208, and the user's wallpaper blur setting, D240/D340), no gradients, no glows, no emoji in the chrome (only in names the user typed), one shadow (`shadow-float`) for floating layers. Reuse the component classes in `src/styles/components.css` (`.btn`, `.input`, `.seg`, `.check`, `.layer`, `.menu-item`, `.nav-item`, `.card`, `.kbd`, `.token`…) before writing new class strings; a view's controls go in the toolbar through `<ToolbarActions>`, a page title through `<PageHead>`.
 - **Feature registry:** every user-facing feature has an entry in `FEATURES` (`src/domain/features.ts`: title, how-to line, commands/shortcuts/tokens, done-detector). The palette, the `?` sheet, Settings → Help, Getting started and the tour all read it, and a test fails when a command has no help text. Add the entry with the feature.
 - Commit once per phase. Stage files by explicit path.
+
+## ui-sdk (`@ui-sdk/*`)
+A behaviour library for letting agents control the app (`createAgent`, agent tools, WebMCP). Reading pointers are in `AGENTS.md`.
+- Use it and its skill as a guide for patterns; existing components keep their own code.
+- Agent-control work starts only on request, e.g. "audit AI usability and improve it using the ui-sdk".
+- Testing: skip the skill's per-step keyboard/focus/ARIA/SSR/RTL suites while working; run the checks once the current process is done.
