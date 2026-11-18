@@ -52,13 +52,14 @@ export async function sendToFriend(task: Task, subtasks: string[]) {
   const to = await pickFriend("Send to");
   if (!to) return;
   const description = task.description.replace(ATTACHMENT, "").trim();
+  subtasks = subtasks.filter((t) => t.trim()).slice(0, 50); // the server takes up to 50, titles up to 500 characters
   const sent = await run(() =>
     api
       .sendTask(to.id, {
         title: task.title,
         ...(description ? { description } : {}),
         ...(task.checklist.length ? { checklist: JSON.stringify(task.checklist) } : {}),
-        ...(subtasks.length ? { subtasks: subtasks.map((title) => ({ title })) } : {}),
+        ...(subtasks.length ? { subtasks: subtasks.map((title) => ({ title: Array.from(title).slice(0, 500).join("") })) } : {}),
       })
       .then(() => true),
   );

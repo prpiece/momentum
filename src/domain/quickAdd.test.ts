@@ -47,6 +47,41 @@ describe("parseQuickAdd", () => {
     expect(parseQuickAdd("Backup every 3 weeks", NOW).rule).toBe("FREQ=WEEKLY;INTERVAL=3");
   });
 
+  it("reads 'every other/N <weekday list>' with an interval", () => {
+    const sat = new Date(2026, 2, 7, 10, 0);
+    expect(parseQuickAdd("Gym every other monday", sat)).toMatchObject({ title: "Gym", rule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO" });
+    expect(parseQuickAdd("Sync every other mon and thu", sat)).toMatchObject({ title: "Sync", rule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TH" });
+    expect(parseQuickAdd("Sync every 3 fridays", sat)).toMatchObject({ title: "Sync", rule: "FREQ=WEEKLY;INTERVAL=3;BYDAY=FR" });
+    expect(parseQuickAdd("Gym every monday", sat).rule).toBe("FREQ=WEEKLY;BYDAY=MO");
+  });
+
+  it("joins a list of monthly days", () => {
+    const sat = new Date(2026, 2, 7, 10, 0);
+    expect(parseQuickAdd("exercise every 1st and 15th", sat)).toMatchObject({ title: "exercise", rule: "FREQ=MONTHLY;BYMONTHDAY=1,15" });
+    expect(parseQuickAdd("exercise every 15th", sat)).toMatchObject({ title: "exercise", rule: "FREQ=MONTHLY;BYMONTHDAY=15" });
+    expect(parseQuickAdd("pay every 1st, 10th & 20th", sat).rule).toBe("FREQ=MONTHLY;BYMONTHDAY=1,10,20");
+  });
+
+  it("an hours-based duration after 'in N hours' is still a duration", () => {
+    const now = new Date(2026, 2, 7, 10, 0);
+    const at = (text: string) => {
+      const p = parseQuickAdd(text, now);
+      return [startKey(p.schedule), p.durationMin];
+    };
+    expect(at("call in 2 hours 1h")).toEqual(["2026-03-07T12:00", 60]);
+    expect(at("call in 2 hours 1h 30m")).toEqual(["2026-03-07T12:00", 90]);
+    expect(at("meeting in 2 hours 1h30m")).toEqual(["2026-03-07T12:00", 90]);
+    expect(at("call in 3 hours 2h")).toEqual(["2026-03-07T13:00", 120]);
+  });
+
+  it("'in 2 hours 15 min' is one offset, not a time plus a duration", () => {
+    const p = parseQuickAdd("meeting in 2 hours 15 min", new Date(2026, 2, 7, 23, 30));
+    expect(p.title).toBe("meeting");
+    expect(startKey(p.schedule)).toBe("2026-03-08T01:45");
+    expect(p.durationMin).toBeNull();
+    expect(parseQuickAdd("call in 2 hours", new Date(2026, 2, 7, 10, 0)).schedule.kind).toBe("timed");
+  });
+
   it("anchors a date-less repeat on today", () => {
     expect(parseQuickAdd("Stretch daily", NOW).schedule).toEqual({ kind: "day", date: "2026-10-25" });
   });

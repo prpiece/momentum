@@ -2,7 +2,8 @@
  * The `calendar` Edge Function (FEAT-01, PLAN D345): Google Calendar and Outlook, both ways.
  *
  *   POST /connect/{google|microsoft}  (user token) → { url }: a 2-minute signed link to the GET below
- *   GET  /connect/{provider}?t=…      sets the state cookie and sends the browser to the consent screen (PKCE)
+ *   GET  /connect/{provider}?t=…      a confirmation page naming the Momentum account (masked email); sets a short confirm cookie
+ *   POST /confirm/{provider}          (form t, n; the confirm cookie must equal n) sets the state cookie, goes to the consent screen (PKCE)
  *   GET  /callback/{provider}         checks the signed state and cookie, stores the grant, starts a first sync
  *   GET  /list                        (user token) the accounts, their calendars refreshed from the provider
  *   POST /calendars/{provider}        (user token) { sync: string[], write: string | null }
@@ -32,6 +33,11 @@ const b64url = (b: Uint8Array) => b64(b).replace(/\+/g, "-").replace(/\//g, "_")
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type, apikey, x-client-info", "access-control-allow-methods": "GET, POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...CORS } });
 const page = (text: string, status = 200) => new Response(text, { status, headers: { "content-type": "text/plain; charset=utf-8" } });
+const html = (body: string, status = 200, extra: Record<string, string> = {}) => new Response(
+  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect calendar</title><body style="font:16px system-ui;max-width:28rem;margin:3rem auto;padding:0 1rem">${body}`,
+  { status, headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'", "x-frame-options": "DENY", "cache-control": "no-store", ...extra } });
+const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+const mask = (email: string) => { const [l, d = ""] = email.split("@"); const i = d.lastIndexOf("."); return `${l.slice(0, 1)}***@${d.slice(0, 1)}***${i > 0 ? d.slice(i) : ""}`; };
 const isProvider = (p: unknown): p is CalProvider => p === "google" || p === "microsoft";
 const NAME: Record<CalProvider, string> = { google: "Google Calendar", microsoft: "Outlook" };
 
@@ -197,7 +203,7 @@ const WINDOW_AHEAD_MS = 400 * 86_400_000;
 const DELTA_MAX_AGE_MS = 30 * 86_400_000;
 
 type Cursor = { c: string; at: string };
-type Pulled = { changes: Change[]; cursor: Cursor | null; full: boolean; from: string } | "reset";
+type Pulled = { changes: Change[]; cursor: Cursor | null; full: boolean; from: string; to: string } | "reset";
 
 async function pull(f: typeof fetch, p: CalProvider, access: string, cal: Cal, cursor: Cursor | undefined, tz: string, now: number): Promise<Pulled> {
   const from = new Date(now - WINDOW_BACK_MS).toISOString();
@@ -215,7 +221,7 @@ async function pull(f: typeof fetch, p: CalProvider, access: string, cal: Cal, c
         if (c) changes.push(c);
       }
       if (typeof j.nextPageToken === "string") pageToken = j.nextPageToken;
-      else return { changes, cursor: typeof j.nextSyncToken === "string" ? { c: j.nextSyncToken, at: cursor?.at ?? new Date(now).toISOString() } : null, full: !cursor, from };
+      else return { changes, cursor: typeof j.nextSyncToken === "string" ? { c: j.nextSyncToken, at: cursor?.at ?? new Date(now).toISOString() } : null, full: !cursor, from, to: "9999" };
     }
   }
   // Graph keeps deltas for the default calendar only (v1.0); other calendars are read whole over the window.
@@ -237,7 +243,7 @@ async function pull(f: typeof fetch, p: CalProvider, access: string, cal: Cal, c
     const delta = link("@odata.deltaLink");
     if (delta) next = { c: delta, at: fresh?.at ?? new Date(now).toISOString() };
   }
-  return { changes, cursor: next, full: !fresh, from };
+  return { changes, cursor: next, full: !fresh, from, to };
 }
 
 // ---------- one account's sync ----------
@@ -293,10 +299,11 @@ async function eventsOf(db: SupabaseClient, user: string) {
   };
   const flush = async () => {
     const rows = [...writes].map(([id, fields]) => ({ id, fields }));
-    writes.clear();
     for (let i = 0; i < rows.length; i += 200) {
-      const { error } = await db.rpc("calendar_write", { p_account: user, p_rows: rows.slice(i, i + 200) });
+      const batch = rows.slice(i, i + 200);
+      const { error } = await db.rpc("calendar_write", { p_account: user, p_rows: batch });
       if (error) throw error;
+      for (const r of batch) writes.delete(r.id); // only what landed: a failed batch stays queued for the next flush
     }
   };
   return { events, byExt, put, flush };
@@ -306,6 +313,18 @@ type Store = Awaited<ReturnType<typeof eventsOf>>;
 /** Deterministic ids for provider events, so a retried run never duplicates one. */
 async function stableId(p: CalProvider, cal: string, ext: string): Promise<string> {
   return `cal-${p === "google" ? "g" : "m"}-${toHex(await crypto.subtle.digest("SHA-256", enc.encode(`${cal}|${ext}`))).slice(0, 32)}`;
+}
+
+/** Google's own id for a Momentum event (base32hex, lowercase: its rule for client-chosen ids), so a create sent twice is the same event. */
+async function googleId(momentumId: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(momentumId))).slice(0, 20);
+  let bits = 0, acc = 0, out = "";
+  for (const b of bytes) {
+    acc = (acc << 8) | b;
+    for (bits += 8; bits >= 5; bits -= 5) out += "0123456789abcdefghijklmnopqrstuv"[(acc >> (bits - 5)) & 31];
+    acc &= 0xff;
+  }
+  return out;
 }
 
 /** A removed event goes away on every device (`_purged`, D333) and forgets its provider id. */
@@ -346,6 +365,9 @@ async function apply(s: Store, p: CalProvider, cal: Cal, changes: Change[], tz: 
     const cur = s.events.get(id);
     if (!core.remoteChanged(cur, m)) continue;
     const fields: Record<string, unknown> = { ...core.toRowFields(m, p, at, m.recurrence && p === "google" ? [...instanceKeys(s, id, m.externalId, tz)] : []), _purged: null };
+    // Google reports a deleted occurrence as a cancelled instance, never as an EXDATE on the master: keep the ones recorded from those.
+    if (p === "google" && m.recurrence && !m.series && cur?.recurrence?.exdates.length)
+      fields.exdates = JSON.stringify([...new Set([...cur.recurrence.exdates, ...(JSON.parse(String(fields.exdates)) as string[])])]);
     if (!cur) Object.assign(fields, { id, created_at: at, color: cal.color, pinned: 0, countdown: null, subscription_id: null, source: cal.canEdit ? "local" : "ics", recurrence_parent_id: null });
     if (m.series) {
       // An instance whose series isn't here (outside the window) is just an event.
@@ -373,7 +395,17 @@ async function push(c: Ctx, s: Store, a: Account, access: string, e: CalendarEve
   if (action === "create") {
     const url = g ? `${GOOGLE}/calendars/${encodeURIComponent(cal)}/events` : `${GRAPH}/me/calendars/${encodeURIComponent(cal)}/events`;
     // A copy detached from a linked series becomes its own event there; the series' exdate skips that occurrence.
-    s.put(e.id, linked(await ok(await api(c.f, access, url, { method: "POST", body: body() }), "create")));
+    // The provider dedupes a repeated create (Google by our id, Graph by transactionId), so a create whose answer or link was lost is safe to send again.
+    if (!g) {
+      s.put(e.id, linked(await ok(await api(c.f, access, url, { method: "POST", body: { ...body(), transactionId: e.id } }), "create")));
+      return;
+    }
+    const id = await googleId(e.id);
+    let r = await api(c.f, access, url, { method: "POST", body: { ...body(), id } });
+    if (r.status === 409) r = await api(c.f, access, `${url}/${id}`); // an earlier run already created it: link that one
+    const j = await ok(r, "create");
+    if (j.status === "cancelled") throw new HttpError("create", 409);
+    s.put(e.id, linked(j));
     return;
   }
   const r = await api(c.f, access, one, action === "update" ? { method: "PATCH", body: body(), headers: ifMatch } : { method: "DELETE", headers: ifMatch });
@@ -402,9 +434,16 @@ async function push(c: Ctx, s: Store, a: Account, access: string, e: CalendarEve
 }
 
 const MAX_PUSHES = 100;
+const LOCK_SECONDS = 300; // longer than a run can last; a killed run's lease simply expires
 
 /** Pull every synced calendar, then push Momentum's changes. Records the outcome on the account; returns its error. */
 export async function syncAccount(c: Ctx, a: Account): Promise<string | null> {
+  // One run per account: cron, the apps' /sync, choose and connect can overlap, and both would push the same unlinked events.
+  // Only a definite "no" skips the run: if the lock itself can't be asked (say its migration isn't applied yet), syncing without it beats not syncing.
+  // The RPC answers with the lease it took (its sync_until), or null when someone else holds the account.
+  const { data: lease, error: lockError } = await c.db.rpc("calendar_try_lock", { p_account: a.id, p_seconds: LOCK_SECONDS });
+  if (lockError) console.error("calendar lock unavailable", a.provider, String(lockError.code ?? lockError.message ?? "").slice(0, 80));
+  else if (!lease) return a.error;
   const at = new Date(c.now).toISOString();
   let error: string | null = null;
   const cursors = { ...a.cursors };
@@ -412,19 +451,28 @@ export async function syncAccount(c: Ctx, a: Account): Promise<string | null> {
     const access = await accessFor(c, a);
     const tz = await zoneOf(c.db, a.user_id);
     const s = await eventsOf(c.db, a.user_id);
+    let failedPulls = 0;
     for (const cal of a.calendars.filter((x) => x.sync)) {
-      let res = await pull(c.f, a.provider, access, cal, cursors[cal.id], tz, c.now);
-      if (res === "reset") res = await pull(c.f, a.provider, access, cal, undefined, tz, c.now);
-      if (res === "reset") continue;
-      const seen = await apply(s, a.provider, cal, res.changes, tz, at);
-      // A whole read: what's missing in the window was deleted on the provider.
-      if (res.full)
-        for (const e of s.events.values())
-          if (e.link?.provider === a.provider && e.link.calendarId === cal.id && e.link.externalId && !e.deletedAt && !seen.has(e.id) && startOf(e) >= res.from) s.put(e.id, { ...gone(at) });
-      if (res.cursor) cursors[cal.id] = res.cursor;
-      else delete cursors[cal.id];
+      // A calendar's cursor moves only once its changes are written, so one calendar failing neither loses another's events nor skips its own on the next run.
+      try {
+        let res = await pull(c.f, a.provider, access, cal, cursors[cal.id], tz, c.now);
+        if (res === "reset") res = await pull(c.f, a.provider, access, cal, undefined, tz, c.now);
+        if (res === "reset") continue;
+        const seen = await apply(s, a.provider, cal, res.changes, tz, at);
+        // A whole read: what's missing in the window was deleted on the provider.
+        if (res.full)
+          for (const e of s.events.values())
+            if (e.link?.provider === a.provider && e.link.calendarId === cal.id && e.link.externalId && !e.deletedAt && !seen.has(e.id) && startOf(e) >= res.from && startOf(e) <= res.to) s.put(e.id, { ...gone(at) });
+        await s.flush();
+        if (res.cursor) cursors[cal.id] = res.cursor;
+        else delete cursors[cal.id];
+      } catch (err) {
+        if (err instanceof Reconnect) throw err;
+        failedPulls++;
+        console.error("calendar pull failed", a.provider, err instanceof HttpError ? err.message : String(err).slice(0, 200));
+      }
     }
-    await s.flush();
+    if (failedPulls) error = `Couldn't read ${failedPulls} of your ${NAME[a.provider]} calendars. Momentum tries again on the next sync.`;
 
     const linkedAcct: LinkedAccount = { provider: a.provider, writeCalendarId: a.write_calendar_id, connectedAt: a.connected_at };
     const writable = new Set(a.calendars.filter((x) => x.canEdit).map((x) => x.id));
@@ -441,12 +489,15 @@ export async function syncAccount(c: Ctx, a: Account): Promise<string | null> {
       }
     }
     await s.flush();
-    if (failed) error = `${failed} change${failed === 1 ? "" : "s"} couldn't be sent to ${NAME[a.provider]}. Momentum tries again on the next sync.`;
+    if (failed && !error) error = `${failed} change${failed === 1 ? "" : "s"} couldn't be sent to ${NAME[a.provider]}. Momentum tries again on the next sync.`;
   } catch (err) {
     error = err instanceof Reconnect ? `Reconnect ${NAME[a.provider]}: its access was removed or expired.` : `Couldn't sync with ${NAME[a.provider]}. Momentum tries again shortly.`;
     console.error("calendar sync failed", a.provider, err instanceof HttpError ? err.message : err instanceof Reconnect ? "reconnect" : String(err).slice(0, 200));
   }
-  await c.db.from("calendar_accounts").update({ cursors, last_sync: at, error }).eq("id", a.id);
+  const saved = await c.db.from("calendar_accounts").update({ cursors, last_sync: at, error }).eq("id", a.id);
+  if (saved?.error) console.error("calendar account update failed", a.provider);
+  // Release only our own lease: a run that outlived it must not clear the newer run's.
+  if (lease) await c.db.from("calendar_accounts").update({ sync_until: null }).eq("id", a.id).eq("sync_until", lease);
   return error;
 }
 
@@ -463,19 +514,46 @@ const ACCOUNT_COLS = "id, user_id, provider, email, calendars, write_calendar_id
 const TICKET_MS = 2 * 60_000;
 const STATE_MS = 10 * 60_000;
 const COOKIE = "cal_state";
+const CONFIRM = "cal_confirm";
 
 /** Step 1 (app, signed in): a short-lived link that carries who is connecting into the browser. */
 async function startConnect(c: Ctx, user: string, p: CalProvider): Promise<Response> {
   if (!creds(c.env, p) || !c.env.CALENDAR_STATE_SECRET) return json({ error: `${NAME[p]} isn't set up on this server` }, 404);
+  const { data: allowed } = await c.db.rpc("hit_rate", { p_key: `calendar-ticket:${user}`, p_max: 20, p_window: "1 hour" });
+  if (!allowed) return json({ error: "too many tries" }, 429);
   const t = await signToken(c.env.CALENDAR_STATE_SECRET, TICKET_MS, c.now, ["t", user, p]);
   return json({ url: `${base(c.env)}/connect/${p}?t=${encodeURIComponent(t)}` });
 }
 
-/** Step 2 (browser): the state names the user and is signed and expiring; its nonce also goes in a cookie, so only this browser can finish (as SOC-21). */
+/**
+ * Step 2 (browser): a ticket proves who started the flow, not who opens the link, so opening it must not link anything.
+ * It names the Momentum account the grant will join (masked email: enough to recognise your own, not to harvest anyone's)
+ * and sets a confirm cookie; only the form on this page, submitted in this browser, continues. A cross-site auto-post
+ * (attacker's ticket, victim's browser) has no matching cookie, and the page can't be framed.
+ */
 async function connect(c: Ctx, url: URL, p: CalProvider): Promise<Response> {
+  const ticket = url.searchParams.get("t") ?? "";
+  const t = await readToken(c.env.CALENDAR_STATE_SECRET ?? "", ticket, c.now);
+  if (!creds(c.env, p) || !t || t[0] !== "t" || t[2] !== p) return page("This connect link expired. Start again from Momentum's settings.", 400);
+  const { data } = await c.db.auth.admin.getUserById(t[1]);
+  if (!data.user) return page("Couldn't check which account this is. Start again from Momentum's settings.", 502);
+  const n = toHex(crypto.getRandomValues(new Uint8Array(16)).buffer);
+  return html(
+    `<h1 style="font-size:1.25rem">Connect ${NAME[p]}?</h1><p>${NAME[p]} will be linked to the Momentum account <b>${esc(data.user.email ? mask(data.user.email) : "you started this from")}</b>, which will be able to read and change your calendar.</p>` +
+    `<p>If you didn't start this from your own Momentum settings, close this tab.</p>` +
+    `<form method="post" action="${base(c.env)}/confirm/${p}"><input type="hidden" name="t" value="${esc(ticket)}"><input type="hidden" name="n" value="${n}"><button style="font:inherit;padding:.5rem 1rem">Continue to ${NAME[p]}</button></form>`,
+    200, { "set-cookie": `${CONFIRM}=${n}; Max-Age=${TICKET_MS / 1000}; Path=/; HttpOnly; Secure; SameSite=Lax` });
+}
+
+/** Step 2b (the confirm click): the state names the user and is signed and expiring; its nonce also goes in a cookie, so only this browser can finish (as SOC-21). */
+async function confirm(c: Ctx, req: Request, p: CalProvider): Promise<Response> {
+  const form = await req.formData().catch(() => null);
+  const n = form?.get("n"), ticket = form?.get("t");
+  const kept = new RegExp(`(?:^|;\\s*)${CONFIRM}=([0-9a-f]+)`).exec(req.headers.get("cookie") ?? "")?.[1] ?? "";
+  if (typeof n !== "string" || typeof ticket !== "string" || !same(kept, n)) return page("This confirmation wasn't started here. Start again from Momentum's settings.", 400);
   const cr = creds(c.env, p);
   const secret = c.env.CALENDAR_STATE_SECRET ?? "";
-  const t = await readToken(secret, url.searchParams.get("t"), c.now);
+  const t = await readToken(secret, ticket, c.now);
   if (!cr || !t || t[0] !== "t" || t[2] !== p) return page("This connect link expired. Start again from Momentum's settings.", 400);
   const nonce = toHex(crypto.getRandomValues(new Uint8Array(16)).buffer);
   const state = await signToken(secret, STATE_MS, c.now, ["s", t[1], p, nonce]);
@@ -504,12 +582,12 @@ async function callback(c: Ctx, req: Request, url: URL, p: CalProvider, opts: Op
   try {
     const t = await tokenCall(c.f, cr, { grant_type: "authorization_code", code, redirect_uri: redirectUri(c.env, p), code_verifier: await pkceVerifier(secret, s[3]) }, "code");
     if (!t.refresh) return page(`${NAME[p]} didn't allow offline access. Remove Momentum from your account's connected apps and connect again.`, 400);
-    // A reconnect keeps the calendars the user had chosen.
-    const { data: before } = await c.db.from("calendar_accounts").select("calendars").eq("user_id", user).eq("provider", p).maybeSingle();
+    // A reconnect keeps the calendars the user had chosen and when the account first connected: events made while it was cut off still get pushed.
+    const { data: before } = await c.db.from("calendar_accounts").select("calendars, connected_at").eq("user_id", user).eq("provider", p).maybeSingle();
     const calendars = await listCalendars(c.f, p, t.access, Array.isArray(before?.calendars) ? before.calendars : []);
     const email = await accountEmail(c.f, p, t.access, calendars);
     const { data: acct, error } = await c.db.from("calendar_accounts")
-      .upsert({ user_id: user, provider: p, email, calendars, cursors: {}, connected_at: new Date(c.now).toISOString(), error: null }, { onConflict: "user_id,provider" })
+      .upsert({ user_id: user, provider: p, email, calendars, cursors: {}, connected_at: typeof before?.connected_at === "string" ? before.connected_at : new Date(c.now).toISOString(), error: null }, { onConflict: "user_id,provider" })
       .select(ACCOUNT_COLS).single();
     if (error || !acct) throw error ?? new Error("no account row");
     const sealed = await seal(c.env.CALENDAR_TOKEN_KEY, t.refresh, acct.id);
@@ -605,6 +683,7 @@ export async function handle(req: Request, env: Env, opts: Opts = {}): Promise<R
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
     const [, verb, arg] = path.split("/");
     if (req.method === "GET" && verb === "connect" && isProvider(arg)) return await connect(c, url, arg);
+    if (req.method === "POST" && verb === "confirm" && isProvider(arg)) return await confirm(c, req, arg);
     if (req.method === "GET" && verb === "callback" && isProvider(arg)) return await callback(c, req, url, arg, opts);
     if (req.method === "POST" && verb === "cron") {
       if (!same(req.headers.get("x-cron-secret") ?? "", env.CALENDAR_CRON_SECRET ?? "")) return json({ error: "bad secret" }, 401);

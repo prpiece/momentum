@@ -6,7 +6,7 @@ import { formatTime, relativeDayLabel, toLocalDate, todayLocal } from "../../dom
 import { splitImport } from "../../domain/bulkImport";
 import { parseQuickAdd } from "../../domain/quickAdd";
 import { PRIORITY_LABEL, type Task } from "../../domain/types";
-import { useData } from "../../stores/data";
+import { canEdit, mayEdit, useData } from "../../stores/data";
 import { useSettings } from "../../stores/settings";
 import { setImport, toast, useUi } from "../../stores/ui";
 import { withUndo } from "../../stores/undo";
@@ -33,10 +33,10 @@ function ImportBody() {
   const [plain, setPlain] = useState(false);
   const [listId, setListId] = useState(() => {
     const id = view.startsWith("list:") ? view.slice(5) : "inbox";
-    return lists[id] ? id : "inbox";
+    return lists[id] && canEdit(id) ? id : "inbox";
   });
   const names = useMemo(() => Object.values(lists).map((l) => l.name), [lists]);
-  const choices = useMemo(() => Object.values(lists).filter((l) => !l.archived || l.id === listId), [lists, listId]);
+  const choices = useMemo(() => Object.values(lists).filter((l) => (!l.archived || l.id === listId) && canEdit(l.id)), [lists, listId]);
   const parsing = smartParse && !plain;
 
   const { items, total } = useMemo(() => splitImport(text, mode === "custom" && sep ? sep : undefined), [text, mode, sep]);
@@ -51,7 +51,7 @@ function ImportBody() {
   const close = () => setImport(false);
 
   const run = () => {
-    if (!items.length) return;
+    if (!items.length || !mayEdit(listId)) return; // the list went view-only while open: one toast, no import, no undo entry
     const missing = new Set<string>();
     withUndo(`Imported ${items.length} task${items.length === 1 ? "" : "s"}`, () => {
       // Items come parents first, so each subtask's parent already exists. In pasted order (bottom).

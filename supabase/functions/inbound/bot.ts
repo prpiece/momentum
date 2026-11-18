@@ -76,7 +76,7 @@ const iso = () => new Date().toISOString();
 export const HELP = [
   "add <text> — add a task (same tokens as the app: tomorrow 5pm, 30m, by fri, !high, #tag, ~List)",
   "today · week · overdue · inbox · waiting · trash — list tasks, numbered",
-  "list <name> · search <text>",
+  "list <name> · search <text> (in Telegram, start list, search, habit and move with a /, e.g. /search milk)",
   "view N — a task's details and its full id",
   "update N <tokens> — change the date, deadline, duration, priority, list or tags, e.g. update 2 fri 5pm !high #work",
   "done N · reopen N · snooze N <when> · move N <list> · deadline N <date>",
@@ -106,19 +106,44 @@ const ADD_ONLY: ReadonlySet<Command> = new Set(["add", "help", "start", "link", 
 /** Commands about the chat itself, which the webhook doesn't have. */
 const CHAT_ONLY: ReadonlySet<Command> = new Set(["link", "unlink", "digest"]);
 
-/** Splits "done 2" into a command and its argument; anything else is `null` (Telegram: a plain message adds it). */
-export function parseCommand(text: string): Parsed | null {
-  const t = text.trim().replace(/^\/(task|momentum)(@\w+)?\s*/i, "").replace(/^\//, "");
+const REF = String.raw`(?:\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})`;
+/**
+ * What an unslashed Telegram message must look like to be a command rather than a task that happens to start
+ * with a command word ("Update the report by friday"). Commands missing here (list, search, habit, move, add)
+ * take free text, so they need the slash; `add` is harmless either way.
+ */
+const PLAIN_GRAMMAR: Partial<Record<Command, RegExp>> = {
+  ...Object.fromEntries(["today", "week", "overdue", "inbox", "waiting", "trash", "habits", "focus", "help", "start", "unlink"].map((c) => [c, /^$/])),
+  ...Object.fromEntries(["done", "reopen", "restore", "view"].map((c) => [c, new RegExp(`^${REF}$`, "i")])),
+  delete: new RegExp(String.raw`^${REF}(\s+with\s+subtasks|\s+series)?$`, "i"),
+  update: new RegExp(String.raw`^${REF}\s+\S`, "i"),
+  snooze: new RegExp(String.raw`^${REF}\s+\S`, "i"),
+  deadline: new RegExp(String.raw`^${REF}\s+\S`, "i"),
+  send: /^@\S+\s+\S/,
+  digest: /^(off|on(\s+\S.*)?)$/i,
+  link: /^\S+$/,
+};
+
+/**
+ * Splits "/done 2" or "done 2" into a command and its argument; anything else is `null` (Telegram: a plain message adds it).
+ * With `plain`, an unslashed message is a command only when its argument fits `PLAIN_GRAMMAR`.
+ */
+export function parseCommand(text: string, plain = false): Parsed | null {
+  const slashed = text.trim().startsWith("/");
+  const t = text.trim().replace(/^\/(task|momentum)(@\w+)?(\s+|$)/i, "").replace(/^\//, "");
   const m = /^(\S+)\s*([\s\S]*)$/.exec(t);
   if (!m) return null;
   const word = m[1].toLowerCase().replace(/@\w+$/, "");
-  return (COMMANDS as readonly string[]).includes(word) ? { cmd: word as Command, arg: m[2].trim() } : null;
+  if (!(COMMANDS as readonly string[]).includes(word)) return null;
+  const cmd = word as Command, arg = m[2].trim();
+  if (plain && !slashed && cmd !== "add" && !PLAIN_GRAMMAR[cmd]?.test(arg)) return null;
+  return { cmd, arg };
 }
 
 type Item = { id: string; key: string | null };
 /** Where a connection's last numbered listing lives, for an hour. */
 type Listings = { load(): Promise<Item[] | null>; save(items: Item[]): Promise<void> };
-type Ctx = { db: SupabaseClient; link: Link; tz: string; permission: Permission; via: "chat" | "webhook"; listings: Listings };
+type Ctx = { db: SupabaseClient; link: Link; tz: string; dayEndHour: number; permission: Permission; via: "chat" | "webhook"; listings: Listings };
 
 const fresh = (at: unknown) => typeof at === "string" && Date.parse(at) > Date.now() - 3_600_000;
 
@@ -145,11 +170,9 @@ const hookListings = (db: SupabaseClient, account: string): Listings => ({
 async function tasksOf(c: Ctx) {
   const tasks = (await records(c.db, c.link.account_id, "tasks")).map((r) => core.parseTask(r)).filter((t): t is Task => !!t && !t.deletedAt);
   const lists = (await records(c.db, c.link.account_id, "lists")).map((r) => core.parseList(r)).filter((l): l is TaskList => !!l);
-  const [s] = await records(c.db, c.link.account_id, "settings");
-  const dayEndHour = typeof s?.dayEndHour === "number" ? s.dayEndHour : 0;
   // The app's own views: no tasks of deleted or archived lists, waits on finished tasks resolved (see chatViews).
   const vms = chatViews(tasks.map((t) => shiftTask(t, c.tz)), lists);
-  return { tasks, vms, dayEndHour };
+  return { tasks, vms };
 }
 
 async function listsOf(c: Ctx) {
@@ -247,18 +270,19 @@ async function add(c: Ctx, text: string): Promise<string> {
   const task: Task = {
     id: crypto.randomUUID(), title: p.title.slice(0, 500), description: "", listId: list?.id ?? core.INBOX_ID, parentId: null, sectionId: null,
     status: "open", priority: p.priority ?? 0, schedule, deadline: p.deadline, durationMin: p.durationMin, waiting: p.waiting,
-    recurrence: p.rule ? { rule: p.rule, exdates: [] } : null, recurrenceParentId: null,
+    recurrence: p.rule ? { rule: p.rule, exdates: [], tz: null } : null, recurrenceParentId: null,
     tags: await tagIds(c, p.tags), checklist: [], reminders: [], sortOrder: -Date.now() / 1000, pinned: false,
     createdAt: at, updatedAt: at, completedAt: null, deletedAt: null,
   };
   await save(c, task);
-  return `Added "${task.title}"${list ? ` to ${list.name}` : ""}.`;
+  const missing = p.listName && !list ? ` No list named “${p.listName}”; added to Inbox.` : "";
+  return `Added "${task.title}"${list ? ` to ${list.name}` : ""}.${missing}`;
 }
 
 async function show(c: Ctx, cmd: "today" | "week" | "overdue" | "inbox" | "waiting"): Promise<string> {
-  const { vms, dayEndHour } = await tasksOf(c);
-  core.setDayEndHour(dayEndHour); // timed blocks follow End-of-day too; set synchronously before filtering
-  const d = today(c.tz, dayEndHour);
+  const { vms } = await tasksOf(c);
+  core.setDayEndHour(c.dayEndHour); // timed blocks follow End-of-day too; set synchronously before filtering
+  const d = today(c.tz, c.dayEndHour);
   const open = vms.filter((v) => v.task.status === "open");
   switch (cmd) {
     case "today":
@@ -415,15 +439,21 @@ async function change(c: Ctx, cmd: "done" | "reopen" | "snooze" | "move" | "dead
 
 /** Moves one task (and, only when asked, its subtasks) to the Trash (D287). Never more than one. */
 async function remove(c: Ctx, arg: string): Promise<string> {
-  const m = /^(\S+)(\s+with\s+subtasks)?$/i.exec(arg.trim());
-  if (!m) return "Delete one task at a time: delete N (a number from your last list or the task's full id), or delete N with subtasks.";
+  const m = /^(\S+)(\s+with\s+subtasks|\s+series)?$/i.exec(arg.trim());
+  if (!m) return "Delete one task at a time: delete N (a number from your last list or the task's full id), delete N with subtasks, or delete N series.";
   const p = await pick(c, m[1]);
   if (typeof p === "string") return p;
   const { tasks } = await tasksOf(c);
   const t = tasks.find((x) => x.id === p.item.id);
   if (!t) return "That task is gone.";
+  // A repeating task is listed as its current occurrence: like the agent API, only that one goes unless asked for the series.
+  const key = t.recurrence && !/series/i.test(m[2] ?? "") ? p.item.key ?? core.effective(shiftTask(t, c.tz))?.key : null;
+  if (t.recurrence && key) {
+    await save(c, { ...t, recurrence: { ...t.recurrence, exdates: [...t.recurrence.exdates, key] }, updatedAt: iso() });
+    return `Removed that occurrence of "${t.title}"; earlier ones stay. To move the whole series to the Trash, send: delete ${m[1]} series`;
+  }
   const kids = descendants(tasks, t.id);
-  if (kids.length && !m[2]) {
+  if (kids.length && !/subtasks/i.test(m[2] ?? "")) {
     return `"${t.title}" has ${kids.length} subtask${kids.length === 1 ? "" : "s"}. To move them to the Trash too, send: delete ${m[1]} with subtasks`;
   }
   const at = iso();
@@ -485,7 +515,7 @@ async function habit(c: Ctx, name: string): Promise<string> {
   const hit = core.bestName(name, habits.map((h) => String(h.name ?? "")));
   const h = habits.find((x) => x.name === hit);
   if (!h) return `No habit called "${name}".`;
-  const d = today(c.tz);
+  const d = today(c.tz, c.dayEndHour);
   if ((goalOf(h).kind ?? "once") === "once" && (await todayValue(c, h.id, d)) >= 1) return `"${h.name}" is already checked in today.`;
   await write(c.db, c.link.account_id, "habit_checkins", `${h.id}|${d}`, { habit_id: h.id, date: d, _delta: 1, deleted_at: null });
   return `Checked in "${h.name}".`;
@@ -495,7 +525,7 @@ async function habit(c: Ctx, name: string): Promise<string> {
 async function habitList(c: Ctx): Promise<string> {
   const habits = await habitsOf(c);
   if (!habits.length) return "You have no habits yet.";
-  const d = today(c.tz);
+  const d = today(c.tz, c.dayEndHour);
   const lines = await Promise.all(habits.map(async (h) => {
     const v = await todayValue(c, h.id, d);
     const g = goalOf(h);
@@ -509,6 +539,20 @@ async function habitList(c: Ctx): Promise<string> {
   return ["Habits today", ...lines].join("\n");
 }
 
+/** send_task's error codes in words; the first four match MESSAGES in src/lib/sync/social.ts (this function can't import it). */
+const SEND_ERRORS: Record<string, string> = {
+  too_many_sent: "You've sent a lot of tasks today. Try again tomorrow.",
+  bad_subtask: "One of the subtasks can't be sent.",
+  too_many_subtasks: "That task has too many subtasks to send.",
+  bad_due_date: "That due date isn't one Momentum can use.",
+  bad_checklist: "That checklist can't be sent.",
+};
+export function sendError(message: string, handle: string): string {
+  if (message.includes("not_friends")) return `@${handle} isn't your friend on Momentum.`;
+  const code = Object.keys(SEND_ERRORS).find((k) => message.includes(k));
+  return code ? SEND_ERRORS[code] : "Couldn't send that task. Try again in a moment.";
+}
+
 async function sendTo(c: Ctx, arg: string): Promise<string> {
   const m = /^@?([a-z0-9_]{3,20})\s+([\s\S]+)$/i.exec(arg);
   if (!m) return "Send to whom? e.g. send @sam review the draft friday";
@@ -519,7 +563,7 @@ async function sendTo(c: Ctx, arg: string): Promise<string> {
     p_sender: c.link.account_id, p_recipient: friend.id,
     p_payload: { title: p.title, priority: p.priority ?? 0, due_date: p.schedule.kind === "day" ? p.schedule.date : null },
   });
-  if (error) return error.message.includes("too_many") ? "You've sent a lot of tasks today. Try again tomorrow." : `@${m[1]} isn't your friend on Momentum.`;
+  if (error) return sendError(error.message, m[1]);
   return `Sent "${p.title}" to @${friend.handle}. You'll see when they accept it.`;
 }
 
@@ -536,7 +580,10 @@ export function parseClock(s: string): string | null {
   if (!m) return null;
   let h = Number(m[1]);
   const min = Number(m[2] ?? 0);
-  if (m[3]) h = (h % 12) + (m[3].toLowerCase() === "pm" ? 12 : 0);
+  if (m[3]) {
+    if (h < 1 || h > 12) return null; // "13pm" isn't a time
+    h = (h % 12) + (m[3].toLowerCase() === "pm" ? 12 : 0);
+  }
   return h < 24 && min < 60 ? `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}` : null;
 }
 
@@ -548,7 +595,10 @@ async function digest(c: Ctx, arg: string): Promise<string> {
   }
   const t = onOff?.toLowerCase() === "on" ? parseClock(rest.join(" ") || "8:00") : null;
   if (!t) return "Use digest on 8:00 (your time zone) or digest off.";
-  await c.db.from("chat_links").update({ digest_time: t, digest_sent: null }).eq("id", c.link.id);
+  // Enabled after today's time: the first digest is tomorrow, not "Good morning" within five minutes.
+  const w = toWall(new Date(), c.tz);
+  const passed = t <= `${String(w.getHours()).padStart(2, "0")}:${String(w.getMinutes()).padStart(2, "0")}`;
+  await c.db.from("chat_links").update({ digest_time: t, digest_sent: passed ? today(c.tz) : null }).eq("id", c.link.id);
   return `Digest on: every day at ${t}, your time.`;
 }
 
@@ -560,8 +610,9 @@ export async function digestText(db: SupabaseClient, link: Link): Promise<string
 
 async function context(db: SupabaseClient, link: Link, via: Ctx["via"]): Promise<Ctx> {
   const { data } = await db.from("profiles").select("time_zone").eq("id", link.account_id).maybeSingle();
+  const [s] = await records(db, link.account_id, "settings");
   const listings = via === "chat" ? chatListings(db, link.id) : hookListings(db, link.account_id);
-  return { db, link, tz: validZone(data?.time_zone), permission: link.permission ?? "full", via, listings };
+  return { db, link, tz: validZone(data?.time_zone), dayEndHour: typeof s?.dayEndHour === "number" ? s.dayEndHour : 0, permission: link.permission ?? "full", via, listings };
 }
 
 /** Runs one command for a linked chat or the webhook, within the connection's permission. */
@@ -606,11 +657,11 @@ export async function runChat(db: SupabaseClient, chat: Chat, text: string, plai
   const key = link ? `chat:${link.id}` : `ext:${chat.source}:${chat.externalId}`;
   const { data: ok } = await db.rpc("hit_rate", { p_key: key, p_max: 60, p_window: "1 hour" });
   if (!ok) return "That's a lot of commands. Try again in a while.";
-  const parsed = parseCommand(text) ?? (plainAdds && text.trim() ? { cmd: "add" as const, arg: text.trim() } : { cmd: "help" as const, arg: "" });
+  const parsed = parseCommand(text, plainAdds) ?? (plainAdds && text.trim() ? { cmd: "add" as const, arg: text.trim() } : { cmd: "help" as const, arg: "" });
   if (!link) {
     if (parsed.cmd !== "link") return UNLINKED;
-    const { error } = await db.rpc("link_chat", { p_code: parsed.arg, p_source: chat.source, p_external: chat.externalId, p_label: chat.label, p_reply: chat.reply });
-    return error ? "That code didn't work. Codes last 10 minutes: get a new one in Settings → Connections." : `Linked. This chat can add tasks; to read or change them, give it full access in Settings → Connections. Try: add buy milk tomorrow\n\n${HELP}`;
+    const { data: linked, error } = await db.rpc("link_chat", { p_code: parsed.arg, p_source: chat.source, p_external: chat.externalId, p_label: chat.label, p_reply: chat.reply });
+    return error || !linked ? "That code didn't work. Codes last 10 minutes: get a new one in Settings → Connections." : `Linked. This chat can add tasks; to read or change them, give it full access in Settings → Connections. Try: add buy milk tomorrow\n\n${HELP}`;
   }
   // Keep where to reach the chat current (the Digest uses it).
   await db.from("chat_links").update({ reply: chat.reply, label: chat.label }).eq("id", link.id);

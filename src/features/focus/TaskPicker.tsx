@@ -122,10 +122,14 @@ function Panel({ value, onPick }: { value: FocusPick; onPick: (p: FocusPick) => 
       setActive(n);
       if (n > 0) document.getElementById(`pk-${rows[n - 1].t.id}`)?.scrollIntoView({ block: "nearest" });
       closeFly();
-    } else if (e.key === "ArrowRight" && active > 0 && rows[active - 1].kids.length && (e.target as HTMLInputElement).selectionStart === q.length) {
+    } else if (e.key === "ArrowRight" && rows[active - 1]?.kids.length && (e.target as HTMLInputElement).selectionStart === q.length) {
       openFly(rows[active - 1].t.id, document.getElementById(`pk-${rows[active - 1].t.id}`));
       setZone("sub");
-    } else if (e.key === "Enter") onPick(active === 0 ? NO_PICK : { taskId: rows[active - 1].t.id, subIds: [] });
+    } else if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      const row = rows[active - 1];
+      if (active === 0) onPick(NO_PICK);
+      else if (row) onPick({ taskId: row.t.id, subIds: [] });
+    }
     else return;
     e.preventDefault();
   };

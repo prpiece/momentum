@@ -68,6 +68,17 @@ describe("smart lists", () => {
     }
   });
 
+  it("Upcoming's completed scope files a finished 01:30 block under the day before it with an end-of-day hour", () => {
+    const done = vm(mk({ status: "done", completedAt: atLocalTime(TODAY, "09:00").toISOString(), schedule: timed(atLocalTime("2026-10-26", "01:30"), 30) }));
+    expect(inSmartScope("upcoming", done, TODAY)).toBe(true);
+    setDayEndHour(3);
+    try {
+      expect(inSmartScope("upcoming", done, TODAY)).toBe(false);
+    } finally {
+      setDayEndHour(0);
+    }
+  });
+
   it("scopes finished tasks for Show completed", () => {
     const scope = (t: Task) => (["inbox", "today", "upcoming"] as const).filter((id) => inSmartScope(id, vm(t), TODAY));
     const doneToday = atLocalTime(TODAY, "09:00").toISOString();
@@ -266,6 +277,19 @@ describe("v1.2.4 smart list fixes", () => {
     try {
       const t = mk({ schedule: timed(atLocalTime("2026-10-26", "01:30"), 30) });
       expect(lists("today", "upcoming")(t)).toEqual(["today"]); // TODAY = Sun 25th is still running
+    } finally {
+      setDayEndHour(0);
+    }
+  });
+  it("a 01:30 block after midnight is grouped under Today, not Tomorrow, with an end-of-day hour", () => {
+    const group = (t: Task) => groupVMs([vm(t)], "date", { today: TODAY, lists: new Map(), tags: new Map() })[0].label;
+    const after = mk({ schedule: timed(atLocalTime("2026-10-26", "01:30"), 30) });
+    expect(group(after)).toBe("Tomorrow");
+    setDayEndHour(3);
+    try {
+      expect(group(after)).toBe("Today");
+      expect(group(mk({ schedule: timed(atLocalTime("2026-10-26", "04:00"), 30) }))).toBe("Tomorrow");
+      expect(group(mk({ schedule: day("2026-10-26") }))).toBe("Tomorrow");
     } finally {
       setDayEndHour(0);
     }

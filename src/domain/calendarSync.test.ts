@@ -112,6 +112,15 @@ describe("Google events out", () => {
     });
   });
 
+  it("sends an unzoned series in the zone it was written in (D347), exdate keys read there too", () => {
+    const e = asEvent(upsert(fromGoogle({ id: "z", start: { dateTime: "2026-11-02T14:00:00Z" }, end: { dateTime: "2026-11-02T15:00:00Z" } }, "cal", NY)));
+    const series = { ...e, recurrence: { rule: "FREQ=DAILY", exdates: ["2026-11-04T09:00"], tz: "Europe/London" } };
+    expect(toGoogle(series, NY)).toMatchObject({
+      start: { timeZone: "Europe/London" },
+      recurrence: ["RRULE:FREQ=DAILY", "EXDATE;TZID=Europe/London:20261104T090000"],
+    });
+  });
+
   it("sends all-day events with an exclusive end, and edited instances without recurrence", () => {
     const e = asEvent(upsert(fromGoogle({ id: "b", start: { date: "2026-11-20" }, end: { date: "2026-11-23" } }, "cal", NY)));
     expect(toGoogle(e, NY)).toEqual({ summary: "Untitled event", description: "", start: { date: "2026-11-20" }, end: { date: "2026-11-23" }, recurrence: [] });

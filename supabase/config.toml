@@ -221,16 +221,16 @@ enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
-# If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# Must stay true: with it off, /signup hands out a session without proving the inbox (account pre-registration).
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
-# Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+# Seconds before the email OTP expires (10 minutes; code.html says so too).
+otp_expiry = 600
 
 # Use a production-ready SMTP server
 # [auth.email.smtp]
@@ -432,4 +432,8 @@ verify_jwt = false
 # Google Calendar and Outlook sync (PLAN D345). The OAuth redirects arrive from a browser with no
 # Supabase JWT; the app's own calls are checked in the function (auth.getUser), cron by its secret.
 [functions.calendar]
+verify_jwt = false
+
+# Removes the Storage files of purged accounts (account deletion). Called by pg_cron with a secret, no JWT.
+[functions.storage-purge]
 verify_jwt = false

@@ -20,8 +20,8 @@ describe("sent tasks", () => {
 
   it("accepting copies title, note, checklist and subtasks into the Inbox; the sender sees only the outcome", async () => {
     const { data: id, error } = await sendTask(a, b, {
-      title: "Review PR", description: "the auth one", checklist: '[{"text":"read","done":false}]',
-      subtasks: [{ title: "Run tests" }, { title: "Approve" }], list_id: "hijack", secret: "dropped",
+      title: "Review PR", description: "the auth one", checklist: '[{"id":"c1","title":"read","done":false}]',
+      subtasks: [{ title: "Run tests", checklist: [{ id: "c2", title: "unit", done: true }] }, { title: "Approve" }], list_id: "hijack", secret: "dropped",
     });
     expect(error).toBeNull();
     const incoming = await rpc<{ id: string; handle: string; payload: Record<string, unknown> }[]>(b.db, "incoming_tasks");
@@ -30,8 +30,11 @@ describe("sent tasks", () => {
     const taskId = await rpc<string>(b.db, "respond_sent_task", { p_id: id, p_accept: true });
     const rows = await replica(b.db);
     expect(rows.get(`tasks/${taskId}`)).toMatchObject({ title: "Review PR", description: "the auth one", list_id: "inbox", status: "open" });
-    const kids = [...rows.values()].filter((r) => r.parent_id === taskId).map((r) => r.title);
-    expect(kids.sort()).toEqual(["Approve", "Run tests"]);
+    // Stored as JSON text (the server re-serialises it), the form the apps' row mapping reads.
+    expect(JSON.parse(String(rows.get(`tasks/${taskId}`)?.checklist))).toEqual([{ id: "c1", title: "read", done: false }]);
+    const kids = [...rows.values()].filter((r) => r.parent_id === taskId);
+    expect(kids.map((r) => r.title).sort()).toEqual(["Approve", "Run tests"]);
+    expect(JSON.parse(String(kids.find((r) => r.title === "Run tests")?.checklist))).toEqual([{ id: "c2", title: "unit", done: true }]);
     expect(await rpc(a.db, "outgoing_tasks")).toEqual([expect.objectContaining({ id, title: "Review PR", status: "accepted" })]);
     // The copies aren't connected: nothing of B's reaches A.
     expect((await pull(a.db)).find((r) => r.id === taskId)).toBeUndefined();
@@ -115,5 +118,27 @@ describe("check-in buddies", () => {
     await rpc(b.db, "remove_friend", { p_account: a.id });
     expect(await rpc(b.db, "buddy_habits")).toEqual([]);
     expect(await refusal(b.db, "nudge", { p_owner: a.id, p_habit: habit })).toContain("not_a_buddy");
+  });
+});
+
+describe("send_task checks sub-tasks and the due date (20261118070000)", () => {
+  it("refuses wrong shapes and accepts a valid task", async () => {
+    const msg = async (p: Record<string, unknown>) => (await sendTask(a, b, { title: "t", ...p })).error?.message;
+    expect(await msg({ subtasks: [{ title: "s", checklist: 5 }] })).toContain("bad_subtask");
+    // Checklists: an array or JSON text of one is kept; garbage or other JSON is dropped; too big is refused.
+    const item = { id: "c", title: "x", done: false };
+    expect(await msg({ checklist: [item] })).toBeUndefined();
+    expect(await msg({ checklist: "not json" })).toBeUndefined();
+    expect(await msg({ checklist: '{"a":1}' })).toBeUndefined();
+    expect(await msg({ checklist: Array.from({ length: 101 }, () => item) })).toContain("bad_checklist");
+    expect(await msg({ checklist: JSON.stringify([{ ...item, title: "x".repeat(20_001) }]) })).toContain("bad_checklist");
+    expect(await msg({ subtasks: [{ title: "s", checklist: Array.from({ length: 101 }, () => item) }] })).toContain("bad_checklist");
+    expect(await msg({ subtasks: [{ title: "s", description: 5 }] })).toContain("bad_subtask");
+    expect(await msg({ subtasks: [{ title: 7 }] })).toContain("bad_subtask");
+    expect(await msg({ subtasks: ["x"] })).toContain("bad_subtask");
+    expect(await msg({ subtasks: Array.from({ length: 51 }, () => ({ title: "s" })) })).toContain("too_many_subtasks");
+    expect(await msg({ due_date: "tomorrow" })).toContain("bad_due_date");
+    expect(await msg({ due_date: "2026-02-30" })).toContain("bad_due_date");
+    expect(await msg({ due_date: "2026-11-18", subtasks: [{ title: "s", description: "d", checklist: [{ text: "x", done: false }] }] })).toBeUndefined();
   });
 });

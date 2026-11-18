@@ -117,7 +117,7 @@ function Chat({ c, onChange }: { c: api.Connection; onChange: () => void }) {
       {c.permission === "full" && (
       <label className="flex items-center gap-2 text-[length:var(--fs-sm)] text-muted">
         Digest
-        <input type="time" aria-label={`Digest time for ${SOURCE[c.source]}`} value={c.digestTime ?? ""} onChange={(e) => e.target.value && void setDigest(e.target.value)} className="input w-auto tabular-nums" />
+        <input type="time" aria-label={`Digest time for ${SOURCE[c.source]}`} key={c.digestTime ?? ""} defaultValue={c.digestTime ?? ""} onBlur={(e) => e.target.value && e.target.value !== c.digestTime && void setDigest(e.target.value)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} className="input w-auto tabular-nums" />
       </label>
       )}
       {c.digestTime && (
@@ -137,10 +137,11 @@ function Webhook() {
   const [secret, setSecret] = useState<string | null>(null);
   const [access, setAccess] = useState<api.Permission | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api.hasWebhook().then(setHas, () => setHas(null));
     api.webhookPermission().then(setAccess, () => setAccess(null));
   }, []);
+  useEffect(load, [load]);
   const setPermission = async (p: api.Permission) => {
     try {
       await api.setWebhookPermission(p);
@@ -182,9 +183,15 @@ function Webhook() {
               Delete
             </button>
           )}
-          <button type="button" className="btn btn-secondary" onClick={() => void create()}>
-            {has ? "Make a new secret" : "Create webhook"}
-          </button>
+          {has === null ? (
+            <button type="button" className="btn btn-secondary" onClick={load}>
+              Check webhook status
+            </button>
+          ) : (
+            <button type="button" className="btn btn-secondary" onClick={() => void create()}>
+              {has ? "Make a new secret" : "Create webhook"}
+            </button>
+          )}
         </span>
       </div>
       {has && access && (

@@ -1,5 +1,5 @@
 import { addDaysLocal, daysBetween, moveToDate } from "./dates";
-import type { TaskVM } from "./taskViews";
+import { dayOf, type TaskVM } from "./taskViews";
 import { PRIORITIES, type LocalDate, type Priority, type Schedule, type Task } from "./types";
 
 /**
@@ -34,12 +34,12 @@ export const isUrgent = (date: LocalDate | null, today: LocalDate, r: MatrixRule
   date !== null && daysBetween(today, date) <= r.urgentDays;
 
 /** Urgency comes from the deadline when there is one, otherwise from the planned date (D267). */
-export const urgencyDate = (vm: { task: Pick<Task, "deadline">; date: LocalDate | null }) => vm.task.deadline ?? vm.date;
+export const urgencyDate = (vm: Pick<TaskVM, "schedule" | "date"> & { task: Pick<Task, "deadline"> }) => vm.task.deadline ?? dayOf(vm);
 
 /** Someday tasks are kept out of the Matrix (D267). */
 export const inMatrix = (vm: Pick<TaskVM, "schedule">) => vm.schedule.kind !== "someday";
 
-export function quadrantOf(vm: { task: Pick<Task, "priority" | "deadline">; date: LocalDate | null }, today: LocalDate, r: MatrixRules): Quadrant {
+export function quadrantOf(vm: Pick<TaskVM, "schedule" | "date"> & { task: Pick<Task, "priority" | "deadline"> }, today: LocalDate, r: MatrixRules): Quadrant {
   const imp = isImportant(vm.task, r);
   const urg = isUrgent(urgencyDate(vm), today, r);
   return imp ? (urg ? 1 : 2) : urg ? 3 : 4;

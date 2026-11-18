@@ -3,6 +3,15 @@
  * SQLite triggers; the server keeps one jsonb row per record and merges patches field by field.
  * This file decides what a pull may overwrite locally and in which order rows are applied.
  */
+import { isZone } from "./dates";
+
+/**
+ * The zone to write to `profiles.time_zone`, or null for nothing to do: `current` is this device's IANA zone,
+ * `written` the last value this launch put on the server. Unknown zones aren't written (the server would refuse them).
+ */
+export function zoneToWrite(current: string | undefined, written: string | null): string | null {
+  return current && current !== written && isZone(current) ? current : null;
+}
 
 /** Synced tables in parent-before-child order, with the columns that name a row. */
 export const SYNC_TABLES = {
@@ -260,3 +269,28 @@ export type ProfileFields = { handle: string | null; display_name: string | null
 /** The profile to show: the fetched one, or, when the fetch failed (offline), the last known one. null = unknown, never "empty". */
 export const pickProfile = (fetched: ProfileFields | null, failed: boolean, cached: ProfileFields | null): ProfileFields | null =>
   failed ? cached : (fetched ?? { handle: null, display_name: null });
+
+/**
+ * Two devices can each re-parent one of two tasks under the other: `parent_id` merges per field, so
+ * both edits survive and the tasks form a loop that no view reaches. Returns the task ids whose
+ * parent should be cleared to break every loop (a self-parent too): the smallest id of each loop,
+ * so every device makes the same choice. Clearing it leaves a forest, so a second run returns [].
+ */
+export function parentCycleBreaks(parents: Iterable<[string, string | null]>): string[] {
+  const up = new Map(parents);
+  const done = new Set<string>();
+  const breaks: string[] = [];
+  for (const start of up.keys()) {
+    const path: string[] = [];
+    const at = new Map<string, number>();
+    let id: string | null | undefined = start;
+    while (id != null && !done.has(id) && !at.has(id)) {
+      at.set(id, path.length);
+      path.push(id);
+      id = up.get(id);
+    }
+    if (id != null && at.has(id)) breaks.push(path.slice(at.get(id)).reduce((a, b) => (b < a ? b : a)));
+    for (const p of path) done.add(p);
+  }
+  return breaks;
+}

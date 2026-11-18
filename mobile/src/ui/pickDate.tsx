@@ -13,7 +13,10 @@ export function pickDate(mode: "date" | "time", value: Date): Promise<Date | nul
   return new Promise((resolve) => {
     if (Platform.OS === "android")
       DateTimePickerAndroid.open({ mode, value, is24Hour: undefined, onChange: (e, d) => resolve(e.type === "set" && d ? d : null) });
-    else useAsk.setState({ ask: { mode, value, resolve } });
+    else {
+      useAsk.getState().ask?.resolve(null); // a new pick replaces an open one; the replaced caller resolves null instead of hanging (MOB-06)
+      useAsk.setState({ ask: { mode, value, resolve } });
+    }
   });
 }
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { setDayEndHour } from "./dates";
 import { isEmptyFilter, matchesFilter, parseFilter } from "./filter";
 import { toVM, type TaskVM } from "./taskViews";
 import type { Tag, Task, TaskList } from "./types";
@@ -110,6 +111,30 @@ describe("matchesFilter", () => {
 
   it("matches lists the way quick add resolves them", () => {
     expect(hits("~homestuff", mk({ listId: "home" }), mk())).toEqual([true, false]);
+  });
+
+  it("files a block after midnight under the day that started before it (end-of-day hour)", () => {
+    const night = mk({ schedule: { kind: "timed", start: new Date(2026, 9, 26, 1, 30).toISOString(), end: new Date(2026, 9, 26, 2, 0).toISOString() } });
+    expect(hits("tomorrow", night)).toEqual([true]);
+    setDayEndHour(3);
+    try {
+      expect(hits("tomorrow", night)).toEqual([false]);
+      expect(matchesFilter(night, { ...parseFilter("", NOW), date: { kind: "on", date: TODAY } }, ctx)).toBe(true);
+    } finally {
+      setDayEndHour(0);
+    }
+  });
+
+  it("overdue matches the red state: a block starting before the cutoff but ending after it isn't overdue", () => {
+    setDayEndHour(3);
+    try {
+      const at = (d: number, h: number, m = 0) => new Date(2026, 9, d, h, m).toISOString();
+      const running = mk({ schedule: { kind: "timed", start: at(24, 23), end: at(25, 4) } }); // starts on the 24th, ends after today's 03:00 cutoff
+      const ended = mk({ schedule: { kind: "timed", start: at(24, 20), end: at(24, 21) } });
+      expect(hits("overdue", running, ended)).toEqual([false, true]);
+    } finally {
+      setDayEndHour(0);
+    }
   });
 
   it("filters by day, overdue and no date", () => {

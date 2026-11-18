@@ -99,3 +99,12 @@ describe("applyPlanned", () => {
     expect(applyPlanned(base.schedule, { kind: "someday" })).toEqual({ kind: "someday" });
   });
 });
+
+describe("contradictory date and time", () => {
+  it("refuses a time with date none or someday, but not with a day or no date", () => {
+    expect(() => parseRequest("update", { id: "abcd", date: "none", time: "09:00" })).toThrow(/time needs a day/);
+    expect(() => parseRequest("update", { id: "abcd", date: "someday", time: "09:00" })).toThrow(/time needs a day/);
+    expect(() => parseRequest("update", { id: "abcd", date: "2026-11-02", time: "09:00" })).not.toThrow();
+    expect(() => parseRequest("update", { id: "abcd", time: "09:00" })).not.toThrow();
+  });
+});

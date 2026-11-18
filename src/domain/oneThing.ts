@@ -1,6 +1,6 @@
 import { taskMinutes } from "./dates";
 import { quadrantOf, type MatrixRules } from "./matrix";
-import { inSmartList, type TaskVM } from "./taskViews";
+import { dayOf, inSmartList, type TaskVM } from "./taskViews";
 import type { Energy, LocalDate } from "./types";
 
 /** Low energy (D267): only tasks of this many minutes or less. Tasks without a duration count as Normal. */
@@ -20,7 +20,7 @@ export const fitsEnergy = (vm: TaskVM, energy: Energy) => {
 export function pickOneThing(vms: readonly TaskVM[], today: LocalDate, rules: MatrixRules, energy: Energy): TaskVM | null {
   let best: { vm: TaskVM; q: number; dl: string; i: number } | null = null;
   vms.forEach((vm, i) => {
-    if (!inSmartList("today", vm, today) || (vm.date !== null && vm.date > today) || !fitsEnergy(vm, energy)) return;
+    if (!inSmartList("today", vm, today) || (dayOf(vm) !== null && dayOf(vm)! > today) || !fitsEnergy(vm, energy)) return;
     const c = { vm, q: quadrantOf(vm, today, rules), dl: vm.task.deadline ?? "￿", i };
     if (!best || c.q < best.q || (c.q === best.q && (c.dl < best.dl || (c.dl === best.dl && c.i < best.i)))) best = c;
   });

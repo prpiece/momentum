@@ -1,12 +1,16 @@
 import { isTauri } from "../db/client";
 
-/** Public pages (PLAN D186); the app may open only these (opener scope in capabilities/default.json). */
+/** Public pages (PLAN D186). The opener scope in capabilities/default.json allows any http(s) URL, so every open goes through `openExternal`, which checks `webUrl`. */
 export const SITE = "https://prpiece.github.io/momentum/";
 export type SitePage = "terms.html" | "privacy.html";
 
 /** Opens a public page in the system browser. */
-export async function openSite(page: SitePage) {
-  const url = SITE + page;
+export const openSite = (page: SitePage) => openExternal(SITE + page);
+
+/** Opens an http(s) URL in the system browser (a new tab in the browser build); anything else is refused. */
+export async function openExternal(href: string) {
+  const url = webUrl(href);
+  if (!url) throw new Error("Only http(s) links can be opened.");
   if (!isTauri) return void window.open(url, "_blank", "noopener");
   const { openUrl } = await import("@tauri-apps/plugin-opener");
   await openUrl(url);
@@ -31,9 +35,6 @@ export function installLinkGuard() {
     const href = a?.getAttribute("href");
     if (!a || !href || href.startsWith("#")) return;
     e.preventDefault();
-    const url = webUrl(a.href);
-    if (!url) return;
-    if (!isTauri) return void window.open(url, "_blank", "noopener");
-    void import("@tauri-apps/plugin-opener").then((m) => m.openUrl(url)).catch(() => {});
+    void openExternal(a.href).catch(() => {});
   });
 }

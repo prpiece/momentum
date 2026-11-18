@@ -75,6 +75,9 @@ export const askText = (title: string, opts: { value?: string; placeholder?: str
     show({ kind: "text", title, value: opts.value ?? "", placeholder: opts.placeholder ?? "", confirm: opts.confirm ?? "Save", resolve: resolve as (v: unknown) => void }),
   );
 
+/** A typed number (from `askText`); the default keyboard types "," in many locales (MOB-05). NaN when it isn't one. */
+export const num = (text: string) => Number(text.replace(",", "."));
+
 /** Renders `choose` and `askText` (once, in the root layout). */
 export function AskHost() {
   const c = useColors();

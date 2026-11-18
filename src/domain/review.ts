@@ -1,6 +1,6 @@
 import { addDaysLocal, daysBetween, fromLocalDate, toLocalDate, todayLocal } from "./dates";
 import { startOfWeek } from "date-fns";
-import { inSmartList, isOverdue, waitingNow, type TaskVM } from "./taskViews";
+import { dayOf, inSmartList, isOverdue, waitingNow, type TaskVM } from "./taskViews";
 import { INBOX_ID, type LocalDate, type Task, type WeekStart } from "./types";
 import { followUpDue } from "./waiting";
 
@@ -39,6 +39,6 @@ export function weeklyReview(active: readonly TaskVM[], tasks: Iterable<Task>, t
     someday: open.filter((vm) => inSmartList("someday", vm, today)),
     lastWeekDone,
     lastWeek,
-    nextWeek: open.filter((vm) => vm.date !== null && vm.date >= today && vm.date <= end && !waitingNow(vm, today)).sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "")),
+    nextWeek: open.filter((vm) => dayOf(vm) !== null && dayOf(vm)! >= today && dayOf(vm)! <= end && !waitingNow(vm, today)).sort((a, b) => (dayOf(a) ?? "").localeCompare(dayOf(b) ?? "")),
   };
 }

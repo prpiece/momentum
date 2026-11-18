@@ -371,7 +371,11 @@ export function parseSettings(raw: unknown): Settings {
     quickAddShortcut: accelerator(r.quickAddShortcut, d.quickAddShortcut),
     voiceShortcut: ((v) => (v === accelerator(r.quickAddShortcut, d.quickAddShortcut) ? d.voiceShortcut : v))(accelerator(r.voiceShortcut, d.voiceShortcut)),
     voiceMic: typeof r.voiceMic === "string" && r.voiceMic ? r.voiceMic : null,
-    miniShortcut: accelerator(r.miniShortcut, d.miniShortcut),
+    miniShortcut: ((v) => {
+      const quickAdd = accelerator(r.quickAddShortcut, d.quickAddShortcut);
+      const voice = accelerator(r.voiceShortcut, d.voiceShortcut) === quickAdd ? d.voiceShortcut : accelerator(r.voiceShortcut, d.voiceShortcut);
+      return v === quickAdd || v === voice ? d.miniShortcut : v;
+    })(accelerator(r.miniShortcut, d.miniShortcut)),
     pomodoro: parsePomodoro(r.pomodoro),
     dayEndHour: typeof r.dayEndHour === "number" && Number.isInteger(r.dayEndHour) && r.dayEndHour >= 0 && r.dayEndHour <= DAY_END_MAX ? r.dayEndHour : d.dayEndHour,
     oneThing: isRecord(r.oneThing)

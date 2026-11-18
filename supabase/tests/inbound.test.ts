@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { webcrypto } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { handle, REPLY_DEADLINE_MS, type Env, type Opts } from "../functions/inbound/app";
-import { fromWall, parseClock, parseCommand, runChat, SERVER_PROBLEM, toWall } from "../functions/inbound/bot";
+import { fromWall, parseClock, parseCommand, runChat, sendError, SERVER_PROBLEM, toWall } from "../functions/inbound/bot";
 import { bundle, OUT } from "../../scripts/bundle-inbound.mjs";
 import { admin, replica, rpc, SECRET, send, uid, URL, user, type User } from "./helpers";
 
@@ -99,8 +99,38 @@ describe("the shared domain bundle", () => {
     expect(fromWall(toWall(at, "America/New_York"), "America/New_York").toISOString()).toBe(at.toISOString());
     expect(parseCommand("/task done 2")).toEqual({ cmd: "done", arg: "2" });
     expect(parseCommand("buy milk")).toBeNull();
+    // Telegram plain text: a command word only counts when the rest fits its grammar, or it was slashed.
+    const uuid = "123e4567-e89b-12d3-a456-426614174000";
+    for (const t of ["Update the report by friday", "Today I need to call mom", "Done 2 laps", "Move 2 boxes to the garage", "Delete the old draft",
+      "Search the docs", "Send the report to Bob", "Focus on the slides", "View the proposal", "List the groceries", "Habit tracker ideas", "/tasklist", "/momentumx"]) {
+      expect(parseCommand(t, true)).toBeNull();
+    }
+    expect(parseCommand("/update the report", true)).toEqual({ cmd: "update", arg: "the report" });
+    expect(parseCommand("/move 2 Work", true)).toEqual({ cmd: "move", arg: "2 Work" });
+    expect(parseCommand("/done 2", true)).toEqual({ cmd: "done", arg: "2" });
+    expect(parseCommand("done 2", true)).toEqual({ cmd: "done", arg: "2" });
+    expect(parseCommand(`done ${uuid}`, true)).toEqual({ cmd: "done", arg: uuid });
+    expect(parseCommand("Today", true)).toEqual({ cmd: "today", arg: "" });
+    expect(parseCommand("update 2 fri 5pm !high", true)).toEqual({ cmd: "update", arg: "2 fri 5pm !high" });
+    expect(parseCommand("send @sam call me", true)).toEqual({ cmd: "send", arg: "@sam call me" });
+    expect(parseCommand("digest on 8am", true)).toEqual({ cmd: "digest", arg: "on 8am" });
+    expect(parseCommand("digest on 8 pm", true)).toEqual({ cmd: "digest", arg: "on 8 pm" });
+    expect(parseCommand("digest on", true)).toEqual({ cmd: "digest", arg: "on" });
+    expect(parseCommand("digest off", true)).toEqual({ cmd: "digest", arg: "off" });
+    expect(parseCommand("/done@MomentumBot 2", true)).toEqual({ cmd: "done", arg: "2" });
+    expect(parseCommand("/task list", true)).toEqual({ cmd: "list", arg: "" });
+    expect(parseCommand("/tasklist")).toBeNull();
+    expect(parseCommand("/momentumx")).toBeNull();
+    expect(parseCommand("Update the report")).toEqual({ cmd: "update", arg: "the report" }); // Slack/Discord/webhook: unchanged
     expect(parseClock("7pm")).toBe("19:00");
     expect(parseClock("25:00")).toBeNull();
+    for (const bad of ["13pm", "13am", "0pm", "0am"]) expect(parseClock(bad)).toBeNull();
+    expect(parseClock("12am")).toBe("00:00");
+    expect(parseClock("12 pm")).toBe("12:00");
+    expect(sendError("not_friends", "sam")).toBe("@sam isn't your friend on Momentum.");
+    expect(sendError("too_many_sent", "sam")).toContain("a lot of tasks");
+    expect(sendError("bad_due_date", "sam")).toContain("due date");
+    expect(sendError("boom: relation \"x\" does not exist", "sam")).toBe("Couldn't send that task. Try again in a moment.");
   });
 });
 
@@ -470,7 +500,10 @@ describe("the Digest", () => {
     const chat = await linkedTelegram(u);
     await chat("add digest item today");
     await chat("digest on 0:00");
-    const { data: link } = await admin().from("chat_links").select("id, reply").eq("account_id", u.id).single();
+    // 0:00 has passed today, so enabling marks today as sent; let the day roll over to exercise the send.
+    expect((await admin().from("chat_links").select("digest_sent").eq("account_id", u.id).single()).data?.digest_sent).not.toBeNull();
+    await admin().from("chat_links").update({ digest_sent: null }).eq("account_id", u.id);
+    const { data: link} = await admin().from("chat_links").select("id, reply").eq("account_id", u.id).single();
     const run = () => handle(new Request(`${base}/digest`, { method: "POST", headers: { "x-digest-secret": "digest-secret" } }), env, opts);
     calls.length = 0;
     expect(((await (await run()).json()) as { sent: number }).sent).toBeGreaterThanOrEqual(1);
@@ -479,6 +512,33 @@ describe("the Digest", () => {
     calls.length = 0;
     await run();
     expect(calls.filter((c) => c.url.includes("/sendMessage") && JSON.parse(String(c.init?.body)).chat_id === (link!.reply as { chat_id: number }).chat_id)).toEqual([]);
+  });
+
+  it("enabled after today's time waits until tomorrow; a time still ahead leaves it unset", async () => {
+    const u = await user();
+    await u.db.from("profiles").update({ time_zone: "UTC" }).eq("id", u.id);
+    const chat = await linkedTelegram(u);
+    const sent = async () => (await admin().from("chat_links").select("digest_sent").eq("account_id", u.id).single()).data?.digest_sent;
+    await chat("digest on 0:00");
+    expect(await sent()).toBe(new Date().toISOString().slice(0, 10));
+    await chat("digest on 23:59");
+    expect(await sent()).toBeNull();
+  });
+
+  it("a chat that can never receive it is marked done for the day; a transient failure stays due", async () => {
+    const u = await user();
+    await u.db.from("profiles").update({ time_zone: "UTC" }).eq("id", u.id);
+    const chat = await linkedTelegram(u);
+    await chat("digest on 0:00");
+    const { data: link } = await admin().from("chat_links").select("id").eq("account_id", u.id).single();
+    const run = (status: number) => handle(new Request(`${base}/digest`, { method: "POST", headers: { "x-digest-secret": "digest-secret" } }), env,
+      { ...opts, fetch: async (url) => (String(url).includes("/sendMessage") ? new Response("{}", { status }) : Response.json({ ok: true })) });
+    const marked = async () => (await admin().from("chat_links").select("digest_sent").eq("id", link!.id).single()).data?.digest_sent;
+    await admin().from("chat_links").update({ digest_sent: null }).eq("id", link!.id);
+    await run(502);
+    expect(await marked()).toBeNull();
+    await run(403);
+    expect(await marked()).toBe(new Date().toISOString().slice(0, 10));
   });
 
   it("is scheduled with pg_cron", async () => {
@@ -496,7 +556,13 @@ describe("Slack install", () => {
     expect(to.origin + to.pathname).toBe("https://slack.com/oauth/v2/authorize");
     return { state: to.searchParams.get("state")!, cookie: r.headers.get("set-cookie")!.split(";")[0] };
   }
-  const callback = (q: string, cookie?: string) => handle(new Request(`${base}/slack/oauth?${q}`, { headers: cookie ? { cookie } : {} }), env, opts);
+  /** A fresh address per call, so no test shares the per-address bucket. */
+  const addr = () => `203.0.113.${Math.floor(Math.random() * 250)}:${uid()}`;
+  const callback = (q: string, cookie?: string) => handle(new Request(`${base}/slack/oauth?${q}`, { headers: { "cf-connecting-ip": addr(), ...(cookie ? { cookie } : {}) } }), env, opts);
+  const stayInHour = async () => {
+    const left = 3600 - ((Date.now() / 1000) % 3600);
+    if (left < 30) await new Promise((r) => setTimeout(r, (left + 1) * 1000));
+  };
 
   it("SOC-21: refuses a callback without the state this browser was given, an altered one, or an expired one", async () => {
     const { state, cookie } = await start();
@@ -506,6 +572,40 @@ describe("Slack install", () => {
     const old = await start(Date.now() - 11 * 60_000);
     expect((await callback(`code=abc&state=${encodeURIComponent(old.state)}`, old.cookie)).status).toBe(400);
     expect(calls.some((c) => c.url.includes("oauth.v2.access"))).toBe(false);
+  });
+
+  it("a code Slack rejects doesn't use up the installs budget", async () => {
+    const hits = async () => (await admin().from("rate_counts").select("n").eq("key", "oauth:slack")).data?.reduce((t, r) => t + r.n, 0) ?? 0;
+    await stayInHour();
+    const before = await hits();
+    const { state, cookie } = await start();
+    const rejecting: Opts = { ...opts, fetch: async () => Response.json({ ok: false }) };
+    const r = await handle(new Request(`${base}/slack/oauth?code=bad&state=${encodeURIComponent(state)}`, { headers: { cookie, "cf-connecting-ip": addr() } }), env, rejecting);
+    expect(r.status).toBe(400);
+    expect(await hits()).toBe(before);
+  });
+
+  it("a reusable state can't drive unlimited calls to Slack: one address is cut off before the call", async () => {
+    await stayInHour();
+    const { state, cookie } = await start();
+    const ip = addr();
+    let slackCalls = 0;
+    const rejecting: Opts = { ...opts, fetch: async () => { slackCalls++; return Response.json({ ok: false }); } };
+    const go = () => handle(new Request(`${base}/slack/oauth?code=junk&state=${encodeURIComponent(state)}`, { headers: { cookie, "cf-connecting-ip": ip } }), env, rejecting);
+    for (let i = 0; i < 10; i++) expect((await go()).status).toBe(400);
+    expect((await go()).status).toBe(429);
+    expect(slackCalls).toBe(10);
+  });
+
+  it("the installs budget (30 an hour) is checked after Slack accepts the code", async () => {
+    await stayInHour();
+    try {
+      for (let i = 0; i < 30; i++) await rpc(admin(), "hit_rate", { p_key: "oauth:slack", p_max: 30, p_window: "1 hour" });
+      const { state, cookie } = await start();
+      expect((await callback(`code=abc&state=${encodeURIComponent(state)}`, cookie)).status).toBe(429);
+    } finally {
+      await admin().from("rate_counts").delete().eq("key", "oauth:slack"); // don't starve the install test below
+    }
   });
 
   it("stores the workspace's bot token server-side only", async () => {
@@ -525,6 +625,15 @@ describe("a failed chat lookup", () => {
     const db = { from: () => chain, rpc: async () => ({ data: true, error: null }) } as unknown as Parameters<typeof runChat>[0];
     const chat = { source: "discord" as const, externalId: "1", label: null, reply: {} };
     expect(await runChat(db, chat, "today")).toBe(SERVER_PROBLEM);
+  });
+});
+
+describe("a link with a wrong code", () => {
+  it("gets the usual 'didn't work' reply when link_chat returns null", async () => {
+    const chain = { select: () => chain, eq: () => chain, maybeSingle: async () => ({ data: null, error: null }) };
+    const db = { from: () => chain, rpc: async (fn: string) => ({ data: fn === "link_chat" ? null : true, error: null }) } as unknown as Parameters<typeof runChat>[0];
+    const chat = { source: "discord" as const, externalId: "1", label: null, reply: {} };
+    expect(await runChat(db, chat, "link 12345678")).toContain("That code didn't work");
   });
 });
 

@@ -2,7 +2,7 @@ import { addDays, endOfWeek, startOfWeek } from "date-fns";
 import { toLocalDate } from "./dates";
 import { nameKey } from "./fuzzy";
 import { parseQuickAdd, type Chip } from "./quickAdd";
-import { matchScore, type TaskVM } from "./taskViews";
+import { dayOf, isOverdue, matchScore, type TaskVM } from "./taskViews";
 import type { LocalDate, Priority, Tag, TaskList, TaskStatus, WeekStart } from "./types";
 
 export type DateFilter = { kind: "on"; date: LocalDate } | { kind: "range"; from: LocalDate; to: LocalDate } | { kind: "overdue" } | { kind: "none" };
@@ -131,9 +131,10 @@ export function matchesFilter(vm: TaskVM, f: TaskFilter, ctx: Ctx): boolean {
   if (f.waiting !== null && !(t.waiting?.kind === "person" && nameKey(t.waiting.who) === nameKey(f.waiting))) return false;
   if (f.date) {
     if (f.date.kind === "none" && vm.schedule.kind !== "none") return false;
-    if (f.date.kind === "overdue" && !(t.status === "open" && vm.date !== null && vm.date < ctx.today)) return false;
-    if (f.date.kind === "range" && !(vm.date !== null && vm.date >= f.date.from && vm.date <= f.date.to)) return false;
-    if (f.date.kind === "on" && vm.date !== f.date.date) return false;
+    const day = dayOf(vm);
+    if (f.date.kind === "overdue" && !isOverdue(vm, ctx.today)) return false;
+    if (f.date.kind === "range" && !(day !== null && day >= f.date.from && day <= f.date.to)) return false;
+    if (f.date.kind === "on" && day !== f.date.date) return false;
   }
   return !f.text || matchScore(t.title, f.text) !== null;
 }

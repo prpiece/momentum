@@ -41,6 +41,44 @@ pub struct Agent {
     open: AtomicUsize,
     /// Why `start` failed, handed to the main window once it is listening so it can say so (AGENT-07).
     start_error: Mutex<Option<String>>,
+    /// Secret the main window got from `agent_ready`; stamped on every forwarded request (see there).
+    nonce: Mutex<String>,
+    /// Writes whose reply came too late (504), by op and body, so a retry gets the first run's answer, not a second run.
+    late: Mutex<HashMap<String, Late>>,
+}
+
+/// Ops that change data; a repeat of one that timed out must not run twice (an `add` would duplicate).
+const WRITES: &[&str] = &["add", "update", "delete", "restore", "complete", "reopen", "checkin"];
+/// How long a timed-out write's late answer is kept for a retry.
+const LATE_KEEP: Duration = Duration::from_secs(120);
+
+struct Late {
+    id: String,
+    reply: Option<String>,
+    at: Instant,
+}
+
+/// The answer to a retry of a timed-out write: the first run's reply once it arrived, or 504 while it is still running.
+fn replay(late: &mut HashMap<String, Late>, key: &str, now: Instant) -> Option<(u16, String)> {
+    late.retain(|_, l| now.duration_since(l.at) < LATE_KEEP);
+    let l = late.get(key)?;
+    let Some(reply) = l.reply.clone() else {
+        return Some((504, error_body("an identical request timed out and Momentum is still working on it: look before you retry")));
+    };
+    late.remove(key);
+    Some(reply_status(&reply))
+}
+
+/// A reply that arrived after its request timed out: keep it for the retry.
+fn keep_late(late: &mut HashMap<String, Late>, id: &str, reply: &str) {
+    if let Some(l) = late.values_mut().find(|l| l.id == id) {
+        l.reply = Some(reply.to_string());
+    }
+}
+
+fn reply_status(reply: &str) -> (u16, String) {
+    let ok = serde_json::from_str::<serde_json::Value>(reply).ok().and_then(|v| v["ok"].as_bool()).unwrap_or(false);
+    (if ok { 200 } else { 422 }, stamped(reply, std::process::id()))
 }
 
 /// A request that passed parsing, before authorization.
@@ -218,20 +256,28 @@ fn forward(app: &AppHandle, op: &str, body: &[u8]) -> (u16, String) {
             Err(_) => return (400, error_body("the body must be JSON")),
         }
     };
+    let key = WRITES.contains(&op).then(|| format!("{op}
+{args}"));
+    if let Some(r) = key.as_ref().and_then(|k| replay(&mut state.late.lock().unwrap(), k, Instant::now())) {
+        return r;
+    }
     let id = format!("r{}", state.seq.fetch_add(1, Ordering::SeqCst));
     let (tx, rx) = mpsc::channel();
     state.pending.lock().unwrap().insert(id.clone(), tx);
-    if app.emit_to("main", "agent:request", serde_json::json!({ "id": id, "op": op, "args": args })).is_err() {
+    let nonce = state.nonce.lock().unwrap().clone();
+    if app.emit_to("main", "agent:request", request_payload(&id, op, &args, &nonce)).is_err() {
         state.pending.lock().unwrap().remove(&id);
         return (503, error_body("the main window is not available"));
     }
     match rx.recv_timeout(REPLY_TIMEOUT) {
-        Ok(reply) => {
-            let ok = serde_json::from_str::<serde_json::Value>(&reply).ok().and_then(|v| v["ok"].as_bool()).unwrap_or(false);
-            (if ok { 200 } else { 422 }, stamped(&reply, std::process::id()))
-        }
+        Ok(reply) => reply_status(&reply),
         Err(_) => {
             state.pending.lock().unwrap().remove(&id);
+            // The window may still run it (busy during a big sync apply): remember it so a retry doesn't run it twice.
+            if let Some(k) = key {
+                state.late.lock().unwrap().insert(k, Late { id, reply: None, at: Instant::now() });
+                return (504, error_body("Momentum did not answer in time, but it may still carry this out: look (search or get) before you retry"));
+            }
             (504, error_body("Momentum did not answer in time"))
         }
     }
@@ -257,14 +303,27 @@ pub fn agent_reply(window: tauri::Window, state: State<Agent>, id: String, resul
     }
     if let Some(tx) = state.pending.lock().unwrap().remove(&id) {
         let _ = tx.send(result);
+    } else {
+        keep_late(&mut state.late.lock().unwrap(), &id, &result);
     }
 }
 
-/// The main window is listening; start forwarding.
+/// The main window is listening; start forwarding. Returns why the server failed to start (if it did) and a fresh
+/// nonce: every `agent:request` carries it and the window drops any event without it, so a popup that can emit
+/// events (core:default) can't pose as the server. Only the main window gets it.
 #[tauri::command]
-pub fn agent_ready(state: State<Agent>) -> Option<String> {
+pub fn agent_ready(window: tauri::Window, state: State<Agent>) -> serde_json::Value {
+    if window.label() != "main" {
+        return serde_json::Value::Null;
+    }
+    let nonce = random_token().unwrap_or_default();
+    *state.nonce.lock().unwrap() = nonce.clone();
     state.ready.store(true, Ordering::SeqCst);
-    state.start_error.lock().unwrap().take()
+    serde_json::json!({ "failed": state.start_error.lock().unwrap().take(), "nonce": nonce })
+}
+
+fn request_payload(id: &str, op: &str, args: &serde_json::Value, nonce: &str) -> serde_json::Value {
+    serde_json::json!({ "id": id, "op": op, "args": args, "nonce": nonce })
 }
 
 /// The main window's page started loading (first load, reload or crash recovery): its listener is gone
@@ -549,6 +608,36 @@ mod tests {
 
     const LOCAL: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
     const TOKEN: &str = "abc123";
+
+    #[test]
+    fn a_retry_of_a_timed_out_write_gets_the_first_answer_not_a_second_run() {
+        let mut late = HashMap::new();
+        let now = Instant::now();
+        assert!(replay(&mut late, "add
+{}", now).is_none(), "nothing timed out yet");
+        late.insert("add
+{}".into(), Late { id: "r1".into(), reply: None, at: now });
+        assert_eq!(replay(&mut late, "add
+{}", now).unwrap().0, 504, "still running");
+        assert!(replay(&mut late, "add
+{\"x\":1}", now).is_none(), "a different request runs");
+        keep_late(&mut late, "r1", r#"{"ok":true,"data":{}}"#);
+        let (code, body) = replay(&mut late, "add
+{}", now).unwrap();
+        assert_eq!(code, 200);
+        assert!(body.contains("\"instance\""));
+        assert!(replay(&mut late, "add
+{}", now).is_none(), "the answer is handed out once");
+        late.insert("k".into(), Late { id: "r2".into(), reply: None, at: now });
+        assert!(replay(&mut late, "k", now + LATE_KEEP).is_none(), "forgotten after a while");
+    }
+
+    #[test]
+    fn forwarded_requests_carry_the_nonce() {
+        let p = request_payload("r1", "get", &serde_json::Value::Null, "n0nce");
+        assert_eq!(p["nonce"], "n0nce");
+        assert_eq!(p["op"], "get");
+    }
 
     fn req(text: &str) -> Result<Req, Fail> {
         let mut r = text.as_bytes();

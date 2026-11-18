@@ -147,14 +147,19 @@ async function slackOAuth(req: Request, env: Env, db: SupabaseClient, f: typeof 
   if (!code) return new Response("Missing code", { status: 400 });
   if (!(await slackStateOk(env.SLACK_CLIENT_SECRET ?? "", params.get("state"), req.headers.get("cookie"), now)))
     return new Response("This install link expired or wasn't started here. Start again from the Add to Slack link.", { status: 400 });
-  const { data: ok } = await db.rpc("hit_rate", { p_key: "oauth:slack", p_max: 30, p_window: "1 hour" });
-  if (!ok) return new Response("Too many installs. Try again later.", { status: 429 });
+  // The state is reusable for its 10 minutes, so each address gets a small budget before any call to Slack.
+  const ip = (req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown").trim().slice(0, 64);
+  const { data: mine } = await db.rpc("hit_rate", { p_key: `oauth:slack:${ip}`, p_max: 10, p_window: "1 hour" });
+  if (!mine) return new Response("Too many installs. Try again later.", { status: 429 });
   const r = await f("https://slack.com/api/oauth.v2.access", {
     method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ code, client_id: env.SLACK_CLIENT_ID ?? "", client_secret: env.SLACK_CLIENT_SECRET ?? "" }),
   });
   const out = await r.json();
   if (!out.ok || !out.team?.id || !out.access_token) return new Response("Slack didn't accept the install. Try again.", { status: 400 });
+  // Counted only once Slack accepted the code, so callers that fail Slack's check can't use up the installs budget.
+  const { data: ok } = await db.rpc("hit_rate", { p_key: "oauth:slack", p_max: 30, p_window: "1 hour" });
+  if (!ok) return new Response("Too many installs. Try again later.", { status: 429 });
   await db.from("slack_installs").upsert({ team_id: out.team.id, bot_token: out.access_token, installed_at: new Date().toISOString() });
   return new Response("Momentum is installed in your Slack workspace. Run /momentum help to start.", { headers: { "content-type": "text/plain; charset=utf-8" } });
 }
@@ -183,7 +188,10 @@ async function sendTask(req: Request, db: SupabaseClient): Promise<Response> {
   const body = await req.json().catch(() => null);
   if (typeof body?.to !== "string" || typeof body?.task?.title !== "string") return json({ error: "send {to, task: {title, …}}" }, 400, CORS);
   const { data, error } = await db.rpc("send_task", { p_sender: who.user.id, p_recipient: body.to, p_payload: body.task });
-  if (error) return json({ error: error.message }, error.message.includes("not_friends") ? 403 : 400, CORS);
+  if (error) {
+    console.error("send_task failed", error.message);
+    return json({ error: "Couldn't send that task." }, error.message.includes("not_friends") ? 403 : 400, CORS);
+  }
   return json({ id: data }, 200, CORS);
 }
 
@@ -201,14 +209,26 @@ async function digest(req: Request, env: Env, db: SupabaseClient, f: typeof fetc
       sent++;
     } catch (e) {
       console.error("digest failed", d.id, e);
+      // A chat that can never receive it (blocked bot, closed DMs, uninstalled Slack) skips today instead of being retried every tick;
+      // it tries again tomorrow, so a user who unblocks the bot gets their digest back. Transient errors stay due.
+      if (e instanceof Permanent) await db.from("chat_links").update({ digest_sent: d.today }).eq("id", d.id);
     }
   }
   return json({ sent });
 }
 
+/** A delivery that will never work for this chat, as opposed to one worth retrying. */
+class Permanent extends Error {}
+const SLACK_GONE: ReadonlySet<string> = new Set(["account_inactive", "token_revoked", "invalid_auth", "channel_not_found", "user_not_found", "is_archived", "not_in_channel"]);
+
 /** A message to a linked chat outside a reply: a Discord DM, a Slack DM, or the Telegram chat. */
 async function deliver(env: Env, db: SupabaseClient, f: typeof fetch, source: Link["source"], reply: Record<string, string>, text: string) {
-  const ok = async (r: Response) => { if (!r.ok) throw new Error(`${source} ${r.status}`); return r; };
+  const ok = async (r: Response) => {
+    if (r.ok) return r;
+    // Telegram: 403 blocked, 400 chat not found. Discord: 403 can't DM this user (50007), 404 unknown user. 429 and 5xx are transient.
+    const gone = r.status === 403 || r.status === 404 || (source === "telegram" && r.status === 400);
+    throw gone ? new Permanent(`${source} ${r.status}`) : new Error(`${source} ${r.status}`);
+  };
   if (source === "telegram") {
     await ok(await f(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: reply.chat_id, text: clip(text, 4000) }),
@@ -219,12 +239,12 @@ async function deliver(env: Env, db: SupabaseClient, f: typeof fetch, source: Li
     await ok(await f(`https://discord.com/api/v10/channels/${dm.id}/messages`, { method: "POST", headers: auth, body: JSON.stringify({ content: clip(text, 1900) }) }));
   } else {
     const { data: install } = await db.from("slack_installs").select("bot_token").eq("team_id", reply.team_id).maybeSingle();
-    if (!install) throw new Error("slack workspace not installed");
+    if (!install) throw new Permanent("slack workspace not installed");
     const r = await (await ok(await f("https://slack.com/api/chat.postMessage", {
       method: "POST", headers: { authorization: `Bearer ${install.bot_token}`, "content-type": "application/json" },
       body: JSON.stringify({ channel: reply.user_id, text }),
     }))).json();
-    if (!r.ok) throw new Error(`slack ${r.error}`);
+    if (!r.ok) throw SLACK_GONE.has(r.error) ? new Permanent(`slack ${r.error}`) : new Error(`slack ${r.error}`);
   }
 }
 

@@ -51,6 +51,7 @@ export function ReminderWindow() {
     const a = readAppearance();
     if (a) apply(a);
     let off: (() => void) | undefined;
+    let disposed = false;
     void (async () => {
       const { listen } = await import("@tauri-apps/api/event");
       off = await listen<ReminderShow>("reminder:show", (e) => {
@@ -60,8 +61,12 @@ export function ReminderWindow() {
         corner.current = e.payload.corner;
         change((xs) => (xs.some((x) => x.key === dto.key) ? xs : [...xs, dto]));
       });
+      if (disposed) off();
     })();
-    return () => off?.();
+    return () => {
+      disposed = true;
+      off?.();
+    };
   }, []);
 
   useLayoutEffect(() => {

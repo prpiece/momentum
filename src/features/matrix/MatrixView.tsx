@@ -7,7 +7,7 @@ import { ColorPanel } from "../../components/ui/ColorField";
 import { accentForeground, accentHex, ACCENTS, isHex, ON_LIGHT, parseQuadrantColor, quadrantHex, type QuadrantColor } from "../../domain/color";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
 import { inMatrix, patchForQuadrant, QUADRANT_INFO, QUADRANT_VAR, QUADRANTS, quadrantOf, type Quadrant } from "../../domain/matrix";
-import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
+import { dayOf, isOverdue, sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import { PRIORITIES, PRIORITY_LABEL, type Priority, type QuadrantColors } from "../../domain/types";
 import { justDragged, onDrop, rowKeys } from "../../lib/dnd";
 import { withUndo } from "../../stores/undo";
@@ -141,7 +141,7 @@ function MatrixItem({ vm }: { vm: TaskVM }) {
           {kids.filter((k) => k.task.status !== "open").length}/{kids.length}
         </span>
       )}
-      {vm.date && <span className={`shrink-0 tabular-nums ${vm.date < today ? "text-danger" : "text-fg-2"}`}>{relativeDayLabel(vm.date, today)}</span>}
+      {dayOf(vm) && <span className={`shrink-0 tabular-nums ${isOverdue(vm, today) ? "text-danger" : "text-fg-2"}`}>{relativeDayLabel(dayOf(vm)!, today)}</span>}
       {list && list.id !== "inbox" && <span className="max-w-24 shrink-0 truncate text-muted">{list.name}</span>}
     </li>
   );

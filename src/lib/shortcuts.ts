@@ -25,7 +25,7 @@ export function useViewKeys(fn: KeyHandler) {
   }, [fn]);
 }
 
-const typing = (e: KeyboardEvent) => {
+export const typing = (e: KeyboardEvent) => {
   const t = e.target;
   return t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || (t instanceof HTMLElement && t.isContentEditable);
 };

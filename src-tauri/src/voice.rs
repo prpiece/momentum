@@ -44,6 +44,8 @@ pub struct Voice {
     cancel: AtomicBool,
     recognizer: Mutex<Option<Arc<OfflineRecognizer>>>,
     recording: Mutex<Option<Recording>>,
+    /// A `voice_start` is opening the microphone (it awaits, so `recording` can't be held): the claim that keeps a second start out.
+    starting: AtomicBool,
 }
 
 struct Recording {
@@ -189,13 +191,33 @@ pub fn voice_cancel_download(v: State<Voice>) {
 
 #[tauri::command]
 pub fn voice_remove(app: AppHandle, v: State<Voice>) -> Result<(), String> {
+    // The status lock is held until the folder is gone, so a download can't start (it takes this lock first) half-way through.
+    let mut status = v.status.lock().unwrap();
+    let mic_busy = v.starting.load(Ordering::Relaxed) || v.recording.lock().unwrap().is_some();
+    if let Some(why) = remove_blocker(&status, mic_busy) {
+        return Err(why.into());
+    }
     v.recognizer.lock().unwrap().take();
     let dir = voice_dir(&app)?;
     if dir.exists() {
         fs::remove_dir_all(&dir).map_err(|e| format!("Couldn't remove the voice model: {e}"))?;
     }
-    set_status(&app, &v, ModelStatus::Missing);
+    *status = Some(ModelStatus::Missing);
+    drop(status);
+    let _ = app.emit("voice:model", ModelStatus::Missing);
     Ok(())
+}
+
+/// Why the model can't be removed right now: a download is running (its `.part` file and the final install need the
+/// folder) or the microphone is open with the model.
+fn remove_blocker(status: &Option<ModelStatus>, mic_busy: bool) -> Option<&'static str> {
+    if matches!(status, Some(ModelStatus::Downloading { .. } | ModelStatus::Verifying)) {
+        Some("The model is downloading. Cancel the download first.")
+    } else if mic_busy {
+        Some("Voice is recording. Stop it first.")
+    } else {
+        None
+    }
 }
 
 /// Frame RMS over 20 ms windows.
@@ -355,6 +377,16 @@ fn record(app: AppHandle, mic: Option<String>, stop: mpsc::Receiver<()>, started
 #[tauri::command]
 pub async fn voice_start(app: AppHandle, mic: Option<String>) -> Result<Option<String>, String> {
     let v = app.state::<Voice>();
+    if v.starting.swap(true, Ordering::AcqRel) {
+        return Ok(None); // another start is already opening the microphone
+    }
+    let result = start_recording(&app, mic).await;
+    v.starting.store(false, Ordering::Release);
+    result
+}
+
+async fn start_recording(app: &AppHandle, mic: Option<String>) -> Result<Option<String>, String> {
+    let v = app.state::<Voice>();
     if !is_ready(&voice_dir(&app)?) {
         return Err("The voice model isn't installed.".into());
     }
@@ -471,6 +503,15 @@ mod tests {
         let (archive, hash) = fake_archive(&d, &MODEL_FILES[..2]);
         assert!(install(&archive, &d, &hash, "top").is_err());
         assert!(!is_ready(&d) && !d.join("unpack").exists());
+    }
+
+    #[test]
+    fn remove_is_refused_while_downloading_or_recording() {
+        let busy = Some(ModelStatus::Downloading { received: 1, total: 2 });
+        assert!(remove_blocker(&busy, false).is_some() && remove_blocker(&Some(ModelStatus::Verifying), false).is_some());
+        assert!(remove_blocker(&Some(ModelStatus::Ready), true).is_some());
+        assert!(remove_blocker(&Some(ModelStatus::Ready), false).is_none() && remove_blocker(&None, false).is_none());
+        assert!(remove_blocker(&Some(ModelStatus::Error { message: "x".into() }), false).is_none());
     }
 
     #[test]

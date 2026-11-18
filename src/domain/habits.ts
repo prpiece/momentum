@@ -1,5 +1,6 @@
 import { startOfWeek } from "date-fns";
 import { addDaysLocal, daysBetween, fromLocalDate, toLocalDate } from "./dates";
+import { moveNear } from "./order";
 import type { Instant, LocalDate, WeekStart } from "./types";
 
 export type HabitFrequency =
@@ -260,3 +261,21 @@ export function frequencyLabel(f: HabitFrequency): string {
 
 /** Days between two dates inclusive (helper for review ranges). */
 export const spanDays = (a: LocalDate, b: LocalDate) => daysBetween(a, b) + 1;
+
+/** The group a habit shows under: a dangling group id counts as ungrouped, as the list renders it. */
+export const homeGroup = (groupIds: ReadonlySet<string>) => (h: Habit): string | null => (h.groupId && groupIds.has(h.groupId) ? h.groupId : null);
+
+/**
+ * Dropping habit `dragId` on `targetId`: it joins the target's group (a dangling group id counts as
+ * ungrouped, as the list renders it) and lands where `moveNear` puts it among that group's active habits.
+ * `changes` holds only the sortOrders to write; null when there is nothing to do.
+ */
+export function dropHabitOn(habits: readonly Habit[], groupIds: ReadonlySet<string>, dragId: string, targetId: string): { groupId: string | null; changes: { id: string; sortOrder: number }[] } | null {
+  const home = homeGroup(groupIds);
+  const drag = habits.find((h) => h.id === dragId);
+  const target = habits.find((h) => h.id === targetId);
+  if (!drag || !target || drag === target || drag.archived || target.archived) return null;
+  const groupId = home(target);
+  const changes = moveNear(habits.filter((h) => !h.archived && home(h) === groupId), dragId, targetId);
+  return { groupId, changes };
+}

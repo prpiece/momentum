@@ -49,7 +49,20 @@ function Row({ id }: { id: string }) {
       </div>
       {open && (
         <div className="space-y-2 pl-8">
-          <input className="input w-full" aria-label="Name" maxLength={80} defaultValue={sub.name} onBlur={(e) => void updateSubscription(id, { name: e.target.value })} />
+          <input className="input w-full" aria-label="Name" maxLength={80} defaultValue={sub.name}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (!v || v === sub.name) e.target.value = sub.name;
+              else void updateSubscription(id, { name: v });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                e.currentTarget.value = sub.name;
+                e.currentTarget.blur();
+              }
+            }}
+          />
           <ColorField value={color} onChange={(hex) => void updateSubscription(id, { color: hex })} />
         </div>
       )}

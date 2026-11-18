@@ -260,6 +260,8 @@ function DayColumn(props: {
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => {
+      // Jitter under the drag threshold (the dnd sensors' 5px, lib/dnd.tsx) is still a click: the 60 minute default.
+      if (!moved && Math.abs(ev.clientY - e.clientY) < 5) return;
       const m = minuteAt(props.day, ev.clientY);
       if (m === null) return;
       moved = true;

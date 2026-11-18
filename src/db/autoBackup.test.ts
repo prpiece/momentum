@@ -1,5 +1,20 @@
-import { describe, expect, it } from "vitest";
-import { autoBackupDue } from "./backup";
+import { describe, expect, it, vi } from "vitest";
+import { autoBackupDue, autoBackupSettings, saveAutoBackupSettings } from "./backup";
+
+describe("cloud copies are never plaintext", () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("localStorage", { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) });
+  it("normaliser drops cloud without encrypt (old rows, removed passphrase)", () => {
+    store.set("momentum.autoBackup", JSON.stringify({ on: true, cloud: true, encrypt: false }));
+    expect(autoBackupSettings().cloud).toBe(false);
+    store.set("momentum.autoBackup", JSON.stringify({ on: true, cloud: true, encrypt: true }));
+    expect(autoBackupSettings().cloud).toBe(true);
+  });
+  it("save refuses cloud without encrypt", () => {
+    saveAutoBackupSettings({ ...autoBackupSettings(), encrypt: false, cloud: true });
+    expect(JSON.parse(store.get("momentum.autoBackup")!).cloud).toBe(false);
+  });
+});
 
 describe("autoBackupDue", () => {
   const now = Date.parse("2026-11-16T12:00:00Z");

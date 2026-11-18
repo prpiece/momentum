@@ -9,10 +9,10 @@ import { calendarItems } from "../domain/calendar";
 import { elapsedMs } from "../domain/focus";
 import { matchesFilter, nameKey, parseFilter } from "../domain/filter";
 import { currentStreak, goalLabel, isBuild, isDone, isDueToday, isWeeklyTotal, periodValue, targetOf } from "../domain/habits";
-import { effective } from "../domain/recurrence";
+import { effective, nextOccurrence } from "../domain/recurrence";
 import { derive, inSmartList, matchScore, sortVMs, type TaskVM } from "../domain/taskViews";
 import { INBOX_ID, MAX_SUBTASK_DEPTH, SMART_LISTS, type LocalDate, type SmartListId, type Task, type WeekStart } from "../domain/types";
-import { deleteOccurrence, deleteTasks, depthOf, editOccurrence, ensureTags, restoreTasks, setParent, setStatus, uid, updateTask, useData } from "../stores/data";
+import { deleteOccurrence, deleteTasks, depthOf, editOccurrence, ensureTags, mayEdit, restoreTasks, setParent, setStatus, uid, updateTask, useData } from "../stores/data";
 import type { Habit } from "../domain/habits";
 import { useFocus } from "../stores/focus";
 import { setCheckin, useHabits, valuesOf } from "../stores/habits";
@@ -100,7 +100,7 @@ function add(r: Extract<AgentRequest, { op: "add" }>) {
   }
   const notes: string[] = [];
   const t = createFromText(r.text, defaults, true, () => false, "typed", (name, to) => notes.push(`No list named “${name}”; added to ${to}.`));
-  if (!t) throw new AgentError("Nothing to add.");
+  if (!t) throw new AgentError(r.text.trim() ? "This list is shared with you as view-only." : "Nothing to add.");
   // Read it back with a fresh view: a tag created by this add isn't in the one from before it.
   if (r.fields) {
     const made = view().d.byId.get(t.id);
@@ -146,6 +146,8 @@ function patchOf(vm: TaskVM, p: TaskPatch): Partial<Task> {
   if (p.repeat) {
     if (kind !== "day" && kind !== "timed") throw new AgentError("A repeating task needs a planned day: give date (and time) too.");
     patch.recurrence = { rule: p.repeat, exdates: [], tz: null };
+    // An already-spent rule would make the task vanish from every view, so refuse it before anything changes.
+    if (!nextOccurrence({ schedule: patch.schedule ?? current, recurrence: patch.recurrence })) throw new AgentError("That repeat rule has no occurrence from the task's start (its UNTIL or COUNT is already used up).");
   } else if (p.repeat === null) patch.recurrence = null;
   if (p.reminders !== undefined) {
     // A reminder must fit the task: minutes before a time block, or a time on some day before a day task.
@@ -307,6 +309,7 @@ function checkin(r: Extract<AgentRequest, { op: "checkin" }>) {
 function events(r: Extract<AgentRequest, { op: "events" }>) {
   const from = r.from ?? today();
   const to = r.to ?? addDaysLocal(from, 6);
+  if (to < from) throw new AgentError("to is before from."); // the parser only sees this when both are given
   if (daysBetween(from, to) > 366) throw new AgentError("Ask for at most a year of events at a time.");
   const items = calendarItems({ tasks: [], events: Object.values(useData.getState().events), colorOf: () => "", showCompleted: false }, from, to)
     .filter((i) => i.source === "event")
@@ -331,10 +334,24 @@ useData.subscribe(() => void revision++);
 useHabits.subscribe(() => void revision++);
 export const agentRevision = () => revision;
 
+/** The lists a write would change: where the task is now and where it is going (a list name, or a parent's list). Reads touch none. */
+function targetLists(r: AgentRequest): string[] {
+  const named = (n: string | null | undefined) => (n ? [listByName(n)?.id ?? ""] : []); // an unknown name fails later with its own message
+  switch (r.op) {
+    case "add": return r.parentId ? [find(r.parentId).task.listId] : r.list ? named(r.list) : [INBOX_ID];
+    case "update": return [find(r.id).task.listId, ...named(r.patch.list), ...(r.patch.parentId ? [find(r.patch.parentId).task.listId] : [])];
+    case "delete": case "complete": case "reopen": return [find(r.id).task.listId];
+    case "restore": return trashed().filter((t) => t.id === r.id || (r.id.length >= 4 && t.id.startsWith(r.id))).map((t) => t.listId);
+    default: return [];
+  }
+}
+
 /** Runs one request. Throws `AgentError` for anything the caller got wrong. */
 export function runAgentRequest(op: unknown, args: unknown): unknown {
   if (!useData.getState().ready) throw new AgentError("Momentum is still loading; try again in a moment.");
   const r = parseRequest(op, args);
+  // The store silently drops writes to view-only lists, so refuse them here instead of reporting a success that changed nothing.
+  if (targetLists(r).some((id) => id && !mayEdit(id))) throw new AgentError("This list is shared with you as view-only.");
   switch (r.op) {
     case "list": return list(r.view, r.limit, r.includeArchived);
     case "search": return search(r.text, r.limit, r.status, r.includeArchived);
@@ -355,26 +372,39 @@ export function runAgentRequest(op: unknown, args: unknown): unknown {
   }
 }
 
-type Request = { id: string; op: unknown; args: unknown };
+type Request = { id: string; op: unknown; args: unknown; nonce?: unknown };
 let unlisten: (() => void) | null = null;
+
+/**
+ * The reply (JSON) to one `agent:request`, or null to ignore it. Popups can emit events too, so a request only counts
+ * if it carries the nonce Rust gave this window in `agent_ready`: only the Rust server knows it (D33).
+ */
+export function answerAgentRequest(p: Request, nonce: string | null): string | null {
+  if (!nonce || p.nonce !== nonce) return null;
+  let reply: { ok: true; data: unknown; revision: number } | { ok: false; error: string };
+  try {
+    reply = { ok: true, data: runAgentRequest(p.op, p.args), revision };
+  } catch (err) {
+    if (!(err instanceof AgentError)) console.error("Agent request failed", err);
+    reply = { ok: false, error: err instanceof AgentError ? err.message : "Something went wrong inside Momentum." };
+  }
+  return JSON.stringify(reply);
+}
 
 /** Starts answering agent requests (desktop main window only). */
 export async function initAgentApi() {
   const [{ listen }, { invoke }] = await Promise.all([import("@tauri-apps/api/event"), import("@tauri-apps/api/core")]);
   unlisten?.(); // a second init (dev hot reload) must not answer every request twice
+  let nonce: string | null = null;
   unlisten = await listen<Request>("agent:request", (e) => {
-    let reply: { ok: true; data: unknown; revision: number } | { ok: false; error: string };
-    try {
-      reply = { ok: true, data: runAgentRequest(e.payload.op, e.payload.args), revision };
-    } catch (err) {
-      if (!(err instanceof AgentError)) console.error("Agent request failed", err);
-      reply = { ok: false, error: err instanceof AgentError ? err.message : "Something went wrong inside Momentum." };
-    }
-    void invoke("agent_reply", { id: e.payload.id, result: JSON.stringify(reply) });
+    const result = answerAgentRequest(e.payload, nonce);
+    if (result !== null) void invoke("agent_reply", { id: e.payload.id, result });
   });
   // Until now requests are answered "starting" instead of waiting for a listener that isn't there.
   // The server's own start-up failure (it can't say so before the window exists) shows once here (AGENT-07).
-  const failed = await invoke<string | null>("agent_ready");
+  const ready = await invoke<{ failed: string | null; nonce: string } | null>("agent_ready");
+  nonce = ready?.nonce ?? null;
+  const failed = ready?.failed;
   if (failed) toast(`The AI agent API couldn't start, so the momentum command won't reach this app: ${failed}`);
 }
 

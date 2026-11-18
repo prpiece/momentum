@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { MenuItem, Popover, useMenu } from "../../components/ui/Popover";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { relativeDayLabel, todayLocal } from "../../domain/dates";
-import { sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
+import { dayOf, isOverdue, sortVMs, topLevelIn, type TaskVM } from "../../domain/taskViews";
 import type { Section, TaskList } from "../../domain/types";
 import { onDrop, rowKeys } from "../../lib/dnd";
 import { confirmShareMove } from "../friends/moveGuard";
@@ -143,7 +143,10 @@ function Column({ list, section, items, index, count }: { list: TaskList; sectio
               if (e.target.value.trim()) updateSection(section.id, { name: e.target.value.trim() });
               setRenaming(false);
             }}
-            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") setRenaming(false);
+            }}
           />
         ) : (
           <h3 className="min-w-0 truncate text-[length:var(--fs-sm)] font-semibold">{section?.name ?? "Unsectioned"}</h3>
@@ -216,9 +219,9 @@ function Card({ vm }: { vm: TaskVM }) {
         </span>
         <span className={`min-w-0 flex-1 ${t.status !== "open" ? "font-normal text-muted line-through" : ""}`}>{t.title}</span>
       </div>
-      {vm.date && (
+      {dayOf(vm) && (
         <div className="flex items-center gap-2.5 pl-7 text-[length:var(--fs-sm)] text-muted">
-          <span className={`ml-auto tabular-nums ${t.status === "open" && vm.date < today ? "text-danger" : "text-fg-2"}`}>{relativeDayLabel(vm.date, today)}</span>
+          <span className={`ml-auto tabular-nums ${isOverdue(vm, today) ? "text-danger" : "text-fg-2"}`}>{relativeDayLabel(dayOf(vm)!, today)}</span>
         </div>
       )}
     </div>

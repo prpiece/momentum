@@ -16,6 +16,7 @@ export function PopWindow() {
     const a = readAppearance();
     if (a) apply(a);
     let off: (() => void)[] = [];
+    let disposed = false;
     void (async () => {
       const { listen, emit } = await import("@tauri-apps/api/event");
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -27,9 +28,14 @@ export function PopWindow() {
         }),
         await getCurrentWindow().onFocusChanged(({ payload }) => payload && hello()),
       ];
+      // Unmounted while registering (StrictMode's double mount): drop these listeners and skip the hello.
+      if (disposed) return off.forEach((f) => f());
       hello();
     })();
-    return () => off.forEach((f) => f());
+    return () => {
+      disposed = true;
+      off.forEach((f) => f());
+    };
   }, []);
   // FEAT-28: pinned on top, the window works as a desktop widget.
   const pin = async () => {

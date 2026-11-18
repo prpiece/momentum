@@ -51,7 +51,8 @@ export async function loadWorkspace(purge = true): Promise<Workspace> {
 
 export const saveTasks = (tasks: Task[]) => write(...tasks.map((t) => upsert("tasks", taskToRow(t))));
 export const purgeTasks = (ids: string[]) => write(...ids.map((id): [string, unknown[]] => ["DELETE FROM tasks WHERE id = $1", [id]]));
-export const saveEvents = (events: CalendarEvent[]) => write(...events.map((e) => upsert("calendar_events", eventToRow(e))));
+/** Series before their moved instances (recurrence_parent_id is a foreign key), whatever order the caller has them in. */
+export const saveEvents = (events: CalendarEvent[]) => write(...[...events].sort((a, b) => Number(!!a.recurrenceParentId) - Number(!!b.recurrenceParentId)).map((e) => upsert("calendar_events", eventToRow(e))));
 /** Calendar subscriptions (v1.3). `purge` clears removed ones first, as `loadWorkspace` does for events. */
 export async function loadSubscriptions(purge = true): Promise<CalendarSubscription[]> {
   if (purge) await write(["DELETE FROM calendar_subscriptions WHERE deleted_at IS NOT NULL"]);

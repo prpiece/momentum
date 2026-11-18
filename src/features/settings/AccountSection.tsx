@@ -230,7 +230,7 @@ function SignedIn({ account }: { account: string }) {
           <ul className="space-y-1 text-[length:var(--fs-sm)] text-fg-2">
             {issues.slice(0, 10).map((i, n) => (
               <li key={n}>
-                {new Date(i.at).toLocaleString()}: a change to {i.tbl.replace(/_/g, " ")} wasn't synced ({i.reason}).
+                {new Date(i.at).toLocaleString()}: a change to {i.tbl.replace(/_/g, " ")} wasn't synced ({i.reason === "quota_exceeded" ? "this account is over its storage limit for synced data; delete some items to make room" : i.reason}).
               </li>
             ))}
           </ul>

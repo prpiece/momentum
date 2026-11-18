@@ -69,8 +69,10 @@ function build(t: Recurring, anchor: Date): RRule {
   return ruleFrom(t.recurrence?.rule ?? "", floatAnchor(t, anchor));
 }
 
-function serialize(opts: Partial<Options>): string {
-  return RRule.optionsToString({ ...opts, dtstart: null, tzid: null }).replace(/^RRULE:/, "");
+function serialize(opts: Partial<Options>, zoned?: { tz: string; start: Date }): string {
+  const rule = RRule.optionsToString({ ...opts, dtstart: null, tzid: null }).replace(/^RRULE:/, "");
+  if (!zoned) return rule;
+  return `DTSTART;TZID=${zoned.tz}:${zoned.start.toISOString().replace(/[-:]|\.\d+|Z/g, "")}\nRRULE:${rule}`;
 }
 
 /** `YYYY-MM-DD` for day schedules, `YYYY-MM-DDTHH:mm` for timed ones. */
@@ -100,14 +102,15 @@ function occurrence(base: Schedule, floating: Date): Occurrence {
  * so a UTC or London series keeps its real times when the viewer's DST differs. Keys stay the
  * viewer's wall clock either way.
  */
-function expansion(t: Recurring): { rrule: RRule; toF: (d: Date) => Date; key: (f: Date) => string; occ: (f: Date) => Occurrence } | null {
+function expansion(t: Recurring): { tz: string | null; rrule: RRule; toF: (d: Date) => Date; key: (f: Date) => string; occ: (f: Date) => Occurrence } | null {
   const anchor = anchorOf(t.schedule);
   if (!anchor || !t.recurrence) return null;
   const { rule } = t.recurrence;
   const tz = t.schedule.kind === "timed" ? RRule.parseString(rule).tzid : null;
-  if (!tz || !isZone(tz)) return { rrule: build(t, anchor), toF: toFloating, key: (f) => keyOf(t.schedule.kind, f), occ: (f) => occurrence(t.schedule, f) };
+  if (!tz || !isZone(tz)) return { tz: null, rrule: build(t, anchor), toF: toFloating, key: (f) => keyOf(t.schedule.kind, f), occ: (f) => occurrence(t.schedule, f) };
   const dur = durationMinutes(t.schedule) ?? 0;
   return {
+    tz,
     rrule: ruleFrom(rule, wallIn(anchor, tz)),
     toF: (d) => wallIn(d, tz),
     key: (f) => wallKey(fromWall(f, tz)),
@@ -182,10 +185,15 @@ export function splitSeries<T extends Series>(series: T, key: string, newId: str
   const rec = series.recurrence;
   const anchor = anchorOf(series.schedule);
   if (!rec || !anchor) return { head: null, tail: series };
-  const opts = clamped(parse(rec.rule), floatAnchor(series, anchor));
-  const cut = floatingOfKey(key);
+  const x = expansion(series);
+  if (!x) return { head: null, tail: series };
+  const opts = clamped(parse(rec.rule), x.rrule.options.dtstart);
+  const tailSchedule = scheduleForKey(series.schedule, key);
+  // A zoned series cuts at the wall clock in its own zone (as expansion() reads it) and keeps its TZID (D347).
+  const cut = x.tz && tailSchedule.kind === "timed" ? x.toF(new Date(tailSchedule.start)) : floatingOfKey(key);
+  const zoned = (start: Date) => (x.tz ? { tz: x.tz, start } : undefined);
   let before = 0;
-  build(series, anchor).all((f, i) => {
+  x.rrule.all((f, i) => {
     if (i > MAX_SCAN || f >= cut) return false;
     before++;
     return true;
@@ -194,9 +202,9 @@ export function splitSeries<T extends Series>(series: T, key: string, newId: str
   const tail: T = {
     ...series,
     id: newId,
-    schedule: scheduleForKey(series.schedule, key),
+    schedule: tailSchedule,
     recurrence: {
-      rule: serialize(opts.count ? { ...opts, count: opts.count - before } : opts),
+      rule: serialize(opts.count ? { ...opts, count: opts.count - before } : opts, zoned(cut)),
       exdates: rec.exdates.filter((k) => k >= key),
     },
     createdAt: now,
@@ -207,7 +215,7 @@ export function splitSeries<T extends Series>(series: T, key: string, newId: str
   const headOpts = opts.count ? { ...opts, count: before } : { ...opts, until: new Date(cut.getTime() - 60_000) };
   const head: T = {
     ...series,
-    recurrence: { rule: serialize(headOpts), exdates: rec.exdates.filter((k) => k < key) },
+    recurrence: { rule: serialize(headOpts, zoned(x.rrule.options.dtstart)), exdates: rec.exdates.filter((k) => k < key) },
     updatedAt: now,
   };
   return { head, tail };
@@ -292,11 +300,15 @@ export function shiftSeries<T extends Recurring>(t: T, key: string, to: Schedule
     return time ? `${d}T${time}` : d;
   };
   const toWd = weekdayOf(toDate);
+  const schedule = at(byday ? a : addDaysLocal(a, days));
+  // A rewritten BYDAY rule keeps its `DTSTART;TZID=` line (the series start in its own zone).
+  const tz = rec && schedule.kind === "timed" ? RRule.parseString(rec.rule).tzid : null;
+  const zoned = tz && isZone(tz) && schedule.kind === "timed" ? { tz, start: wallIn(new Date(schedule.start), tz) } : undefined;
   const rule = byday
-    ? serialize({ ...opts, byweekday: [...new Map(byday.map((w) => (w.weekday === fromWd ? new Weekday(toWd, w.n) : w)).map((w) => [`${w.weekday}:${w.n ?? ""}`, w])).values()] })
+    ? serialize({ ...opts, byweekday: [...new Map(byday.map((w) => (w.weekday === fromWd ? new Weekday(toWd, w.n) : w)).map((w) => [`${w.weekday}:${w.n ?? ""}`, w])).values()] }, zoned)
     : rec?.rule;
   return {
-    schedule: at(byday ? a : addDaysLocal(a, days)),
+    schedule,
     recurrence: rec && { ...rec, rule: rule ?? rec.rule, exdates: rec.exdates.map(remap) },
   };
 }

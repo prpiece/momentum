@@ -75,6 +75,30 @@ describe("SYNC-11: per-field last writer wins", () => {
   });
 });
 
+describe("SYNC-11: a viewer's dropped activity leaves no stamp", () => {
+  it("a viewer's patch with a future ts plants nothing, so the editor's edit with a current ts wins", async () => {
+    const [o, v] = await Promise.all([user(), user()]);
+    await rpc(v.db, "redeem_invite", { p_code: await rpc<string>(o.db, "create_friend_invite") });
+    const l = uid(), t = uid(), act = uid();
+    const fields = { id: act, task_id: t, at: ago(0), kind: "edited", detail: "orig", deleted_at: null };
+    await push(o.db, randomUUID(), [{ seq: 1, ...list(l) }, { seq: 2, ...task(t, l) }, { seq: 3, tbl: "task_activity", id: act, fields, ts: ago(30) }]);
+    const share = await rpc<string>(o.db, "create_share", { p_kind: "list", p_container: l });
+    await rpc(o.db, "invite_to_share", { p_share: share, p_friend: v.id, p_role: "viewer" });
+    await rpc(v.db, "respond_share", { p_share: share, p_accept: true });
+    const stamps = async () => (await admin().from("sync_rows").select("field_ts").eq("owner_id", o.id).eq("tbl", "task_activity").eq("id", act).single()).data?.field_ts;
+    const before = await stamps();
+
+    // The viewer's patch is dropped, with a stamp five minutes ahead.
+    await push(v.db, randomUUID(), [{ seq: 1, tbl: "task_activity", id: act, fields: { detail: "pwned" }, ts: new Date(Date.now() + 5 * 60_000).toISOString() }]);
+    expect(await stamps()).toEqual(before);
+    expect(await row(o.db, "task_activity", act)).toMatchObject({ detail: "orig" });
+
+    // The editor's genuine edit, stamped now, is not shadowed.
+    await push(o.db, randomUUID(), [{ seq: 1, tbl: "task_activity", id: act, fields: { detail: "edited" }, ts: ago(0) }]);
+    expect(await row(o.db, "task_activity", act)).toMatchObject({ detail: "edited" });
+  });
+});
+
 describe("SYNC-15: wake-ups", () => {
   it("a push pings the account with the pushing device; a server-side ping names none", async () => {
     const u = await user();
@@ -93,5 +117,20 @@ describe("SOC-13: profiles", () => {
     expect(await rpc(s.db, "request_friend", { p_handle: a.handle })).not.toBe("no_such_account");
     expect((await s.db.from("profiles").select("time_zone").eq("id", a.id)).data).toEqual([]);
     expect((await a.db.from("profiles").select("time_zone").eq("id", a.id)).data).toEqual([{ time_zone: "Australia/Sydney" }]);
+  });
+});
+
+describe("server_write stamps its fields (20261118110000)", () => {
+  it("an earlier offline edit loses to a chat-bot edit, a later one wins", async () => {
+    const u = await user();
+    const dev = randomUUID();
+    const l = uid(), t = uid();
+    await push(u.db, dev, [{ seq: 1, ...list(l), ts: ago(120) }, { seq: 2, ...task(t, l), ts: ago(120) }]);
+    const w = await admin().rpc("server_write", { p_account: u.id, p_tbl: "tasks", p_id: t, p_fields: { title: "bot" } });
+    expect(w.error).toBeNull();
+    await push(u.db, dev, [{ seq: 3, tbl: "tasks", id: t, fields: { title: "old" }, ts: ago(60) }]);
+    expect((await row(u.db, "tasks", t))?.title).toBe("bot");
+    await push(u.db, dev, [{ seq: 4, tbl: "tasks", id: t, fields: { title: "new" }, ts: new Date(Date.now() + 60_000).toISOString() }]);
+    expect((await row(u.db, "tasks", t))?.title).toBe("new");
   });
 });

@@ -1,5 +1,5 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Switch, View } from "react-native";
 import { hhmmOf } from "@core/domain/calendar";
 import { atLocalTime, durationMinutes, fromLocalDate, hhmm, scheduleDate, timed, toLocalDate } from "@core/domain/dates";
@@ -49,6 +49,35 @@ function EditEvent({ id, occurrence }: { id: string; occurrence: string | null }
   const e = useData((s) => s.events[id]);
   const [title, setTitle] = useState(e?.title ?? "");
   const [notes, setNotes] = useState(e?.notes ?? "");
+  // Same pattern as the task screen (MOB-03/MOB-04): `draft` holds unsaved edits, saved shortly after typing, on blur and on unmount;
+  // fields follow the store only when untouched and unfocused, so a stale blur can't overwrite a newer remote edit.
+  const draft = useRef<{ title?: string; notes?: string }>({});
+  const focused = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const flush = useRef(() => {});
+  flush.current = () => {
+    clearTimeout(timer.current);
+    const { title: nt, notes: nn } = draft.current;
+    draft.current = {};
+    if (!e || e.deletedAt || e.source === "ics") return;
+    if (nt !== undefined) {
+      if (nt.trim() && nt.trim() !== e.title) updateEvent(id, { title: nt.trim() });
+      else if (!nt.trim()) setTitle(e.title);
+    }
+    if (nn !== undefined && nn !== (e.notes ?? "")) updateEvent(id, { notes: nn });
+  };
+  const edited = (patch: { title?: string; notes?: string }) => {
+    draft.current = { ...draft.current, ...patch };
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => flush.current(), 800);
+  };
+  useEffect(() => () => flush.current(), []);
+  useEffect(() => {
+    if (draft.current.title === undefined && !focused.current) setTitle(e?.title ?? "");
+  }, [e?.title]);
+  useEffect(() => {
+    if (draft.current.notes === undefined && !focused.current) setNotes(e?.notes ?? "");
+  }, [e?.notes]);
   if (!e || e.deletedAt) return <Text style={{ color: c.muted, padding: 16 }}>This event was deleted.</Text>;
   const readOnly = e.source === "ics";
   const ref = { source: "event" as const, id, key: occurrence };
@@ -74,7 +103,7 @@ function EditEvent({ id, occurrence }: { id: string; occurrence: string | null }
 
   return (
     <KeyboardScroll contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
-      <Field value={title} editable={!readOnly} onChangeText={setTitle} onEndEditing={() => title.trim() && title !== e.title && updateEvent(id, { title: title.trim() })} style={{ fontSize: 20, fontWeight: "600" }} />
+      <Field value={title} editable={!readOnly} onChangeText={(v) => (setTitle(v), edited({ title: v }))} onFocus={() => (focused.current = true)} onBlur={() => (focused.current = false)} onEndEditing={() => flush.current()} style={{ fontSize: 20, fontWeight: "600" }} />
       {readOnly ? <Text style={{ color: c.muted, marginTop: 8 }}>Imported events are read-only.</Text> : null}
       <Label>When</Label>
       <Text style={{ color: c.fg, fontSize: 16, marginBottom: 8 }}>{summarizeSchedule(schedule, e.recurrence?.rule ?? null).replace(/\d\d:\d\d/, (t) => (schedule.kind === "timed" ? `${t} – ${hhmm(new Date(schedule.end))}` : t))}</Text>
@@ -104,7 +133,7 @@ function EditEvent({ id, occurrence }: { id: string; occurrence: string | null }
             />
           </View>
           <Label>Notes</Label>
-          <Field value={notes} onChangeText={setNotes} onEndEditing={() => notes !== e.notes && updateEvent(id, { notes })} multiline placeholder="Add notes" style={{ minHeight: 100, paddingTop: 12, textAlignVertical: "top" }} />
+          <Field value={notes} onChangeText={(v) => (setNotes(v), edited({ notes: v }))} onFocus={() => (focused.current = true)} onBlur={() => (focused.current = false)} onEndEditing={() => flush.current()} multiline placeholder="Add notes" style={{ minHeight: 100, paddingTop: 12, textAlignVertical: "top" }} />
           <View style={{ height: 24 }} />
           <Button label="Delete event" icon="trash-2" kind="danger" onPress={async () => (await deleteEvent(id, occurrence)) && router.back()} />
         </>

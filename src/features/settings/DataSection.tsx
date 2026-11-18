@@ -1,5 +1,5 @@
 import { CalendarPlus, Download, FileJson, FileSpreadsheet, ListPlus, Upload } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "../../components/Logo";
 import { isTauri } from "../../db/client";
 import { autoBackupSettings, backupNow, chooseBackupFolder, exportBackup, hasBackupPassphrase, importIcs, listCloudBackups, parseBackupText, pickFile, readBackup, readCloudBackup, restoreBackup, restorePassphrase, saveAutoBackupSettings, setBackupPassphrase, useDefaultBackupFolder } from "../../db/backup";
@@ -74,6 +74,10 @@ export function DataSection() {
   });
 
   const [pass, setPass] = useState("");
+  const [hasPass, setHasPass] = useState(false); // is a passphrase in the keychain (independent of the Encrypt toggle)
+  useEffect(() => {
+    if (isTauri) void hasBackupPassphrase().then(setHasPass, () => {});
+  }, []);
   const [cloudList, setCloudList] = useState<string[] | null>(null);
   const [cloudPick, setCloudPick] = useState("");
   const signedIn = useSync((s) => s.account) !== null;
@@ -88,7 +92,8 @@ export function DataSection() {
   });
   const savePassIt = run(async () => {
     await setBackupPassphrase(pass);
-    if (!pass) changeAuto({ ...autoBackupSettings(), encrypt: false });
+    setHasPass(!!pass);
+    if (!pass) changeAuto({ ...autoBackupSettings(), encrypt: false, cloud: false });
     setPass("");
     toast(pass ? "Passphrase saved in this computer's keychain. Keep a copy: without it an encrypted backup can't be opened." : "Passphrase removed. New backups won't be encrypted.");
   });
@@ -193,17 +198,18 @@ export function DataSection() {
           Encrypt backups
         </label>
         <input type="password" autoComplete="off" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Passphrase" className="input w-48" aria-label="Backup passphrase" />
-        <button type="button" disabled={!isTauri || busy || (!pass && !auto.encrypt)} onClick={savePassIt} className={btn}>
+        <button type="button" disabled={!isTauri || busy || (!pass && !hasPass)} onClick={savePassIt} className={btn}>
           {pass ? "Save passphrase" : "Remove passphrase"}
         </button>
         <span className="text-xs text-muted">Also used when you restore an encrypted backup. Attached images in a .zip aren&apos;t encrypted.</span>
       </div>
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <label className="flex items-center gap-2">
-          <input type="checkbox" disabled={!isTauri || !signedIn} checked={auto.cloud && signedIn} onChange={(e) => changeAuto({ ...auto, cloud: e.target.checked })} />
+          <input type="checkbox" disabled={!isTauri || !signedIn || !auto.encrypt} aria-describedby={!signedIn || !auto.encrypt ? "cloud-hint" : undefined} checked={auto.cloud && auto.encrypt && signedIn} onChange={(e) => changeAuto({ ...auto, cloud: e.target.checked })} />
           Also keep a copy in my account
         </label>
-        {!signedIn && <span className="text-xs text-muted">Sign in to turn this on.</span>}
+        {!signedIn && <span id="cloud-hint" className="text-xs text-muted">Sign in to turn this on.</span>}
+        {signedIn && !auto.encrypt && <span id="cloud-hint" className="text-xs text-muted">Turn on Encrypt backups first: cloud copies are always encrypted.</span>}
         {signedIn && !cloudList && (
           <button type="button" disabled={busy} onClick={cloudLoadIt} className={btn}>
             Restore from cloud
@@ -243,7 +249,7 @@ export const PRIVACY_PROMISE = [
   "A full export of everything, any time, in Settings → Data.",
   "Works without an account. Sync is optional.",
   "No AI built in. If you want one, connect your own agent (AI agents).",
-  "It goes online only to check for updates, to sync once you sign in, to fetch calendars you subscribe to, to download the voice model if you ask, and to send a problem report you write.",
+  "Works offline. It goes online only to check for updates, to download the voice model if you ask, to fetch calendars you subscribe to, to send a problem report you write, and, once you sign in, for sync, sharing, note images, cloud backups, connected calendars and chat connections you set up.",
 ];
 
 export function AboutSection() {
@@ -254,7 +260,7 @@ export function AboutSection() {
       <div>
         <div className="text-base font-semibold">Momentum</div>
         <div className="tabular-nums text-xs text-muted">Version {version}</div>
-        <div className="mt-1 text-xs text-fg-2">An offline planner for tasks, calendar, habits and focus. Your data stays on this device unless you sign in to sync it. MIT licensed.</div>
+        <div className="mt-1 text-xs text-fg-2">A local-first planner for tasks, calendar, habits and focus. It works offline, and your data stays on this device unless you sign in to use sync and the other online features. MIT licensed.</div>
         <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-fg-2" aria-label="Our privacy promise">
           {PRIVACY_PROMISE.map((p) => (
             <li key={p}>{p}</li>

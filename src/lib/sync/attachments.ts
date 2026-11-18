@@ -3,7 +3,7 @@
  * `attachments/notes/<file>`; the server lets every account that can see a referencing task read it.
  * A device missing an image downloads it. Shared with the phone: each app passes its own file access.
  */
-import { attachmentRefs, imageType, MAX_IMAGE_BYTES, toUpload, uploadOutcome } from "../../domain/attachments";
+import { attachmentRefs, imageType, isAttachmentName, MAX_IMAGE_BYTES, toUpload, uploadOutcome } from "../../domain/attachments";
 import { setLocalState, state, useSync } from "./engine";
 import { supabase } from "./supabase";
 
@@ -59,7 +59,7 @@ export async function uploadNoteImages(files: LocalImages, descriptions: Iterabl
 /** A note image from the server; null when signed out, offline, or no task this account sees references it. */
 export async function downloadNoteImage(name: string): Promise<Blob | null> {
   const account = useSync.getState().account;
-  if (!account || !imageType(name)) return null;
+  if (!account || !isAttachmentName(name) || !imageType(name)) return null;
   const { data, error } = await bucket().download(remote(name));
   if (error || !data || data.size > MAX_IMAGE_BYTES) return null;
   // Came from the server, so this device needn't upload it back.
@@ -71,7 +71,7 @@ export async function downloadNoteImage(name: string): Promise<Blob | null> {
 
 /** A one-hour URL for a note image, for the phone, which shows it without keeping a file. */
 export async function noteImageUrl(name: string): Promise<string | null> {
-  if (!useSync.getState().account || !imageType(name)) return null;
+  if (!useSync.getState().account || !isAttachmentName(name) || !imageType(name)) return null;
   const { data, error } = await bucket().createSignedUrl(remote(name), 3600);
   return error ? null : (data?.signedUrl ?? null);
 }

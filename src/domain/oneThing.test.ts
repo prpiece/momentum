@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atLocalTime, timed } from "./dates";
+import { atLocalTime, setDayEndHour, timed } from "./dates";
 import { DEFAULT_RULES } from "./matrix";
 import { pickOneThing } from "./oneThing";
 import { toVM, type TaskVM } from "./taskViews";
@@ -16,6 +16,15 @@ const vm = (p: Partial<Task>): TaskVM =>
   }) as TaskVM;
 
 describe("pickOneThing", () => {
+  it("a block just after midnight belongs to the running day under an end-of-day hour", () => {
+    const night = vm({ schedule: timed(atLocalTime("2026-10-26", "01:00"), 30) });
+    setDayEndHour(3);
+    try {
+      expect(pickOneThing([night], TODAY, DEFAULT_RULES, "normal")?.task.id).toBe(night.task.id);
+    } finally {
+      setDayEndHour(0);
+    }
+  });
   it("picks by quadrant, then deadline, then the incoming order", () => {
     const low = vm({ priority: 0 });
     const imp = vm({ priority: 3, schedule: { kind: "day", date: "2026-10-24" } });

@@ -7,7 +7,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { PageHead } from "../../components/ui/PageHead";
 import { ToolbarActions } from "../../components/ui/Toolbar";
 import { addDaysLocal, fromLocalDate, todayLocal } from "../../domain/dates";
-import { currentStreak, frequencyLabel, isBuild, isDoneOn, isDueToday, isPausedOn, isScheduled, type Habit } from "../../domain/habits";
+import { currentStreak, dropHabitOn, frequencyLabel, homeGroup, isBuild, isDoneOn, isDueToday, isPausedOn, isScheduled, type Habit } from "../../domain/habits";
 import { DropLine, dropSide, onDrop, SORT_TRANSITION } from "../../lib/dnd";
 import { removeGroup, reorderHabit, updateHabit, useHabits, valuesOf } from "../../stores/habits";
 import { useSettings } from "../../stores/settings";
@@ -25,24 +25,22 @@ import { go } from "../../stores/ui";
 // Drop a habit row on another to reorder (and adopt that row's group).
 /** Alt+Up / Alt+Down: the keyboard way to reorder a habit within its group. */
 function nudgeHabit(id: string, by: -1 | 1) {
-  const { habits } = useHabits.getState();
+  const { habits, groups } = useHabits.getState();
   const h = habits[id];
   if (!h) return;
-  const sibs = Object.values(habits).filter((x) => x.groupId === h.groupId && !x.archived).sort((a, b) => a.sortOrder - b.sortOrder);
+  const home = homeGroup(new Set(Object.keys(groups)));
+  const sibs = Object.values(habits).filter((x) => home(x) === home(h) && !x.archived).sort((a, b) => a.sortOrder - b.sortOrder);
   const to = sibs.findIndex((x) => x.id === id) + by;
   if (to >= 0 && to < sibs.length) reorderHabit(id, to, sibs.map((x) => x.id));
 }
 
 onDrop("habit", (drag, drop) => {
   if (drag.type !== "habit" || drag.id === drop.id) return;
-  const { habits } = useHabits.getState();
-  const target = habits[drop.id];
-  if (!target) return;
-  if (habits[drag.id]?.groupId !== target.groupId) updateHabit(drag.id, { groupId: target.groupId });
-  const sibs = Object.values(useHabits.getState().habits)
-    .filter((h) => h.groupId === target.groupId && !h.archived)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-  reorderHabit(drag.id, sibs.findIndex((h) => h.id === drop.id), sibs.map((h) => h.id));
+  const { habits, groups } = useHabits.getState();
+  const r = dropHabitOn(Object.values(habits), new Set(Object.keys(groups)), drag.id, drop.id);
+  if (!r) return;
+  if (habits[drag.id]?.groupId !== r.groupId) updateHabit(drag.id, { groupId: r.groupId });
+  for (const c of r.changes) updateHabit(c.id, { sortOrder: c.sortOrder });
 });
 
 addPaletteSource((q) =>
@@ -127,7 +125,7 @@ export function HabitsView() {
           ))}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          <SortableContext items={active.map((h) => `habit:${h.id}`)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={groups.flatMap((g) => g.items).map((h) => `habit:${h.id}`)} strategy={verticalListSortingStrategy}>
             {groups.map(
               (g) =>
                 g.items.length > 0 && (

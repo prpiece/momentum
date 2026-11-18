@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import { isTauri } from "../../db/client";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { failureText } from "../../domain/serverStatus";
 import type { CalProvider } from "../../domain/types";
+import { openExternal } from "../../lib/links";
 import * as api from "../../lib/sync/calendar";
 import { toast } from "../../stores/toast";
 import { confirm } from "../../stores/ui";
@@ -11,12 +11,6 @@ const BLURB: Record<CalProvider, string> = {
   google: "Your Google events show in Momentum and can be edited here.",
   microsoft: "Your Outlook and Microsoft 365 events show in Momentum and can be edited here.",
 };
-
-async function openInBrowser(url: string) {
-  if (!isTauri) return void window.open(url, "_blank", "noopener");
-  const { openUrl } = await import("@tauri-apps/plugin-opener");
-  await openUrl(url);
-}
 
 const message = (e: unknown) => (e instanceof Error ? { message: e.message } : null);
 
@@ -36,7 +30,7 @@ function Account({ p, a, onChange, onConnecting }: { p: CalProvider; a: api.Cale
   };
 
   const connect = () => run(`connect ${NAME[p]}`, async () => {
-    await openInBrowser(await api.connectUrl(p));
+    await openExternal(await api.connectUrl(p));
     onConnecting();
     toast("Finish in your browser, then come back here.");
   });
@@ -142,13 +136,17 @@ export function CalendarAccountsSection() {
     api.calendarAccounts().then(setAccounts, () => setAccounts((a) => a ?? []));
   }, []);
   useEffect(load, [load]);
-  // Back from the browser's consent screen: show the new connection.
+  // Back from the browser's consent screen: reload on every focus until the new connection shows (or 10 minutes pass).
+  const before = useRef(0);
   useEffect(() => {
     if (!connecting) return;
-    const back = () => (setConnecting(false), load());
-    window.addEventListener("focus", back);
-    return () => window.removeEventListener("focus", back);
+    window.addEventListener("focus", load);
+    const stop = setTimeout(() => setConnecting(false), 10 * 60_000);
+    return () => (window.removeEventListener("focus", load), clearTimeout(stop));
   }, [connecting, load]);
+  useEffect(() => {
+    if (connecting && accounts && accounts.length > before.current) setConnecting(false);
+  }, [connecting, accounts]);
 
   return (
     <div>
@@ -158,7 +156,7 @@ export function CalendarAccountsSection() {
       </p>
       <ul className="divide-y divide-border">
         {(["google", "microsoft"] as const).map((p) => (
-          <Account key={p} p={p} a={accounts?.find((a) => a.provider === p)} onChange={load} onConnecting={() => setConnecting(true)} />
+          <Account key={p} p={p} a={accounts?.find((a) => a.provider === p)} onChange={load} onConnecting={() => ((before.current = accounts?.length ?? 0), setConnecting(true))} />
         ))}
       </ul>
     </div>

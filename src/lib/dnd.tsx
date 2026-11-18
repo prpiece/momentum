@@ -42,7 +42,7 @@ export type DragData =
   | { type: "listrow"; id: string };
 
 export type DropData =
-  | { type: "list"; listId: string }
+  | { type: "list"; listId: string; /** The icon rail: folders are flattened, so a list drop must not change its folder. */ rail?: boolean }
   | { type: "smart"; id: SmartListId }
   | { type: "task"; id: string; container: string; date?: string | null }
   | { type: "section"; listId: string; sectionId: string | null }

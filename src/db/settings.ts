@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS, parseSettings, userSettingsPatch } from "../domain/settings";
 import type { Settings } from "../domain/types";
-import { select, write } from "./client";
+import { failedWrites, select, write } from "./client";
 
 /** What the database holds now, so a save can tell which user settings changed (they sync, D225). */
 let saved: Settings = DEFAULT_SETTINGS;
@@ -17,10 +17,18 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 /** `record`: false when the change came from sync itself and must not be sent back. */
-export function saveSettings(s: Settings, record = true): Promise<void> {
+export async function saveSettings(s: Settings, record = true): Promise<void> {
   const patch = userSettingsPatch(saved, s);
-  saved = s;
-  return write(
+  // `saved` moves only once SQLite has the settings, so a refused write is re-diffed (and re-queued for sync) by the next save.
+  // The failure itself is already reported to the write-error listeners, so it isn't rethrown to the fire-and-forget callers.
+  try {
+    await failedWrites(() => put(s, patch, record));
+    saved = s;
+  } catch {}
+}
+
+const put = (s: Settings, patch: Partial<Settings>, record: boolean) =>
+  write(
     ["INSERT INTO settings (id, value) VALUES (1, $1) ON CONFLICT(id) DO UPDATE SET value = excluded.value", [JSON.stringify(s)]],
     ...(record && Object.keys(patch).length
       ? [
@@ -32,4 +40,3 @@ export function saveSettings(s: Settings, record = true): Promise<void> {
         ]
       : []),
   );
-}

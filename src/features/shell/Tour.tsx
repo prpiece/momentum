@@ -330,6 +330,17 @@ export function Tour() {
   const to = (n: number) => n >= 0 && n <= last && setI(n);
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "Escape") return close();
+    // Tab stays in the card (aria-modal) except on steps that invite using the app behind the dim.
+    if (e.key === "Tab" && !step.interactive && card.current) {
+      const items = [...card.current.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex='-1'])")];
+      const at = items.indexOf(document.activeElement as HTMLElement);
+      const next = items[(at + (e.shiftKey ? -1 : 1) + items.length) % items.length];
+      if (items.length) {
+        e.preventDefault();
+        (at < 0 && e.shiftKey ? items[items.length - 1] : next).focus();
+      }
+      return;
+    }
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.key === "ArrowRight") to(i + 1);
     if (e.key === "ArrowLeft") to(i - 1);

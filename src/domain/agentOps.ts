@@ -236,6 +236,7 @@ function patchFields(args: Args): TaskPatch {
   }
   if ("list" in args) p.list = str(args, "list", true).trim();
   if ("date" in args) p.planned = planned(args.date);
+  if (p.planned && p.planned.kind !== "day" && p.time) throw new AgentError('time needs a day: use a YYYY-MM-DD date (or leave date out), not "none" or "someday".');
   if ("deadline" in args) {
     const v = args.deadline;
     if (v === null || v === "" || v === "none") p.deadline = null;

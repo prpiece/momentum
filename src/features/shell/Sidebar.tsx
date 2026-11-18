@@ -57,7 +57,7 @@ const dragged = (id: string) => {
 };
 
 onDrop("list", (drag, drop) => {
-  if (drag.type === "listrow") return void dropListOn(drag.id, drop.listId);
+  if (drag.type === "listrow") return void dropListOn(drag.id, drop.listId, drop.rail);
   if (drag.type !== "task") return;
   const ids = dragged(drag.id);
   const name = useData.getState().lists[drop.listId]?.name ?? "list";
@@ -299,7 +299,7 @@ export function Sidebar() {
       collapsed={collapsed}
       side={side}
       count={counts.lists[l.id]}
-      drop={{ type: "list", listId: l.id }}
+      drop={l.archived ? undefined : { type: "list", listId: l.id, rail: collapsed }}
       indent={indent}
       dragList={l.archived ? undefined : l.id}
       badge={<SharedMark kind="list" id={l.id} />}

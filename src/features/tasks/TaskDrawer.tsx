@@ -377,10 +377,19 @@ function Description({ task }: { task: Task }) {
   useEffect(() => setV(task.description), [task.description]);
   const ref = useRef<HTMLTextAreaElement>(null);
   const insert = (name: string, md = `![](attachment:${name})`) => {
+    // The native file dialog blurs the textarea, which saves and (for a non-empty note) unmounts it before we get here.
+    // So save the reference ourselves: at the caret when the editor is still open, else appended to the saved note.
     const el = ref.current;
-    if (!el) return;
+    if (!el) {
+      const cur = useData.getState().tasks[task.id]?.description ?? "";
+      return updateTask(task.id, { description: cur ? `${cur}
+
+${md}` : md });
+    }
     const at = el.selectionStart;
-    setV(el.value.slice(0, at) + md + el.value.slice(el.selectionEnd));
+    const next = el.value.slice(0, at) + md + el.value.slice(el.selectionEnd);
+    setV(next);
+    updateTask(task.id, { description: next });
     requestAnimationFrame(() => el.setSelectionRange(at + md.length, at + md.length));
   };
   const fail = (err: unknown) => toast(err instanceof Error ? err.message : String(err));

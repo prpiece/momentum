@@ -10,12 +10,13 @@ import { GUTTER, INSET, resolveColor, useColors } from "@/theme";
 import { KeyboardScroll } from "@/ui/KeyboardScroll";
 import { Button, Card, Field, FieldRow, Label, PageHeader, Segmented, Text } from "@/ui/kit";
 import { pickDate } from "@/ui/pickDate";
-import { askText, choose } from "@/ui/Sheet";
+import { askText, choose, num } from "@/ui/Sheet";
 import { useSocial } from "@core/stores/social";
 import { chooseBuddies, nameOf } from "@/social/actions";
 import { askNotificationPermission } from "@/notify";
 
 type Kind = HabitGoal["kind"];
+type Form = { name: string; kind: Kind; n: string; unit: string; period: GoalPeriod; frequency: HabitFrequency; color: string; reminders: string[] };
 const KINDS = [
   { value: "once", label: "Once" },
   { value: "count", label: "Count" },
@@ -35,8 +36,6 @@ const PERIODS: { value: GoalPeriod; label: string }[] = [
   { value: "day", label: "Per day" },
   { value: "week", label: "Per week" },
 ];
-/** A typed number; decimal-pad types "," in many locales (MOB-05). */
-const num = (text: string) => Number(text.replace(",", "."));
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const goalOf = (kind: Kind, n: number, unit: string, period: GoalPeriod = "day"): HabitGoal =>
@@ -50,16 +49,24 @@ export default function HabitScreen() {
   const records = useHabits((s) => s.checkins[id]);
   const weekStart = useSettings((s) => s.settings.weekStart);
   const g = h?.goal;
-  const [name, setName] = useState(h?.name ?? "");
-  const [kind, setKind] = useState<Kind>(g?.kind ?? "once");
-  const [n, setN] = useState(String(g && "target" in g ? g.target : g && "cap" in g ? g.cap : 1));
-  const [unit, setUnit] = useState(g && "unit" in g ? g.unit : "");
-  const [period, setPeriod] = useState<GoalPeriod>(g && "period" in g ? g.period : "day");
-  const [frequency, setFrequency] = useState<HabitFrequency>(h?.frequency ?? { kind: "daily" });
-  const [color, setColor] = useState(h?.color ?? COLORS[0].value);
+  // Every field shows the store's value unless the user edited it here, so a sync change shows up in untouched fields,
+  // and save sends only the edited ones (a whole-habit patch would overwrite remote changes to the rest).
+  const base: Form = {
+    name: h?.name ?? "",
+    kind: g?.kind ?? "once",
+    n: String(g && "target" in g ? g.target : g && "cap" in g ? g.cap : 1),
+    unit: g && "unit" in g ? g.unit : "",
+    period: g && "period" in g ? g.period : "day",
+    frequency: h?.frequency ?? { kind: "daily" },
+    color: h?.color ?? COLORS[0].value,
+    reminders: h?.reminders ?? [],
+  };
+  const [edits, setEdits] = useState<Partial<Form>>({});
+  const { name, kind, n, unit, period, frequency, color, reminders } = { ...base, ...edits };
+  const field = <K extends keyof Form>(k: K) => (v: Form[K]) => setEdits((e) => ({ ...e, [k]: v }));
+  const [setName, setKind, setN, setUnit, setPeriod, setFrequency, setColor, setReminders] = [field("name"), field("kind"), field("n"), field("unit"), field("period"), field("frequency"), field("color"), field("reminders")];
   const buddyRows = useSocial((s) => s.myBuddies);
   const friends = useSocial((s) => s.friends);
-  const [reminders, setReminders] = useState<string[]>(h?.reminders ?? []);
   if (id !== "new" && !h)
     return (
       <View style={{ flex: 1 }}>
@@ -73,8 +80,15 @@ export default function HabitScreen() {
   const save = () => {
     if (!name.trim()) return;
     const patch: Partial<Habit> = { name: name.trim(), goal: goalOf(kind, num(n) || 0, unit.trim(), period), frequency, color, reminders };
-    if (h) updateHabit(h.id, patch);
-    else addHabit({ ...patch, name: name.trim() });
+    if (!h) addHabit({ ...patch, name: name.trim() });
+    else {
+      // Only what differs from the stored habit, and only fields the user touched.
+      const changed = Object.fromEntries(Object.entries(patch).filter(([k, v]) => {
+        const touched = k === "goal" ? ["kind", "n", "unit", "period"].some((f) => f in edits) : k in edits;
+        return touched && JSON.stringify(v) !== JSON.stringify(h[k as keyof Habit]);
+      }));
+      if (Object.keys(changed).length) updateHabit(h.id, changed);
+    }
     router.back();
   };
   const chooseFrequency = async () => {

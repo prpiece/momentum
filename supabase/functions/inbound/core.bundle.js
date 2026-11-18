@@ -5198,9 +5198,9 @@ function repeatMatches(text, now) {
 		if (!/^every/i.test(m[0]) && !m[3]) return null;
 		return n && n >= -1 && n <= 5 ? `FREQ=MONTHLY;BYDAY=${n}${dayCode(m[2])}` : null;
 	});
-	add$1(/\b(?:monthly|every\s+month)\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)\b|\bevery\s+(\d{1,2})(?:st|nd|rd|th)\b/gi, (m) => {
-		const d = Number(m[1] ?? m[2]);
-		return d >= 1 && d <= 31 ? `FREQ=MONTHLY;BYMONTHDAY=${d}` : null;
+	add$1(/\b(?:monthly|every\s+month)\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)\b|\bevery\s+(\d{1,2}(?:st|nd|rd|th)(?:\s*(?:,|and|&)\s*\d{1,2}(?:st|nd|rd|th))*)\b/gi, (m) => {
+		const days = (m[1] ?? m[2]).match(/\d{1,2}/g).map(Number);
+		return days.every((d) => d >= 1 && d <= 31) ? `FREQ=MONTHLY;BYMONTHDAY=${[...new Set(days)].join(",")}` : null;
 	});
 	add$1(/\bevery\s+weekend\b/gi, () => "FREQ=WEEKLY;BYDAY=SA,SU");
 	const UNIT = {
@@ -5218,9 +5218,10 @@ function repeatMatches(text, now) {
 		const interval = m[1]?.trim() === "other" ? 2 : m[2] ? Number(m[2]) : 1;
 		return `FREQ=${UNIT[m[3].toLowerCase()]}${interval > 1 ? `;INTERVAL=${interval}` : ""}`;
 	});
-	add$1(new RegExp(`\\bevery\\s+(${DAY_WORD}(?:\\s*(?:,|and|&)\\s*${DAY_WORD})*)\\b`, "gi"), (m) => {
-		const codes = m[1].split(/\s*(?:,|and|&)\s*/i).map(dayCode).filter(Boolean);
-		return codes.length ? `FREQ=WEEKLY;BYDAY=${[...new Set(codes)].join(",")}` : null;
+	add$1(new RegExp(`\\bevery\\s+(?:(other)\\s+|(\\d+)\\s+)?(${DAY_WORD}(?:\\s*(?:,|and|&)\\s*${DAY_WORD})*)\\b`, "gi"), (m) => {
+		const codes = m[3].split(/\s*(?:,|and|&)\s*/i).map(dayCode).filter(Boolean);
+		const interval = m[1] ? 2 : Number(m[2] ?? 1);
+		return codes.length && interval >= 1 ? `FREQ=WEEKLY${interval > 1 ? `;INTERVAL=${interval}` : ""};BYDAY=${[...new Set(codes)].join(",")}` : null;
 	});
 	if (out.length) {
 		for (const m of text.matchAll(/\b(?:until|till|through)\s+/gi)) {
@@ -5360,7 +5361,7 @@ function planningMatches(text, now) {
 			apply: (p) => void (p.deadline = d.date)
 		});
 	}
-	for (const m of text.matchAll(/(^|[\s(\[])(?<!\b(?:in|within)\s)~?(?:(\d{1,2}(?:\.\d+)?)\s?(?:h|hrs?|hours?)(?:\s?(\d{1,3})\s?(?:m|mins?|minutes?))?|(\d{1,4})\s?(?:m|mins?|minutes?))(?=\s|$|[,.;)\]])/gi)) {
+	for (const m of text.matchAll(/(^|[\s(\[])(?<!\b(?:in|within)\s)~?(?:(\d{1,2}(?:\.\d+)?)\s?(?:h|hrs?|hours?)(?:\s?(\d{1,3})\s?(?:m|mins?|minutes?))?|(?<!\b(?:in|within)\s+\d+(?:\.\d+)?\s?(?:h|hrs?|hours?)\s+)(\d{1,4})\s?(?:m|mins?|minutes?))(?=\s|$|[,.;)\]])/gi)) {
 		const min = m[2] ? Math.round(Number(m[2]) * 60) + Number(m[3] ?? 0) : Number(m[4]);
 		const start = (m.index ?? 0) + m[1].length;
 		if (min >= 1 && min <= 1440) out.push({
@@ -5487,8 +5488,13 @@ function parseQuickAdd(input, now, enabled = true, listNames = [], origin = "typ
 	const [date] = matches.some((m) => m.kind === "date") ? [] : parseDates(mask(input, matches), now);
 	if (date) {
 		const start = date.index;
-		const end = start + date.text.length;
-		const from = date.start.date();
+		let end = start + date.text.length;
+		let from = date.start.date();
+		const extra = /^(?:in|within)\s/i.test(date.text) && /\bh(?:ou)?rs?$/i.test(date.text) ? /^\s+(\d{1,3})\s?(?:m|mins?|minutes?)(?=\s|$|[,.;)\]])/i.exec(input.slice(end)) : null;
+		if (extra) {
+			end += extra[0].length;
+			from = addMinutes(from, Number(extra[1]));
+		}
 		const hasTime = date.start.isCertain("hour");
 		const until = date.end?.date();
 		explicitEnd = !!until && until > from;
@@ -8391,6 +8397,7 @@ function expansion(t) {
 	const { rule } = t.recurrence;
 	const tz = t.schedule.kind === "timed" ? RRule.parseString(rule).tzid : null;
 	if (!tz || !isZone(tz)) return {
+		tz: null,
 		rrule: build(t, anchor),
 		toF: toFloating,
 		key: (f) => keyOf(t.schedule.kind, f),
@@ -8398,6 +8405,7 @@ function expansion(t) {
 	};
 	const dur = durationMinutes(t.schedule) ?? 0;
 	return {
+		tz,
 		rrule: ruleFrom(rule, wallIn(anchor, tz)),
 		toF: (d) => wallIn(d, tz),
 		key: (f) => wallKey(fromWall(f, tz)),

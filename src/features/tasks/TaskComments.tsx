@@ -1,5 +1,5 @@
 import { formatDistanceToNowStrict } from "date-fns";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { bestRole, sharesCoveringList } from "../../domain/shareAccess";
 import { useServerVersion } from "../../lib/sync/serverVersion";
 import { addTaskComment, deleteTaskComment, editTaskComment, SocialError, taskComments, type TaskComment } from "../../lib/sync/social";
@@ -28,7 +28,9 @@ function Thread({ taskId, canWrite }: { taskId: string; canWrite: boolean }) {
   const pinged = useSocial((s) => s.shares);
   const load = useCallback(() => taskComments(taskId).then(setItems, () => undefined), [taskId]);
   useEffect(() => void load(), [load, pinged]);
-  const run = (p: Promise<void>) => p.then(load, (e) => toast(e instanceof SocialError ? e.message : "Couldn't do that. Try again."));
+  /** Resolves true when the request worked, false (after a toast) when it failed, so callers can keep their UI open. */
+  const run = (p: Promise<void>) =>
+    p.then(() => { load(); return true; }, (e) => { toast(e instanceof SocialError ? e.message : "Couldn't do that. Try again."); return false; });
 
   return (
     <details className="mt-3" open>
@@ -44,9 +46,21 @@ function Thread({ taskId, canWrite }: { taskId: string; canWrite: boolean }) {
   );
 }
 
-function Comment({ c, canWrite, onSave, onDelete }: { c: TaskComment; canWrite: boolean; onSave: (b: string) => Promise<void>; onDelete: () => Promise<void> }) {
+function Comment({ c, canWrite, onSave, onDelete }: { c: TaskComment; canWrite: boolean; onSave: (b: string) => Promise<boolean>; onDelete: () => Promise<boolean> }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(c.body);
+  const [busy, setBusy] = useState(false);
+  const box = useRef<HTMLTextAreaElement>(null);
+  const save = async () => {
+    if (!draft.trim() || busy) return;
+    setBusy(true);
+    box.current?.focus(); // Save is about to be disabled; keep focus in the editor so Escape reaches its guard, not the global drawer-closer
+    try {
+      if (await onSave(draft)) setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  };
   const link = "rounded-xs text-muted hover:text-fg";
   return (
     <li className="pl-0.5 text-[length:var(--fs-sm)]">
@@ -63,11 +77,11 @@ function Comment({ c, canWrite, onSave, onDelete }: { c: TaskComment; canWrite: 
       </div>
       {editing ? (
         <div className="mt-1 space-y-2">
-          <textarea className="input w-full" rows={2} maxLength={4000} value={draft} autoFocus aria-label="Edit comment" onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setEditing(false); } }} />
+          <textarea ref={box} className="input w-full" rows={2} maxLength={4000} value={draft} autoFocus aria-label="Edit comment" onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); if (!busy) setEditing(false); } }} />
           <div className="flex gap-2">
-            <button className="btn" disabled={!draft.trim()} onClick={() => void onSave(draft).then(() => setEditing(false))}>Save</button>
-            <button className="btn" onClick={() => setEditing(false)}>Cancel</button>
+            <button className="btn" disabled={!draft.trim() || busy} onClick={() => void save()}>Save</button>
+            <button className="btn" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
           </div>
         </div>
       ) : (

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { select, upsert, write } from "../db/client";
+import { selectAfterWrites, upsert, write } from "../db/client";
 import type { Row } from "../db/rows";
 import { parseSession, sessionRow } from "../db/miscRows";
 import * as timer from "../domain/focus";
@@ -7,6 +7,7 @@ import type { FocusMode, FocusSession, TimerState } from "../domain/focus";
 import type { TaskVM } from "../domain/taskViews";
 import { formatMinutes } from "../domain/dates";
 import { uid } from "./data";
+import { keepEdited, serially } from "./keepEdited";
 import { trackDone, useSettings } from "./settings";
 import { toast } from "./toast";
 
@@ -49,9 +50,11 @@ useFocus.subscribe((st, prev) => {
 
 /** Records the session of a timer that was running when the app last closed, then clears it. */
 async function recoverTimer() {
-  if (isActive(get().timer)) return;
-  const [row] = await select<{ value: string }>("SELECT value FROM sync_state WHERE key = $1", [TIMER_KEY]);
-  if (!row) return;
+  const before = get().timer;
+  if (isActive(before)) return;
+  const [row] = await selectAfterWrites<{ value: string }>("SELECT value FROM sync_state WHERE key = $1", [TIMER_KEY]);
+  // A timer started, or stopped and recorded, while the read was in flight owns the stored row now; recovering it too would duplicate the session.
+  if (!row || get().timer !== before) return;
   try {
     const { timer: t, savedAt } = JSON.parse(row.value) as { timer: TimerState; savedAt: number };
     if (isActive(t) && Number.isFinite(savedAt) && Number.isFinite(t.accumulatedMs) && Number.isFinite(t.sessionStart)) record(timer.stop(t, savedAt, cfg(), uid()).session);
@@ -61,11 +64,14 @@ async function recoverTimer() {
   await write(["DELETE FROM sync_state WHERE key = $1", [TIMER_KEY]]);
 }
 
-export async function hydrateFocus() {
-  const rows = await select<Row>("SELECT * FROM focus_sessions");
-  set({ sessions: Object.fromEntries(rows.map(parseSession).filter((s): s is FocusSession => !!s).map((s) => [s.id, s])) });
+async function load() {
+  const then = get().sessions;
+  const rows = await selectAfterWrites<Row>("SELECT * FROM focus_sessions");
+  const loaded = Object.fromEntries(rows.map(parseSession).filter((s): s is FocusSession => !!s).map((s) => [s.id, s]));
+  set({ sessions: keepEdited(loaded, then, get().sessions) });
   await recoverTimer();
 }
+export const hydrateFocus = serially(load);
 
 export function replaceSessions(list: FocusSession[]) {
   set({ sessions: Object.fromEntries(list.map((s) => [s.id, s])) });

@@ -2,7 +2,13 @@
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 /** Note images are stored as `![](attachment:<file name>)` in a task's Markdown description (D78). */
-const REF = /attachment:([A-Za-z0-9_-]+\.[A-Za-z0-9]+)/g;
+// The stem is capped at 64 characters, like `valid_name` in src-tauri/src/files.rs.
+const NAME = "[A-Za-z0-9_-]{1,64}\\.[A-Za-z0-9]+";
+const REF = new RegExp(`attachment:(${NAME})`, "g");
+const VALID = new RegExp(`^${NAME}$`);
+
+/** Note text is untrusted (a collaborator can write it): only names of this shape may become a file path, asset URL or storage path. */
+export const isAttachmentName = (name: string): boolean => VALID.test(name);
 
 export const attachmentRefs = (texts: Iterable<string>): Set<string> => {
   const out = new Set<string>();

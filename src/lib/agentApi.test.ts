@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { todayLocal } from "../domain/dates";
 import { MAX_SUBTASK_DEPTH } from "../domain/types";
-import { addList, addTask, replaceAll, updateList, useData } from "../stores/data";
+import { addList, addTask, replaceAll, setEditGuard, updateList, useData } from "../stores/data";
 import { replaceHabits, setCheckin } from "../stores/habits";
-import { runAgentRequest as run } from "./agentApi";
+import { answerAgentRequest, runAgentRequest as run } from "./agentApi";
 
 // Repos are no-ops outside Tauri, so this runs the agent ops against the real stores.
 beforeEach(() => {
@@ -258,5 +258,81 @@ describe("habit check-ins, events, focus, revision (AGENT-20/21)", () => {
     const before = agentRevision();
     call("add", { text: "x" });
     expect(agentRevision()).toBeGreaterThan(before);
+  });
+});
+
+describe("view-only lists", () => {
+  const MSG = /shared with you as view-only/;
+  afterEach(() => setEditGuard(() => true));
+  function setup() {
+    const ro = addList("Shared");
+    const rw = addList("Mine");
+    const inRo = addTask({ title: "Theirs", listId: ro.id });
+    const inRw = addTask({ title: "Mine", listId: rw.id });
+    setEditGuard((id) => id !== ro.id);
+    return { ro, rw, inRo, inRw, snap: () => JSON.stringify(useData.getState().tasks) };
+  }
+  it("refuses update, complete, reopen, delete and subtask-add on a view-only task, changing nothing", () => {
+    const { inRo, snap } = setup();
+    const before = snap();
+    for (const [op, args] of [["update", { id: inRo.id, title: "x" }], ["complete", { id: inRo.id }], ["reopen", { id: inRo.id }], ["delete", { id: inRo.id }], ["add", { text: "sub", parentId: inRo.id }]] as const)
+      expect(() => run(op, args), op).toThrow(MSG);
+    expect(snap()).toBe(before);
+  });
+  it("refuses add into, and moves into or out of, a view-only list", () => {
+    const { inRw, inRo, snap } = setup();
+    const before = snap();
+    expect(() => run("add", { text: "new", list: "Shared" })).toThrow(MSG);
+    expect(() => run("update", { id: inRw.id, list: "Shared" })).toThrow(MSG);
+    expect(() => run("update", { id: inRo.id, list: "Mine" })).toThrow(MSG);
+    expect(snap()).toBe(before);
+  });
+  it("refuses an add whose ~List token (or default) lands in a view-only list, but not an editable one", () => {
+    const { snap } = setup();
+    const before = snap();
+    expect(() => run("add", { text: "~Shared sneaky" })).toThrow(MSG);
+    expect(snap()).toBe(before);
+    expect(call("add", { text: "~Mine fine" }).task.title).toBe("fine");
+  });
+  it("refuses restore of a trashed task from a view-only list", () => {
+    const ro = addList("Shared");
+    const t = addTask({ title: "Gone", listId: ro.id });
+    run("delete", { id: t.id });
+    setEditGuard((id) => id !== ro.id);
+    expect(() => run("restore", { id: t.id })).toThrow(MSG);
+    expect(useData.getState().tasks[t.id].deletedAt).not.toBeNull();
+  });
+  it("still works on editable lists", () => {
+    const { inRw } = setup();
+    expect(call("update", { id: inRw.id, title: "Renamed" }).task.title).toBe("Renamed");
+    expect(call("add", { text: "new", list: "Mine" }).task.title).toBe("new");
+  });
+});
+
+describe("agent:request nonce", () => {
+  const req = { id: "r1", op: "add", args: { text: "spoofed" } };
+  it("ignores a request with a missing or wrong nonce, and runs one with the right nonce", () => {
+    expect(answerAgentRequest(req, "secret")).toBeNull();
+    expect(answerAgentRequest({ ...req, nonce: "guess" }, "secret")).toBeNull();
+    expect(answerAgentRequest({ ...req, nonce: "secret" }, null)).toBeNull();
+    expect(answerAgentRequest({ ...req, nonce: "" }, "")).toBeNull();
+    expect(live()).toHaveLength(0);
+    const out = answerAgentRequest({ ...req, nonce: "secret" }, "secret");
+    expect(JSON.parse(out ?? "{}").ok).toBe(true);
+    expect(live()).toHaveLength(1);
+  });
+});
+
+describe("spent repeat rules and event ranges", () => {
+  it("refuses an expired repeat rule up front and leaves the task as it was", () => {
+    const t = addTask({ title: "Plain", schedule: { kind: "day", date: "2026-10-25" } });
+    const before = JSON.stringify(useData.getState().tasks);
+    for (const repeat of ["FREQ=DAILY;UNTIL=20200101", "FREQ=DAILY;COUNT=0"]) expect(() => run("update", { id: t.id, repeat }), repeat).toThrow(/no occurrence/);
+    expect(JSON.stringify(useData.getState().tasks)).toBe(before);
+    expect(call("get", { id: t.id }).task.title).toBe("Plain");
+    expect(() => run("update", { id: t.id, repeat: "FREQ=DAILY" })).not.toThrow();
+  });
+  it("rejects events with only a `to` before today", () => {
+    expect(() => run("events", { to: "2000-01-01" })).toThrow(/to is before from/);
   });
 });

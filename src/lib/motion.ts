@@ -31,6 +31,11 @@ export function exitGhost(el: HTMLElement | null | undefined, ms = 150) {
   ghost.setAttribute("aria-hidden", "true");
   ghost.removeAttribute("id");
   ghost.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+  // Not a dialog or menu any more, or "last [role=dialog]" checks (Dialog's Escape, triage keys) would defer to it.
+  for (const n of [ghost, ...ghost.querySelectorAll("[role=dialog], [role=menu], [aria-modal]")]) {
+    if (/^(dialog|menu)$/.test(n.getAttribute("role") ?? "")) n.removeAttribute("role");
+    n.removeAttribute("aria-modal");
+  }
   ghost.style.pointerEvents = "none";
   ghost.classList.add("is-closing");
   document.body.appendChild(ghost);

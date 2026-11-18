@@ -1,6 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { isTauri } from "../db/client";
-import { attachmentRefs, MAX_IMAGE_BYTES, staleAttachments } from "../domain/attachments";
+import { attachmentRefs, isAttachmentName, MAX_IMAGE_BYTES, staleAttachments } from "../domain/attachments";
 import { downloadNoteImage, uploadNoteImages } from "./sync/attachments";
 import { useData } from "../stores/data";
 
@@ -34,7 +34,7 @@ export const deleteImage = (kind: ImageFolder, name: string) => invoke<void>("de
 
 /** URL the webview can load; null in the browser build (no files there). */
 export async function imageUrl(kind: ImageFolder, name: string): Promise<string | null> {
-  if (!isTauri) return null;
+  if (!isTauri || (kind === "attachments" && !isAttachmentName(name))) return null;
   const dir = await dirOf(kind);
   return convertFileSrc(`${dir}${dir.includes("\\") ? "\\" : "/"}${name}`);
 }
@@ -64,7 +64,7 @@ export function fetchAttachment(name: string): Promise<boolean> {
   let p = fetching.get(name);
   if (!p) {
     p = (async () => {
-      const blob = isTauri ? await downloadNoteImage(name) : null;
+      const blob = isTauri && isAttachmentName(name) ? await downloadNoteImage(name) : null;
       if (!blob) return false;
       await writeImage("attachments", name, blob);
       return true;

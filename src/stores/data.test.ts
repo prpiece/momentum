@@ -367,6 +367,13 @@ describe("HAB-19 waiting and someday flow down to open subtasks", () => {
     expect(T()[a.id].schedule.kind).toBe("none");
     expect(T()[b.id].schedule).toEqual({ kind: "day", date: "2026-12-03" });
   });
+
+  it("a parent's move to another list and its someday arrive together on the subtasks", () => {
+    const { p, a, b } = tree();
+    const l = addList("elsewhere");
+    updateTask(p.id, { listId: l.id, schedule: { kind: "someday" } });
+    for (const x of [a, b]) expect([T()[x.id].listId, T()[x.id].schedule.kind]).toEqual([l.id, "someday"]);
+  });
 });
 
 describe("skipMissed (TIME-20)", () => {

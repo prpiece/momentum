@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocal } from "./dates";
-import { daysSinceSlip, isPausedOn, resumedOn, withPause, bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDoneOn, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal, periodValue } from "./habits";
+import { dropHabitOn, daysSinceSlip, isPausedOn, resumedOn, withPause, bestStreak, completionRate, currentStreak, frequencyLabel, goalLabel, isDone, isDoneOn, isDueToday, isScheduled, type Habit, type HabitFrequency, type HabitGoal, periodValue } from "./habits";
 
 // 2026-10-25 is a Sunday. Weeks start Monday (weekStart = 1).
 const TODAY = "2026-10-25";
@@ -232,5 +232,29 @@ describe("HAB-24: days since last slip", () => {
     const limit = { ...habit({ kind: "daily" }, { kind: "limit", cap: 5, unit: "min" }), startDate: "2026-10-15" };
     expect(daysSinceSlip(limit, new Map([["2026-10-24", 5], ["2026-10-20", 6]]), TODAY)).toEqual({ days: 5, slipped: true });
     expect(daysSinceSlip(habit({ kind: "daily" }), new Map(), TODAY)).toBeNull();
+  });
+});
+
+describe("dropHabitOn", () => {
+  const h = (id: string, groupId: string | null, sortOrder: number, archived = false): Habit => ({ ...habit({ kind: "daily" }), id, groupId, sortOrder, archived });
+  const G = new Set(["A", "B"]);
+  const apply = (hs: Habit[], r: NonNullable<ReturnType<typeof dropHabitOn>>, id: string) => hs.filter((x) => (x.id === id ? r.groupId : x.groupId) === r.groupId && !x.archived).map((x) => ({ id: x.id, o: r.changes.find((c) => c.id === x.id)?.sortOrder ?? x.sortOrder })).sort((a, b) => a.o - b.o).map((x) => x.id);
+  const hs = [h("a1", "A", 0), h("n1", null, 1), h("a2", "A", 2), h("b1", "B", 3), h("b2", "B", 4)];
+
+  it("a habit from another group lands directly above the target, in the target's group", () => {
+    const r = dropHabitOn(hs, G, "n1", "a2")!;
+    expect(r.groupId).toBe("A");
+    expect(apply(hs, r, "n1")).toEqual(["a1", "n1", "a2"]);
+  });
+  it("moves within a group: down lands after the target, up before it", () => {
+    expect(apply(hs, dropHabitOn(hs, G, "a1", "a2")!, "a1")).toEqual(["a2", "a1"]);
+    expect(apply(hs, dropHabitOn(hs, G, "a2", "a1")!, "a2")).toEqual(["a2", "a1"]);
+  });
+  it("dangling group counts as ungrouped; self, archived and unknown drops do nothing", () => {
+    const d = [h("x", "gone", 0), h("n", null, 1)];
+    expect(dropHabitOn(d, G, "n", "x")!.groupId).toBeNull();
+    expect(dropHabitOn(hs, G, "a1", "a1")).toBeNull();
+    expect(dropHabitOn([...hs, h("z", "A", 9, true)], G, "a1", "z")).toBeNull();
+    expect(dropHabitOn(hs, G, "a1", "nope")).toBeNull();
   });
 });

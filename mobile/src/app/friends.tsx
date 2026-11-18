@@ -96,7 +96,7 @@ export default function Friends() {
       {buddyHabits.length ? <Label inset>Buddies' habits</Label> : null}
       {buddyHabits.map((b) => (
         <Item key={`${b.owner.id}${b.habitId}`} title={b.name} sub={`${nameOf(b.owner)} · ${b.today > 0 ? "checked in today" : "not yet today"}`}>
-          <Button label="Nudge" icon="bell" kind="secondary" disabled={!b.canNudge} onPress={() => void run(() => act(() => nudge(b.owner.id, b.habitId))).then(() => toast(`Nudged ${nameOf(b.owner)}.`))} style={s.small} />
+          <Button label="Nudge" icon="bell" kind="secondary" disabled={!b.canNudge} onPress={() => void run(() => act(() => nudge(b.owner.id, b.habitId).then(() => true))).then((ok) => ok && toast(`Nudged ${nameOf(b.owner)}.`))} style={s.small} />
         </Item>
       ))}
     </ScrollView>

@@ -83,6 +83,12 @@ describe("parseSettings", () => {
     expect(parseSettings({ voiceShortcut: "Alt V; rm" }).voiceShortcut).toBe("CommandOrControl+Alt+Space");
   });
 
+  it("keeps the mini-window shortcut apart from quick add and push-to-talk", () => {
+    expect(parseSettings({ miniShortcut: "Alt+B" }).miniShortcut).toBe("Alt+B");
+    expect(parseSettings({ quickAddShortcut: "Alt+B", miniShortcut: "Alt+B" }).miniShortcut).toBe("CommandOrControl+Alt+M");
+    expect(parseSettings({ voiceShortcut: "Alt+B", miniShortcut: "Alt+B" }).miniShortcut).toBe("CommandOrControl+Alt+M");
+  });
+
   it("parses the pomodoro cycle count at the boundary", () => {
     const c = (cycles: unknown) => parseSettings({ pomodoro: { cycles } }).pomodoro.cycles;
     expect(c(undefined)).toEqual({ kind: "infinite" });

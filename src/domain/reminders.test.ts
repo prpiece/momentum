@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atLocalTime, timed, wallKey } from "./dates";
+import { atLocalTime, setDayEndHour, timed, wallKey } from "./dates";
 import type { Habit } from "./habits";
 import type { CalItem } from "./calendar";
 import { DEFAULT_SETTINGS } from "./settings";
@@ -70,6 +70,18 @@ describe("reminders", () => {
     // An explicit "at start" reminder on the same task wins over the start alert.
     const explicit = remindersBetween([vm(timed(at, 30), [{ kind: "before", minutes: 0 }], { id: "a" })], [], () => new Map(), ...win, "24h", 1);
     expect(dedupeFires([...explicit, ...fires])).toHaveLength(2);
+  });
+
+  it("digests a block after midnight with the day it belongs to under an end-of-day hour", () => {
+    const night = vm(timed(atLocalTime("2026-10-26", "01:00"), 30), [], { id: "n" });
+    const win = [atLocalTime("2026-10-25", "08:00"), atLocalTime("2026-10-25", "09:00")] as const;
+    expect(digestBetween([night], "09:00", ...win)).toHaveLength(0);
+    setDayEndHour(3);
+    try {
+      expect(digestBetween([night], "09:00", ...win)[0].body).toBe("1 due today");
+    } finally {
+      setDayEndHour(0);
+    }
   });
 
   it("sends the daily summary once, at its time, only when something is due or overdue", () => {

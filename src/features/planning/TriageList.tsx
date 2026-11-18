@@ -1,7 +1,8 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "../../components/ui/Dialog";
 import type { Triage } from "../../domain/planDay";
 import type { TaskVM } from "../../domain/taskViews";
+import { typing } from "../../lib/shortcuts";
 
 const KEYS: Record<string, Triage> = { k: "keep", t: "tomorrow", s: "someday", d: "drop" };
 const LABEL: Record<Triage, string> = { keep: "Keep", tomorrow: "Tomorrow", someday: "Someday", drop: "Drop" };
@@ -14,6 +15,7 @@ export function TriageList({ items, keepLabel = "Keep", onAct, onDone }: { items
   const [handled, setHandled] = useState<ReadonlySet<string>>(new Set());
   const left = items.filter((vm) => !handled.has(vm.task.id));
   const cur = left[0];
+  const root = useRef<HTMLDivElement>(null);
   const act = (a: Triage) => {
     if (!cur) return;
     onAct(cur, a);
@@ -23,8 +25,10 @@ export function TriageList({ items, keepLabel = "Keep", onAct, onDone }: { items
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const a = KEYS[e.key.toLowerCase()];
-      const t = e.target as HTMLElement;
-      if (!a || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (!a || e.ctrlKey || e.metaKey || e.altKey || typing(e)) return;
+      // Stacked dialogs (as in Dialog.tsx): only react when this list sits in the topmost dialog or menu.
+      const top = [...document.querySelectorAll("[role=dialog], [role=menu]")].pop();
+      if (top && top !== root.current?.closest("[role=dialog], [role=menu]")) return;
       e.preventDefault();
       act(a);
     };
@@ -33,7 +37,7 @@ export function TriageList({ items, keepLabel = "Keep", onAct, onDone }: { items
   });
   if (!cur) return <>{onDone}</>;
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={root} className="flex flex-col gap-3">
       <p className="text-[length:var(--fs-sm)] text-muted tabular-nums">{left.length} left</p>
       {/* The card changes under the user after every key press, so say what is current. */}
       <div className="card" aria-live="polite" aria-atomic="true">

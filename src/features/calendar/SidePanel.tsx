@@ -40,6 +40,9 @@ function showRange(lo: string, hi: string) {
 function MiniMonth({ weekStart, visible }: { weekStart: WeekStart; visible: string[] }) {
   const anchor = useUi((s) => s.calAnchor);
   const [month, setMonth] = useState(() => toLocalDate(startOfMonth(fromLocalDate(anchor))));
+  // Follows the main calendar when its anchor moves to another month; browsing the mini month alone sticks until then.
+  const anchorMonth = toLocalDate(startOfMonth(fromLocalDate(anchor)));
+  useEffect(() => setMonth(anchorMonth), [anchorMonth]);
   const days = viewDays("month", month, weekStart);
   const today = todayLocal();
   const m = fromLocalDate(month).getMonth();

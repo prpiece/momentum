@@ -5,7 +5,7 @@ import { numberedParams, type Driver } from "../../db/client";
 import { pendingFields, planApply, type SyncTable } from "../../domain/sync";
 
 vi.mock("./supabase", () => ({ supabase: {}, syncConfigured: false, restoreSession: async () => null }));
-const { applyOp } = await import("./engine");
+const { applyOp, repairTaskCycles } = await import("./engine");
 
 const DIR = "src-tauri/migrations";
 const fresh = () => {
@@ -203,5 +203,40 @@ describe("SYNC-08: set-like JSON columns", () => {
     expect(sent[1]).toEqual({ title: "Y" });
     expect(sent[2]).toMatchObject({ _add_exdates: ["2026-11-07"], _del_exdates: [] });
     expect(sent[3]).toMatchObject({ tags: "not json", _add_tags: [], _del_tags: ["b"] });
+  });
+});
+
+describe("concurrent re-parenting", () => {
+  it("is un-looped on pull, queued for the server, and a second pass changes nothing", async () => {
+    const { db, d } = fresh();
+    const ins = db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES (?, 'T', 'inbox', 'open', 0, 0, ?, ?)");
+    for (const id of ["x", "y", "z"]) ins.run(id, at, at);
+    // The merged server state: A put x under y, B put y under x; z hangs off the loop.
+    await applyAll(d, planApply([{ tbl: "tasks", id: "x", version: 2, data: { parent_id: "y" } }, { tbl: "tasks", id: "y", version: 3, data: { parent_id: "x" } }, { tbl: "tasks", id: "z", version: 4, data: { parent_id: "y" } }], new Map(), cols(db)));
+    db.prepare("UPDATE sync_state SET value = '1' WHERE key = 'record'").run();
+    await repairTaskCycles(d);
+    const parents = () => db.prepare("SELECT id, parent_id FROM tasks ORDER BY id").all();
+    expect(parents()).toEqual([{ id: "x", parent_id: null }, { id: "y", parent_id: "x" }, { id: "z", parent_id: "y" }]);
+    const queued = db.prepare("SELECT row_id, fields FROM sync_outbox WHERE tbl = 'tasks'").all() as { row_id: string; fields: string }[];
+    expect(queued.filter((q) => q.row_id === "x" && "parent_id" in JSON.parse(q.fields))).toHaveLength(1);
+    await repairTaskCycles(d);
+    expect(db.prepare("SELECT count(*) AS n FROM sync_outbox").get()).toEqual({ n: queued.length });
+  });
+});
+
+describe("a pending local re-parent met by a remote one", () => {
+  it("ends acyclic, with the break queued after the local edit so it is the one pushed", async () => {
+    const { db, d } = fresh();
+    const ins = db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES (?, 'T', 'inbox', 'open', 0, 0, ?, ?)");
+    for (const id of ["x", "y"]) ins.run(id, at, at);
+    db.prepare("UPDATE sync_state SET value = '1' WHERE key = 'record'").run();
+    db.prepare("UPDATE tasks SET parent_id = 'y' WHERE id = 'x'").run(); // this device: x under y, not pushed yet
+    const outbox = () => db.prepare("SELECT seq, tbl, row_id, fields FROM sync_outbox").all() as { seq: number; tbl: string; row_id: string; fields: string }[];
+    await applyAll(d, planApply([{ tbl: "tasks", id: "y", version: 5, data: { parent_id: "x" } }], pendingFields(outbox()), cols(db)));
+    expect(await repairTaskCycles(d)).toBe(1);
+    const parents = db.prepare("SELECT id, parent_id FROM tasks ORDER BY id").all();
+    expect(parents).toEqual([{ id: "x", parent_id: null }, { id: "y", parent_id: "x" }]);
+    const xs = outbox().filter((r) => r.row_id === "x").map((r) => JSON.parse(r.fields).parent_id);
+    expect(xs[xs.length - 1]).toBeNull();
   });
 });

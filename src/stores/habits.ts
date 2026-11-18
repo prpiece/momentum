@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { select, upsert, write } from "../db/client";
+import { selectAfterWrites, upsert, write } from "../db/client";
 import { habitToRow, parseCheckin, parseGroup, parseHabit } from "../db/habitRows";
 import { parseAll, type Row } from "../db/rows";
 import { todayLocal } from "../domain/dates";
@@ -7,6 +7,7 @@ import { isBuild, isDone, type CheckinMap, type Habit, type HabitCheckin, type H
 import { after, reorder } from "../domain/order";
 import type { LocalDate } from "../domain/types";
 import { uid } from "./data";
+import { keepEdited, serially } from "./keepEdited";
 import { trackDone } from "./settings";
 import { toast } from "./toast";
 
@@ -30,10 +31,24 @@ function nest(checkins: HabitCheckin[]): State["checkins"] {
   return out;
 }
 
-export async function hydrateHabits() {
-  const [habits, groups, checkins] = await Promise.all(["habits", "habit_groups", "habit_checkins"].map((t) => select<Row>(`SELECT * FROM ${t}`)));
-  set({ habits: byId(parseAll(habits, parseHabit)), groups: byId(parseAll(groups, parseGroup)), checkins: nest(parseAll(checkins, parseCheckin)) });
+async function load() {
+  const then = get();
+  const [habits, groups, checkins] = await Promise.all(["habits", "habit_groups", "habit_checkins"].map((t) => selectAfterWrites<Row>(`SELECT * FROM ${t}`)));
+  const now = get();
+  const loaded = nest(parseAll(checkins, parseCheckin));
+  // Check-ins merge per habit and then per date, so a pulled check-in for another day of an edited habit still lands.
+  for (const id of new Set([...Object.keys(then.checkins), ...Object.keys(now.checkins)])) {
+    if (now.checkins[id] === then.checkins[id]) continue;
+    if (id in now.checkins) loaded[id] = keepEdited({ ...loaded[id] }, then.checkins[id] ?? {}, now.checkins[id]);
+    else delete loaded[id];
+  }
+  set({
+    habits: keepEdited(byId(parseAll(habits, parseHabit)), then.habits, now.habits),
+    groups: keepEdited(byId(parseAll(groups, parseGroup)), then.groups, now.groups),
+    checkins: loaded,
+  });
 }
+export const hydrateHabits = serially(load);
 
 export function replaceHabits(d: HabitData) {
   set({ habits: byId(d.habits), groups: byId(d.groups), checkins: nest(d.checkins) });

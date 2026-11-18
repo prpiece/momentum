@@ -109,5 +109,5 @@ if (popup === "mini") {
       <App />
     </React.StrictMode>,
   );
-  void initOs();
+  void initOs().catch((err) => console.error("OS integration failed", err));
 }

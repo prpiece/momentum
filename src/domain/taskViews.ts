@@ -38,7 +38,7 @@ export function toVM(task: Task): TaskVM | null {
 export const waitingNow = (vm: TaskVM, today: LocalDate) => isWaiting(vm.task.waiting, vm.blocked, today);
 
 /** The day a view files a task under. A timed block follows End-of-day like "today" does (HAB-13); the rest use their date. */
-const dayOf = (vm: TaskVM): LocalDate | null => (vm.schedule.kind === "timed" ? todayLocal(new Date(vm.schedule.start)) : vm.date);
+export const dayOf = (vm: Pick<TaskVM, "schedule" | "date">): LocalDate | null => (vm.schedule.kind === "timed" ? todayLocal(new Date(vm.schedule.start)) : vm.date);
 
 export function inSmartList(id: SmartListId, vm: TaskVM, today: LocalDate): boolean {
   const t = vm.task;
@@ -74,7 +74,7 @@ export function inSmartScope(id: SmartListId, vm: TaskVM, today: LocalDate): boo
     case "today":
       return t.completedAt !== null && todayLocal(new Date(t.completedAt)) === today;
     case "upcoming":
-      return vm.date !== null && vm.date > today;
+      return dayOf(vm) !== null && dayOf(vm)! > today;
     case "someday":
       return vm.schedule.kind === "someday";
     case "waiting":
@@ -136,11 +136,12 @@ type GroupCtx = { today: LocalDate; lists: ReadonlyMap<string, TaskList>; tags: 
 
 /** Each of the next seven days is its own group, so a task can be dragged onto a day (D253). */
 function dateBucket(vm: TaskVM, today: LocalDate): [string, string] {
-  if (!vm.date) return ["5", "No date"];
-  if (vm.date < today) return ["0", "Overdue"];
-  if (vm.date === today) return ["1", "Today"];
-  if (vm.date === addDaysLocal(today, 1)) return [`2:${vm.date}`, "Tomorrow"];
-  if (vm.date <= addDaysLocal(today, 6)) return [`2:${vm.date}`, format(fromLocalDate(vm.date), "EEEE d MMM")];
+  const date = dayOf(vm);
+  if (!date) return ["5", "No date"];
+  if (date < today) return ["0", "Overdue"];
+  if (date === today) return ["1", "Today"];
+  if (date === addDaysLocal(today, 1)) return [`2:${date}`, "Tomorrow"];
+  if (date <= addDaysLocal(today, 6)) return [`2:${date}`, format(fromLocalDate(date), "EEEE d MMM")];
   return ["4", "Later"];
 }
 

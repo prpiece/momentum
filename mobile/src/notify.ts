@@ -199,12 +199,17 @@ export function startReminders(): () => void {
   let stopped = false;
   const subs: { remove: () => void }[] = [];
   void (async () => {
-    await Notifications.setNotificationChannelAsync(CHANNEL, { name: "Reminders", importance: Notifications.AndroidImportance.HIGH });
-    await Notifications.setNotificationCategoryAsync("task", [
-      { identifier: "done", buttonTitle: "Done", options: { opensAppToForeground: false } },
-      { identifier: "snooze", buttonTitle: `Snooze ${SNOOZE_MIN} min`, options: { opensAppToForeground: false } },
-    ]);
-    await Notifications.setNotificationCategoryAsync("reminder", [{ identifier: "snooze", buttonTitle: `Snooze ${SNOOZE_MIN} min`, options: { opensAppToForeground: false } }]);
+    // The response listener doesn't depend on the channel or categories (they only decide which buttons show), so a setup failure is logged and the listener still registers.
+    try {
+      await Notifications.setNotificationChannelAsync(CHANNEL, { name: "Reminders", importance: Notifications.AndroidImportance.HIGH });
+      await Notifications.setNotificationCategoryAsync("task", [
+        { identifier: "done", buttonTitle: "Done", options: { opensAppToForeground: false } },
+        { identifier: "snooze", buttonTitle: `Snooze ${SNOOZE_MIN} min`, options: { opensAppToForeground: false } },
+      ]);
+      await Notifications.setNotificationCategoryAsync("reminder", [{ identifier: "snooze", buttonTitle: `Snooze ${SNOOZE_MIN} min`, options: { opensAppToForeground: false } }]);
+    } catch (e) {
+      console.warn("reminders setup", e);
+    }
     if (stopped) return;
     // ponytail: a Done/Snooze pressed while the app is killed is handled the next time it starts; a headless task (expo-task-manager) would handle it at once.
     subs.push(Notifications.addNotificationResponseReceivedListener((r) => void respond(r)));
@@ -213,7 +218,7 @@ export function startReminders(): () => void {
       void respond(last);
       void Notifications.clearLastNotificationResponseAsync();
     }
-  })();
+  })().catch((e: unknown) => console.warn("reminders", e));
   for (const store of [useData, useHabits, useSettings, useFocus] as const) subs.push({ remove: store.subscribe(reschedule) });
   subs.push(AppState.addEventListener("change", (s) => s === "active" && reschedule()));
   // While the app is open, a time block that just began starts focus itself (the OS can't do it when closed).

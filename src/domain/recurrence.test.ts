@@ -258,6 +258,15 @@ describe("shiftSeries (all occurrences)", () => {
     expect(keys(moved, atLocalTime("2026-11-16", "00:00"), atLocalTime("2026-11-22", "23:59"))).toEqual(["2026-11-16", "2026-11-20"]);
     expect(keys(moved, atLocalTime("2026-11-23", "00:00"), atLocalTime("2026-11-29", "23:59"))).toEqual(["2026-11-23", "2026-11-26", "2026-11-27"]);
   });
+
+  it("keeps the TZID when a BYDAY rewrite moves the weekday of a zoned series", () => {
+    const t = task(timed(new Date("2026-03-02T09:00:00Z"), 30), "DTSTART;TZID=Europe/London:20260302T090000\nRRULE:FREQ=WEEKLY;BYDAY=MO,WE");
+    const moved = { ...t, ...shiftSeries(t, "2026-03-04T04:00", timed(atLocalTime("2026-03-05", "04:00"), 30)) };
+    expect(moved.recurrence?.rule).toBe("DTSTART;TZID=Europe/London:20260302T090000\nRRULE:FREQ=WEEKLY;BYDAY=MO,TH");
+    const at = (a: string, b: string) => occurrencesBetween(moved, atLocalTime(a, "00:00"), atLocalTime(b, "23:59")).map((o) => (o.schedule.kind === "timed" ? o.schedule.start : ""));
+    expect(at("2026-03-09", "2026-03-12")).toEqual(["2026-03-09T09:00:00.000Z", "2026-03-12T09:00:00.000Z"]);
+    expect(at("2026-03-30", "2026-04-02")).toEqual(["2026-03-30T08:00:00.000Z", "2026-04-02T08:00:00.000Z"]);
+  });
 });
 
 describe("custom rule end and nth weekday (TIME-19)", () => {
@@ -317,5 +326,72 @@ describe("series zone (TIME-03)", () => {
     const t = withTz(task(timed(start, 30), "FREQ=DAILY", nyEx), "Europe/London");
     expect(effective(t)?.key).toBe("2026-11-03T09:00");
     expect(withTz(t, null) && effective(withTz(t, null))?.key).not.toBe("2026-11-03T09:00");
+  });
+});
+
+describe("splitSeries keeps the zone of a TZID series", () => {
+  // Device New York; series written in London. NY is in DST from Mar 8, London from Mar 29.
+  const rule = (extra = "") => `DTSTART;TZID=Europe/London:20260301T090000\nRRULE:FREQ=DAILY${extra}`;
+  const zoned = (r: string, exdates: string[] = []) => task(timed(new Date("2026-03-01T09:00:00Z"), 30), r, exdates);
+  const instants = (t: Task, a: string, b: string) => occurrencesBetween(t, atLocalTime(a, "00:00"), atLocalTime(b, "23:59")).map((o) => (o.schedule.kind === "timed" ? o.schedule.start : ""));
+
+  it("tail and head occur at the original instants", () => {
+    const t = zoned(rule());
+    const { head, tail } = splitSeries(t, "2026-03-05T04:00", "n", "x");
+    expect(tail.recurrence?.rule).toMatch(/^DTSTART;TZID=Europe\/London:20260305T090000\nRRULE:FREQ=DAILY$/);
+    expect(instants(tail, "2026-03-08", "2026-03-10")).toEqual(instants(t, "2026-03-08", "2026-03-10"));
+    expect(instants(tail, "2026-03-08", "2026-03-10")[0]).toBe("2026-03-08T09:00:00.000Z");
+    expect(head?.recurrence?.rule).toMatch(/^DTSTART;TZID=Europe\/London:20260301T090000\nRRULE:FREQ=DAILY;UNTIL=/);
+    expect(instants(head!, "2026-03-01", "2026-03-10")).toEqual(instants(t, "2026-03-01", "2026-03-04"));
+  });
+
+  it("splits COUNT, the first occurrence, and exdates", () => {
+    const t = zoned(rule(";COUNT=6"), ["2026-03-02T04:00", "2026-03-06T04:00"]);
+    const { head, tail } = splitSeries(t, "2026-03-04T04:00", "n", "x");
+    expect(head?.recurrence?.rule).toContain("COUNT=3");
+    expect(tail.recurrence?.rule).toContain("COUNT=3");
+    expect(instants(tail, "2026-03-01", "2026-03-31")).toEqual(instants(t, "2026-03-04", "2026-03-31"));
+    expect(splitSeries(t, "2026-03-01T04:00", "n", "x").head).toBeNull();
+  });
+
+  // Head and tail together must give exactly the instants the unsplit series gave, across both DST changes.
+  const splitsCleanly = (t: Task, cutKey: string, to = "2026-04-12") => {
+    const { head, tail } = splitSeries(t, cutKey, "n", "x");
+    const all = instants(t, "2026-03-01", to);
+    expect([...(head ? instants(head, "2026-03-01", to) : []), ...instants(tail, "2026-03-01", to)]).toEqual(all);
+    expect(all.length).toBeGreaterThan(5);
+    return { head, tail };
+  };
+
+  it("COUNT=40 with exdates, cut Mar 20: the tail crosses the UK change on Mar 29 at the original instants", () => {
+    const t = zoned(rule(";COUNT=40"), ["2026-03-12T05:00", "2026-03-25T05:00"]);
+    const { head, tail } = splitsCleanly(t, "2026-03-20T05:00", "2026-04-30");
+    expect(head?.recurrence?.rule).toContain("COUNT=19");
+    expect(tail.recurrence?.rule).toContain("COUNT=21");
+    expect(tail.recurrence?.exdates).toEqual(["2026-03-25T05:00"]);
+    expect(instants(tail, "2026-03-28", "2026-03-30")).toEqual(["2026-03-28T09:00:00.000Z", "2026-03-29T08:00:00.000Z", "2026-03-30T08:00:00.000Z"]);
+  });
+
+  it("keeps an UNTIL already on the zoned rule", () => {
+    const t = zoned(rule(";UNTIL=20260405T090000Z"));
+    const { tail } = splitsCleanly(t, "2026-03-20T05:00");
+    expect(tail.recurrence?.rule).toMatch(/^DTSTART;TZID=Europe\/London:20260320T090000\nRRULE:FREQ=DAILY;UNTIL=/);
+    expect(instants(tail, "2026-04-01", "2026-04-12").length).toBe(5);
+  });
+
+  it("splits a zoned BYDAY weekly series", () => {
+    const t = task(timed(new Date("2026-03-02T09:00:00Z"), 30), "DTSTART;TZID=Europe/London:20260302T090000\nRRULE:FREQ=WEEKLY;BYDAY=MO,TH");
+    const { tail } = splitsCleanly(t, "2026-03-19T05:00");
+    expect(instants(tail, "2026-03-28", "2026-04-01")).toEqual(["2026-03-30T08:00:00.000Z"]);
+  });
+
+  it("cuts exactly on a DST day (Mar 8 in New York, Mar 29 in London)", () => {
+    splitsCleanly(zoned(rule()), "2026-03-08T05:00");
+    splitsCleanly(zoned(rule()), "2026-03-29T04:00");
+  });
+
+  it("leaves floating series without a zone line", () => {
+    const { tail } = splitSeries(task(timed(atLocalTime("2026-03-01", "09:00"), 30), "FREQ=DAILY"), "2026-03-05T09:00", "n", "x");
+    expect(tail.recurrence?.rule).toBe("FREQ=DAILY");
   });
 });

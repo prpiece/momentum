@@ -40,6 +40,7 @@ export function MiniWindow() {
     sync();
     window.addEventListener("storage", sync);
     let off: (() => void)[] = [];
+    let disposed = false;
     void (async () => {
       const { listen, emit } = await import("@tauri-apps/api/event");
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -56,9 +57,12 @@ export function MiniWindow() {
           }
         }),
       ];
+      // Unmounted while registering (StrictMode's double mount): drop these listeners and skip the hello.
+      if (disposed) return off.forEach((f) => f());
       hello();
     })();
     return () => {
+      disposed = true;
       window.removeEventListener("storage", sync);
       off.forEach((f) => f());
     };

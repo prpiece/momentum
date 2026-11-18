@@ -1,17 +1,25 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import type { TaskVM } from "../domain/taskViews";
 
 const writes: [string, unknown[]?][] = [];
 let stored: string | null = null;
+let hold: Promise<void> | null = null;
 vi.mock("../db/client", () => ({
-  select: async (sql: string) => (sql.includes("sync_state") ? (stored ? [{ value: stored }] : []) : []),
+  selectAfterWrites: async (sql: string) => {
+    if (!sql.includes("sync_state")) return [];
+    const row = stored ? [{ value: stored }] : []; // read first, like a query that queued before the stop's delete
+    if (hold) await hold;
+    return row;
+  },
   write: async (...st: [string, unknown[]?][]) => void writes.push(...st),
   upsert: (table: string, row: Record<string, unknown>) => [`UPSERT ${table}`, [row]] as [string, unknown[]],
 }));
 
 const min = 60_000;
 const t0 = Date.parse("2026-10-25T14:00:00.000Z");
-beforeEach(() => (vi.useFakeTimers(), vi.setSystemTime(t0), (writes.length = 0), (stored = null), vi.resetModules()));
+// The first import transforms the whole store graph (seconds when the machine is busy); do it once here, not inside the first test's 5 s budget.
+beforeAll(() => import("./focus"), 60_000);
+beforeEach(() => (vi.useFakeTimers(), vi.setSystemTime(t0), (writes.length = 0), (stored = null), (hold = null), vi.resetModules()));
 afterEach(() => vi.useRealTimers());
 
 it("HAB-01: a running timer is mirrored to storage and recorded up to its last save on next launch", async () => {
@@ -94,4 +102,23 @@ it("HAB-21: after an away pause, Keep adds the gap back and resumes; ignoring it
   vi.setSystemTime(t0 + 135 * min);
   f.stopFocus();
   expect(Object.values(f.useFocus.getState().sessions)[0]?.seconds).toBe(135 * 60);
+});
+
+it("SYNC-14: a timer stopped while recoverTimer's read was in flight isn't recorded a second time from the stale row", async () => {
+  const a = await import("./focus");
+  a.startFocus("stopwatch", "A");
+  vi.setSystemTime(t0 + 10 * min);
+  a.tickFocus(); // heartbeat
+  stored = writes.filter(([sql]) => sql.startsWith("INSERT INTO sync_state")).slice(-1)[0][1]![1] as string;
+  a.useFocus.setState({ timer: { status: "idle" } }); // as after a pull: a fresh idle timer, stale row still stored
+  let release!: () => void;
+  hold = new Promise((r) => (release = r));
+  const loading = a.hydrateFocus();
+  await vi.advanceTimersByTimeAsync(0); // the stored-timer read is now in flight
+  a.startFocus("stopwatch", "A");
+  vi.setSystemTime(t0 + 20 * min);
+  a.stopFocus();
+  release();
+  await loading;
+  expect(Object.values(a.useFocus.getState().sessions)).toHaveLength(1);
 });

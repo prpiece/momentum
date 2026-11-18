@@ -14,7 +14,7 @@ import { UpdatesSection } from "./UpdatesSection";
 import { AgentsPanel } from "./AgentsPanel";
 import { VoiceSection } from "./VoiceSection";
 import { keyLabel, trayName } from "../../lib/platform";
-import { shortcutProblem } from "../../lib/os";
+import { shortcutProblem, shortcutTaken } from "../../lib/os";
 import { VOICE_SECTION_ID } from "../../lib/voice";
 import { TagsSection } from "./TagsSection";
 import { HelpSection } from "../help/HelpSection";
@@ -172,6 +172,11 @@ const discardAll = () => (discardDraft(), void pruneBackgrounds());
 
 export function SettingsView() {
   const { draft: s, update, dirty } = useSettingsDraft();
+  const setShortcut = (which: "quickAddShortcut" | "voiceShortcut" | "miniShortcut", v: string) => {
+    const taken = shortcutTaken(v, which, s);
+    if (taken) toast(taken);
+    else update({ [which]: v });
+  };
   const lists = useData((st) => st.lists);
   const set = <K extends keyof Settings>(key: K) => (value: Settings[K]) => update({ [key]: value });
 
@@ -356,10 +361,10 @@ export function SettingsView() {
           <Toggle checked={s.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} text={`Start minimized to the ${trayName}`} />
         </Row>
         <Row label="Global quick add">
-          <ShortcutInput value={s.quickAddShortcut} onChange={(v) => (v === s.voiceShortcut ? toast("That shortcut is already push-to-talk.") : update({ quickAddShortcut: v }))} />
+          <ShortcutInput value={s.quickAddShortcut} onChange={(v) => setShortcut("quickAddShortcut", v)} />
         </Row>
         <Row label="Mini window">
-          <ShortcutInput value={s.miniShortcut} onChange={(v) => update({ miniShortcut: v })} />
+          <ShortcutInput value={s.miniShortcut} onChange={(v) => setShortcut("miniShortcut", v)} />
         </Row>
         <div className="space-y-2">
           <span className="font-medium">Tags</span>
@@ -487,7 +492,7 @@ export function SettingsView() {
       <Card>
         <VoiceSection />
         <Row label="Push to talk">
-          <ShortcutInput value={s.voiceShortcut} onChange={(v) => (v === s.quickAddShortcut ? toast("That shortcut already opens quick add.") : update({ voiceShortcut: v }))} />
+          <ShortcutInput value={s.voiceShortcut} onChange={(v) => setShortcut("voiceShortcut", v)} />
         </Row>
         <p className="text-[length:var(--fs-sm)] text-muted">Hold the shortcut, say a task, let go, then press Enter. Or say “start focus”, “stop focus”, “open today”, “show matrix”, “show completed” or “open calendar”.</p>
       </Card>

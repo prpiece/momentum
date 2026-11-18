@@ -14,20 +14,25 @@ use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 /// Paths the user chose in a native dialog this session (RUST-09). The file commands that take a
-/// path from the webview only accept these, or paths inside the app's own config folder.
+/// path from the webview only accept these, or paths inside the `backups` folder of the app's config dir.
 #[derive(Default)]
 pub struct Picked(Mutex<HashSet<PathBuf>>);
 
-/// The path as a `Path` if the user picked it in a dialog this session or it is inside the app config dir.
+/// The path as a `Path` if the user picked it in a dialog this session or it is inside `<config>/backups`
+/// (the rest of the config dir holds the agent token, window state, voice models and attachments).
 pub fn authorize<'a>(app: &AppHandle, picked: &Picked, path: &'a str) -> Result<&'a Path, String> {
     let p = Path::new(path);
-    let plain = !p.components().any(|c| matches!(c, std::path::Component::ParentDir));
-    let own = app.path().app_config_dir().is_ok_and(|d| p.starts_with(d));
-    if (plain && own) || picked.0.lock().unwrap().contains(p) {
+    let own = app.path().app_config_dir().is_ok_and(|d| in_backups(&d, p));
+    if own || picked.0.lock().unwrap().contains(p) {
         Ok(p)
     } else {
         Err("that file wasn't chosen in a file dialog".into())
     }
+}
+
+/// `p` is inside `<config>/backups` with no `..` component.
+fn in_backups(config: &Path, p: &Path) -> bool {
+    !p.components().any(|c| matches!(c, std::path::Component::ParentDir)) && p.starts_with(config.join("backups"))
 }
 
 /// Native open/save dialog. The returned path is remembered so the file commands accept it. A save
@@ -159,7 +164,8 @@ pub fn delete_image(app: AppHandle, kind: String, name: String) -> Result<(), St
 // ---- .zip backups (D78): the JSON export plus `attachments/<file>` and `backgrounds/<file>` ----
 
 const JSON_ENTRY: &str = "momentum-backup.json";
-const MAX_JSON_BYTES: u64 = 512 * 1024 * 1024;
+/// Same cap as `read_text_file`: the JSON is held in memory and sent over IPC.
+const MAX_JSON_BYTES: u64 = 64 * 1024 * 1024;
 
 type AnyResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -202,10 +208,19 @@ fn zip_backup_to(zip_file: &Path, json: &str, folders: &[(&str, &Path)]) -> AnyR
     Ok(())
 }
 
-fn unzip_json(zip_file: &Path) -> AnyResult<String> {
+/// The size in the header is checked first, then the read itself is capped, so a lying header can't bypass `limit`.
+fn unzip_json(zip_file: &Path, limit: u64) -> AnyResult<String> {
     let mut archive = zip::ZipArchive::new(fs::File::open(zip_file)?)?;
+    let entry = archive.by_name(JSON_ENTRY)?;
+    let too_big = || format!("that backup is larger than {} MB", limit / 1024 / 1024);
+    if entry.size() > limit {
+        return Err(too_big().into());
+    }
     let mut text = String::new();
-    archive.by_name(JSON_ENTRY)?.take(MAX_JSON_BYTES).read_to_string(&mut text)?;
+    entry.take(limit + 1).read_to_string(&mut text)?;
+    if text.len() as u64 > limit {
+        return Err(too_big().into());
+    }
     Ok(text)
 }
 
@@ -302,7 +317,7 @@ pub fn write_auto_backup(app: AppHandle, name: String, json: String, keep: usize
 #[tauri::command]
 pub fn read_backup_zip(app: AppHandle, picked: State<Picked>, path: String) -> Result<String, String> {
     authorize(&app, &picked, &path)?;
-    unzip_json(zip_path(&path)?).map_err(|e| e.to_string())
+    unzip_json(zip_path(&path)?, MAX_JSON_BYTES).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -315,8 +330,17 @@ pub fn restore_backup_attachments(app: AppHandle, picked: State<Picked>, path: S
 
 #[cfg(test)]
 mod tests {
-    use super::{prune_autos, unzip_images, unzip_json, valid_name, zip_backup};
-    use std::{fs, io::Write};
+    use super::{in_backups, prune_autos, unzip_images, unzip_json, valid_name, zip_backup};
+    use std::{fs, io::Write, path::Path};
+
+    #[test]
+    fn dialog_free_paths_are_only_the_backups_folder() {
+        let cfg = Path::new("/cfg/app");
+        assert!(in_backups(cfg, Path::new("/cfg/app/backups/x.json")));
+        assert!(!in_backups(cfg, Path::new("/cfg/app/agent.json")));
+        assert!(!in_backups(cfg, Path::new("/cfg/app/backups/../agent.json")));
+        assert!(!in_backups(cfg, Path::new("/cfg/app/backupsx/x.json")));
+    }
 
     #[test]
     fn zip_round_trips_json_and_valid_attachments_only() {
@@ -334,7 +358,8 @@ mod tests {
         extra.write_all(b"x").unwrap();
         extra.finish().unwrap();
 
-        assert_eq!(unzip_json(&zip_file).unwrap(), "{\"x\":1}");
+        assert_eq!(unzip_json(&zip_file, 1024).unwrap(), "{\"x\":1}");
+        assert!(unzip_json(&zip_file, 3).unwrap_err().to_string().contains("larger than"));
         assert_eq!(unzip_images(&zip_file, "attachments", &dst).unwrap(), 1);
         assert_eq!(fs::read(dst.join("a1.png")).unwrap(), b"png-bytes");
         assert!(!dst.join("notes.exe").exists() && !base.join("evil.png").exists());

@@ -6,7 +6,7 @@ import { create } from "zustand";
 import { onWrite, select, transact, write, type Driver } from "../../db/client";
 import { saveSettings } from "../../db/settings";
 import { USER_SETTING_KEYS, withRemoteSettings } from "../../domain/settings";
-import { coalesceOutbox, isSyncTarget, pendingFields, planApply, pushBatches, SYNC_TABLES, tagWinner, toPatch, type ApplyOp, type OutboxEntry, type OutboxRow, type RemoteRow, type SyncTable } from "../../domain/sync";
+import { coalesceOutbox, isSyncTarget, parentCycleBreaks, pendingFields, planApply, pushBatches, SYNC_TABLES, tagWinner, toPatch, zoneToWrite, type ApplyOp, type OutboxEntry, type OutboxRow, type RemoteRow, type SyncTable } from "../../domain/sync";
 import { INBOX_ID } from "../../domain/types";
 import { hydrate, setEventHook } from "../../stores/data";
 import { hydrateFocus } from "../../stores/focus";
@@ -19,6 +19,8 @@ import { restoreSession, supabase, syncConfigured } from "./supabase";
 /** The local schema this client speaks (latest migration); the server refuses older clients (spec, "Version skew"). */
 export const CLIENT_SCHEMA = 13;
 const PAGE = 1000;
+/** Pulled rows that failed to apply, kept to try again (more than this makes the cursor wait for the rest). */
+const RETRY_MAX = 500;
 
 export type SyncStatus =
   | { kind: "off" }
@@ -141,6 +143,7 @@ export async function compactOutbox() {
 }
 
 async function push(device: string): Promise<"ok" | "updateRequired"> {
+  const started = session;
   await compactOutbox();
   pages: for (;;) {
     const rows = await select<OutboxEntry>("SELECT seq, tbl, row_id, fields, created_at FROM sync_outbox ORDER BY seq LIMIT 5000");
@@ -152,9 +155,12 @@ async function push(device: string): Promise<"ok" | "updateRequired"> {
     for (const batch of pushBatches(rows)) {
       // Each patch says when its fields were edited, so the server keeps the newest edit of each field (SYNC-11).
       const patches = batch.map(toPatch);
+      // Signed out (and maybe into another account) since these rows were read: they are not this session's to send (SYNC-04).
+      if (session !== started) return "ok";
       await transact((d) => setState(d, "sent_seq", String(batch[batch.length - 1].seq)));
       const { data, error } = await supabase.rpc("sync_push", { p_device: device, p_schema: CLIENT_SCHEMA, p_patches: patches });
       if (error) throw error;
+      if (session !== started) return "ok"; // the wipe took the outbox: its seqs must not be deleted again
       const res = parsePush(data);
       if (!res) throw new Error("Unexpected reply from the sync server");
       if ("error" in res) return "updateRequired";
@@ -162,6 +168,13 @@ async function push(device: string): Promise<"ok" | "updateRequired"> {
         // The server skipped these patches as seen before: push them again as a new device (field merges replay safely).
         device = await newDeviceId();
         named = false;
+        // An increment isn't safe to replay: the server may have counted it already. Send the local total instead (an absolute value is).
+        await transact(async (d) => {
+          const local = "SELECT c.value FROM habit_checkins c WHERE c.habit_id || '|' || c.date = sync_outbox.row_id";
+          const queued = "tbl = 'habit_checkins' AND json_type(fields, '$._delta') IS NOT NULL";
+          await d.execute(`UPDATE sync_outbox SET fields = json_remove(json_set(fields, '$.value', (${local})), '$._delta') WHERE ${queued} AND EXISTS (${local})`);
+          await d.execute(`UPDATE sync_outbox SET fields = json_remove(fields, '$._delta') WHERE ${queued}`); // check-in gone here: its delete is queued too
+        });
         continue pages;
       }
       const at = new Date().toISOString();
@@ -268,6 +281,18 @@ async function keepUnpushedChildren(d: Driver, tbl: "lists" | "tasks", id: strin
   }
 }
 
+/**
+ * Merged `parent_id` edits from two devices can loop (X under Y, Y under X) and hide both tasks.
+ * Break each loop at its smallest id. Run with the triggers on, so the fix is queued and pushed:
+ * every device makes the same choice, so they converge.
+ */
+export async function repairTaskCycles(d: Driver): Promise<number> {
+  const rows = await d.select<{ id: string; parent_id: string | null }[]>("SELECT id, parent_id FROM tasks WHERE parent_id IS NOT NULL");
+  const breaks = parentCycleBreaks(rows.map((r) => [r.id, r.parent_id]));
+  for (const id of breaks) await d.execute("UPDATE tasks SET parent_id = NULL WHERE id = $1", [id]);
+  return breaks.length;
+}
+
 /** Applies one op; returns an issue instead of throwing, so one bad row never blocks the rest. */
 export async function applyOp(d: Driver, op: Exclude<ApplyOp, { kind: "settings" }>): Promise<string | null> {
   try {
@@ -356,13 +381,27 @@ async function pull(): Promise<RemoteRow[]> {
   } catch {
     /* a bad list only loses the retries */
   }
-  if (!remote.length && !retry.length) return [];
+  if (!remote.length && !retry.length) {
+    // Loops already in this database (made before the repair existed) get fixed once per session, even when nothing arrives.
+    if (!cyclesChecked) {
+      const broke = await transact(async (d) => (session === started ? repairTaskCycles(d) : 0));
+      if (session === started) {
+        cyclesChecked = true;
+        if (broke) {
+          again = true; // the break was written outside the write trigger: push it in this run
+          await hydrate(false);
+        }
+      }
+    }
+    return [];
+  }
   const retried = new Set(retry.map((r) => `${r.tbl}|${r.id}`));
   const incoming = [...retry, ...remote];
 
   const at = new Date().toISOString();
   // A settings change still waiting on its debounce goes into the outbox first, so it wins like any pending edit.
   await useSettings.getState().flush();
+  let broke = false;
   const applied = await transact(async (d) => {
     // Signed out while this pull was on the wire: the old account's rows must not land (SYNC-04).
     if (session !== started) return null;
@@ -384,11 +423,16 @@ async function pull(): Promise<RemoteRow[]> {
     } finally {
       await setState(d, "record", "1");
     }
+    // Only a pull that brought tasks can have made a loop; the first pull of a session checks regardless.
+    if (!cyclesChecked || incoming.some((r) => r.tbl === "tasks")) broke = (await repairTaskCycles(d)) > 0;
     // Keep what failed, with its data, to apply again on the next pull; report each row once.
-    // ponytail: capped at 500 rows, and a row that never applies is retried for good; add an age limit if that bites.
+    // Only 500 are kept. The cursor stops before the oldest one dropped, so the next pull fetches it again instead of losing it.
+    // ponytail: a row that never applies keeps the cursor there, so each pull refetches from it (its issue is shown once); add an age limit if that bites.
     const failed = new Set(issues.map((i) => `${i.tbl}|${i.id}`));
-    const keep = incoming.filter((r) => failed.has(`${r.tbl}|${r.id}`)).slice(-500);
-    await setState(d, "retry", JSON.stringify(keep));
+    const failedRows = incoming.filter((r) => failed.has(`${r.tbl}|${r.id}`));
+    const dropped = failedRows.slice(0, -RETRY_MAX);
+    if (dropped.length) cursor = Math.min(cursor, Math.min(...dropped.map((r) => r.version)) - 1);
+    await setState(d, "retry", JSON.stringify(failedRows.slice(-RETRY_MAX)));
     // ponytail: a whole re-pull when an awaited list or parent arrives; rare. Re-request by id if it gets costly.
     if (await settleAwaiting(d)) {
       cursor = 0;
@@ -396,10 +440,13 @@ async function pull(): Promise<RemoteRow[]> {
     }
     await setState(d, "cursor", String(cursor));
     await setState(d, "cursor_schema", String(CLIENT_SCHEMA));
-    return { settings, issues: issues.filter((i) => !retried.has(`${i.tbl}|${i.id}`)) };
+    const known = new Set(useSync.getState().issues.map((i) => `${i.tbl}|${i.id}`));
+    return { settings, issues: issues.filter((i) => !retried.has(`${i.tbl}|${i.id}`) && !known.has(`${i.tbl}|${i.id}`)) };
   });
   if (!applied) return [];
   const { settings, issues } = applied;
+  cyclesChecked = true;
+  if (broke) again = true;
   await addIssues(issues);
   if (settings) {
     const next = withRemoteSettings(useSettings.getState().settings, settings);
@@ -416,6 +463,8 @@ let running: Promise<void> | null = null;
 let again = false;
 /** Bumped by signOut: a run that started before it writes nothing more (SYNC-04). */
 let session = 0;
+/** Whether this session has looked for parent loops yet (see `pull`). */
+let cyclesChecked = false;
 
 /** Push then pull. Overlapping calls coalesce into one follow-up run. */
 export function syncNow(): Promise<void> {
@@ -454,6 +503,20 @@ async function namePlatform(device: string): Promise<boolean> {
   return !error && !!data?.length;
 }
 
+let zoneWritten: string | null = null;
+/**
+ * Keeps `profiles.time_zone` at this device's zone: the server parses chat times and sends digests in it. Writes only
+ * when it changed since the last write this launch, and retries on the next sync if it fails (offline). With several
+ * devices in different zones the one that synced last wins. Upsert, since an account may have no profile row yet.
+ */
+async function writeZone(account: string) {
+  const zone = zoneToWrite(Intl.DateTimeFormat().resolvedOptions().timeZone, zoneWritten);
+  if (!zone) return;
+  const started = session;
+  const { error } = await supabase.from("profiles").upsert({ id: account, time_zone: zone });
+  if (!error && session === started) zoneWritten = zone; // a sign-out meanwhile reset it for the next account
+}
+
 /** PostgREST's "JWT expired" codes. */
 export const isExpiredJwt = (err: unknown) => typeof err === "object" && err !== null && "code" in err && (err.code === "PGRST301" || err.code === "PGRST303");
 
@@ -478,10 +541,13 @@ async function runOnce() {
     const { data: meta } = await supabase.from("server_meta").select("min_client_schema").maybeSingle();
     const tooOld = typeof meta?.min_client_schema === "number" && meta.min_client_schema > CLIENT_SCHEMA;
     if (tooOld || (await push(await deviceId())) === "updateRequired") return useSync.setState({ status: { kind: "updateRequired" } });
+    if (session !== started) return; // signed out during the push
     host.afterPush?.();
     await pull();
     if (session !== started) return; // signed out meanwhile
     if (!named) named = await namePlatform(await deviceId()); // push may have taken a new id
+    const account = useSync.getState().account;
+    if (account) await writeZone(account).catch(() => undefined);
     useSync.setState({ status: { kind: "idle", at: new Date().toISOString() } });
   } catch (err) {
     // An access token the server no longer accepts: refresh the session from the stored refresh token. Only a
@@ -680,9 +746,11 @@ export async function enableSync(account: string, mode: "fresh" | "resume"): Pro
  */
 export async function signOut(how: "keep" | "remove", everywhere = false) {
   session++;
+  cyclesChecked = false;
   stop?.();
   stop = null;
   named = false;
+  zoneWritten = null;
   const account = useSync.getState().account;
   if (how === "keep" && account)
     await transact(async (d) => {

@@ -9,7 +9,7 @@ import { resolveColor, useColors } from "@/theme";
 import { tick } from "@/ui/haptics";
 import { Card, Empty, Icon, IconButton, Label, PageHeader, Text } from "@/ui/kit";
 import { useQuickAddContext } from "@/ui/QuickAdd";
-import { askText } from "@/ui/Sheet";
+import { askText, num } from "@/ui/Sheet";
 
 export const openHabit = (id: string) => router.push({ pathname: "/habit/[id]", params: { id } });
 
@@ -91,7 +91,7 @@ function HabitRow({ h, today, first }: { h: Habit; today: string; first: boolean
   const checkIn = () => (tick(), tapCheckin(h, today));
   const enter = async (title: string) => {
     const v = await askText(title, { value: value ? String(value) : "", placeholder: "0", confirm: "Save" });
-    if (v !== null && !Number.isNaN(Number(v))) (tick(), setCheckin(h.id, today, { value: Math.max(0, Number(v)) }));
+    if (v !== null && !Number.isNaN(num(v))) (tick(), setCheckin(h.id, today, { value: Math.max(0, num(v)) }));
   };
   const control =
     g.kind === "once" ? (

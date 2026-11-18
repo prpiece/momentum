@@ -25,6 +25,7 @@ export function WindowControls() {
       setWin(w);
       setMaximized(await w.isMaximized());
       unlisten = await w.onResized(async () => setMaximized(await w.isMaximized()));
+      if (!alive) unlisten();
     });
     return () => {
       alive = false;

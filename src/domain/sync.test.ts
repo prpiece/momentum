@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coalesceOutbox, keyFromId, pickProfile, pendingFields, planApply, pushBatches, tagWinner, toPatch, type OutboxRow, type RemoteRow, type SyncTable } from "./sync";
+import { coalesceOutbox, keyFromId, pickProfile, parentCycleBreaks, pendingFields, planApply, pushBatches, tagWinner, toPatch, zoneToWrite, type OutboxRow, type RemoteRow, type SyncTable } from "./sync";
 
 const COLS = {
   folders: ["id", "name", "parent_id"],
@@ -169,5 +169,30 @@ describe("SYNC-11: toPatch", () => {
       seq: 2, tbl: "tasks", id: "a", fields: { title: "x", pinned: 1 }, ts: { title: "T0", pinned: "T2" },
     });
     expect(toPatch({ ...ob(2, "tasks", "a", { title: "x", _ts: { title: "T2" } }), created_at: "T2" }).ts).toBe("T2");
+  });
+});
+
+describe("parentCycleBreaks", () => {
+  const breaks = (m: Record<string, string | null>) => parentCycleBreaks(Object.entries(m)).sort();
+  it("breaks each loop once, at its smallest id, whatever the order", () => {
+    expect(breaks({ x: "y", y: "x" })).toEqual(["x"]);
+    expect(breaks({ y: "x", x: "y" })).toEqual(["x"]);
+    expect(breaks({ c: "b", b: "a", a: "c", z: "a" })).toEqual(["a"]);
+    expect(breaks({ s: "s" })).toEqual(["s"]);
+    expect(breaks({ a: "b", b: "a", p: "q", q: "p" })).toEqual(["a", "p"]);
+  });
+  it("leaves forests, and parents that are gone, alone", () => {
+    expect(breaks({ a: "b", b: null, c: "gone", d: "c" })).toEqual([]);
+  });
+});
+
+describe("TIME-04: zoneToWrite", () => {
+  it("writes a known zone that differs from the last write, and nothing else", () => {
+    expect(zoneToWrite("America/New_York", null)).toBe("America/New_York");
+    expect(zoneToWrite("Asia/Tokyo", "America/New_York")).toBe("Asia/Tokyo");
+    expect(zoneToWrite("Asia/Tokyo", "Asia/Tokyo")).toBeNull();
+    expect(zoneToWrite("Not/AZone", null)).toBeNull();
+    expect(zoneToWrite("", null)).toBeNull();
+    expect(zoneToWrite(undefined, null)).toBeNull();
   });
 });

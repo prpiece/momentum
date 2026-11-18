@@ -49,14 +49,14 @@ export function autoBackupSettings(): AutoBackup {
     if (typeof v !== "object" || v === null) return AUTO_DEFAULT;
     const o = v as Partial<Record<keyof AutoBackup, unknown>>;
     const keep = typeof o.keep === "number" && o.keep >= 1 && o.keep <= 60 ? Math.floor(o.keep) : AUTO_DEFAULT.keep;
-    return { on: o.on === true, keep, last: typeof o.last === "string" ? o.last : null, folder: typeof o.folder === "string" ? o.folder : null, encrypt: o.encrypt === true, cloud: o.cloud === true };
+    return { on: o.on === true, keep, last: typeof o.last === "string" ? o.last : null, folder: typeof o.folder === "string" ? o.folder : null, encrypt: o.encrypt === true, cloud: o.encrypt === true && o.cloud === true };
   } catch {
     return AUTO_DEFAULT;
   }
 }
 export function saveAutoBackupSettings(a: AutoBackup): void {
   try {
-    localStorage.setItem(AUTO_KEY, JSON.stringify(a));
+    localStorage.setItem(AUTO_KEY, JSON.stringify({ ...a, cloud: a.cloud && a.encrypt })); // a cloud copy is never plaintext
   } catch {
     /* private mode: the setting just doesn't stick */
   }
@@ -86,15 +86,19 @@ const CLOUD = "backups";
 const cloudAccount = () => useSync.getState().account;
 const CLOUD_NAME = /^momentum-auto-[\d-]+\.json$/;
 
-/** Upload one backup's JSON (or encrypted envelope) and drop the oldest beyond `keep`. */
-async function uploadCloud(uid: string, name: string, payload: string, keep: number) {
+/** Upload one encrypted backup envelope (plaintext is refused) and drop the oldest beyond `keep`. */
+export async function uploadCloud(uid: string, name: string, payload: string, keep: number) {
+  if (!isEncryptedBackup(payload)) throw new Error("cloud copies must be encrypted. Turn on Encrypt backups and save a passphrase.");
   const bucket = supabase.storage.from(CLOUD);
   const up = await bucket.upload(`${uid}/momentum-auto-${name}.json`, new Blob([payload], { type: "application/json" }), { contentType: "application/json" });
-  if (up.error) throw new Error(up.error.message);
+  // Prune even when the upload was refused (the server caps the count): otherwise an account at the cap could never make room.
   const list = await bucket.list(uid, { limit: 200 });
+  if (!list.error) {
+    const old = cloudExcess(list.data.map((f) => f.name), keep);
+    if (old.length) await bucket.remove(old.map((n) => `${uid}/${n}`));
+  }
+  if (up.error) throw new Error(up.error.message);
   if (list.error) throw new Error(list.error.message);
-  const old = cloudExcess(list.data.map((f) => f.name), keep);
-  if (old.length) await bucket.remove(old.map((n) => `${uid}/${n}`));
 }
 
 /** The account's cloud copies, newest first (file names). Empty when signed out. */
@@ -213,8 +217,12 @@ export async function importIcs(path: string, color: string) {
   const text = await invoke<string>("read_text_file", { path });
   const { events, skipped } = parseIcs(text, color);
   if (!isTauri) return { count: 0, skipped };
-  await saveEvents(events);
-  await hydrate();
+  // write() swallows errors: failedWrites makes a failed save throw, so the UI never says "imported" over a half-saved file.
+  try {
+    await failedWrites(() => saveEvents(events));
+  } finally {
+    await hydrate(); // show what was saved
+  }
   return { count: events.length, skipped };
 }
 

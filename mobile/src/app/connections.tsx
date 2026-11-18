@@ -79,7 +79,7 @@ export default function Connections() {
     } else if (a === "remove")
       Alert.alert("Remove this chat?", "It stops adding tasks and sending the Digest. You can link it again.", [
         { text: "Cancel", style: "cancel" },
-        { text: "Remove", style: "destructive", onPress: () => void run(() => api.removeConnection(x.id)).then(reload) },
+        { text: "Remove", style: "destructive", onPress: () => void run(() => api.removeConnection(x.id).then(() => true)).then((ok) => void (ok && reload())) },
       ]);
   };
   const makeWebhook = async () => {
@@ -170,7 +170,7 @@ export default function Connections() {
               onPress={() =>
                 Alert.alert("Delete the webhook?", "Anything posting to it stops working.", [
                   { text: "Cancel", style: "cancel" },
-                  { text: "Delete", style: "destructive", onPress: () => void run(api.deleteWebhook).then(() => (setSecret(null), setWebhook(false), toast("Webhook deleted."))) },
+                  { text: "Delete", style: "destructive", onPress: () => void run(() => api.deleteWebhook().then(() => true)).then((ok) => ok && (setSecret(null), setWebhook(false), toast("Webhook deleted."))) },
                 ])
               }
             />

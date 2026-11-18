@@ -16,8 +16,9 @@ const DEFAULT_HEX = "#2f6fed";
  * Deletes every stored background image except the saved one. Picking copies the file at once but the choice
  * waits for Save (D232), so the orphan (a replaced image, or one picked and then discarded) goes after Save or Discard.
  */
+let picks = 0; // picks copying a file in: it isn't in the draft yet, so a prune now would delete it
 export async function pruneBackgrounds() {
-  if (!isTauri) return;
+  if (!isTauri || picks > 0) return; // skipped: the orphan goes at the next Save or Discard
   const bg = useSettings.getState().settings.background;
   const keep = bg.kind === "image" ? bg.file : null;
   try {
@@ -60,7 +61,12 @@ export function BackgroundSection() {
       if (!path) return;
       const file = newImageName(path);
       if (!file) return toast("That isn't a PNG, JPG, GIF or WebP image.");
-      await importImage("backgrounds", file, path);
+      picks++;
+      try {
+        await importImage("backgrounds", file, path);
+      } finally {
+        picks--;
+      }
       update({ background: { kind: "image", file, dim: bg.kind === "image" ? bg.dim : DIM_DEFAULT, blur: bg.kind === "image" ? bg.blur : true } });
     } catch (err) {
       toast(typeof err === "string" ? err : "Couldn't use that image.");

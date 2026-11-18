@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.119.0",
+    "date-fns": "npm:date-fns@4.4.0",
+    "rrule": "npm:rrule@2.8.1",
+    "./core.bundle.js": "./core.ts"
+  },
+  "unstable": ["sloppy-imports"]
+}

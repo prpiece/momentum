@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import { ListGlyph } from "../../components/ui/AppIcon";
 import { TaskCheckbox } from "../../components/ui/TaskCheckbox";
 import { formatMinutes, formatTime, relativeDayLabel, todayLocal } from "../../domain/dates";
-import { deadlinePassed } from "../../domain/taskViews";
+import { dayOf, deadlinePassed, isOverdue } from "../../domain/taskViews";
 import { blockingCount } from "../../domain/waiting";
 import type { TreeRow } from "../../domain/taskViews";
 import { DropLine, dropSide, SORT_TRANSITION } from "../../lib/dnd";
@@ -52,7 +52,8 @@ export const TaskRow = memo(function TaskRow(props: {
 
   const today = todayLocal();
   const done = t.status !== "open";
-  const overdue = !done && vm.date !== null && vm.date < today;
+  const day = dayOf(vm);
+  const overdue = !done && isOverdue(vm, today);
   const time = vm.schedule.kind === "timed" ? formatTime(new Date(vm.schedule.start), timeFormat) : null;
   const checklistDone = t.checklist.filter((c) => c.done).length;
   // A just-added task rises in; a completed one stays struck through for a beat before it leaves the view.
@@ -184,9 +185,9 @@ export const TaskRow = memo(function TaskRow(props: {
         )}
       </div>
       {/* Only dated rows get a date, so the meta sits against the row's right edge when there is none. */}
-      {vm.date && (
+      {day && (
         <span className={`shrink-0 whitespace-nowrap text-right text-[length:var(--fs-sm)] tabular-nums max-[719px]:order-first max-[719px]:text-left ${overdue ? "text-danger" : "text-fg-2"} ${done ? "opacity-70" : ""}`}>
-          {vm.date === today ? (time ?? "Today") : `${relativeDayLabel(vm.date, today)}${time ? ` ${time}` : ""}`}
+          {day === today ? (time ?? "Today") : `${relativeDayLabel(day, today)}${time ? ` ${time}` : ""}`}
         </span>
       )}
       </div>

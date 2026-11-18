@@ -45,6 +45,25 @@ export function shortcutProblem(accel: string): string | null {
   return null;
 }
 
+const SHORTCUT_USE = { quickAddShortcut: "already opens quick add", voiceShortcut: "is already push-to-talk", miniShortcut: "already opens the mini window" };
+
+type ShortcutKey = keyof typeof SHORTCUT_USE;
+
+/** Runs the bind jobs in order, then retries the failed ones once, so a shortcut waiting for another to let go of its accelerator still binds. Returns the indexes that still failed. */
+export async function bindAll(jobs: (() => Promise<boolean>)[]): Promise<number[]> {
+  const failed: number[] = [];
+  for (const [i, job] of jobs.entries()) if (!(await job())) failed.push(i);
+  const still: number[] = [];
+  for (const i of failed) if (!(await jobs[i]())) still.push(i);
+  return still;
+}
+
+/** Why `accel` can't be assigned to `which`: another global shortcut already has it. Null when it is free. */
+export function shortcutTaken(accel: string, which: ShortcutKey, current: Record<ShortcutKey, string>): string | null {
+  for (const k of Object.keys(SHORTCUT_USE) as ShortcutKey[]) if (k !== which && current[k] === accel) return `That shortcut ${SHORTCUT_USE[k]}.`;
+  return null;
+}
+
 export type ReminderShow = { dto: ReminderDTO; corner: NotifySettings["corner"] };
 export type ReminderAction = { dto: ReminderDTO; action: "done" | "open" | "dismiss" } | { dto: ReminderDTO; action: "snooze"; minutes: number };
 
@@ -142,7 +161,7 @@ export async function initOs() {
 
   if (!isTauri) return startReminders((r) => deliver(r));
 
-  const [{ listen, emit }, { Window, getCurrentWindow, UserAttentionType }, { TrayIcon }, notif, shortcut, autostart, { invoke }] = await Promise.all([
+  const [{ listen: rawListen, emit }, { Window, getCurrentWindow, UserAttentionType }, { TrayIcon }, notif, shortcut, autostart, { invoke }] = await Promise.all([
     import("@tauri-apps/api/event"),
     import("@tauri-apps/api/window"),
     import("@tauri-apps/api/tray"),
@@ -153,10 +172,18 @@ export async function initOs() {
   ]);
   const { getCurrentWebview } = await import("@tauri-apps/api/webview");
   const settings = () => useSettings.getState().settings;
+  // Each step below is independent: one that fails is logged and the rest still run, so a missing
+  // notification daemon or a failed listener can't leave the tray, quick add or agent API unwired.
+  const failed = (what: string) => (err: unknown) => console.error(`${what} failed`, err);
+  const listen: typeof rawListen = (event, handler) => rawListen(event, handler).catch((err) => (failed(`Listening for ${event}`)(err), () => undefined));
 
   // --- notifications -------------------------------------------------------
-  let canNotify = await notif.isPermissionGranted();
-  if (!canNotify) canNotify = (await notif.requestPermission()) === "granted";
+  let canNotify = false; // a failed permission check counts as "not granted"
+  try {
+    canNotify = (await notif.isPermissionGranted()) || (await notif.requestPermission()) === "granted";
+  } catch (err) {
+    failed("Notification permission check")(err);
+  }
   const osNotify = (title: string, body: string) => {
     if (canNotify) notif.sendNotification({ title, body });
   };
@@ -173,7 +200,7 @@ export async function initOs() {
     if (style !== "system") {
       if (sound) playSound("chime", 1);
       // The popup sizes and places itself around its cards.
-      void emit("reminder:show", { dto, corner: notifySettings().corner } satisfies ReminderShow);
+      void emit("reminder:show", { dto, corner: notifySettings().corner } satisfies ReminderShow).catch(failed("Reminder popup"));
     }
   };
   void startReminders((dto) => deliver(dto));
@@ -195,7 +222,7 @@ export async function initOs() {
       context,
       lists: Object.values(lists).filter((l) => !l.archived).sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.name),
       tags: Object.values(tags).map((t) => t.name).sort((a, b) => a.localeCompare(b)),
-    });
+    }).catch(failed("Quick add focus event"));
   };
   // `N` with no inline bar on screen (D70): open the popup pre-filled from the current view.
   window.addEventListener(QUICK_ADD_POPUP_EVENT, () => {
@@ -205,23 +232,38 @@ export async function initOs() {
   /** A global shortcut that can be re-bound from Settings. */
   const binder = (onEvent: (state: "Pressed" | "Released") => void) => {
     let bound: string | null = null;
-    return async (accel: string) => {
-      if (bound) await shortcut.unregister(bound).catch(() => undefined);
-      bound = null;
-      try {
-        await shortcut.register(accel, (e) => onEvent(e.state));
-        bound = accel;
-      } catch (err) {
-        console.error("Global shortcut registration failed", err);
-        toast(`Couldn't register ${keyLabel(accel.replace("CommandOrControl", "Ctrl"))}: another app may be using it. Pick another in Settings.`);
-      }
+    return {
+      bound: () => bound,
+      /** Whether `accel` is now the bound one. */
+      bind: async (accel: string) => {
+        if (accel === bound) return true;
+        try {
+          // Register first: if the new accelerator is refused, the old one stays bound.
+          await shortcut.register(accel, (e) => onEvent(e.state));
+          if (bound) await shortcut.unregister(bound).catch(() => undefined);
+          bound = accel;
+          return true;
+        } catch (err) {
+          console.error("Global shortcut registration failed", err);
+          return false;
+        }
+      },
     };
+  };
+  /** Binds the given shortcuts (see `bindAll`). A refused one keeps its previous accelerator: the setting is put back to it and the user is told. */
+  const rebind = async (entries: [ShortcutKey, ReturnType<typeof binder>][]) => {
+    const failedAt = await bindAll(entries.map(([k, b]) => () => b.bind(settings()[k])));
+    for (const i of failedAt) {
+      const [k, b] = entries[i];
+      toast(`Couldn't register ${keyLabel(settings()[k].replace("CommandOrControl", "Ctrl"))}: another app may be using it. Pick another in Settings.`);
+      const was = b.bound();
+      if (was) useSettings.getState().update({ [k]: was });
+    }
   };
   const onPress = (run: () => void) => binder((state) => state === "Pressed" && run());
   const bindQuickAdd = onPress(() => void showQuickAdd(null));
   const bindMini = onPress(() => void invoke("toggle_mini"));
-  await bindQuickAdd(settings().quickAddShortcut);
-  await bindMini(settings().miniShortcut);
+  await rebind([["quickAddShortcut", bindQuickAdd], ["miniShortcut", bindMini]]);
 
   // --- voice quick-add (D81) -------------------------------------------------
   // Hold the shortcut (or click the popup's mic) to record; Rust transcribes on release. A voice
@@ -229,7 +271,7 @@ export async function initOs() {
   type VoiceState = { kind: "idle" } | { kind: "starting"; then: "keep" | "stop" | "cancel" } | { kind: "recording" } | { kind: "transcribing" };
   let voice: VoiceState = { kind: "idle" };
   const voiceNow = (): VoiceState => voice; // read through a call: the state changes across awaits
-  const toPopup = (e: VoicePopupEvent) => void emit("quickadd:voice", e);
+  const toPopup = (e: VoicePopupEvent) => void emit("quickadd:voice", e).catch(failed("Voice popup event"));
   const runVoiceCommand = async (cmd: Exclude<VoiceCommand, { kind: "complete" }>) => {
     const timer = useFocus.getState().timer;
     const active = timer.status === "running" || timer.status === "paused";
@@ -349,7 +391,7 @@ export async function initOs() {
   await listen("voice:toggle", () => void (voiceNow().kind === "idle" ? startVoice(true) : stopVoice()));
   await listen("voice:cancel", cancelVoice);
   const bindVoice = binder((state) => void (state === "Pressed" ? startVoice(false) : stopVoice()));
-  await bindVoice(settings().voiceShortcut);
+  await rebind([["voiceShortcut", bindVoice]]);
 
   // --- mini window (D80) -----------------------------------------------------
   // It reads a compact snapshot and sends actions back; this window applies them like in-app clicks.
@@ -357,7 +399,7 @@ export async function initOs() {
     const { tasks, lists } = useData.getState();
     const d = derive(tasks, lists);
     const s = settings();
-    void emit("mini:state", buildSnapshot(d.roots, d.byId, useFocus.getState().timer, s.pomodoro, s.matrix, todayLocal(), Date.now()));
+    void emit("mini:state", buildSnapshot(d.roots, d.byId, useFocus.getState().timer, s.pomodoro, s.matrix, todayLocal(), Date.now())).catch(failed("Mini window state"));
   };
   let miniTimer: ReturnType<typeof setTimeout> | undefined;
   const publishMiniSoon = () => {
@@ -403,10 +445,10 @@ export async function initOs() {
     const today = todayLocal();
     for (const view of popViews) {
       const title = view.startsWith("list:") ? (lists[view.slice(5)]?.name ?? "List") : view[0].toUpperCase() + view.slice(1);
-      void emit("pop:state", buildPopState(view, title, d.roots, today));
+      void emit("pop:state", buildPopState(view, title, d.roots, today)).catch(failed("Pop-out state"));
     }
     const left = buildPopState("today", "", d.roots, today, Infinity).tasks;
-    void TrayIcon.getById("momentum").then((t) => t?.setTooltip(trayTooltip(left.length, left[0]?.title ?? null)));
+    void TrayIcon.getById("momentum").then((t) => t?.setTooltip(trayTooltip(left.length, left[0]?.title ?? null))).catch(failed("Tray tooltip"));
   };
   await listen<unknown>("pop:hello", (e) => {
     const v = parsePopView((e.payload as { view?: unknown } | null)?.view);
@@ -431,10 +473,10 @@ export async function initOs() {
     }
   };
   await syncIcon(settings().accent);
-  await getCurrentWebview().setZoom(settings().scale);
+  await getCurrentWebview().setZoom(settings().scale).catch(failed("Zoom"));
 
   // --- close to tray & launch at login -------------------------------------
-  await invoke("set_close_to_tray", { enabled: settings().closeToTray });
+  await invoke("set_close_to_tray", { enabled: settings().closeToTray }).catch(failed("Close to tray"));
   const syncAutostart = async (want: boolean) => {
     try {
       if ((await autostart.isEnabled()) !== want) await (want ? autostart.enable() : autostart.disable());
@@ -448,7 +490,7 @@ export async function initOs() {
   await listen("app:quit", () => void useSettings.getState().flush().catch(console.error).finally(() => void invoke("quit_app")));
 
   // --- AI agents (D264): the localhost API answers through this window; `momentum` stays on PATH if asked ---
-  await initAgentApi();
+  await initAgentApi().catch(failed("Agent API"));
   if (settings().cliOnPath) void invoke("agent_cli_path", { enabled: true }).catch(console.error);
 
   // --- updates (D59) ---------------------------------------------------------
@@ -457,14 +499,13 @@ export async function initOs() {
   useSettings.subscribe((s, prev) => {
     const a = s.settings;
     const b = prev.settings;
-    if (a.quickAddShortcut !== b.quickAddShortcut) void bindQuickAdd(a.quickAddShortcut);
-    if (a.miniShortcut !== b.miniShortcut) void bindMini(a.miniShortcut);
+    const changed = ([["quickAddShortcut", bindQuickAdd], ["miniShortcut", bindMini], ["voiceShortcut", bindVoice]] as [ShortcutKey, ReturnType<typeof binder>][]).filter(([k]) => a[k] !== b[k]);
+    if (changed.length) void rebind(changed);
     if (a.pomodoro !== b.pomodoro || a.matrix !== b.matrix) publishMiniSoon();
-    if (a.voiceShortcut !== b.voiceShortcut) void bindVoice(a.voiceShortcut);
-    if (a.closeToTray !== b.closeToTray) void invoke("set_close_to_tray", { enabled: a.closeToTray });
+    if (a.closeToTray !== b.closeToTray) void invoke("set_close_to_tray", { enabled: a.closeToTray }).catch(failed("Close to tray"));
     if (a.cliOnPath !== b.cliOnPath) void invoke("agent_cli_path", { enabled: a.cliOnPath }).catch((e) => toast(`Couldn't change PATH: ${String(e)}`));
     if (a.launchAtStartup !== b.launchAtStartup) void syncAutostart(a.launchAtStartup);
     if (a.accent !== b.accent) void syncIcon(a.accent);
-    if (a.scale !== b.scale) void getCurrentWebview().setZoom(a.scale);
+    if (a.scale !== b.scale) void getCurrentWebview().setZoom(a.scale).catch(failed("Zoom"));
   });
 }

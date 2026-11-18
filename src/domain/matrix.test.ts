@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atLocalTime, timed, wallKey } from "./dates";
+import { atLocalTime, setDayEndHour, timed, wallKey } from "./dates";
 import { DEFAULT_RULES, patchForQuadrant, quadrantOf, type MatrixRules, type Quadrant } from "./matrix";
 import { toVM, type TaskVM } from "./taskViews";
 import type { Priority, Schedule, Task } from "./types";
@@ -35,6 +35,20 @@ function vm(priority: Priority, schedule: Schedule = { kind: "none" }): TaskVM {
 }
 const day = (date: string): Schedule => ({ kind: "day", date });
 const q = (v: TaskVM, r: MatrixRules = DEFAULT_RULES) => quadrantOf(v, TODAY, r);
+
+describe("end-of-day hour", () => {
+  it("a block at 01:00 tomorrow is due today for the Matrix", () => {
+    const r: MatrixRules = { importantPriorities: [3], urgentDays: 0 };
+    const night = vm(3, timed(atLocalTime("2026-10-26", "01:00"), 30));
+    expect(q(night, r)).toBe(2);
+    setDayEndHour(3);
+    try {
+      expect(q(night, r)).toBe(1);
+    } finally {
+      setDayEndHour(0);
+    }
+  });
+});
 
 describe("quadrantOf (default rules: important = medium/high, urgent = due within 2 days or overdue)", () => {
   it("classifies the four combinations", () => {

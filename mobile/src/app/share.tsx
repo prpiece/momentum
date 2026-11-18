@@ -59,12 +59,12 @@ export default function ShareScreen() {
   const leave = () =>
     Alert.alert(`Leave “${name}”?`, "Its tasks leave your phone on the next sync.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Leave", style: "destructive", onPress: async () => (await run(() => act(() => api.removeMember(share.shareId, me), true)) !== undefined) && router.back() },
+      { text: "Leave", style: "destructive", onPress: async () => (await run(() => act(() => api.removeMember(share.shareId, me).then(() => true), true))) && router.back() },
     ]);
   const stop = () =>
     Alert.alert(`Stop sharing “${name}”?`, "Everyone else loses access. Your tasks stay.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Stop sharing", style: "destructive", onPress: async () => (await run(() => act(() => api.deleteShare(share.shareId), true)) !== undefined) && router.back() },
+      { text: "Stop sharing", style: "destructive", onPress: async () => (await run(() => act(() => api.deleteShare(share.shareId).then(() => true), true))) && router.back() },
     ]);
   const chooseRole = (title: string) =>
     choose<"editor" | "viewer">(title, [

@@ -185,3 +185,22 @@ describe("SOC-10: report limits", () => {
     expect((await report()).error?.message).toContain("too_many_reports");
   }, 60_000);
 });
+
+describe("share_members and shares policies (20261118060000)", () => {
+  it("pending invitees are visible only to the owner and themselves", async () => {
+    const [o, m, inv, inv2] = await Promise.all([user(), user(), user(), user()]);
+    for (const x of [m, inv, inv2]) await rpc(x.db, "redeem_invite", { p_code: await rpc<string>(o.db, "create_friend_invite") });
+    const { share } = await sharedList(o, [{ u: m, role: "editor" }]);
+    for (const x of [inv, inv2]) await rpc(o.db, "invite_to_share", { p_share: share, p_friend: x.id, p_role: "viewer" });
+    const ids = async (u: User) =>
+      ((await u.db.from("share_members").select("account_id").eq("share_id", share)).data ?? []).map((r) => r.account_id as string).sort();
+    expect(await ids(o)).toEqual([o.id, m.id, inv.id, inv2.id].sort());
+    expect(await ids(m)).toEqual([o.id, m.id].sort());
+    expect(await ids(inv)).toEqual([inv.id]);
+    // An invitee can't read the share row before accepting; accepting opens it.
+    expect((await inv.db.from("shares").select("id").eq("id", share)).data).toEqual([]);
+    await rpc(inv.db, "respond_share", { p_share: share, p_accept: true });
+    expect((await inv.db.from("shares").select("id").eq("id", share)).data).toEqual([{ id: share }]);
+    expect(await ids(inv)).toEqual([o.id, m.id, inv.id].sort());
+  });
+});

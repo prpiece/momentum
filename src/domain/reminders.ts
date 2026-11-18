@@ -2,7 +2,7 @@ import { calendarItems, type CalItem } from "./calendar";
 import { addDaysLocal, atLocalTime, formatTime, relativeDayLabel, scheduleDate, toLocalDate } from "./dates";
 import { occurrencesBetween } from "./recurrence";
 import { currentStreak, isBuild, isDone, isDueToday, streakAtRiskOn, type CheckinMap, type Habit } from "./habits";
-import type { TaskVM } from "./taskViews";
+import { dayOf, type TaskVM } from "./taskViews";
 import type { CalendarEvent, Reminder, Schedule, Settings, WeekStart } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -136,9 +136,10 @@ export function digestBetween(tasks: readonly TaskVM[], time: string, from: Date
     let due = 0;
     let overdue = 0;
     for (const vm of tasks) {
-      if (vm.task.status !== "open" || !vm.date) continue;
-      if (vm.date === d) due++;
-      else if (vm.date < d) overdue++;
+      const day = dayOf(vm);
+      if (vm.task.status !== "open" || !day) continue;
+      if (day === d) due++;
+      else if (day < d) overdue++;
     }
     if (!due && !overdue) continue;
     const parts = [due && `${due} due today`, overdue && `${overdue} overdue`].filter(Boolean);

@@ -2,7 +2,7 @@ import { relativeDayLabel, toLocalDate, todayLocal } from "../domain/dates";
 import { nameKey } from "../domain/fuzzy";
 import { defaultReminders, parseQuickAdd, withDefaults, type InputOrigin } from "../domain/quickAdd";
 import type { Task } from "../domain/types";
-import { addTask, ensureTags, useData, type NewTask } from "./data";
+import { addTask, ensureTags, mayEdit, useData, type NewTask } from "./data";
 import { trackDone, useSettings } from "./settings";
 import { toast } from "./toast";
 
@@ -35,6 +35,8 @@ export function createFromText(
   const nd = useSettings.getState().settings.taskDefaults;
   const defaultList = nd.listId && lists[nd.listId] && !lists[nd.listId].archived ? nd.listId : undefined;
   const listId = defaults.parentId ? defaults.listId : (p.listName && listByName(p.listName)?.id) || defaults.listId || defaultList;
+  // The final list, whichever way it was chosen (`~List`, the view, a default): the store drops writes to a view-only one.
+  if (listId && !mayEdit(listId)) return null;
   const resolved = withDefaults(p, { schedule: defaults.schedule, priority: defaults.priority ?? (nd.priority || undefined) });
   const reminders = defaults.reminders?.length ? [] : defaultReminders(resolved.schedule ?? { kind: "none" }, nd.reminderMin);
   const t = addTask({

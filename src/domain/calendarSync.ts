@@ -156,7 +156,10 @@ function toGoogleRecurrence(e: CalendarEvent, zone: string, tz: string, instance
 /** A Momentum event as a Google event body (insert or patch). An edited instance never carries `recurrence`. */
 export function toGoogle(e: CalendarEvent, tz: string, instanceKeys: ReadonlySet<string> = new Set()): Record<string, unknown> {
   const ruleZone = e.recurrence && /^DTSTART;TZID=([^:\n]+):/.exec(e.recurrence.rule)?.[1];
-  const zone = ruleZone && isZone(ruleZone) ? ruleZone : tz;
+  // A floating series keeps the zone its wall clock was written in (D347), so its exdate keys read in that zone too.
+  const own = e.recurrence?.tz;
+  const seriesTz = own && isZone(own) ? own : tz;
+  const zone = ruleZone && isZone(ruleZone) ? ruleZone : seriesTz;
   const s = e.schedule;
   const time =
     s.kind === "day"
@@ -168,7 +171,7 @@ export function toGoogle(e: CalendarEvent, tz: string, instanceKeys: ReadonlySet
     summary: e.title,
     description: e.notes,
     ...time,
-    ...(e.recurrenceParentId && e.link?.externalId ? {} : { recurrence: toGoogleRecurrence(e, zone, tz, instanceKeys) }),
+    ...(e.recurrenceParentId && e.link?.externalId ? {} : { recurrence: toGoogleRecurrence(e, zone, seriesTz, instanceKeys) }),
   };
 }
 

@@ -13,9 +13,10 @@ function payloadOf(taskId: string): SentPayload | null {
   const t = tasks[taskId];
   if (!t) return null;
   const subtasks = Object.values(tasks)
-    .filter((x) => x.parentId === taskId && !x.deletedAt)
+    .filter((x) => x.parentId === taskId && !x.deletedAt && x.title.trim())
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((x) => ({ title: x.title }));
+    .slice(0, 50) // the server takes up to 50 and titles up to 500 characters
+    .map((x) => ({ title: Array.from(x.title).slice(0, 500).join("") }));
   return {
     title: t.title,
     ...(t.description.trim() ? { description: t.description } : {}),

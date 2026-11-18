@@ -73,6 +73,10 @@ const MESSAGES: Record<string, string> = {
   no_such_task: "That task isn't shared with you any more.",
   too_many_comments: "That's a lot of comments. Try again later.",
   bad_value: "That change has a value the app can't use.",
+  bad_subtask: "One of the subtasks has a title or note the server can't take.",
+  bad_checklist: "A checklist can hold up to 100 items.",
+  too_many_subtasks: "A task can be sent with up to 50 subtasks.",
+  bad_due_date: "That due date isn't one the server can take.",
 };
 /** What each server call does, for "Couldn't …" toasts (D289). */
 const WHAT: Record<string, string> = {

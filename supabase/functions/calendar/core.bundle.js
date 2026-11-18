@@ -2975,7 +2975,9 @@ function toGoogleRecurrence(e, zone, tz, instanceKeys) {
 /** A Momentum event as a Google event body (insert or patch). An edited instance never carries `recurrence`. */
 function toGoogle(e, tz, instanceKeys = /* @__PURE__ */ new Set()) {
 	const ruleZone = e.recurrence && /^DTSTART;TZID=([^:\n]+):/.exec(e.recurrence.rule)?.[1];
-	const zone = ruleZone && isZone(ruleZone) ? ruleZone : tz;
+	const own = e.recurrence?.tz;
+	const seriesTz = own && isZone(own) ? own : tz;
+	const zone = ruleZone && isZone(ruleZone) ? ruleZone : seriesTz;
 	const s = e.schedule;
 	const time = s.kind === "day" ? {
 		start: { date: s.date },
@@ -2994,7 +2996,7 @@ function toGoogle(e, tz, instanceKeys = /* @__PURE__ */ new Set()) {
 		summary: e.title,
 		description: e.notes,
 		...time,
-		...e.recurrenceParentId && e.link?.externalId ? {} : { recurrence: toGoogleRecurrence(e, zone, tz, instanceKeys) }
+		...e.recurrenceParentId && e.link?.externalId ? {} : { recurrence: toGoogleRecurrence(e, zone, seriesTz, instanceKeys) }
 	};
 }
 /** Graph's `{ dateTime: "2026-11-17T15:00:00.0000000", timeZone }` as an instant (UTC, or an IANA zone), plus its wall date. */

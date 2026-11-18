@@ -6,6 +6,7 @@ import { after, before, reorder as reorderItems } from "../domain/order";
 import { detachOccurrence, effective, missedKeys, shiftSeries, splitSeries } from "../domain/recurrence";
 import { scheduleDate } from "../domain/dates";
 import { waitLoops } from "../domain/waiting";
+import { keepEdited, serially } from "./keepEdited";
 import { toast } from "./toast";
 import {
   INBOX_ID,
@@ -64,6 +65,8 @@ const set = useData.setState;
 let canEditList: (listId: string) => boolean = () => true;
 export const setEditGuard = (fn: (listId: string) => boolean) => void (canEditList = fn);
 const viewOnlyToast = () => toast("This list is shared with you as view-only.");
+/** Quiet check for pickers: whether the user may change a list (no toast). */
+export const canEdit = (listId: string) => canEditList(listId);
 /** For UI paths that create (a new section) rather than change a row: true, or says why not. */
 export function mayEdit(listId: string): boolean {
   if (!canEditList(listId)) viewOnlyToast();
@@ -193,28 +196,24 @@ const siblings = (listId: string, parentId: string | null) =>
 
 // ---------- hydrate ----------
 
-/** Rows edited while the load was reading keep their store version: the read can't have seen those edits (SYNC-14). */
-const keepEdited = <T,>(loaded: ById<T>, then: ById<T>, now: ById<T>): ById<T> => {
-  for (const id of Object.keys(now)) if (now[id] !== then[id]) loaded[id] = now[id];
-  return loaded;
-};
-
-export async function hydrate(purge = true) {
+async function load(purge = true) {
   reloadOnWriteError();
-  const [tasksThen, eventsThen] = [get().tasks, get().events];
+  const then = get();
   const ws = await repo.loadWorkspace(purge);
-  const lists = byId(ws.lists);
+  const now = get();
+  const lists = keepEdited(byId(ws.lists), then.lists, now.lists);
   lists[INBOX_ID] ??= INBOX;
   set({
     ready: true,
-    tasks: keepEdited(byId(ws.tasks), tasksThen, get().tasks),
-    events: keepEdited(byId(ws.events), eventsThen, get().events),
+    tasks: keepEdited(byId(ws.tasks), then.tasks, now.tasks),
+    events: keepEdited(byId(ws.events), then.events, now.events),
     lists,
-    folders: byId(ws.folders),
-    sections: byId(ws.sections),
-    tags: byId(ws.tags),
+    folders: keepEdited(byId(ws.folders), then.folders, now.folders),
+    sections: keepEdited(byId(ws.sections), then.sections, now.sections),
+    tags: keepEdited(byId(ws.tags), then.tags, now.tags),
   });
 }
+export const hydrate = serially(load);
 
 // A write the database refused (UNIQUE, CHECK, disk full) must not leave the UI showing a state that will vanish at restart (DATA-11).
 let reloading = false;
@@ -289,7 +288,13 @@ export function updateTask(id: string, patch: Partial<Task>) {
     // Subtasks travel with their parent; a moved subtask leaves its parent behind.
     if (patch.parentId === undefined && t.parentId && get().tasks[t.parentId]?.listId !== patch.listId) next.parentId = null;
     next.sectionId = patch.sectionId ?? null;
-    for (const d of descendants(id)) changed.push({ ...d, listId: patch.listId, sectionId: null, updatedAt: now() });
+    // Build on any inherited copy already in `changed`, so the move doesn't discard it (one write per subtask).
+    for (const d of descendants(id)) {
+      const i = changed.findIndex((c) => c.id === d.id);
+      const moved = { ...(changed[i] ?? d), listId: patch.listId, sectionId: null, updatedAt: now() };
+      if (i < 0) changed.push(moved);
+      else changed[i] = moved;
+    }
   }
   if (patch.title !== undefined && patch.title !== t.title) log(id, "renamed", patch.title);
   if (patch.priority !== undefined && patch.priority !== t.priority) log(id, "priority", PRIORITY_LABEL[patch.priority]);

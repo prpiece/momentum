@@ -19,10 +19,13 @@ const sb = vi.hoisted(() => {
     rpc: (async () => ({ data: null, error: null })) as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>,
     client: {} as Record<string, unknown>,
     chan,
+    upserts: [] as { table: string; row: Record<string, unknown> }[],
+    upsertError: null as unknown,
   };
 });
 sb.client.rpc = (name: string, args: Record<string, unknown>) => sb.rpc(name, args);
-sb.client.from = () => ({
+sb.client.from = (table: string) => ({
+  upsert: async (row: Record<string, unknown>) => (sb.upserts.push({ table, row }), { error: sb.upsertError }),
   select: () => ({ maybeSingle: async () => ({ data: null }) }),
   update: () => ({ eq: () => ({ select: async () => ({ data: [{ id: "x" }], error: null }) }) }),
 });
@@ -46,6 +49,8 @@ beforeEach(() => {
   };
   setDriver(async () => d);
   sb.handlers.clear();
+  sb.upserts.length = 0;
+  sb.upsertError = null;
   sb.rpc = async (name, args) => (name === "sync_push" ? { data: { last_seq: maxSeq(args), refused: [] }, error: null } : { data: [], error: null });
 });
 
@@ -315,5 +320,207 @@ describe("SYNC-19/11: the outbox is coalesced, and each patch says when it was e
     expect(rows).toHaveLength(2);
     expect(rows[0].seq).toBe(sent);
     expect(JSON.parse(rows[1].fields)).toMatchObject({ title: "v20" });
+  });
+});
+
+describe("parent loops already in the database", () => {
+  it("are repaired by the first sync of a session even when nothing arrives, once, and pushed", async () => {
+    signedIn();
+    const ins = db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at, parent_id) VALUES (?, 'T', 'inbox', 'open', 0, 0, ?, ?, ?)");
+    ins.run("x", at, at, null);
+    ins.run("y", at, at, "x");
+    db.prepare("UPDATE tasks SET parent_id = 'y' WHERE id = 'x'").run();
+    db.exec("DELETE FROM sync_outbox");
+    const sent: { row_id?: string; fields?: Record<string, unknown> }[] = [];
+    sb.rpc = async (name, args) => {
+      if (name !== "sync_push") return { data: [], error: null };
+      sent.push(...(args.p_patches as typeof sent));
+      return { data: { last_seq: maxSeq(args), refused: [] }, error: null };
+    };
+    await engine.startSync();
+    await engine.syncNow();
+    expect(db.prepare("SELECT id, parent_id FROM tasks ORDER BY id").all()).toEqual([{ id: "x", parent_id: null }, { id: "y", parent_id: "x" }]);
+    expect(JSON.stringify(sent)).toContain("parent_id");
+    const n = sent.length;
+    await engine.syncNow();
+    expect(sent.length).toBe(n);
+    await stopSync();
+  });
+});
+
+describe("repairing parent loops, in the sync run", () => {
+  const loop = () => {
+    const ins = db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at, parent_id) VALUES (?, 'T', 'inbox', 'open', 0, 0, ?, ?, ?)");
+    ins.run("x", at, at, null);
+    ins.run("y", at, at, "x");
+    db.prepare("UPDATE tasks SET parent_id = 'y' WHERE id = 'x'").run();
+    db.exec("DELETE FROM sync_outbox");
+  };
+  const parents = () => db.prepare("SELECT id, parent_id FROM tasks ORDER BY id").all();
+  it("pushes the break in the same run", async () => {
+    signedIn();
+    loop();
+    const sent: unknown[] = [];
+    sb.rpc = async (name, args) => {
+      if (name !== "sync_push") return { data: [], error: null };
+      sent.push(...(args.p_patches as unknown[]));
+      return { data: { last_seq: maxSeq(args), refused: [] }, error: null };
+    };
+    await engine.syncNow();
+    expect(parents()).toEqual([{ id: "x", parent_id: null }, { id: "y", parent_id: "x" }]);
+    expect(JSON.stringify(sent)).toContain("parent_id");
+    expect(count("SELECT count(*) AS n FROM sync_outbox")).toBe(0);
+    await stopSync();
+  });
+  it("is not marked done for the next account when sign-out lands during an empty pull", async () => {
+    signedIn();
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    let pulling!: () => void;
+    const started = new Promise<void>((r) => (pulling = r));
+    sb.rpc = async (name, args) => {
+      if (name === "sync_push") return { data: { last_seq: maxSeq(args), refused: [] }, error: null };
+      pulling();
+      await held;
+      return { data: [], error: null };
+    };
+    const run = engine.syncNow();
+    await started;
+    await engine.signOut("remove");
+    release();
+    await run;
+    sb.rpc = async (name, args) => (name === "sync_push" ? { data: { last_seq: maxSeq(args), refused: [] }, error: null } : { data: [], error: null });
+    signedIn();
+    loop();
+    await engine.syncNow();
+    expect(parents()).toEqual([{ id: "x", parent_id: null }, { id: "y", parent_id: "x" }]);
+    await stopSync();
+  });
+});
+
+describe("B4: a push that outlives its account", () => {
+  it("sends no patch of the old account after sign-out, even with batches left", async () => {
+    signedIn();
+    const ins = db.prepare("INSERT INTO tasks (id, title, list_id, status, priority, sort_order, created_at, updated_at) VALUES (?, 'T', 'inbox', 'open', 0, 0, ?, ?)");
+    for (let i = 0; i < 700; i++) ins.run(`t${i}`, at, at); // two batches of at most 500
+    const calls: string[] = [];
+    sb.rpc = async (name, args) => {
+      if (name !== "sync_push") return { data: [], error: null };
+      calls.push(name);
+      await engine.signOut("remove"); // the user switches account while the first batch is on the wire
+      return { data: { last_seq: maxSeq(args), refused: [] }, error: null };
+    };
+    await engine.syncNow();
+    expect(calls).toHaveLength(1);
+    expect(count("SELECT count(*) AS n FROM sync_outbox")).toBe(0);
+  });
+});
+
+describe("A7: more failing rows than the retry list holds", () => {
+  it("loses none: the cursor waits for the overflow, and every row lands once what it needs arrives", async () => {
+    signedIn();
+    const N = 650;
+    const server: { tbl: string; id: string; version: number; data: Record<string, unknown> }[] = [];
+    for (let i = 0; i < N; i++) {
+      const date = new Date(Date.UTC(2020, 0, 1 + i)).toISOString().slice(0, 10);
+      server.push({ tbl: "habit_checkins", id: `h1|${date}`, version: i + 1, data: { habit_id: "h1", date, value: 1, deleted_at: null } });
+    }
+    sb.rpc = async (name, args) =>
+      name === "sync_push"
+        ? { data: { last_seq: maxSeq(args), refused: [] }, error: null }
+        : { data: server.filter((r) => r.version > Number(args.p_cursor)), error: null };
+    await engine.syncNow(); // no habit h1 yet: every row fails
+    expect(count("SELECT count(*) AS n FROM habit_checkins")).toBe(0);
+    expect(JSON.parse(st("retry") ?? "[]")).toHaveLength(500);
+    expect(Number(st("cursor"))).toBeLessThan(151); // before the oldest dropped row
+    await engine.syncNow(); // still failing: no growth, and no new issue per row
+    server.push({ tbl: "habits", id: "h1", version: N + 1, data: { id: "h1", name: "Run", start_date: "2025-01-01", created_at: at, deleted_at: null } });
+    await engine.syncNow();
+    await engine.syncNow();
+    expect(count("SELECT count(*) AS n FROM habit_checkins")).toBe(N);
+    expect(JSON.parse(st("retry") ?? "[]")).toEqual([]);
+    expect(Number(st("cursor"))).toBe(N + 1);
+    await stopSync();
+  });
+});
+
+describe("B6: replaying under a new device id", () => {
+  it("never counts a check-in increment twice, and still lands one the server hadn't seen", async () => {
+    signedIn();
+    db.prepare("INSERT INTO habits (id, name, start_date, created_at) VALUES ('h1', 'Run', '2026-11-01', ?)").run(at);
+    db.exec("DELETE FROM sync_outbox");
+    const add = db.prepare("INSERT INTO habit_checkins (habit_id, date, value) VALUES ('h1', ?, ?)");
+    add.run("2026-11-01", 3); // the original database pushed this one already
+    add.run("2026-11-02", 2); // the copy's own edit, which the server never saw
+    const server = new Map<string, number>([["h1|2026-11-01", 3]]);
+    sb.rpc = async (name, args) => {
+      if (name !== "sync_push") return { data: [], error: null };
+      // The old device id is "ahead": its seqs are taken, so those patches are skipped.
+      if (args.p_device === "d1") return { data: { last_seq: 500, refused: [] }, error: null };
+      for (const p of args.p_patches as { id: string; fields: { _delta?: number; value?: number } }[]) {
+        if (p.fields._delta != null) server.set(p.id, (server.get(p.id) ?? 0) + p.fields._delta);
+        if (p.fields.value != null) server.set(p.id, p.fields.value);
+      }
+      return { data: { last_seq: maxSeq(args), refused: [] }, error: null };
+    };
+    await engine.syncNow();
+    expect(Object.fromEntries(server)).toEqual({ "h1|2026-11-01": 3, "h1|2026-11-02": 2 });
+    expect(count("SELECT count(*) AS n FROM sync_outbox")).toBe(0);
+    await stopSync();
+  });
+});
+
+describe("TIME-04: profiles.time_zone follows the device", () => {
+  const zones = () => sb.upserts.filter((u) => u.table === "profiles").map((u) => u.row);
+  it("writes the device zone once per launch, retries after a failure, and starts over after sign-out", async () => {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    signedIn();
+    sb.upsertError = { message: "offline" };
+    await engine.startSync();
+    await engine.syncNow();
+    expect(zones().length).toBeGreaterThan(0); // failed: tried
+    expect(zones()[0]).toEqual({ id: "A", time_zone: zone });
+    sb.upsertError = null;
+    await engine.syncNow();
+    const n = zones().length;
+    await engine.syncNow();
+    await engine.syncNow();
+    expect(zones()).toHaveLength(n); // written once it succeeded: no write on later syncs
+    await engine.signOut("keep");
+    signedIn();
+    await engine.startSync();
+    await engine.syncNow();
+    expect(zones().length).toBeGreaterThan(n); // a new sign-in writes again
+    await stopSync();
+  });
+
+  it("a sign-out during the upsert doesn't mark the zone written for the next account", async () => {
+    signedIn();
+    await engine.startSync();
+    await engine.syncNow();
+    await engine.signOut("keep");
+    const before = zones().length;
+    await engine.syncNow();
+    expect(zones()).toHaveLength(before); // signed out: nothing written
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const from = sb.client.from as (t: string) => { upsert: (row: Record<string, unknown>) => Promise<unknown> };
+    sb.client.from = (t: string) => ({ ...from(t), upsert: async (row: Record<string, unknown>) => (await gate, from(t).upsert(row)) });
+    signedIn();
+    sb.upserts.length = 0;
+    await engine.startSync();
+    const run = engine.syncNow();
+    await vi.waitFor(() => expect(engine.useSync.getState().status.kind).toBe("syncing"));
+    await new Promise((r) => setTimeout(r, 20));
+    const out = engine.signOut("keep"); // lands while the upsert waits
+    release();
+    await Promise.all([run, out]);
+    sb.client.from = from;
+    sb.upserts.length = 0;
+    signedIn();
+    await engine.startSync();
+    await engine.syncNow();
+    expect(zones().length).toBeGreaterThan(0);
+    await stopSync();
   });
 });

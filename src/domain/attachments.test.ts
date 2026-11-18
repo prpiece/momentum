@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attachmentRefs, imageType, staleAttachments, toUpload, uploadOutcome } from "./attachments";
+import { attachmentRefs, imageType, isAttachmentName, staleAttachments, toUpload, uploadOutcome } from "./attachments";
 
 describe("attachmentRefs", () => {
   it("finds every attachment: image reference across notes", () => {
@@ -42,4 +42,23 @@ describe("note image uploads (D291)", () => {
     expect(uploadOutcome({ statusCode: "403", message: "new row violates row-level security policy" })).toBe("retry");
     expect(uploadOutcome({ message: "Failed to fetch" })).toBe("retry");
   });
+});
+
+describe("isAttachmentName", () => {
+  it.each([
+    ["a.png", true],
+    ["0b1c-2d_E.pdf", true],
+    ["photo.PNG", true],
+    ["a".repeat(64) + ".png", true],
+    ["a".repeat(65) + ".png", false],
+    ["../x.png", false],
+    ["a/b.png", false],
+    ["..\\x.png", false],
+    ["x.png\n", false],
+    ["é.png", false],
+    ["", false],
+    [".png", false],
+    ["noext", false],
+    ["a.b.png", false],
+  ])("%j -> %s", (name, ok) => expect(isAttachmentName(name)).toBe(ok));
 });
